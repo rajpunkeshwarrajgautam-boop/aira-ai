@@ -1,0 +1,9 @@
+Datasource "db": PostgreSQL database "postgres", schema "public" at "aws-1-ap-south-1.pooler.supabase.com:5432"
+
+Your database is now in sync with your Prisma schema. Done in 1.56s
+
+
+--- STDERR ---
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma\schema.prisma.

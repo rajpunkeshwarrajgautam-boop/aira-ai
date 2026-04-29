@@ -1,0 +1,234 @@
+// Auth models follow Auth.js Prisma adapter (PostgreSQL)
+// https://authjs.dev/getting-started/adapters/prisma
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BillingPlan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  UNPAID
+  PAUSED
+}
+
+enum AnalyticsEventType {
+  VISITOR_LANDED
+  SIGNUP_COMPLETED
+  SEARCH_STANDARD
+  SEARCH_DEEP
+  SHARE_CREATED
+  UPGRADE_CHECKOUT_STARTED
+  UPGRADE_COMPLETED
+  QUOTA_EXCEEDED
+  PLAN_REQUIRED
+  SEARCH_ERROR
+  ERROR_EVENT
+}
+
+model User {
+  id                  String                 @id @default(cuid())
+  name                String?
+  email               String?                @unique
+  emailVerified       DateTime?
+  image               String?
+  /** E.164 or local digits — required for Cashfree subscription checkout when absent. */
+  billingPhone        String?
+  billingPlan         BillingPlan            @default(FREE)
+  accounts            Account[]
+  sessions            Session[]
+  billingSubscription BillingSubscription?
+  usageRecords        UsageRecord[]
+  conversations       Conversation[]
+  researchHistory     ResearchHistory[]
+}
+
+enum ConversationMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// Cashfree-backed subscription (one per user). Merchant `subscription_id` is unique per checkout.
+model BillingSubscription {
+  id                       String              @id @default(cuid())
+  userId                   String              @unique
+  user                     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Cashfree `cf_subscription_id` (numeric string). */
+  cfSubscriptionId         String              @unique
+  /** Merchant reference passed to Cashfree `subscription_id`. */
+  merchantSubscriptionId   String              @unique
+  /** Cashfree dashboard `plan_id`. */
+  cashfreePlanId           String
+  plan                     BillingPlan
+  status                   SubscriptionStatus
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelAtPeriodEnd        Boolean             @default(false)
+  teamSeats                Int                 @default(1)
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+}
+
+/// Monthly search usage (UTC calendar month), enforced per billing user.
+model UsageRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  searches    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, periodStart])
+}
+
+/// Cashfree PG webhook idempotency (SHA-256 hex of raw body after signature verification).
+model ProcessedCashfreeWebhook {
+  id          String   @id
+  receivedAt  DateTime @default(now())
+}
+
+model Conversation {
+  id            String                @id @default(cuid())
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  archivedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  lastMessageAt DateTime              @default(now())
+  messages      ConversationMessage[]
+  researchLogs  ResearchHistory[]
+
+  @@index([userId, lastMessageAt(sort: Desc)])
+}
+
+model ConversationMessage {
+  id               String                  @id @default(cuid())
+  conversationId   String
+  conversation     Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId           String
+  role             ConversationMessageRole
+  content          String                  @db.Text
+  parentMessageId  String?
+  parentMessage    ConversationMessage?    @relation("ConversationMessageThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  childMessages    ConversationMessage[]   @relation("ConversationMessageThread")
+  citations        Json?
+  metadata         Json?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  researchLogs     ResearchHistory[]
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, parentMessageId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model ResearchHistory {
+  id                String               @id @default(cuid())
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId    String?
+  conversation      Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  messageId         String?
+  message           ConversationMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  query             String
+  normalizedQuery   String
+  assistantAnswer   String               @db.Text
+  citationCount     Int                  @default(0)
+  citations         Json?
+  exaRequestId      String?
+  exaSearchType     String?
+  /** Opaque token used for public share pages. Must never be guessable. */
+  publicShareToken String?               @unique
+  createdAt         DateTime             @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([normalizedQuery, createdAt(sort: Desc)])
+}
+
+model AnalyticsVisitorState {
+  anonymousId String   @id
+  firstLandedAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AnalyticsSignupState {
+  userId String @id
+  anonymousId String?
+  signupAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AnalyticsEvent {
+  id String @id @default(cuid())
+  type AnalyticsEventType
+  /** UTC day boundary for fast day-level aggregation. */
+  eventDay DateTime
+  createdAt DateTime @default(now())
+
+  anonymousId String?
+  userId String?
+  plan BillingPlan?
+  metadata Json?
+
+  @@index([eventDay])
+  @@index([type, eventDay])
+  @@index([anonymousId, eventDay])
+  @@index([userId, eventDay])
+}
