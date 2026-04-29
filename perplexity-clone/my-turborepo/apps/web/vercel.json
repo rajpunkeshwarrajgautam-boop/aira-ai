@@ -1,5 +1,5 @@
 {
-  "installCommand": "cd ../.. && corepack prepare pnpm@9.15.4 --activate && pnpm install",
-  "buildCommand": "cd ../.. && corepack prepare pnpm@9.15.4 --activate && pnpm turbo run build --filter=web",
+  "installCommand": "cd ../.. && unset HTTP_PROXY HTTPS_PROXY ALL_PROXY && corepack prepare pnpm@9.15.4 --activate && pnpm install",
+  "buildCommand": "cd ../.. && unset HTTP_PROXY HTTPS_PROXY ALL_PROXY && corepack prepare pnpm@9.15.4 --activate && pnpm turbo run build --filter=web",
   "framework": "nextjs"
 }
