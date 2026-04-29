@@ -1,3 +1,7 @@
+packages:
+  - "perplexity-clone/my-turborepo/apps/*"
+  - "perplexity-clone/my-turborepo/packages/*"
+
 onlyBuiltDependencies:
   - '@prisma/engines'
   - prisma
