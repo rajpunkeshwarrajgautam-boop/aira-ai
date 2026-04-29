@@ -1,5 +1,0 @@
-{
-  "installCommand": "cd ../.. && unset HTTP_PROXY HTTPS_PROXY ALL_PROXY && corepack prepare pnpm@8.15.8 --activate && pnpm install",
-  "buildCommand": "cd ../.. && unset HTTP_PROXY HTTPS_PROXY ALL_PROXY && corepack prepare pnpm@8.15.8 --activate && pnpm turbo run build --filter=web",
-  "framework": "nextjs"
-}
