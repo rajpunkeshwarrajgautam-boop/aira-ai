@@ -2,10 +2,20 @@ import type { NextAuthConfig } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 
-const googleEnabled =
-	!!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
-const githubEnabled =
-	!!process.env.GITHUB_CLIENT_ID && !!process.env.GITHUB_CLIENT_SECRET;
+import {
+	githubClientId,
+	githubClientSecret,
+	googleClientId,
+	googleClientSecret,
+} from "./lib/oauth-env";
+
+const resolvedGoogleClientId = googleClientId();
+const resolvedGoogleClientSecret = googleClientSecret();
+const resolvedGitHubClientId = githubClientId();
+const resolvedGitHubClientSecret = githubClientSecret();
+
+const googleEnabled = !!resolvedGoogleClientId && !!resolvedGoogleClientSecret;
+const githubEnabled = !!resolvedGitHubClientId && !!resolvedGitHubClientSecret;
 
 /**
  * Edge-safe auth configuration (no Prisma). Used by middleware JWT validation.
@@ -16,8 +26,8 @@ export const authConfig = {
 		...(googleEnabled
 			? [
 					Google({
-						clientId: process.env.GOOGLE_CLIENT_ID!,
-						clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+						clientId: resolvedGoogleClientId!,
+						clientSecret: resolvedGoogleClientSecret!,
 						allowDangerousEmailAccountLinking: false,
 					}),
 				]
@@ -25,8 +35,8 @@ export const authConfig = {
 		...(githubEnabled
 			? [
 					GitHub({
-						clientId: process.env.GITHUB_CLIENT_ID!,
-						clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+						clientId: resolvedGitHubClientId!,
+						clientSecret: resolvedGitHubClientSecret!,
 						allowDangerousEmailAccountLinking: false,
 					}),
 				]

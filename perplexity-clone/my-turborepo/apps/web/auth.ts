@@ -2,6 +2,12 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 
 import { authConfig } from "./auth.config";
+import {
+	githubClientId,
+	githubClientSecret,
+	googleClientId,
+	googleClientSecret,
+} from "./lib/oauth-env";
 import { prisma } from "./lib/prisma";
 
 const resolvedSecret =
@@ -29,8 +35,51 @@ if (
 	);
 }
 
+const authDiagnostics = {
+	googleClientIdExists: !!googleClientId(),
+	googleClientIdLength: googleClientId()?.length ?? 0,
+	googleClientSecretExists: !!googleClientSecret(),
+	googleClientSecretLength: googleClientSecret()?.length ?? 0,
+	githubClientIdExists: !!githubClientId(),
+	githubClientIdLength: githubClientId()?.length ?? 0,
+	githubClientSecretExists: !!githubClientSecret(),
+	githubClientSecretLength: githubClientSecret()?.length ?? 0,
+	providerCount: authConfig.providers.length,
+	databaseUrlExists: !!process.env.DATABASE_URL,
+	authSecretExists: !!process.env.AUTH_SECRET || !!process.env.NEXTAUTH_SECRET,
+	authUrlExists: !!process.env.AUTH_URL,
+	nextauthUrlExists: !!process.env.NEXTAUTH_URL,
+};
+
+console.info("[auth:diagnostics]", authDiagnostics);
+
+function redact(details: unknown): unknown {
+	if (details == null) return details;
+	if (typeof details !== "object") return details;
+
+	const clone = { ...(details as Record<string, unknown>) };
+	for (const key of Object.keys(clone)) {
+		if (/secret|token|password|client/i.test(key)) {
+			clone[key] = "[REDACTED]";
+		}
+	}
+	return clone;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
 	...authConfig,
 	adapter: PrismaAdapter(prisma),
 	secret: resolvedSecret,
+	debug: process.env.NODE_ENV === "production",
+	logger: {
+		error(code, metadata) {
+			console.error("[auth:error]", code, redact(metadata));
+		},
+		warn(code) {
+			console.warn("[auth:warn]", code);
+		},
+		debug(code, metadata) {
+			console.info("[auth:debug]", code, redact(metadata));
+		},
+	},
 });
