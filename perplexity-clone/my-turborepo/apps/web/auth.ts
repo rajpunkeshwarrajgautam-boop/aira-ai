@@ -72,8 +72,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 	secret: resolvedSecret,
 	debug: process.env.NODE_ENV === "production",
 	logger: {
-		error(code, metadata) {
-			console.error("[auth:error]", code, redact(metadata));
+		error(error) {
+			console.error("[auth:error]", redact(error));
 		},
 		warn(code) {
 			console.warn("[auth:warn]", code);
