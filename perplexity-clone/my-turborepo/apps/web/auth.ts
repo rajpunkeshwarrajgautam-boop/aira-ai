@@ -51,7 +51,9 @@ const authDiagnostics = {
 	nextauthUrlExists: !!process.env.NEXTAUTH_URL,
 };
 
-console.info("[auth:diagnostics]", authDiagnostics);
+if (process.env.NODE_ENV !== "production" || process.env.AUTH_DEBUG === "true") {
+	console.info("[auth:diagnostics]", authDiagnostics);
+}
 
 function redact(details: unknown): unknown {
 	if (details == null) return details;
@@ -70,7 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 	...authConfig,
 	adapter: PrismaAdapter(prisma),
 	secret: resolvedSecret,
-	debug: process.env.NODE_ENV === "production",
+	debug: process.env.AUTH_DEBUG === "true",
 	logger: {
 		error(error) {
 			console.error("[auth:error]", redact(error));

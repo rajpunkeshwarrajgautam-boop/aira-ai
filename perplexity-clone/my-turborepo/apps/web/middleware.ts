@@ -31,6 +31,11 @@ export default auth((req) => {
 		return NextResponse.next();
 	}
 
+	// Public read-only share pages (token in URL); no session required.
+	if (pathname.startsWith("/share/")) {
+		return NextResponse.next();
+	}
+
 	if (!req.auth) {
 		const signIn = new URL("/signin", req.url);
 		signIn.searchParams.set("callbackUrl", `${pathname}${req.nextUrl.search}`);

@@ -118,6 +118,19 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		readonly messageId: string;
 	} | null>(null);
 
+	const showAssistantSkeleton = useMemo(
+		() =>
+			busy &&
+			Boolean(streamingUserQuery) &&
+			!(streamingAssistantMarkdown && streamingAssistantMarkdown.length > 0),
+		[busy, streamingUserQuery, streamingAssistantMarkdown],
+	);
+
+	const showConversationEmpty = useMemo(
+		() => phase === "idle" && messages.length === 0 && !streamingUserQuery,
+		[phase, messages.length, streamingUserQuery],
+	);
+
 	const apiFetchJson = useCallback(
 		async <T,>(url: string, options?: RequestInit): Promise<T> => {
 			const res = await fetch(url, {
@@ -278,7 +291,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 			if (!response.ok) {
 				const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
-				const msg = parsed?.error?.message ?? `Request failed (${response.status})`;
+				const raw = parsed?.error?.message ?? `Request failed (${response.status})`;
+				const msg =
+					response.status === 401 || response.status === 403
+						? "Sign in to run a search, then try again."
+						: response.status === 429
+							? "Too many requests. Please wait a moment and try again."
+							: response.status >= 500
+								? "The service is temporarily unavailable. Please try again in a few minutes."
+								: raw;
 				setPhase("error");
 				setErrorMessage(msg);
 				return;
@@ -372,7 +393,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setStreamingCitations([]);
 				return;
 			}
-			const msg = e instanceof Error ? e.message : "Unexpected error.";
+			const raw = e instanceof Error ? e.message : "Unexpected error.";
+			const msg = /network|fetch|Failed to fetch/i.test(raw)
+				? "Network error. Check your connection and try again."
+				: raw;
 			setPhase("error");
 			setErrorMessage(msg);
 		}
@@ -390,6 +414,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		async (id: string) => {
 			if (busy) return;
 			setSelectedConversationId(id);
+			setShareContext(null);
 			try {
 				const meta = await apiFetchJson<{
 					readonly conversation: { readonly id: string; readonly title: string };
@@ -438,13 +463,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				</div>
 
 				<main className="flex min-h-dvh flex-1 flex-col">
-					<header className="flex items-center justify-between gap-4 px-4 py-6 md:px-6">
-						<div className="flex items-center gap-3">
-							<div className="flex size-11 items-center justify-center rounded-2xl bg-accent/15 ring-1 ring-accent/25 shadow-float">
+					<header className="flex items-center justify-between gap-3 px-4 py-6 md:px-6">
+						<div className="flex min-w-0 flex-1 items-center gap-3">
+							<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/15 ring-1 ring-accent/25 shadow-float">
 								<Sparkles className="size-6 text-accent" aria-hidden />
 							</div>
-							<div>
-								<h1 className="text-lg font-semibold tracking-tight text-content-primary sm:text-xl">
+							<div className="min-w-0">
+								<h1 className="truncate text-lg font-semibold tracking-tight text-content-primary sm:text-xl">
 									{selectedConversationTitle ?? "Research"}
 								</h1>
 								<p className="mt-0.5 text-xs text-content-secondary">
@@ -452,7 +477,16 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								</p>
 							</div>
 						</div>
-						<UserMenu className="hidden sm:block" />
+						<div className="flex shrink-0 items-center gap-2">
+							{phase === "complete" && shareContext ? (
+								<ShareResearchButton
+									conversationId={shareContext.conversationId}
+									messageId={shareContext.messageId}
+									className="max-sm:[&_button]:min-h-11 max-sm:[&_button]:px-3"
+								/>
+							) : null}
+							<UserMenu className="hidden sm:flex" />
+						</div>
 					</header>
 
 					<div className="flex flex-1 flex-col gap-4 px-4 pb-6 md:px-6">
@@ -497,22 +531,31 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 						<ResearchHistoryPanel items={researchHistory} />
 
-						<div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-surface-elevated/30 backdrop-blur-md">
+						<div
+							className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-surface-elevated/30 backdrop-blur-md"
+							aria-busy={busy}
+						>
 							<ConversationMessageList
 								messages={messages}
 								streamingUserQuery={streamingUserQuery}
 								streamingAssistantMarkdown={streamingAssistantMarkdown}
 								streamingCitations={streamingCitations}
+								showAssistantSkeleton={showAssistantSkeleton}
+								showEmptyHint={showConversationEmpty}
 							/>
 						</div>
 
-						{phase === "complete" && shareContext ? (
-							<ShareResearchButton
-								conversationId={shareContext.conversationId}
-								messageId={shareContext.messageId}
-								className="mt-1"
-							/>
-						) : null}
+						<p className="sr-only" aria-live="polite">
+							{phase === "connecting"
+								? "Connecting."
+								: phase === "streaming"
+									? "Streaming answer."
+									: phase === "complete"
+										? "Answer complete."
+										: phase === "error"
+											? "An error occurred."
+											: ""}
+						</p>
 
 						<div className="flex flex-col gap-3">
 							<div
@@ -565,8 +608,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							/>
 
 							{phase === "error" && errorMessage ? (
-								<div className="rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200">
-									{errorMessage}
+								<div
+									className="rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200"
+									role="alert"
+								>
+									<p className="font-medium text-red-100">Something went wrong</p>
+									<p className="mt-1 text-red-200/95">{errorMessage}</p>
 								</div>
 							) : null}
 						</div>
