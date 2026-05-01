@@ -40,6 +40,8 @@ export interface ConversationMessageListProps {
 	/** True while waiting for the first assistant token (connecting or streaming start). */
 	readonly showAssistantSkeleton?: boolean;
 	readonly showEmptyHint?: boolean;
+	readonly exampleQueries?: readonly string[];
+	readonly onPickExample?: (query: string) => void;
 }
 
 function MarkdownContent({ markdown }: { readonly markdown: string }) {
@@ -52,13 +54,35 @@ function MarkdownContent({ markdown }: { readonly markdown: string }) {
 
 function AssistantSkeleton() {
 	return (
-		<div className="flex w-full flex-col gap-3" aria-busy="true" aria-label="Generating answer">
-			<div className="h-4 w-[92%] animate-pulse rounded-md bg-surface-inset" />
-			<div className="h-4 w-[78%] animate-pulse rounded-md bg-surface-inset" />
-			<div className="h-4 w-[85%] animate-pulse rounded-md bg-surface-inset" />
-			<div className="flex items-center gap-2 pt-1 text-xs text-content-tertiary">
-				<Loader2 className="size-3.5 shrink-0 animate-spin text-accent" aria-hidden />
-				<span>Retrieving sources and drafting an answer…</span>
+		<div className="flex w-full flex-col gap-4" aria-busy="true" aria-label="Researching">
+			<div className="flex items-center gap-3">
+				<div className="flex gap-1.5" aria-hidden>
+					<span
+						className="size-2 rounded-full bg-accent/70 animate-bounce shadow-[0_0_8px_hsl(var(--accent)/0.35)]"
+						style={{ animationDuration: "0.7s", animationDelay: "0ms" }}
+					/>
+					<span
+						className="size-2 rounded-full bg-accent/70 animate-bounce shadow-[0_0_8px_hsl(var(--accent)/0.35)]"
+						style={{ animationDuration: "0.7s", animationDelay: "120ms" }}
+					/>
+					<span
+						className="size-2 rounded-full bg-accent/70 animate-bounce shadow-[0_0_8px_hsl(var(--accent)/0.35)]"
+						style={{ animationDuration: "0.7s", animationDelay: "240ms" }}
+					/>
+				</div>
+				<p className="text-sm font-medium tracking-tight text-content-primary">
+					Researching
+					<span className="inline-block w-6 animate-pulse text-accent">…</span>
+				</p>
+			</div>
+			<div className="flex flex-col gap-2.5">
+				<div className="h-3.5 w-[92%] animate-pulse rounded-md bg-surface-inset" />
+				<div className="h-3.5 w-[78%] animate-pulse rounded-md bg-surface-inset [animation-delay:120ms]" />
+				<div className="h-3.5 w-[64%] animate-pulse rounded-md bg-surface-inset [animation-delay:240ms]" />
+			</div>
+			<div className="flex items-center gap-2 text-xs text-content-tertiary">
+				<Loader2 className="size-3.5 shrink-0 animate-spin text-accent/90" aria-hidden />
+				<span>Gathering sources and composing your answer</span>
 			</div>
 		</div>
 	);
@@ -71,6 +95,8 @@ export function ConversationMessageList({
 	streamingCitations,
 	showAssistantSkeleton = false,
 	showEmptyHint = false,
+	exampleQueries = [],
+	onPickExample,
 }: ConversationMessageListProps) {
 	const renderAssistant = (msg: {
 		readonly content: string;
@@ -94,16 +120,40 @@ export function ConversationMessageList({
 		<div className="flex flex-col gap-4 px-2 py-2">
 			{showEmptyHint ? (
 				<div
-					className="flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border-subtle bg-surface-inset/40 px-6 py-10 text-center"
+					className="flex min-h-[200px] flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border-subtle bg-surface-inset/35 px-4 py-10 text-center sm:px-8"
 					role="status"
 				>
-					<MessageCircle className="size-10 text-content-tertiary/80" aria-hidden />
-					<div>
-						<p className="text-sm font-medium text-content-primary">Start this thread</p>
-						<p className="mt-1 max-w-sm text-sm leading-relaxed text-content-secondary">
-							Ask a question below. Answers stream in with citations you can verify.
+					<MessageCircle className="size-10 text-accent/50" aria-hidden />
+					<div className="max-w-lg space-y-2">
+						<p className="text-sm font-semibold text-content-primary">Try an example</p>
+						<p className="text-sm leading-relaxed text-content-secondary">
+							Pick a question to fill the search box, then press{" "}
+							<kbd className="rounded-md border border-border-subtle bg-surface-elevated px-1.5 py-0.5 font-mono text-[11px] text-content-primary">
+								Enter
+							</kbd>{" "}
+							to search.
 						</p>
 					</div>
+					{exampleQueries.length > 0 && onPickExample ? (
+						<ul className="flex w-full max-w-xl flex-col gap-2 sm:max-w-2xl">
+							{exampleQueries.map((q) => (
+								<li key={q} className="w-full">
+									<button
+										type="button"
+										onClick={() => onPickExample(q)}
+										className={cn(
+											"w-full rounded-xl border border-border-subtle bg-surface-elevated/50 px-4 py-3 text-left text-sm text-content-primary",
+											"transition hover:border-accent/35 hover:bg-accent/5 hover:shadow-panel",
+											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+										)}
+									>
+										{q}
+									</button>
+								</li>
+							))}
+						</ul>
+					) : null}
+					<p className="text-xs text-content-tertiary">Press Enter to search</p>
 				</div>
 			) : null}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUp, Loader2 } from "lucide-react";
-import { useCallback, useRef } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "../lib/cn";
 
@@ -15,16 +15,27 @@ export interface SearchBoxProps {
 	readonly className?: string;
 }
 
-export function SearchBox({
-	value,
-	onChange,
-	onSubmit,
-	disabled,
-	isBusy,
-	placeholder = "Ask anything…",
-	className,
-}: SearchBoxProps) {
+export type SearchBoxHandle = {
+	focus: () => void;
+};
+
+export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
+	{
+		value,
+		onChange,
+		onSubmit,
+		disabled,
+		isBusy,
+		placeholder = "Ask anything…",
+		className,
+	},
+	ref,
+) {
 	const taRef = useRef<HTMLTextAreaElement>(null);
+
+	useImperativeHandle(ref, () => ({
+		focus: () => taRef.current?.focus(),
+	}));
 
 	const resize = useCallback(() => {
 		const el = taRef.current;
@@ -86,7 +97,9 @@ export function SearchBox({
 					)}
 				/>
 				<div className="absolute bottom-2 right-2 z-[1] flex items-center gap-2">
-					<span className="hidden text-[11px] text-content-tertiary sm:inline">
+					<span className="hidden max-w-[min(100%,14rem)] text-right text-[11px] leading-snug text-content-tertiary sm:inline">
+						<span className="text-content-tertiary/90">Press Enter to search</span>
+						<span className="mx-1">·</span>
 						<span className="rounded-md bg-surface-inset px-1.5 py-0.5 font-mono text-[10px] text-content-tertiary">
 							Enter
 						</span>
@@ -113,4 +126,4 @@ export function SearchBox({
 			</div>
 		</form>
 	);
-}
+});

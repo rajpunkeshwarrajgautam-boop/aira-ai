@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "../lib/cn";
 
 import { type CitationItem } from "./CitationCards";
-import { SearchBox } from "./SearchBox";
+import { SearchBox, type SearchBoxHandle } from "./SearchBox";
 import { UserMenu } from "./UserMenu";
 import {
 	type ConversationMessageDto,
@@ -18,7 +18,7 @@ import {
 	ConversationSidebar,
 } from "./conversations/ConversationSidebar";
 import { ResearchHistoryPanel, type ResearchHistoryRow } from "./conversations/ResearchHistoryPanel";
-import { ShareResearchButton } from "./share/ShareResearchButton";
+import { ShareResultBar } from "./share/ShareResultBar";
 
 export type SearchPhase = "idle" | "connecting" | "streaming" | "complete" | "error";
 
@@ -27,6 +27,12 @@ export type ResearchMode = "standard" | "deep";
 export interface SearchLayoutProps {
 	readonly className?: string;
 }
+
+const EXAMPLE_QUERIES = [
+	"Latest AI news summary",
+	"Compare ChatGPT vs Gemini",
+	"Best laptops under 1 lakh in India",
+] as const;
 
 interface ApiErrorBody {
 	readonly error?: {
@@ -88,6 +94,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
 
 	const abortRef = useRef<AbortController | null>(null);
+	const searchBoxRef = useRef<SearchBoxHandle>(null);
 
 	const searchParams = useSearchParams();
 	useEffect(() => {
@@ -469,22 +476,26 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								<Sparkles className="size-6 text-accent" aria-hidden />
 							</div>
 							<div className="min-w-0">
-								<h1 className="truncate text-lg font-semibold tracking-tight text-content-primary sm:text-xl">
-									{selectedConversationTitle ?? "Research"}
+								<h1
+									className={cn(
+										"font-semibold tracking-tight text-content-primary",
+										showConversationEmpty
+											? "text-base leading-snug sm:text-lg md:text-xl"
+											: "truncate text-lg sm:text-xl",
+									)}
+								>
+									{showConversationEmpty
+										? "AI Research Engine with Verified Sources"
+										: (selectedConversationTitle ?? "Research")}
 								</h1>
-								<p className="mt-0.5 text-xs text-content-secondary">
-									Persistent threads with live web citations.
+								<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
+									{showConversationEmpty
+										? "Get accurate answers with citations and deep research."
+										: "Persistent threads with live web citations."}
 								</p>
 							</div>
 						</div>
 						<div className="flex shrink-0 items-center gap-2">
-							{phase === "complete" && shareContext ? (
-								<ShareResearchButton
-									conversationId={shareContext.conversationId}
-									messageId={shareContext.messageId}
-									className="max-sm:[&_button]:min-h-11 max-sm:[&_button]:px-3"
-								/>
-							) : null}
 							<UserMenu className="hidden sm:flex" />
 						</div>
 					</header>
@@ -532,22 +543,35 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						<ResearchHistoryPanel items={researchHistory} />
 
 						<div
-							className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-surface-elevated/30 backdrop-blur-md"
+							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/30 backdrop-blur-md"
 							aria-busy={busy}
 						>
-							<ConversationMessageList
-								messages={messages}
-								streamingUserQuery={streamingUserQuery}
-								streamingAssistantMarkdown={streamingAssistantMarkdown}
-								streamingCitations={streamingCitations}
-								showAssistantSkeleton={showAssistantSkeleton}
-								showEmptyHint={showConversationEmpty}
-							/>
+							<div className="min-h-0 flex-1 overflow-y-auto">
+								<ConversationMessageList
+									messages={messages}
+									streamingUserQuery={streamingUserQuery}
+									streamingAssistantMarkdown={streamingAssistantMarkdown}
+									streamingCitations={streamingCitations}
+									showAssistantSkeleton={showAssistantSkeleton}
+									showEmptyHint={showConversationEmpty}
+									exampleQueries={EXAMPLE_QUERIES}
+									onPickExample={(q) => {
+										setQuery(q);
+										requestAnimationFrame(() => searchBoxRef.current?.focus());
+									}}
+								/>
+							</div>
+							{shareContext && !busy ? (
+								<ShareResultBar
+									conversationId={shareContext.conversationId}
+									messageId={shareContext.messageId}
+								/>
+							) : null}
 						</div>
 
 						<p className="sr-only" aria-live="polite">
 							{phase === "connecting"
-								? "Connecting."
+								? "Researching."
 								: phase === "streaming"
 									? "Streaming answer."
 									: phase === "complete"
@@ -599,12 +623,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							</div>
 
 							<SearchBox
+								ref={searchBoxRef}
 								value={query}
 								onChange={setQuery}
 								onSubmit={() => void runSearch()}
 								disabled={busy}
 								isBusy={busy}
-								placeholder={messages.length > 0 ? "Send a follow-up…" : "Ask your first question…"}
+								placeholder={
+									messages.length > 0
+										? "Send a follow-up…"
+										: "Ask anything — Press Enter to search"
+								}
 							/>
 
 							{phase === "error" && errorMessage ? (
