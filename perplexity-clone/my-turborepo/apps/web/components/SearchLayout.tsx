@@ -470,6 +470,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				</div>
 
 				<main className="flex min-h-dvh flex-1 flex-col">
+					<div className="bg-accent/10 px-4 py-2 text-center text-sm font-medium text-accent">
+						🚀 New: AI Research Engine with citations. Try it and give feedback!
+					</div>
 					<header className="flex items-center justify-between gap-3 px-4 py-6 md:px-6">
 						<div className="flex min-w-0 flex-1 items-center gap-3">
 							<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/15 ring-1 ring-accent/25 shadow-float">
@@ -648,8 +651,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</div>
 					</div>
 
-					<footer className="mt-auto border-t border-border-subtle py-4 text-center text-[11px] text-content-tertiary">
-						Responses are generated from retrieved sources. Verify critical facts independently.
+					<footer className="mt-auto flex flex-col items-center gap-2 border-t border-border-subtle py-6 text-center text-xs text-content-tertiary">
+						<p>Responses are generated from retrieved sources. Verify critical facts independently.</p>
+						<p>Built for fast, reliable research with sources.</p>
+						<a href="mailto:feedback@example.com" className="mt-2 inline-flex h-8 items-center justify-center rounded-lg bg-surface-elevated px-4 font-medium text-content-primary ring-1 ring-border-subtle transition hover:bg-surface-elevated/80 hover:text-accent focus-visible:outline-accent">
+							Send feedback
+						</a>
 					</footer>
 				</main>
 			</div>

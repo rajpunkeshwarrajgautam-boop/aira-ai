@@ -120,7 +120,7 @@ export function ConversationMessageList({
 		<div className="flex flex-col gap-4 px-2 py-2">
 			{showEmptyHint ? (
 				<div
-					className="flex min-h-[200px] flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border-subtle bg-surface-inset/35 px-4 py-10 text-center sm:px-8"
+					className="flex min-h-[240px] flex-col items-center justify-center gap-8 rounded-2xl border border-dashed border-border-subtle bg-surface-inset/35 px-4 py-16 text-center sm:px-8"
 					role="status"
 				>
 					<MessageCircle className="size-10 text-accent/50" aria-hidden />
@@ -135,14 +135,14 @@ export function ConversationMessageList({
 						</p>
 					</div>
 					{exampleQueries.length > 0 && onPickExample ? (
-						<ul className="flex w-full max-w-xl flex-col gap-2 sm:max-w-2xl">
+						<ul className="flex w-full max-w-xl flex-col gap-3 sm:max-w-2xl">
 							{exampleQueries.map((q) => (
 								<li key={q} className="w-full">
 									<button
 										type="button"
 										onClick={() => onPickExample(q)}
 										className={cn(
-											"w-full rounded-xl border border-border-subtle bg-surface-elevated/50 px-4 py-3 text-left text-sm text-content-primary",
+											"w-full rounded-xl border border-border-subtle bg-surface-elevated/50 px-5 py-4 text-left text-sm text-content-primary shadow-sm",
 											"transition hover:border-accent/35 hover:bg-accent/5 hover:shadow-panel",
 											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
 										)}
