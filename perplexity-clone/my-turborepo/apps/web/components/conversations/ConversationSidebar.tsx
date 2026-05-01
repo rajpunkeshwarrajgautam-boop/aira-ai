@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
 
+import { Button } from "../ui/button";
 import { cn } from "../../lib/cn";
 
 export interface ConversationSummary {
@@ -55,19 +56,16 @@ export function ConversationSidebar({
 					<h2 className="text-sm font-semibold text-content-primary">Conversations</h2>
 					<p className="text-xs text-content-tertiary">Research threads</p>
 				</div>
-				<button
-					type="button"
+				<Button
+					variant="secondary"
+					size="icon"
 					onClick={() => onCreateConversation()}
 					disabled={disabled}
-					className={cn(
-						"inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent ring-1 ring-accent/25",
-						"hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-						"disabled:opacity-40 disabled:pointer-events-none",
-					)}
+					className="size-9 rounded-xl"
 					aria-label="Create new conversation"
 				>
 					<Plus className="size-4" aria-hidden />
-				</button>
+				</Button>
 			</div>
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
@@ -82,20 +80,18 @@ export function ConversationSidebar({
 							const selected = c.id === selectedConversationId;
 							return (
 								<li key={c.id}>
-									<button
-										type="button"
+									<Button
+										variant="ghost"
 										onClick={() => onSelectConversation(c.id)}
 										disabled={disabled}
 										className={cn(
-											"flex w-full flex-col gap-1 rounded-xl px-3 py-2 text-left transition-colors",
-											"ring-1 ring-transparent",
+											"flex h-auto w-full flex-col items-start gap-1 rounded-xl px-3 py-2 text-left transition-colors",
 											selected
-												? "bg-accent/12 ring-accent/35"
-												: "bg-transparent hover:bg-surface-inset/60 ring-border-subtle/0 hover:ring-border-subtle",
-											"disabled:opacity-40 disabled:pointer-events-none",
+												? "bg-accent/12 ring-1 ring-accent/35 hover:bg-accent/15"
+												: "bg-transparent hover:bg-surface-inset/60",
 										)}
 									>
-										<div className="flex items-start justify-between gap-3">
+										<div className="flex w-full items-start justify-between gap-3">
 											<span
 												className={cn(
 													"min-w-0 flex-1 truncate text-sm font-medium",
@@ -104,11 +100,11 @@ export function ConversationSidebar({
 											>
 												{c.title}
 											</span>
-											<span className="shrink-0 text-[11px] text-content-tertiary">
+											<span className="shrink-0 text-[11px] font-normal text-content-tertiary">
 												{formatShortDate(c.lastMessageAt)}
 											</span>
 										</div>
-									</button>
+									</Button>
 								</li>
 							);
 						})}

@@ -3,6 +3,7 @@
 import { ArrowUp, Loader2 } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
+import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
 
 export interface SearchBoxProps {
@@ -105,14 +106,11 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						<span className="mx-1">·</span>
 						<span className="text-content-tertiary/80">Shift+Enter new line</span>
 					</span>
-					<button
+					<Button
 						type="submit"
 						disabled={busy || !value.trim()}
-						className={cn(
-							"inline-flex size-10 items-center justify-center rounded-xl bg-accent text-surface transition-colors",
-							"hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-							"disabled:pointer-events-none disabled:opacity-40",
-						)}
+						size="icon"
+						className="size-10 rounded-xl"
 						aria-label="Submit question"
 					>
 						{isBusy ? (
@@ -120,7 +118,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						) : (
 							<ArrowUp className="size-5 text-white" aria-hidden />
 						)}
-					</button>
+					</Button>
 				</div>
 			</div>
 		</form>

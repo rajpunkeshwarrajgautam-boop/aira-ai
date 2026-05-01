@@ -3,6 +3,7 @@
 import { LogOut, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
+import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
 
 export function UserMenu({ className }: { readonly className?: string }) {
@@ -41,17 +42,15 @@ export function UserMenu({ className }: { readonly className?: string }) {
 					{label}
 				</span>
 			</div>
-			<button
-				type="button"
+			<Button
+				variant="ghost"
+				size="sm"
 				onClick={() => void signOut({ callbackUrl: "/signin" })}
-				className={cn(
-					"inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-content-secondary transition-colors",
-					"hover:bg-surface-elevated hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-				)}
+				className="h-8 px-2 text-xs text-content-secondary hover:text-content-primary"
 			>
-				<LogOut className="size-3.5" aria-hidden />
+				<LogOut className="mr-1.5 size-3.5" aria-hidden />
 				<span className="hidden sm:inline">Sign out</span>
-			</button>
+			</Button>
 		</div>
 	);
 }

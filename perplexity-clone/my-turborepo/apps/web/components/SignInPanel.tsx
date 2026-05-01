@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
 
 export interface SignInPanelProps {
@@ -37,40 +38,32 @@ export function SignInPanel({ showGoogle, showGitHub }: SignInPanelProps) {
 	return (
 		<div className="flex flex-col gap-3">
 			{showGoogle ? (
-			<button
-				type="button"
+			<Button
+				variant="outline"
 				disabled={pending !== null}
 				onClick={() => void handleOAuth("google")}
-				className={cn(
-					"group flex w-full items-center justify-between rounded-xl border border-border-subtle bg-surface-elevated px-4 py-3.5 text-left text-sm font-medium text-content-primary shadow-float transition-colors",
-					"hover:border-accent/35 hover:bg-surface-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-					"disabled:pointer-events-none disabled:opacity-60",
-				)}
+				className="group flex w-full h-12 items-center justify-between rounded-xl px-4 py-3.5 text-left text-sm font-medium shadow-sm transition-colors"
 			>
 				<span className="flex items-center gap-3">
 					<GoogleGlyph />
 					Continue with Google
 				</span>
 				<ChevronRight className="size-4 text-content-tertiary transition-transform group-hover:translate-x-0.5" />
-			</button>
+			</Button>
 			) : null}
 			{showGitHub ? (
-			<button
-				type="button"
+			<Button
+				variant="outline"
 				disabled={pending !== null}
 				onClick={() => void handleOAuth("github")}
-				className={cn(
-					"group flex w-full items-center justify-between rounded-xl border border-border-subtle bg-surface-elevated px-4 py-3.5 text-left text-sm font-medium text-content-primary shadow-float transition-colors",
-					"hover:border-accent/35 hover:bg-surface-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-					"disabled:pointer-events-none disabled:opacity-60",
-				)}
+				className="group flex w-full h-12 items-center justify-between rounded-xl px-4 py-3.5 text-left text-sm font-medium shadow-sm transition-colors"
 			>
 				<span className="flex items-center gap-3">
 					<GitHubGlyph />
 					Continue with GitHub
 				</span>
 				<ChevronRight className="size-4 text-content-tertiary transition-transform group-hover:translate-x-0.5" />
-			</button>
+			</Button>
 			) : null}
 		</div>
 	);
