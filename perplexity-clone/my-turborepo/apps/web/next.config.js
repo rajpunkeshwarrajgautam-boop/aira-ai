@@ -3,7 +3,15 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
-  serverExternalPackages: ["pg", "@prisma/client", "@prisma/adapter-pg"],
+  serverExternalPackages: [
+    "@prisma/adapter-pg",
+    "@prisma/client",
+    "axios",
+    "openai",
+    "pg",
+    "prisma",
+    "zod",
+  ],
   images: {
     remotePatterns: [
       {
