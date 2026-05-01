@@ -156,9 +156,10 @@ function classifyUpstreamError(err: Error): { status: number; code: string; clie
 	};
 }
 
-export async function POST(req: Request): Promise<Response> {
+async function handleSearchPost(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) {
+		console.error("SEARCH_ERROR:", { code: "UNAUTHENTICATED", message: "Sign in to run search." });
 		return jsonErrorResponse(401, "UNAUTHENTICATED", "Sign in to run search.");
 	}
 
@@ -167,12 +168,14 @@ export async function POST(req: Request): Promise<Response> {
 	let body: unknown;
 	try {
 		body = await req.json();
-	} catch {
+	} catch (e) {
+		console.error("SEARCH_ERROR:", e);
 		return jsonErrorResponse(400, "INVALID_JSON", "Request body must be valid JSON.");
 	}
 
 	const parsed = SearchRequestSchema.safeParse(body);
 	if (!parsed.success) {
+		console.error("SEARCH_ERROR:", parsed.error);
 		return jsonErrorResponse(400, "VALIDATION_ERROR", "Invalid request body.", z.treeifyError(parsed.error));
 	}
 
@@ -203,8 +206,10 @@ export async function POST(req: Request): Promise<Response> {
 					requiredPlan: BillingPlan.PRO,
 				});
 			}
+			console.error("SEARCH_ERROR:", e);
 			return jsonErrorResponse(e.status, e.code, e.message);
 		}
+		console.error("SEARCH_ERROR:", e);
 		throw e;
 	}
 
@@ -227,7 +232,8 @@ export async function POST(req: Request): Promise<Response> {
 			messageLimit: parsed.data.continueResearch ? 20 : 10,
 			memoryLimit: parsed.data.continueResearch ? 8 : 5,
 		});
-	} catch {
+	} catch (e) {
+		console.error("SEARCH_ERROR:", e);
 		return jsonErrorResponse(404, "CONVERSATION_NOT_FOUND", "Conversation not found.");
 	}
 
@@ -252,6 +258,7 @@ export async function POST(req: Request): Promise<Response> {
 		}
 	} catch (e) {
 		const err = e instanceof Error ? e : new Error(String(e));
+		console.error("SEARCH_ERROR:", err);
 		const { status, code, clientMessage } = classifyUpstreamError(err);
 		const message =
 			process.env.NODE_ENV === "development" ? err.message : clientMessage;
@@ -326,6 +333,7 @@ export async function POST(req: Request): Promise<Response> {
 				}
 			} catch (e) {
 				const err = e instanceof Error ? e : new Error(String(e));
+				console.error("SEARCH_ERROR:", err);
 				const { code, clientMessage } = classifyUpstreamError(err);
 				const message =
 					process.env.NODE_ENV === "development" ? err.message : clientMessage;
@@ -362,6 +370,27 @@ export async function POST(req: Request): Promise<Response> {
 			"X-Accel-Buffering": "no",
 		},
 	});
+}
+
+export async function POST(req: Request): Promise<Response> {
+	try {
+		return await handleSearchPost(req);
+	} catch (error) {
+		console.error("SEARCH_ERROR:", error);
+		return new Response(
+			JSON.stringify({
+				error: "Search failed",
+				message: error instanceof Error ? error.message : "unknown",
+			}),
+			{
+				status: 500,
+				headers: {
+					"Content-Type": "application/json",
+					"Cache-Control": "no-store",
+				},
+			},
+		);
+	}
 }
 
 export function GET(): Response {
