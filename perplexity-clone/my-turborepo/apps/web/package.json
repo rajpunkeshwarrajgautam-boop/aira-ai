@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "prebuild": "prisma generate --schema=../../../../prisma/schema.prisma",
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
@@ -41,6 +42,7 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "eslint": "^9.39.1",
+    "prisma": "^7.8.0",
     "typescript": "5.9.2"
   }
 }
