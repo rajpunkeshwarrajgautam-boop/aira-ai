@@ -452,13 +452,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	return (
 		<div className={cn("relative min-h-dvh w-full overflow-hidden bg-surface", className)}>
-			<div
-				className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--accent)/0.18),transparent)]"
-				aria-hidden
-			/>
-			<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-
-			<div className="relative z-10 flex min-h-dvh flex-col md:flex-row">
+			<div className="relative z-10 flex min-h-dvh flex-col md:flex-row max-w-7xl mx-auto">
 				<div className="hidden w-[320px] shrink-0 md:block">
 					<ConversationSidebar
 						conversations={conversations}
@@ -473,22 +467,22 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					<div className="bg-accent/10 px-4 py-2 text-center text-sm font-medium text-accent">
 						🚀 New: AI Research Engine with citations. Try it and give feedback!
 					</div>
-					<header className="flex items-center justify-between gap-3 px-4 py-6 md:px-6">
+					<header className="flex items-center justify-between gap-3 px-4 py-8 md:px-8 max-w-4xl mx-auto w-full">
 						<div className="flex min-w-0 flex-1 items-center gap-3">
-							<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/15 ring-1 ring-accent/25 shadow-float">
-								<Sparkles className="size-6 text-accent" aria-hidden />
+							<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white shadow-sm">
+								<Sparkles className="size-5" aria-hidden />
 							</div>
 							<div className="min-w-0">
 								<h1
 									className={cn(
 										"font-semibold tracking-tight text-content-primary",
 										showConversationEmpty
-											? "text-base leading-snug sm:text-lg md:text-xl"
-											: "truncate text-lg sm:text-xl",
+											? "text-lg md:text-2xl"
+											: "truncate text-lg md:text-xl",
 									)}
 								>
 									{showConversationEmpty
-										? "AI Research Engine with Verified Sources"
+										? "AI Research Engine"
 										: (selectedConversationTitle ?? "Research")}
 								</h1>
 								<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
@@ -503,7 +497,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</div>
 					</header>
 
-					<div className="flex flex-1 flex-col gap-4 px-4 pb-6 md:px-6">
+					<div className="flex flex-1 flex-col gap-6 px-4 pb-8 md:px-8 max-w-4xl mx-auto w-full">
 						<div className="md:hidden">
 							<div className="flex items-center gap-3">
 								<select

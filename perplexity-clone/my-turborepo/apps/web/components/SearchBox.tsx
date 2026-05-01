@@ -64,17 +64,16 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 				e.preventDefault();
 				handleSubmit();
 			}}
-			className={cn("w-full", className)}
+			className={cn("w-full mx-auto max-w-3xl", className)}
 			aria-label="Search"
 		>
 			<div
 				className={cn(
-					"relative overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/90 shadow-panel backdrop-blur-xl transition-shadow",
-					"focus-within:border-accent/40 focus-within:shadow-float focus-within:ring-1 focus-within:ring-accent/25",
+					"relative overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated shadow-panel transition-all duration-300",
+					"focus-within:border-accent/40 focus-within:shadow-[0_0_0_4px_hsl(var(--accent)/0.15),0_8px_32px_-4px_hsl(0_0%_0%_/_0.08)]",
 					busy && "opacity-90",
 				)}
 			>
-				<div className="pointer-events-none absolute inset-0 bg-noise-soft opacity-[0.35]" aria-hidden />
 				<label htmlFor="search-query" className="sr-only">
 					Query
 				</label>
@@ -93,7 +92,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 					onKeyDown={onKeyDown}
 					placeholder={placeholder}
 					className={cn(
-						"relative z-[1] min-h-[52px] w-full resize-none bg-transparent px-4 pb-14 pr-14 pt-4 text-[15px] leading-relaxed text-content-primary placeholder:text-content-tertiary focus:outline-none disabled:cursor-not-allowed",
+						"relative z-[1] min-h-[60px] w-full resize-none bg-transparent px-5 pb-14 pr-16 pt-5 text-[16px] leading-relaxed text-content-primary placeholder:text-content-tertiary focus:outline-none disabled:cursor-not-allowed",
 					)}
 				/>
 				<div className="absolute bottom-2 right-2 z-[1] flex items-center gap-2">

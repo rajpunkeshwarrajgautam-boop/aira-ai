@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 :root {
-	color-scheme: dark;
-	--surface: 240 6% 6%;
-	--surface-elevated: 240 5% 10%;
-	--surface-inset: 240 7% 8%;
-	--border-subtle: 240 5% 18%;
-	--border: 240 5% 22%;
-	--accent: 172 66% 48%;
-	--accent-muted: 172 40% 32%;
-	--content-primary: 210 20% 98%;
-	--content-secondary: 240 5% 68%;
-	--content-tertiary: 240 5% 48%;
+	color-scheme: light;
+	--surface: 0 0% 98%;
+	--surface-elevated: 0 0% 100%;
+	--surface-inset: 240 5% 96%;
+	--border-subtle: 240 6% 90%;
+	--border: 240 5% 84%;
+	--accent: 199 89% 48%;
+	--accent-muted: 199 89% 48%;
+	--content-primary: 240 10% 15%;
+	--content-secondary: 240 5% 40%;
+	--content-tertiary: 240 5% 60%;
 }
 
 html,
@@ -43,7 +43,7 @@ a {
 }
 
 .answer-markdown {
-	@apply prose prose-invert prose-zinc max-w-none;
+	@apply prose prose-zinc max-w-none;
 	--tw-prose-body: hsl(var(--content-secondary));
 	--tw-prose-headings: hsl(var(--content-primary));
 	--tw-prose-links: hsl(var(--accent));

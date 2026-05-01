@@ -54,35 +54,18 @@ function MarkdownContent({ markdown }: { readonly markdown: string }) {
 
 function AssistantSkeleton() {
 	return (
-		<div className="flex w-full flex-col gap-4" aria-busy="true" aria-label="Researching">
+		<div className="flex w-full flex-col gap-5 py-2" aria-busy="true" aria-label="Researching">
 			<div className="flex items-center gap-3">
-				<div className="flex gap-1.5" aria-hidden>
-					<span
-						className="size-2 rounded-full bg-accent/70 animate-bounce shadow-[0_0_8px_hsl(var(--accent)/0.35)]"
-						style={{ animationDuration: "0.7s", animationDelay: "0ms" }}
-					/>
-					<span
-						className="size-2 rounded-full bg-accent/70 animate-bounce shadow-[0_0_8px_hsl(var(--accent)/0.35)]"
-						style={{ animationDuration: "0.7s", animationDelay: "120ms" }}
-					/>
-					<span
-						className="size-2 rounded-full bg-accent/70 animate-bounce shadow-[0_0_8px_hsl(var(--accent)/0.35)]"
-						style={{ animationDuration: "0.7s", animationDelay: "240ms" }}
-					/>
-				</div>
-				<p className="text-sm font-medium tracking-tight text-content-primary">
+				<Loader2 className="size-5 animate-spin text-accent" aria-hidden />
+				<p className="text-base font-medium tracking-tight text-content-primary">
 					Researching
-					<span className="inline-block w-6 animate-pulse text-accent">…</span>
+					<span className="inline-block w-6 animate-pulse text-accent">...</span>
 				</p>
 			</div>
-			<div className="flex flex-col gap-2.5">
-				<div className="h-3.5 w-[92%] animate-pulse rounded-md bg-surface-inset" />
-				<div className="h-3.5 w-[78%] animate-pulse rounded-md bg-surface-inset [animation-delay:120ms]" />
-				<div className="h-3.5 w-[64%] animate-pulse rounded-md bg-surface-inset [animation-delay:240ms]" />
-			</div>
-			<div className="flex items-center gap-2 text-xs text-content-tertiary">
-				<Loader2 className="size-3.5 shrink-0 animate-spin text-accent/90" aria-hidden />
-				<span>Gathering sources and composing your answer</span>
+			<div className="flex flex-col gap-3">
+				<div className="h-4 w-[92%] animate-pulse rounded-md bg-surface-inset" />
+				<div className="h-4 w-[78%] animate-pulse rounded-md bg-surface-inset [animation-delay:120ms]" />
+				<div className="h-4 w-[64%] animate-pulse rounded-md bg-surface-inset [animation-delay:240ms]" />
 			</div>
 		</div>
 	);
@@ -107,8 +90,8 @@ export function ConversationMessageList({
 		const effectiveCitations = msg.streaming ? streamingCitations : citations;
 
 		return (
-			<div className="flex flex-col gap-3">
-				<div className="whitespace-pre-wrap text-[15px] leading-7 text-content-secondary">
+			<div className="flex flex-col gap-5 py-2">
+				<div className="whitespace-pre-wrap text-[16px] leading-8 text-content-secondary">
 					<MarkdownContent markdown={msg.content} />
 				</div>
 				{effectiveCitations.length > 0 ? <CitationCards citations={effectiveCitations} /> : null}
@@ -161,8 +144,8 @@ export function ConversationMessageList({
 				if (m.role === "USER") {
 					return (
 						<div key={m.id} className="flex w-full justify-end">
-							<div className={cn("max-w-[80%] rounded-2xl bg-accent/10 p-4 ring-1 ring-accent/20")}>
-								<div className="whitespace-pre-wrap text-[15px] leading-7 text-content-primary">
+							<div className={cn("max-w-[80%] rounded-3xl bg-surface-inset px-5 py-4")}>
+								<div className="whitespace-pre-wrap text-[16px] leading-relaxed text-content-primary">
 									{m.content}
 								</div>
 							</div>
@@ -172,7 +155,7 @@ export function ConversationMessageList({
 
 				return (
 					<div key={m.id} className="flex w-full justify-start">
-						<div className={cn("max-w-[80%] rounded-2xl border border-border-subtle bg-surface-elevated/40 p-4 shadow-panel")}>
+						<div className={cn("w-full")}>
 							{renderAssistant({ content: m.content, citations: m.citations, streaming: false })}
 						</div>
 					</div>
@@ -181,8 +164,8 @@ export function ConversationMessageList({
 
 			{streamingUserQuery ? (
 				<div className="flex w-full justify-end" aria-label="Streaming user message">
-					<div className={cn("max-w-[80%] rounded-2xl bg-accent/10 p-4 ring-1 ring-accent/20")}>
-						<div className="whitespace-pre-wrap text-[15px] leading-7 text-content-primary">
+					<div className={cn("max-w-[80%] rounded-3xl bg-surface-inset px-5 py-4")}>
+						<div className="whitespace-pre-wrap text-[16px] leading-relaxed text-content-primary">
 							{streamingUserQuery}
 						</div>
 					</div>
@@ -191,7 +174,7 @@ export function ConversationMessageList({
 
 			{streamingAssistantMarkdown ? (
 				<div className="flex w-full justify-start" aria-label="Streaming assistant message">
-					<div className={cn("max-w-[80%] rounded-2xl border border-border-subtle bg-surface-elevated/40 p-4 shadow-panel")}>
+					<div className={cn("w-full")}>
 						{renderAssistant({
 							content: streamingAssistantMarkdown,
 							citations: [],
@@ -203,7 +186,7 @@ export function ConversationMessageList({
 
 			{showAssistantSkeleton ? (
 				<div className="flex w-full justify-start" aria-label="Assistant loading">
-					<div className={cn("max-w-[80%] rounded-2xl border border-border-subtle bg-surface-elevated/40 p-4 shadow-panel")}>
+					<div className={cn("w-full")}>
 						<AssistantSkeleton />
 					</div>
 				</div>

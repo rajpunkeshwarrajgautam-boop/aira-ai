@@ -31,9 +31,9 @@ const config: Config = {
 			},
 			boxShadow: {
 				panel:
-					"0 0 0 1px hsl(var(--border-subtle) / 0.65), 0 24px 48px -12px hsl(0 0% 0% / 0.45)",
+					"0 0 0 1px hsl(var(--border-subtle) / 0.4), 0 4px 16px -2px hsl(0 0% 0% / 0.05)",
 				float:
-					"0 0 0 1px hsl(var(--border-subtle) / 0.5), 0 16px 40px -16px hsl(0 0% 0% / 0.55)",
+					"0 0 0 1px hsl(var(--border-subtle) / 0.5), 0 12px 32px -4px hsl(0 0% 0% / 0.08)",
 			},
 			fontFamily: {
 				sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
