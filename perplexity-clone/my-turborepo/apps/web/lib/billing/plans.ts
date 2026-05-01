@@ -1,4 +1,4 @@
-import { BillingPlan } from "../../../../../../generated/prisma/enums";
+import { BillingPlan } from "@/generated/prisma/enums";
 
 export interface PlanLimits {
 	readonly searchesPerMonth: number;

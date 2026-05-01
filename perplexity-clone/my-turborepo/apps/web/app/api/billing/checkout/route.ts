@@ -13,7 +13,7 @@ import {
 	teamSeatsOrThrow,
 } from "@/lib/billing/plan-enforcement";
 import { PLAN_LIMITS } from "@/lib/billing/plans";
-import { BillingPlan } from "../../../../../../../../generated/prisma/enums";
+import { BillingPlan } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
 

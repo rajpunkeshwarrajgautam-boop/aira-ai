@@ -3,8 +3,8 @@ import crypto from "node:crypto";
 import {
 	AnalyticsEventType as AnalyticsEventTypePrisma,
 	BillingPlan,
-} from "../../../../../../generated/prisma/enums";
-import type { Prisma } from "../../../../../../generated/prisma/client";
+} from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 
 import type { AnalyticsEventType, TrackAnalyticsEventInput } from "./analytics-types";
 import { AnalyticsEventTypeSchema } from "./analytics-types";

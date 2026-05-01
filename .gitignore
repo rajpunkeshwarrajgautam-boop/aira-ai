@@ -19,5 +19,6 @@ node_modules
 *env_dump*
 
 /generated/prisma
+perplexity-clone/my-turborepo/apps/web/generated/prisma
 
 .vercel

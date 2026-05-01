@@ -20,7 +20,7 @@ import {
 } from "@/lib/conversation-memory";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
-import { BillingPlan } from "../../../../../../../generated/prisma/enums";
+import { BillingPlan } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
 

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { BillingPlan, SubscriptionStatus } from "../../../../../../generated/prisma/enums";
+import { BillingPlan, SubscriptionStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { mapCashfreeStatusToPrisma } from "./subscription-sync";
 

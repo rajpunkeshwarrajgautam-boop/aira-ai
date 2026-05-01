@@ -1,7 +1,7 @@
 import {
 	BillingPlan,
 	SubscriptionStatus,
-} from "../../../../../../generated/prisma/enums";
+} from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 import type { CashfreeSubscriptionEntity } from "./cashfree-client";

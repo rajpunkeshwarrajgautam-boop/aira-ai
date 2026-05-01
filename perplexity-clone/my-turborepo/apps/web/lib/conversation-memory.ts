@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { ConversationMessageRole } from "../../../../../generated/prisma/enums";
+import { ConversationMessageRole } from "@/generated/prisma/enums";
 import { generatePublicShareToken } from "@/lib/research-share";
 
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;

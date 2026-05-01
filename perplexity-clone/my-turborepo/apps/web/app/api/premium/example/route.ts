@@ -3,7 +3,7 @@ import {
 	assertMinPlan,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
-import { BillingPlan } from "../../../../../../../../generated/prisma/enums";
+import { BillingPlan } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
 

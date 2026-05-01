@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { BillingPlan } from "../../../../../../generated/prisma/enums";
+import { BillingPlan } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 import {

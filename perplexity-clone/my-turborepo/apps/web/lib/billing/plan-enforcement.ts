@@ -1,8 +1,8 @@
 import {
 	BillingPlan,
 	SubscriptionStatus,
-} from "../../../../../../generated/prisma/enums";
-import type { Prisma } from "../../../../../../generated/prisma/client";
+} from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import { effectiveMonthlySearchLimit, PLAN_LIMITS } from "./plans";

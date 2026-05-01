@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { requireAnalyticsAdmin } from "@/lib/analytics/admin";
 import { prisma } from "@/lib/prisma";
-import { AnalyticsEventType } from "../../../../../../../../../generated/prisma/enums";
+import { AnalyticsEventType } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
