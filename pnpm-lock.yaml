@@ -49,7 +49,7 @@ importers:
   perplexity-clone/my-turborepo/apps/docs:
     dependencies:
       '@repo/ui':
-        specifier: workspace:*
+        specifier: file:../../packages/ui
         version: link:../../packages/ui
       next:
         specifier: 16.2.0
@@ -62,10 +62,10 @@ importers:
         version: 19.2.5(react@19.2.5)
     devDependencies:
       '@repo/eslint-config':
-        specifier: workspace:*
+        specifier: file:../../packages/eslint-config
         version: link:../../packages/eslint-config
       '@repo/typescript-config':
-        specifier: workspace:*
+        specifier: file:../../packages/typescript-config
         version: link:../../packages/typescript-config
       '@types/node':
         specifier: ^22.15.3
@@ -95,7 +95,7 @@ importers:
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.2))(typescript@5.9.2)
       '@repo/ui':
-        specifier: workspace:*
+        specifier: file:../../packages/ui
         version: link:../../packages/ui
       '@tailwindcss/typography':
         specifier: ^0.5.16
@@ -147,10 +147,10 @@ importers:
         version: 4.3.6
     devDependencies:
       '@repo/eslint-config':
-        specifier: workspace:*
+        specifier: file:../../packages/eslint-config
         version: link:../../packages/eslint-config
       '@repo/typescript-config':
-        specifier: workspace:*
+        specifier: file:../../packages/typescript-config
         version: link:../../packages/typescript-config
       '@types/node':
         specifier: ^22.15.3
@@ -222,10 +222,10 @@ importers:
         version: 19.2.5(react@19.2.5)
     devDependencies:
       '@repo/eslint-config':
-        specifier: workspace:*
+        specifier: file:../eslint-config
         version: link:../eslint-config
       '@repo/typescript-config':
-        specifier: workspace:*
+        specifier: file:../typescript-config
         version: link:../typescript-config
       '@types/node':
         specifier: ^22.15.3
