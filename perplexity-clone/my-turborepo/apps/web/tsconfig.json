@@ -6,7 +6,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@services/*": ["../../../../src/services/*"]
+      "@services/*": ["./src/services/*"]
     },
     "plugins": [
       {
