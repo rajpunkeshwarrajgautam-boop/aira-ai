@@ -20,28 +20,40 @@ export const DEFAULT_OPENAI_CONFIG: OpenAIServiceConfig = {
 	defaultMaxCompletionTokens: 2048,
 };
 
-function requireApiKey(explicit?: string): string {
+function requireApiKey(explicit?: string): string | undefined {
 	const key = explicit ?? process.env.OPENAI_API_KEY;
-	if (!key) {
-		throw new Error(
-			"OpenAI API key missing: set OPENAI_API_KEY or pass apiKey in OpenAIServiceConfig.",
-		);
-	}
 	return key;
 }
 
 export class OpenAIService {
-	readonly client: OpenAI;
+	readonly client?: OpenAI;
+	readonly nvidiaClient?: OpenAI;
 	readonly config: OpenAIServiceConfig;
 
 	constructor(config: Partial<OpenAIServiceConfig> = {}) {
 		const merged: OpenAIServiceConfig = { ...DEFAULT_OPENAI_CONFIG, ...config };
 		this.config = merged;
-		this.client = new OpenAI({
-			apiKey: requireApiKey(merged.apiKey),
-			organization: merged.organization,
-			baseURL: merged.baseURL,
-		});
+		
+		const openAiKey = requireApiKey(merged.apiKey);
+		if (openAiKey) {
+			this.client = new OpenAI({
+				apiKey: openAiKey,
+				organization: merged.organization,
+				baseURL: merged.baseURL,
+			});
+		}
+
+		const nvidiaKey = process.env.NVIDIA_API_KEY;
+		if (nvidiaKey) {
+			this.nvidiaClient = new OpenAI({
+				baseURL: "https://integrate.api.nvidia.com/v1",
+				apiKey: nvidiaKey,
+			});
+		}
+
+		if (!this.client && !this.nvidiaClient) {
+			throw new Error("No API key provided. Set OPENAI_API_KEY or NVIDIA_API_KEY.");
+		}
 	}
 
 	/**
@@ -71,9 +83,45 @@ export class OpenAIService {
 			presence_penalty: options.presencePenalty,
 		};
 
-		const stream = await this.client.chat.completions.create(params, {
-			signal: options.abortSignal,
-		});
+		let stream;
+		let useNvidia = !this.client; // fallback if OpenAI is missing
+
+		if (!useNvidia && this.client) {
+			try {
+				stream = await this.client.chat.completions.create(params, {
+					signal: options.abortSignal,
+				});
+			} catch (error: any) {
+				const errorStr = String(error?.message || error).toLowerCase();
+				if (
+					errorStr.includes("insufficient_quota") ||
+					errorStr.includes("429") ||
+					error?.status === 429
+				) {
+					console.warn("[OpenAIService] Quota exceeded or 429. Falling back to NVIDIA API.");
+					useNvidia = true;
+				} else {
+					throw error;
+				}
+			}
+		}
+
+		if (useNvidia) {
+			if (!this.nvidiaClient) {
+				throw new Error("OpenAI quota exceeded/missing, and NVIDIA_API_KEY is not set for fallback.");
+			}
+			const nvidiaParams = {
+				...params,
+				model: "moonshotai/kimi-k2.5", // User requested fallback model
+			};
+			stream = await this.nvidiaClient.chat.completions.create(nvidiaParams, {
+				signal: options.abortSignal,
+			});
+		}
+
+		if (!stream) {
+			throw new Error("Failed to initialize completion stream.");
+		}
 
 		for await (const chunk of stream) {
 			const delta = chunk.choices[0]?.delta;
