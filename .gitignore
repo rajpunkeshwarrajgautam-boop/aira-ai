@@ -22,3 +22,13 @@ node_modules
 perplexity-clone/my-turborepo/apps/web/generated/prisma
 
 .vercel
+
+# Added per request
+*.log
+*.tmp
+.next
+generated
+perplexity-clone/my-turborepo/apps/web/generated
+prisma-db-push.js
+prisma-generate.js
+prisma-migrate-dev.js
