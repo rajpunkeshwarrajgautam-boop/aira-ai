@@ -112,7 +112,7 @@ export class OpenAIService {
 			}
 			const nvidiaParams = {
 				...params,
-				model: "moonshotai/kimi-k2.5", // User requested fallback model
+				model: "meta/llama-3.1-8b-instruct", // fallback model available on NVIDIA
 			};
 			stream = await this.nvidiaClient.chat.completions.create(nvidiaParams, {
 				signal: options.abortSignal,
