@@ -17,7 +17,9 @@ const resolvedSecret =
 		? "development-only-secret-do-not-use-in-production-min-32-chars"
 		: undefined);
 
-if (process.env.NODE_ENV === "production") {
+const isBuildTime = process.env.npm_lifecycle_event === "build";
+
+if (process.env.NODE_ENV === "production" && !isBuildTime) {
 	const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
 	if (!secret || secret.length < 32) {
 		throw new Error(
@@ -28,12 +30,14 @@ if (process.env.NODE_ENV === "production") {
 
 if (
 	process.env.NODE_ENV === "production" &&
+	!isBuildTime &&
 	authConfig.providers.length === 0
 ) {
 	throw new Error(
 		"Configure at least one OAuth provider: set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET and/or GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET.",
 	);
 }
+
 
 const authDiagnostics = {
 	googleClientIdExists: !!googleClientId(),

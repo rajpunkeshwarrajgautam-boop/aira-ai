@@ -37,9 +37,17 @@ function createPrismaClient(): PrismaClient {
 	});
 }
 
-export const prisma: PrismaClient =
-	globalForPrisma.prisma ?? createPrismaClient();
+// Lazy-load the Prisma client so that createPrismaClient() is not
+// called at the top-level during Next.js build module evaluation.
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+	get(target, prop) {
+		if (!globalForPrisma.prisma) {
+			globalForPrisma.prisma = createPrismaClient();
+		}
+		return Reflect.get(globalForPrisma.prisma, prop);
+	},
+});
 
 if (process.env.NODE_ENV !== "production") {
-	globalForPrisma.prisma = prisma;
+	// Not storing the proxy itself, but we let the proxy initialize it
 }
