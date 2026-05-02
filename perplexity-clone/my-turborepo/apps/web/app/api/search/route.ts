@@ -237,10 +237,34 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		return jsonErrorResponse(404, "CONVERSATION_NOT_FOUND", "Conversation not found.");
 	}
 
+	function classifyQueryIntent(query: string): "simple_chat" | "research" {
+		const q = query.trim().toLowerCase();
+		const exactGreetings = ["hi", "hello", "hey", "yo", "thanks", "thank you", "ok", "yes", "no"];
+		if (exactGreetings.includes(q)) return "simple_chat";
+
+		const researchKeywords = [
+			"latest", "current", "news", "comparison", "compare", 
+			"explain", "research", "best", "how", "why", "what", "who", "when", "where"
+		];
+		const words = q.split(/\s+/);
+
+		for (const w of words) {
+			if (researchKeywords.includes(w)) return "research";
+		}
+
+		if (words.length < 4 && !q.includes("?")) {
+			return "simple_chat";
+		}
+
+		return "research";
+	}
+
 	let grounded:
 		| Awaited<ReturnType<typeof streamGroundedAnswer>>
 		| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 	try {
+		const intent = classifyQueryIntent(parsed.data.query);
+
 		if (parsed.data.mode === "deep") {
 			grounded = await streamDeepResearchAnswer({
 				query: parsed.data.query,
@@ -248,6 +272,34 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				chatHistory: context.chatHistory,
 				contextualMemory: context.contextualMemory,
 			});
+		} else if (intent === "simple_chat") {
+			// Hardcode the short friendly response for basic greetings to save API calls,
+			// or use disableSearch for general short non-questions.
+			const q = parsed.data.query.trim().toLowerCase();
+			if (["hi", "hello", "hey", "yo", "thanks", "thank you", "ok"].includes(q)) {
+				async function* mockStream() {
+					if (q.includes("thank")) {
+						yield "You're welcome! Ask me anything you'd like to research.";
+					} else if (q === "ok") {
+						yield "Got it! Let me know if you need anything else.";
+					} else {
+						yield "Hi! Ask me anything you'd like to research.";
+					}
+				}
+				grounded = {
+					query: parsed.data.query,
+					sources: [],
+					textStream: mockStream()
+				};
+			} else {
+				grounded = await streamGroundedAnswer({
+					query: parsed.data.query,
+					abortSignal: abort.signal,
+					chatHistory: context.chatHistory,
+					contextualMemory: context.contextualMemory,
+					disableSearch: true,
+				});
+			}
 		} else {
 			grounded = await streamGroundedAnswer({
 				query: parsed.data.query,
