@@ -27,6 +27,13 @@ export default auth((req) => {
 		return NextResponse.next();
 	}
 
+	// Public HTML: home (guest search shell) + read-only share pages.
+	// Keep this above the unauthenticated redirect. The common matcher regex often
+	// does not match "/" on its own (Next.js #62078), so `config.matcher` also lists "/".
+	if (pathname === "/" || pathname === "/share" || pathname.startsWith("/share/")) {
+		return NextResponse.next();
+	}
+
 	// API: public routes (auth handshake, webhooks, anonymous analytics).
 	if (pathname.startsWith("/api/auth")) {
 		return NextResponse.next();
@@ -70,16 +77,6 @@ export default auth((req) => {
 		return NextResponse.next();
 	}
 
-	// Public read-only share pages (token in URL); no session required.
-	if (pathname.startsWith("/share/")) {
-		return NextResponse.next();
-	}
-
-	// Product landing: chat shell without session; actions redirect to sign-in.
-	if (pathname === "/") {
-		return NextResponse.next();
-	}
-
 	if (!req.auth) {
 		const signIn = new URL("/signin", req.url);
 		signIn.searchParams.set("callbackUrl", `${pathname}${req.nextUrl.search}`);
@@ -91,6 +88,8 @@ export default auth((req) => {
 
 export const config = {
 	matcher: [
+		// Root is often excluded by the catch-all negative-lookahead pattern alone (Vercel / Next.js).
+		"/",
 		"/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
 	],
 };
