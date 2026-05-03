@@ -47,6 +47,39 @@ export class ResearchOrchestrator {
 			}
 		}
 
+		// 0.1 Compound Query Detection (Phase 7: Tool Chaining)
+		const compoundKeywords = [" and then ", " based on ", " after "];
+		const isCompound = compoundKeywords.some(k => queryLower.includes(k));
+
+		if (isCompound) {
+			const keyword = compoundKeywords.find(k => queryLower.includes(k))!;
+			const parts = queryLower.split(keyword);
+			
+			if (parts.length === 2) {
+				const part1 = parts[0]!.trim();
+				const part2 = parts[1]!.trim();
+				
+				// Case 1: Math then Research
+				const isPart1Math = /^[0-9+\-*/().\s]+$/.test(part1) || part1.includes("calculate") || part1.includes("sum");
+				if (isPart1Math) {
+					console.log("[Orchestrator] Step 1: Math Calculation");
+					try {
+						const mathResult = await globalToolRegistry.executeTool("calculator", { expression: part1 });
+						console.log("[Orchestrator] Step 2: Research based on math result");
+						
+						const enrichedQuery = `${part2} (Note: previous calculation result was ${mathResult.result})`;
+						const plan = { 
+							subQueries: [enrichedQuery, part2], 
+							answerOutline: ["Calculation Result", "Research Context", "Combined Analysis"] 
+						};
+						return await this.executePlanAndStream(input, plan, router, abortSignal);
+					} catch (e) {
+						console.warn("[Orchestrator] Chain step 1 failed, continuing with full query", e);
+					}
+				}
+			}
+		}
+
 		// Factual Bypass: Very short queries or specific factual keywords
 		const factualKeywords = ["capital of", "who is", "when was", "where is", "population of", "height of"];
 		const isFactual = factualKeywords.some(k => queryLower.includes(k)) || (queryLower.split(/\s+/).length <= 4 && queryLower.endsWith("?"));
