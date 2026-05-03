@@ -1,8 +1,12 @@
-import OpenAI from "openai";
 import type {
 	ChatCompletionMessageParam,
-	ChatCompletionCreateParamsStreaming,
 } from "openai/resources/chat/completions";
+import {
+	OpenAIProvider,
+	NVIDIAProvider,
+	ProviderRouter,
+	type ProviderOptions,
+} from "./providers/provider-router";
 
 export interface OpenAIServiceConfig {
 	readonly apiKey?: string;
@@ -20,39 +24,35 @@ export const DEFAULT_OPENAI_CONFIG: OpenAIServiceConfig = {
 	defaultMaxCompletionTokens: 2048,
 };
 
-function requireApiKey(explicit?: string): string | undefined {
-	const key = explicit ?? process.env.OPENAI_API_KEY;
-	return key;
+function getApiKey(explicit?: string): string | undefined {
+	return explicit ?? process.env.OPENAI_API_KEY;
 }
 
 export class OpenAIService {
-	readonly client?: OpenAI;
-	readonly nvidiaClient?: OpenAI;
+	private readonly router: ProviderRouter;
 	readonly config: OpenAIServiceConfig;
 
 	constructor(config: Partial<OpenAIServiceConfig> = {}) {
 		const merged: OpenAIServiceConfig = { ...DEFAULT_OPENAI_CONFIG, ...config };
 		this.config = merged;
-		
-		const openAiKey = requireApiKey(merged.apiKey);
+
+		this.router = new ProviderRouter();
+
+		const openAiKey = getApiKey(merged.apiKey);
 		if (openAiKey) {
-			this.client = new OpenAI({
-				apiKey: openAiKey,
-				organization: merged.organization,
-				baseURL: merged.baseURL,
-			});
+			this.router.registerProvider(
+				new OpenAIProvider(
+					openAiKey,
+					merged.defaultModel,
+					merged.baseURL,
+					merged.organization,
+				),
+			);
 		}
 
 		const nvidiaKey = process.env.NVIDIA_API_KEY;
 		if (nvidiaKey) {
-			this.nvidiaClient = new OpenAI({
-				baseURL: "https://integrate.api.nvidia.com/v1",
-				apiKey: nvidiaKey,
-			});
-		}
-
-		if (!this.client && !this.nvidiaClient) {
-			throw new Error("No API key provided. Set OPENAI_API_KEY or NVIDIA_API_KEY.");
+			this.router.registerProvider(new NVIDIAProvider(nvidiaKey));
 		}
 	}
 
@@ -71,65 +71,18 @@ export class OpenAIService {
 			presencePenalty?: number;
 		} = {},
 	): AsyncGenerator<string, void, undefined> {
-		const params: ChatCompletionCreateParamsStreaming = {
+		const routerOptions: ProviderOptions = {
 			model: options.model ?? this.config.defaultModel,
-			messages,
-			stream: true,
 			temperature: options.temperature ?? this.config.defaultTemperature,
-			max_completion_tokens:
+			maxCompletionTokens:
 				options.maxCompletionTokens ?? this.config.defaultMaxCompletionTokens,
-			top_p: options.topP,
-			frequency_penalty: options.frequencyPenalty,
-			presence_penalty: options.presencePenalty,
+			abortSignal: options.abortSignal,
+			topP: options.topP,
+			frequencyPenalty: options.frequencyPenalty,
+			presencePenalty: options.presencePenalty,
 		};
 
-		let stream;
-		let useNvidia = !this.client; // fallback if OpenAI is missing
-
-		if (!useNvidia && this.client) {
-			try {
-				stream = await this.client.chat.completions.create(params, {
-					signal: options.abortSignal,
-				});
-			} catch (error: any) {
-				const errorStr = String(error?.message || error).toLowerCase();
-				if (
-					errorStr.includes("insufficient_quota") ||
-					errorStr.includes("429") ||
-					error?.status === 429
-				) {
-					console.warn("[OpenAIService] Quota exceeded or 429. Falling back to NVIDIA API.");
-					useNvidia = true;
-				} else {
-					throw error;
-				}
-			}
-		}
-
-		if (useNvidia) {
-			if (!this.nvidiaClient) {
-				throw new Error("OpenAI quota exceeded/missing, and NVIDIA_API_KEY is not set for fallback.");
-			}
-			const nvidiaParams = {
-				...params,
-				model: "meta/llama-3.1-8b-instruct", // fallback model available on NVIDIA
-			};
-			stream = await this.nvidiaClient.chat.completions.create(nvidiaParams, {
-				signal: options.abortSignal,
-			});
-		}
-
-		if (!stream) {
-			throw new Error("Failed to initialize completion stream.");
-		}
-
-		for await (const chunk of stream) {
-			const delta = chunk.choices[0]?.delta;
-			const text = delta?.content;
-			if (text) yield text;
-			const refusal = delta?.refusal;
-			if (refusal) yield refusal;
-		}
+		yield* this.router.streamChat(messages, routerOptions);
 	}
 
 	/**
@@ -158,3 +111,4 @@ export function getOpenAIService(config?: Partial<OpenAIServiceConfig>): OpenAIS
 export function createOpenAIService(config?: Partial<OpenAIServiceConfig>): OpenAIService {
 	return new OpenAIService(config);
 }
+
