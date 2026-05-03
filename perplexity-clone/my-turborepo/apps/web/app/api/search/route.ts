@@ -289,6 +289,23 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				sources: [],
 				textStream: mathStream(),
 			};
+		} else if (intent === "simple_chat") {
+			async function* simpleStream() {
+				const q = query.toLowerCase().trim();
+				if (["hi", "hello", "hey", "yo"].includes(q)) {
+					yield "Hi! How can I help you today? Ask me anything you'd like to research.";
+				} else if (["thanks", "thank you", "ok"].includes(q)) {
+					yield "You're welcome! Let me know if you have more questions.";
+				} else {
+					yield "I'm here to help with your research. Feel free to ask a specific question!";
+				}
+			}
+
+			grounded = {
+				query: query,
+				sources: [],
+				textStream: simpleStream(),
+			};
 		} else if (parsed.data.mode === "deep") {
 			const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
 			
@@ -307,35 +324,6 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					abortSignal: abort.signal,
 					chatHistory: context.chatHistory,
 					contextualMemory: context.contextualMemory,
-					presetId: parsed.data.presetId,
-				});
-			}
-		} else if (intent === "simple_chat") {
-			// Hardcode the short friendly response for basic greetings to save API calls,
-			// or use disableSearch for general short non-questions.
-			const q = parsed.data.query.trim().toLowerCase();
-			if (["hi", "hello", "hey", "yo", "thanks", "thank you", "ok"].includes(q)) {
-				async function* mockStream() {
-					if (q.includes("thank")) {
-						yield "You're welcome! Ask me anything you'd like to research.";
-					} else if (q === "ok") {
-						yield "Got it! Let me know if you need anything else.";
-					} else {
-						yield "Hi! Ask me anything you'd like to research.";
-					}
-				}
-				grounded = {
-					query: parsed.data.query,
-					sources: [],
-					textStream: mockStream()
-				};
-			} else {
-				grounded = await streamGroundedAnswer({
-					query: parsed.data.query,
-					abortSignal: abort.signal,
-					chatHistory: context.chatHistory,
-					contextualMemory: context.contextualMemory,
-					disableSearch: true,
 					presetId: parsed.data.presetId,
 				});
 			}
