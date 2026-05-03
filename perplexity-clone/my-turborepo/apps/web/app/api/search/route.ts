@@ -238,8 +238,15 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		return jsonErrorResponse(404, "CONVERSATION_NOT_FOUND", "Conversation not found.");
 	}
 
-	function classifyQueryIntent(query: string): "simple_chat" | "research" {
+	function classifyQueryIntent(query: string): "simple_chat" | "research" | "math" {
 		const q = query.trim().toLowerCase();
+		
+		// Math detection (minimal: check if it looks like a simple arithmetic expression)
+		// Matches: 2+2, 10 * 45, (10+5)/2, etc.
+		if (/^[0-9+\-*/().\s]+$/.test(q) && /[0-9]/.test(q) && /[+\-*/]/.test(q)) {
+			return "math";
+		}
+
 		const exactGreetings = ["hi", "hello", "hey", "yo", "thanks", "thank you", "ok", "yes", "no"];
 		if (exactGreetings.includes(q)) return "simple_chat";
 
@@ -264,9 +271,25 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		| Awaited<ReturnType<typeof streamGroundedAnswer>>
 		| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 	try {
-		const intent = classifyQueryIntent(parsed.data.query);
+		const query = parsed.data.query;
+		const intent = classifyQueryIntent(query);
 
-		if (parsed.data.mode === "deep") {
+		if (intent === "math") {
+			const { globalToolRegistry, registerBuiltInTools } = await import("@/lib/agents/tools/tool-registry");
+			await registerBuiltInTools();
+			
+			const result = await globalToolRegistry.executeTool("calculator", { expression: query });
+			
+			async function* mathStream() {
+				yield `The result of **${query}** is **${result.result}**.`;
+			}
+			
+			grounded = {
+				query: query,
+				sources: [],
+				textStream: mathStream(),
+			};
+		} else if (parsed.data.mode === "deep") {
 			const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
 			
 			if (isAgenticEnabled) {
