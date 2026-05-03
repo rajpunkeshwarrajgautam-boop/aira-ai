@@ -52,3 +52,14 @@ export class ToolRegistry {
 }
 
 export const globalToolRegistry = new ToolRegistry();
+
+// Lazy registration to avoid circular dependencies
+export async function registerBuiltInTools() {
+	const { webSearchTool } = await import("./webSearchTool");
+	const { citationFormatTool } = await import("./citationFormatTool");
+	const { memoryLookupTool } = await import("./memoryLookupTool");
+
+	globalToolRegistry.registerTool(webSearchTool);
+	globalToolRegistry.registerTool(citationFormatTool);
+	globalToolRegistry.registerTool(memoryLookupTool);
+}

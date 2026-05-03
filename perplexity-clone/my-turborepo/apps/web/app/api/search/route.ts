@@ -266,12 +266,24 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		const intent = classifyQueryIntent(parsed.data.query);
 
 		if (parsed.data.mode === "deep") {
-			grounded = await streamDeepResearchAnswer({
-				query: parsed.data.query,
-				abortSignal: abort.signal,
-				chatHistory: context.chatHistory,
-				contextualMemory: context.contextualMemory,
-			});
+			const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
+			
+			if (isAgenticEnabled) {
+				const { ResearchOrchestrator } = await import("@/lib/agents/orchestrator/research-orchestrator");
+				grounded = await ResearchOrchestrator.streamAnswer({
+					query: parsed.data.query,
+					abortSignal: abort.signal,
+					chatHistory: context.chatHistory,
+					contextualMemory: context.contextualMemory,
+				});
+			} else {
+				grounded = await streamDeepResearchAnswer({
+					query: parsed.data.query,
+					abortSignal: abort.signal,
+					chatHistory: context.chatHistory,
+					contextualMemory: context.contextualMemory,
+				});
+			}
 		} else if (intent === "simple_chat") {
 			// Hardcode the short friendly response for basic greetings to save API calls,
 			// or use disableSearch for general short non-questions.
