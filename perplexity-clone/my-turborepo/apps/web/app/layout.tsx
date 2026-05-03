@@ -15,7 +15,8 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Research — grounded answers",
-  description: "Ask questions with live web citations and streaming responses.",
+  description:
+    "Ask questions and get answers with live web citations. Try standard search without an account; sign in to save threads, run Deep Research, and share results.",
 };
 
 export default function RootLayout({

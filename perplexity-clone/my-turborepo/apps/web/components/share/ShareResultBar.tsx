@@ -161,7 +161,7 @@ export function ShareResultBar({
 
 				{status === "unauthenticated" ? (
 					<p className="text-xs text-content-tertiary">
-						Sign in to create shareable research pages.
+						Sharing creates a public page with your answer and sources. Sign in to generate a link.
 					</p>
 				) : null}
 

@@ -34,7 +34,12 @@ export function UserMenu({ className }: { readonly className?: string }) {
 				asChild
 				className={cn("h-9 rounded-xl px-4 text-sm font-semibold shadow-sm", className)}
 			>
-				<Link href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}>Sign in</Link>
+				<Link
+					href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
+					title="Sign in to save threads, use Deep Research, and share results"
+				>
+					Sign in
+				</Link>
 			</Button>
 		);
 	}

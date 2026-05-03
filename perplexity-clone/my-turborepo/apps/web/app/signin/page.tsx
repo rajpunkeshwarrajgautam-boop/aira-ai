@@ -38,8 +38,8 @@ export default function SignInPage() {
 					Sign in to continue
 				</h1>
 				<p className="mb-8 text-center text-sm leading-relaxed text-content-secondary">
-					Use your Google or GitHub account. Sessions are secured with encrypted cookies and stored accounts in your
-					database.
+					Signing in unlocks saved conversations, Deep Research, and shareable result pages. Use Google or GitHub;
+					sessions use secure cookies and your profile is stored only for sign-in.
 				</p>
 				<Suspense
 					fallback={

@@ -438,7 +438,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			lastSubmittedQueryRef.current = q;
 			setLimitErrorAction(null);
 			setErrorCode("SIGNIN_DEEP");
-			setErrorMessage("Sign in to use Deep Research.");
+			setErrorMessage(
+				"Deep Research uses longer, multi-step analysis. Sign in with Google or GitHub to unlock it.",
+			);
 			setPhase("error");
 			return;
 		}
@@ -501,9 +503,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				let msg: string;
 				let action: "quota" | "plan" | null = null;
 				if (response.status === 401 || code === "UNAUTHENTICATED") {
-					msg = "Sign in to continue a saved thread or use Deep Research.";
+					msg = "That needs an account—sign in to continue a saved thread or use Deep Research.";
 				} else if (code === "ANONYMOUS_QUOTA_EXCEEDED") {
-					msg = "Sign in to continue researching.";
+					msg =
+						"You've used your complimentary searches for today. Sign in to keep going with your plan limits.";
 				} else if (response.status === 402 || code === "QUOTA_EXCEEDED") {
 					action = "quota";
 					msg =
@@ -511,14 +514,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				} else if (code === "PLAN_REQUIRED") {
 					action = isGuest ? null : "plan";
 					msg = isGuest
-						? "Sign in to use Deep Research."
+						? "Deep Research is available after you sign in."
 						: "Deep Research is included on Pro and Team plans.";
 				} else if (response.status === 403) {
 					msg = raw;
 				} else if (response.status === 429) {
 					msg =
 						code === "ANONYMOUS_QUOTA_EXCEEDED"
-							? "Sign in to continue researching."
+							? "You've used your complimentary searches for today. Sign in to keep going with your plan limits."
 							: "Too many requests. Please wait a moment and try again.";
 				} else if (response.status >= 500) {
 					msg = "The service is temporarily unavailable. Please try again in a few minutes.";
@@ -714,7 +717,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 				<main className="flex min-h-dvh flex-1 flex-col">
 					<div className="bg-accent/10 px-4 py-2 text-center text-sm font-medium text-accent">
-						🚀 New: AI Research Engine with citations. Try it and give feedback!
+						Research with live citations—try standard search here. Sign in for saved threads, Deep Research, and share
+						links.
 					</div>
 					<header className="flex flex-col gap-3 px-4 py-8 md:px-8 max-w-4xl mx-auto w-full">
 						{billing && sessionStatus === "authenticated" ? (
@@ -763,7 +767,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</h1>
 									<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
 										{showConversationEmpty
-											? "Get accurate answers with citations and deep research."
+											? isAuthed
+												? "Grounded answers with citations—switch to Deep Research when you need more depth."
+												: "Ask below and get an answer with web citations. No account needed to try standard search."
 											: "Persistent threads with live web citations."}
 									</p>
 								</div>
@@ -849,14 +855,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									role="region"
 									aria-label="Share this answer"
 								>
-									<p className="text-sm text-content-secondary">
-										Sign in to create shareable research pages.
+									<p className="text-sm font-medium text-content-primary">Share this result</p>
+									<p className="text-xs leading-relaxed text-content-secondary">
+										Public links include your answer and sources. Sign in to create a shareable page.
 									</p>
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
 										className="inline-flex w-fit items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 									>
-										Sign in
+										Sign in to share
 									</Link>
 								</div>
 							) : null}
@@ -950,21 +957,24 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											"sm:max-w-[320px]",
 											"disabled:opacity-40 disabled:pointer-events-none",
 										)}
-										aria-label="Deep Research — sign in required"
+										aria-label="Deep Research requires a signed-in account"
 									>
-										Deep Research (sign in)
+										Deep Research · Sign in
 									</button>
 								)}
 							</div>
 							{!isAuthed ? (
-								<p className="text-center text-xs text-content-tertiary">
+								<p className="text-center text-xs leading-relaxed text-content-tertiary">
+									<span className="text-content-secondary">
+										Guest mode: a few standard searches per day.{" "}
+									</span>
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
 										className="font-medium text-accent underline-offset-2 hover:underline"
 									>
 										Sign in
 									</Link>{" "}
-									to save threads, use slash commands, and keep follow-ups in one place.
+									for saved threads, slash commands, follow-ups, Deep Research, and sharing.
 								</p>
 							) : null}
 							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
@@ -985,7 +995,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								isBusy={busy}
 								placeholder={
 									!isAuthed
-										? "Ask anything — standard search works without an account"
+										? "Ask anything — Enter to search (live citations, no account required)"
 										: messages.length > 0
 											? "Send a follow-up…"
 											: "Ask anything — Press Enter to search"
@@ -1006,11 +1016,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									role="alert"
 								>
 									<p className="font-medium text-red-100">
-										{limitErrorAction === "quota"
-											? "Monthly search limit reached"
-											: limitErrorAction === "plan"
-												? "Upgrade required"
-												: "Something went wrong"}
+										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+											? "Guest search limit reached"
+											: errorCode === "SIGNIN_DEEP" || (errorCode === "PLAN_REQUIRED" && !isAuthed)
+												? "Account required"
+												: limitErrorAction === "quota"
+													? "Monthly search limit reached"
+													: limitErrorAction === "plan"
+														? "Upgrade required"
+														: "Something went wrong"}
 									</p>
 									<p className="mt-1 text-red-200/95">{errorMessage}</p>
 									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
@@ -1025,7 +1039,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 												)}`}
 												className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 											>
-												Sign in
+												Sign in to continue
 											</Link>
 										</div>
 									) : null}
