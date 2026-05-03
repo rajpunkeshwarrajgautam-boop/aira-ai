@@ -3,7 +3,7 @@
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { cn } from "../lib/cn";
@@ -114,7 +114,9 @@ function safeJson<T>(raw: string): T | null {
 }
 
 export function SearchLayout({ className }: SearchLayoutProps) {
+	const router = useRouter();
 	const { status: sessionStatus } = useSession();
+	const isAuthed = sessionStatus === "authenticated";
 	const [query, setQuery] = useState("");
 	const [phase, setPhase] = useState<SearchPhase>("idle");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -125,6 +127,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
+	/** Avoid duplicate auto-submit for the same `?q=` after OAuth return. */
+	const hasAutoRunUrlQueryRef = useRef<string | null>(null);
 
 	const searchParams = useSearchParams();
 	useEffect(() => {
@@ -232,6 +236,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	);
 
 	useEffect(() => {
+		if (sessionStatus !== "authenticated") return;
 		void (async () => {
 			try {
 				await fetchConversations();
@@ -239,9 +244,36 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				console.error(e);
 			}
 		})();
-	}, [fetchConversations]);
+	}, [fetchConversations, sessionStatus]);
 
 	useEffect(() => {
+		if (sessionStatus === "authenticated") return;
+		hasAutoRunUrlQueryRef.current = null;
+		setConversations([]);
+		setSelectedConversationId(null);
+		setSelectedConversationTitle(null);
+		setMessages([]);
+		setParentMessageId(undefined);
+		setResearchHistory([]);
+		setShareContext(null);
+		setResearchMode("standard");
+	}, [sessionStatus]);
+
+	useEffect(() => {
+		if (sessionStatus !== "authenticated" || busy) return;
+		const qParam = searchParams.get("q")?.trim();
+		if (!qParam) return;
+		if (hasAutoRunUrlQueryRef.current === qParam) return;
+		hasAutoRunUrlQueryRef.current = qParam;
+		setQuery(qParam);
+		const id = window.setTimeout(() => {
+			searchBoxRef.current?.submit();
+		}, 0);
+		return () => window.clearTimeout(id);
+	}, [sessionStatus, searchParams, busy]);
+
+	useEffect(() => {
+		if (sessionStatus !== "authenticated") return;
 		if (!selectedConversationId) {
 			setMessages([]);
 			setParentMessageId(undefined);
@@ -253,9 +285,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		if (busy) return;
 
 		void fetchMessagesForConversation(selectedConversationId);
-	}, [busy, fetchMessagesForConversation, selectedConversationId]);
+	}, [busy, fetchMessagesForConversation, selectedConversationId, sessionStatus]);
 
 	useEffect(() => {
+		if (sessionStatus !== "authenticated") return;
 		if (!selectedConversationId) return;
 		if (busy) return;
 
@@ -273,7 +306,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setResearchHistory([]);
 			}
 		})();
-	}, [apiFetchJson, busy, selectedConversationId]);
+	}, [apiFetchJson, busy, selectedConversationId, sessionStatus]);
 
 	useEffect(() => {
 		// Best-effort analytics visitor tracking; does not block UI.
@@ -311,20 +344,35 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const onCreateConversation = useCallback(async () => {
 		if (busy) return;
+		if (sessionStatus !== "authenticated") {
+			router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
+			return;
+		}
 		setStreamingUserQuery(null);
 		setStreamingAssistantMarkdown(null);
 		setStreamingCitations([]);
 		setErrorMessage(null);
 		setPhase("idle");
 		await createConversation();
-	}, [busy, createConversation]);
+	}, [busy, createConversation, router, sessionStatus]);
 
 	const runSearch = useCallback(async () => {
 		let q = query.trim();
 		let currentMode = researchMode;
 		if (!q || busy) return;
 
+		if (sessionStatus === "loading") return;
+
+		const redirectToSignInWithQuery = (queryText: string) => {
+			const callbackUrl = `/?q=${encodeURIComponent(queryText)}`;
+			router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+		};
+
 		if (globalCommandRegistry.isCommand(q)) {
+			if (sessionStatus !== "authenticated") {
+				redirectToSignInWithQuery(q);
+				return;
+			}
 			const result = await globalCommandRegistry.parseAndExecute(q, {
 				conversationId: selectedConversationId,
 			});
@@ -375,6 +423,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		}
 
 		if (!q) return;
+
+		if (sessionStatus !== "authenticated") {
+			redirectToSignInWithQuery(q);
+			return;
+		}
 
 		// Ensure there is a selected conversation thread for persistence.
 		let conversationId = selectedConversationId;
@@ -549,11 +602,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		selectedPresetId,
 		researchMode,
 		refreshBilling,
+		router,
+		sessionStatus,
 	]);
 
 	const onSelectConversation = useCallback(
 		async (id: string) => {
 			if (busy) return;
+			if (sessionStatus !== "authenticated") return;
 			setSelectedConversationId(id);
 			setShareContext(null);
 			try {
@@ -571,21 +627,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			setErrorMessage(null);
 			setPhase("idle");
 		},
-		[apiFetchJson, busy, fetchMessagesForConversation],
+		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
 	);
 
 	return (
 		<div className={cn("relative min-h-dvh w-full overflow-hidden bg-surface", className)}>
 			<div className="relative z-10 flex min-h-dvh flex-col md:flex-row max-w-7xl mx-auto">
-				<div className="hidden w-[320px] shrink-0 md:block">
-					<ConversationSidebar
-						conversations={conversations}
-						selectedConversationId={selectedConversationId}
-						onSelectConversation={onSelectConversation}
-						onCreateConversation={onCreateConversation}
-						disabled={busy}
-					/>
-				</div>
+				{isAuthed ? (
+					<div className="hidden w-[320px] shrink-0 md:block">
+						<ConversationSidebar
+							conversations={conversations}
+							selectedConversationId={selectedConversationId}
+							onSelectConversation={onSelectConversation}
+							onCreateConversation={onCreateConversation}
+							disabled={busy}
+						/>
+					</div>
+				) : null}
 
 				<main className="flex min-h-dvh flex-1 flex-col">
 					<div className="bg-accent/10 px-4 py-2 text-center text-sm font-medium text-accent">
@@ -650,46 +708,48 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</header>
 
 					<div className="flex flex-1 flex-col gap-6 px-4 pb-8 md:px-8 max-w-4xl mx-auto w-full">
-						<div className="md:hidden">
-							<div className="flex items-center gap-3">
-								<select
-									className="flex-1 rounded-xl border border-border-subtle bg-surface-elevated/80 p-3 text-sm text-content-primary"
-									value={selectedConversationId ?? ""}
-									onChange={(e) => {
-										const v = e.target.value;
-										if (v) void onSelectConversation(v);
-									}}
-									disabled={conversations.length === 0 || busy}
-								>
-									<option value="" disabled>
-										Select conversation
-									</option>
-									{conversations.map((c) => (
-										<option key={c.id} value={c.id}>
-											{c.title}
+						{isAuthed ? (
+							<div className="md:hidden">
+								<div className="flex items-center gap-3">
+									<select
+										className="flex-1 rounded-xl border border-border-subtle bg-surface-elevated/80 p-3 text-sm text-content-primary"
+										value={selectedConversationId ?? ""}
+										onChange={(e) => {
+											const v = e.target.value;
+											if (v) void onSelectConversation(v);
+										}}
+										disabled={conversations.length === 0 || busy}
+									>
+										<option value="" disabled>
+											Select conversation
 										</option>
-									))}
-								</select>
+										{conversations.map((c) => (
+											<option key={c.id} value={c.id}>
+												{c.title}
+											</option>
+										))}
+									</select>
 
-								<button
-									type="button"
-									onClick={() => void onCreateConversation()}
-									disabled={busy}
-									className={cn(
-										"h-11 w-11 shrink-0 rounded-xl bg-accent/15 text-accent ring-1 ring-accent/25",
-										"hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-										"disabled:opacity-40 disabled:pointer-events-none",
-									)}
-									aria-label="New conversation"
-								>
-									<span className="text-lg font-semibold" aria-hidden>
-										+
-									</span>
-								</button>
+									<button
+										type="button"
+										onClick={() => void onCreateConversation()}
+										disabled={busy}
+										className={cn(
+											"h-11 w-11 shrink-0 rounded-xl bg-accent/15 text-accent ring-1 ring-accent/25",
+											"hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+											"disabled:opacity-40 disabled:pointer-events-none",
+										)}
+										aria-label="New conversation"
+									>
+										<span className="text-lg font-semibold" aria-hidden>
+											+
+										</span>
+									</button>
+								</div>
 							</div>
-						</div>
+						) : null}
 
-						<ResearchHistoryPanel items={researchHistory} />
+						{isAuthed ? <ResearchHistoryPanel items={researchHistory} /> : null}
 
 						<div
 							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/30 backdrop-blur-md"
@@ -710,7 +770,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									}}
 								/>
 							</div>
-							{shareContext && !busy ? (
+							{isAuthed && shareContext && !busy ? (
 								<ShareResultBar
 									conversationId={shareContext.conversationId}
 									messageId={shareContext.messageId}
@@ -731,68 +791,80 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</p>
 
 						<div className="flex flex-col gap-3">
-							<div className="flex flex-col sm:flex-row gap-3">
-								<div
-									className={cn(
-										"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
-										"sm:max-w-[200px]",
-									)}
-								>
-									<select
-										className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
-										value={selectedPresetId}
-										onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
-										disabled={busy}
-										aria-label="Research focus"
+							{isAuthed ? (
+								<div className="flex flex-col sm:flex-row gap-3">
+									<div
+										className={cn(
+											"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
+											"sm:max-w-[200px]",
+										)}
 									>
-										{Object.values(RESEARCH_PRESETS).map((p) => (
-											<option key={p.id} value={p.id}>
-												{p.label}
-											</option>
-										))}
-									</select>
-								</div>
+										<select
+											className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
+											value={selectedPresetId}
+											onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
+											disabled={busy}
+											aria-label="Research focus"
+										>
+											{Object.values(RESEARCH_PRESETS).map((p) => (
+												<option key={p.id} value={p.id}>
+													{p.label}
+												</option>
+											))}
+										</select>
+									</div>
 
-								<div
-									className={cn(
-										"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
-										"sm:max-w-[320px]",
-									)}
-									role="group"
-									aria-label="Search mode"
-								>
-									<button
-										type="button"
-										onClick={() => setResearchMode("standard")}
-										disabled={busy}
+									<div
 										className={cn(
-											"flex-1 px-3 py-2 text-sm font-medium transition",
-											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-											researchMode === "standard"
-												? "bg-accent/20 text-accent"
-												: "bg-transparent text-content-secondary hover:text-content-primary",
-											"disabled:opacity-40 disabled:pointer-events-none",
+											"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
+											"sm:max-w-[320px]",
 										)}
+										role="group"
+										aria-label="Search mode"
 									>
-										Standard Search
-									</button>
-									<button
-										type="button"
-										onClick={() => setResearchMode("deep")}
-										disabled={busy}
-										className={cn(
-											"flex-1 px-3 py-2 text-sm font-medium transition",
-											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-											researchMode === "deep"
-												? "bg-accent/20 text-accent"
-												: "bg-transparent text-content-secondary hover:text-content-primary",
-											"disabled:opacity-40 disabled:pointer-events-none",
-										)}
-									>
-										Deep Research
-									</button>
+										<button
+											type="button"
+											onClick={() => setResearchMode("standard")}
+											disabled={busy}
+											className={cn(
+												"flex-1 px-3 py-2 text-sm font-medium transition",
+												"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+												researchMode === "standard"
+													? "bg-accent/20 text-accent"
+													: "bg-transparent text-content-secondary hover:text-content-primary",
+												"disabled:opacity-40 disabled:pointer-events-none",
+											)}
+										>
+											Standard Search
+										</button>
+										<button
+											type="button"
+											onClick={() => setResearchMode("deep")}
+											disabled={busy}
+											className={cn(
+												"flex-1 px-3 py-2 text-sm font-medium transition",
+												"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+												researchMode === "deep"
+													? "bg-accent/20 text-accent"
+													: "bg-transparent text-content-secondary hover:text-content-primary",
+												"disabled:opacity-40 disabled:pointer-events-none",
+											)}
+										>
+											Deep Research
+										</button>
+									</div>
 								</div>
-							</div>
+							) : (
+								<p className="text-center text-xs text-content-tertiary">
+									<Link
+										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
+										className="font-medium text-accent underline-offset-2 hover:underline"
+									>
+										Sign in
+									</Link>{" "}
+									to save threads, run research, and unlock Deep Research.
+								</p>
+							)}
 							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
 								<p className="text-center text-xs text-amber-200/90">
 									Deep Research requires a Pro or Team plan.{" "}
@@ -810,14 +882,21 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								disabled={busy}
 								isBusy={busy}
 								placeholder={
-									messages.length > 0
-										? "Send a follow-up…"
-										: "Ask anything — Press Enter to search"
+									!isAuthed
+										? "Ask anything — sign in when prompted to run research"
+										: messages.length > 0
+											? "Send a follow-up…"
+											: "Ask anything — Press Enter to search"
 								}
 							/>
-							<div className="text-xs text-content-tertiary px-2">
-								Try <span className="font-mono text-content-secondary">/new</span>, <span className="font-mono text-content-secondary">/history</span>, <span className="font-mono text-content-secondary">/deep</span>, <span className="font-mono text-content-secondary">/share</span>
-							</div>
+							{isAuthed ? (
+								<div className="text-xs text-content-tertiary px-2">
+									Try <span className="font-mono text-content-secondary">/new</span>,{" "}
+									<span className="font-mono text-content-secondary">/history</span>,{" "}
+									<span className="font-mono text-content-secondary">/deep</span>,{" "}
+									<span className="font-mono text-content-secondary">/share</span>
+								</div>
+							) : null}
 
 							{phase === "error" && errorMessage ? (
 								<div

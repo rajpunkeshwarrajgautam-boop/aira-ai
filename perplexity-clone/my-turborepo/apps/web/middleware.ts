@@ -9,18 +9,56 @@ import { authConfig } from "./auth.config";
  */
 const { auth } = NextAuth(authConfig);
 
+function jsonUnauthorized(): NextResponse {
+	return NextResponse.json(
+		{ error: { code: "UNAUTHENTICATED", message: "Sign in required." } },
+		{ status: 401, headers: { "Cache-Control": "no-store" } },
+	);
+}
+
 export default auth((req) => {
 	const { pathname } = req.nextUrl;
-
-	if (pathname.startsWith("/api/")) {
-		return NextResponse.next();
-	}
 
 	if (
 		pathname.startsWith("/_next") ||
 		pathname === "/favicon.ico" ||
 		/\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname)
 	) {
+		return NextResponse.next();
+	}
+
+	// API: public routes (auth handshake, webhooks, anonymous analytics).
+	if (pathname.startsWith("/api/auth")) {
+		return NextResponse.next();
+	}
+	if (pathname.startsWith("/api/webhooks/")) {
+		return NextResponse.next();
+	}
+	if (pathname.startsWith("/api/analytics/")) {
+		return NextResponse.next();
+	}
+
+	// API: session required (route handlers also enforce; belt + suspenders).
+	if (
+		pathname.startsWith("/api/search") ||
+		pathname.startsWith("/api/conversations") ||
+		pathname.startsWith("/api/billing") ||
+		pathname.startsWith("/api/history")
+	) {
+		if (!req.auth) {
+			return jsonUnauthorized();
+		}
+		return NextResponse.next();
+	}
+
+	if (pathname.startsWith("/api/admin")) {
+		if (!req.auth) {
+			return jsonUnauthorized();
+		}
+		return NextResponse.next();
+	}
+
+	if (pathname.startsWith("/api/")) {
 		return NextResponse.next();
 	}
 
@@ -33,6 +71,11 @@ export default auth((req) => {
 
 	// Public read-only share pages (token in URL); no session required.
 	if (pathname.startsWith("/share/")) {
+		return NextResponse.next();
+	}
+
+	// Product landing: chat shell without session; actions redirect to sign-in.
+	if (pathname === "/") {
 		return NextResponse.next();
 	}
 

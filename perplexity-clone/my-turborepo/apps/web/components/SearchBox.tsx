@@ -18,6 +18,8 @@ export interface SearchBoxProps {
 
 export type SearchBoxHandle = {
 	focus: () => void;
+	/** Programmatic submit (same as pressing Enter when non-empty). */
+	submit: () => void;
 };
 
 export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
@@ -34,10 +36,6 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 ) {
 	const taRef = useRef<HTMLTextAreaElement>(null);
 
-	useImperativeHandle(ref, () => ({
-		focus: () => taRef.current?.focus(),
-	}));
-
 	const resize = useCallback(() => {
 		const el = taRef.current;
 		if (!el) return;
@@ -47,10 +45,17 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 
 	const busy = Boolean(disabled || isBusy);
 
-	const handleSubmit = () => {
+	const handleSubmit = useCallback(() => {
 		if (!value.trim() || busy) return;
 		onSubmit();
-	};
+	}, [value, busy, onSubmit]);
+
+	useImperativeHandle(ref, () => ({
+		focus: () => taRef.current?.focus(),
+		submit: () => {
+			handleSubmit();
+		},
+	}));
 
 	const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {

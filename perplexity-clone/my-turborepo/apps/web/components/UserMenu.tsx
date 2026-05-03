@@ -1,6 +1,8 @@
 "use client";
 
 import { LogOut, User } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
 import { Button } from "./ui/button";
@@ -8,6 +10,9 @@ import { cn } from "../lib/cn";
 
 export function UserMenu({ className }: { readonly className?: string }) {
 	const { data: session, status } = useSession();
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	const returnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
 	if (status === "loading") {
 		return (
@@ -22,7 +27,16 @@ export function UserMenu({ className }: { readonly className?: string }) {
 	}
 
 	if (!session?.user) {
-		return null;
+		return (
+			<Button
+				variant="default"
+				size="sm"
+				asChild
+				className={cn("h-9 rounded-xl px-4 text-sm font-semibold shadow-sm", className)}
+			>
+				<Link href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}>Sign in</Link>
+			</Button>
+		);
 	}
 
 	const label = session.user.name ?? session.user.email ?? "Account";
@@ -45,7 +59,7 @@ export function UserMenu({ className }: { readonly className?: string }) {
 			<Button
 				variant="ghost"
 				size="sm"
-				onClick={() => void signOut({ callbackUrl: "/signin" })}
+				onClick={() => void signOut({ callbackUrl: "/" })}
 				className="h-8 px-2 text-xs text-content-secondary hover:text-content-primary"
 			>
 				<LogOut className="mr-1.5 size-3.5" aria-hidden />
