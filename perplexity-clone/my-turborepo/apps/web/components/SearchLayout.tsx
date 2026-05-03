@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { cn } from "../lib/cn";
+import { logProductEvent } from "../lib/log-product-event";
 import { globalCommandRegistry } from "../lib/agents/commands/command-registry";
 import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/research-presets";
 
@@ -38,6 +39,14 @@ const EXAMPLE_QUERIES = [
 	"Compare ChatGPT vs Gemini",
 	"Best laptops under 1 lakh in India",
 ] as const;
+
+/** Public env only; falls back until `NEXT_PUBLIC_FEEDBACK_EMAIL` is set in Vercel. */
+const FEEDBACK_EMAIL =
+	(typeof process.env.NEXT_PUBLIC_FEEDBACK_EMAIL === "string"
+		? process.env.NEXT_PUBLIC_FEEDBACK_EMAIL.trim()
+		: "") || "feedback@example.com";
+
+const FEEDBACK_MAILTO_HREF = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent("Research app feedback")}`;
 
 interface ApiErrorBody {
 	readonly error?: {
@@ -471,6 +480,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setShareContext(null);
 		setPhase("connecting");
 
+		if (isGuest) {
+			logProductEvent({ event: "guest_search_started", surface: "search" });
+		}
+
 		try {
 			const response = await fetch("/api/search", {
 				method: "POST",
@@ -779,6 +792,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								</div>
 							</div>
 							<div className="flex shrink-0 items-center gap-2">
+								<a
+									href={FEEDBACK_MAILTO_HREF}
+									onClick={() =>
+										logProductEvent({ event: "feedback_clicked", surface: "header" })
+									}
+									className="text-xs font-medium text-content-tertiary underline-offset-2 hover:text-accent hover:underline sm:text-[13px]"
+								>
+									Feedback
+								</a>
 								<UserMenu className="hidden sm:flex" />
 							</div>
 						</div>
@@ -1079,7 +1101,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						<p>Responses are generated from retrieved sources. Verify critical facts independently.</p>
 						<p>Built for fast, reliable research with sources.</p>
 						<a
-							href="mailto:feedback@example.com"
+							href={FEEDBACK_MAILTO_HREF}
+							onClick={() =>
+								logProductEvent({ event: "feedback_clicked", surface: "footer" })
+							}
 							className="mt-2 inline-flex h-8 items-center justify-center rounded-xl bg-surface-elevated/90 px-4 font-medium text-content-primary shadow-panel ring-1 ring-border-subtle/80 backdrop-blur-sm transition hover:bg-surface-elevated hover:text-accent focus-visible:outline-accent md:backdrop-blur-md"
 						>
 							Send feedback

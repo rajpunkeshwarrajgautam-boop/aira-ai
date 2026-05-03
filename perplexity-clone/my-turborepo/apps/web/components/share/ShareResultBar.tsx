@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { logProductEvent } from "@/lib/log-product-event";
 
 export function ShareResultBar({
 	conversationId,
@@ -62,6 +63,7 @@ export function ShareResultBar({
 
 	const onShareResult = useCallback(async () => {
 		if (!canShare || loading) return;
+		logProductEvent({ event: "share_clicked", surface: "share_bar" });
 		setError(null);
 
 		if (resolvedUrl) {
