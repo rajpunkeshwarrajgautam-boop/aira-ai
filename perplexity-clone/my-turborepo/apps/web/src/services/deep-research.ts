@@ -9,11 +9,7 @@ import {
 	type SourceCandidate,
 } from "./citations";
 import { createExaSearchService, DEFAULT_EXA_SEARCH_OPTIONS, type ExaSearchOptions, type ExaSearchService, type ExaSearchType } from "./search";
-import {
-	createOpenAIService,
-	OpenAIService,
-	type OpenAIService as OpenAIServiceType,
-} from "./openai";
+import { ProviderRouter } from "./providers/provider-router";
 
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
@@ -71,11 +67,13 @@ const VerificationOutputSchema = z.object({
 
 type VerificationOutput = z.infer<typeof VerificationOutputSchema>;
 
+import { getResearchPreset } from "./research-presets";
+
 export interface DeepResearchInput {
 	readonly query: string;
 	readonly abortSignal?: AbortSignal;
 
-	readonly openai?: OpenAIServiceType;
+	readonly router?: ProviderRouter;
 	readonly exa?: ExaSearchService;
 
 	readonly chatHistory?: readonly {
@@ -99,6 +97,8 @@ export interface DeepResearchInput {
 		readonly maxSubQueries?: number;
 		readonly maxFollowUpSearches?: number;
 	};
+
+	readonly presetId?: string;
 }
 
 export interface DeepResearchStreamResult {
@@ -124,11 +124,15 @@ function buildChatMessages(
 		readonly contextualMemory?: readonly string[];
 		readonly systemPrompt: string;
 		readonly extraUserInstructions?: string;
+		readonly presetId?: string;
 	},
 ): ChatCompletionMessageParam[] {
 	const { sources, query } = options;
+	const preset = getResearchPreset(options.presetId);
 	const messages: ChatCompletionMessageParam[] = [];
-	messages.push({ role: "system", content: options.systemPrompt });
+
+	const systemPrompt = `${options.systemPrompt}\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
+	messages.push({ role: "system", content: systemPrompt });
 
 	if (options.contextualMemory && options.contextualMemory.length > 0) {
 		messages.push({
@@ -165,8 +169,9 @@ function buildChatMessages(
 	return messages;
 }
 
-async function collectOpenAIText(
-	openaiClient: OpenAIServiceType,
+
+async function collectRouterText(
+	router: ProviderRouter,
 	messages: ChatCompletionMessageParam[],
 	options: {
 		readonly model?: string;
@@ -176,14 +181,18 @@ async function collectOpenAIText(
 	},
 ): Promise<string> {
 	async function* gen(): AsyncGenerator<string, void, undefined> {
-		yield* openaiClient.streamChatText(messages, {
+		yield* router.streamChat(messages, {
 			model: options.model,
 			temperature: options.temperature,
 			maxCompletionTokens: options.maxCompletionTokens,
 			abortSignal: options.abortSignal,
 		});
 	}
-	return OpenAIService.collectTextStream(gen());
+	let out = "";
+	for await (const part of gen()) {
+		out += part;
+	}
+	return out;
 }
 
 function buildPlanningMessages(input: {
@@ -275,7 +284,7 @@ export async function streamDeepResearchAnswer(
 ): Promise<DeepResearchStreamResult> {
 	assertNonEmptyQuery(input.query);
 
-	const openaiClient = input.openai ?? createOpenAIService();
+	const router = input.router ?? (await ProviderRouter.createDefault());
 	const exa = input.exa ?? createExaSearchService();
 
 	const planMaxSubQueries = input.plan?.maxSubQueries ?? 3;
@@ -288,7 +297,7 @@ export async function streamDeepResearchAnswer(
 		contextualMemory: input.contextualMemory,
 	});
 
-	const planRaw = await collectOpenAIText(openaiClient, planningMessages, {
+	const planRaw = await collectRouterText(router, planningMessages, {
 		model: input.model,
 		temperature: input.temperature ?? 0.2,
 		maxCompletionTokens: 450,
@@ -350,9 +359,10 @@ export async function streamDeepResearchAnswer(
 		contextualMemory: input.contextualMemory,
 		systemPrompt: DEEP_RESEARCHER_SYSTEM_PROMPT,
 		extraUserInstructions: buildDraftInstructions(plan),
+		presetId: input.presetId,
 	});
 
-	const draftText = await collectOpenAIText(openaiClient, draftMessages, {
+	const draftText = await collectRouterText(router, draftMessages, {
 		model: input.model,
 		temperature: input.temperature ?? 0.2,
 		maxCompletionTokens: input.draftMaxCompletionTokens ?? 1200,
@@ -384,7 +394,7 @@ export async function streamDeepResearchAnswer(
 		},
 	];
 
-	const verificationRaw = await collectOpenAIText(openaiClient, verificationMessages, {
+	const verificationRaw = await collectRouterText(router, verificationMessages, {
 		model: input.model,
 		temperature: Math.max(0, (input.temperature ?? 0.2) - 0.1),
 		maxCompletionTokens: input.verificationMaxCompletionTokens ?? 650,
@@ -423,10 +433,11 @@ export async function streamDeepResearchAnswer(
 		contextualMemory: input.contextualMemory,
 		systemPrompt: DEEP_RESEARCHER_SYSTEM_PROMPT,
 		extraUserInstructions: buildFinalInstructions(plan, verification),
+		presetId: input.presetId,
 	});
 
 	async function* stream(): AsyncGenerator<string, void, undefined> {
-		yield* openaiClient.streamChatText(finalMessages, {
+		yield* router.streamChat(finalMessages, {
 			model: input.model,
 			temperature: input.temperature ?? 0.2,
 			maxCompletionTokens: input.finalMaxCompletionTokens,

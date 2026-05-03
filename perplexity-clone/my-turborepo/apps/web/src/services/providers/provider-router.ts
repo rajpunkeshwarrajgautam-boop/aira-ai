@@ -1,8 +1,4 @@
-import OpenAI from "openai";
-import type {
-	ChatCompletionMessageParam,
-	ChatCompletionCreateParamsStreaming,
-} from "openai/resources/chat/completions";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 export interface ProviderOptions {
 	readonly model?: string;
@@ -23,91 +19,6 @@ export interface AIProvider {
 	): AsyncGenerator<string, void, undefined>;
 }
 
-export class OpenAIProvider implements AIProvider {
-	readonly providerId = "openai";
-	private readonly client: OpenAI;
-
-	constructor(
-		apiKey: string,
-		readonly defaultModel: string = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini",
-		baseURL?: string,
-		organization?: string,
-	) {
-		this.client = new OpenAI({ apiKey, baseURL, organization });
-	}
-
-	async *generateTextStream(
-		messages: ChatCompletionMessageParam[],
-		options: ProviderOptions,
-	): AsyncGenerator<string, void, undefined> {
-		const params: ChatCompletionCreateParamsStreaming = {
-			model: options.model ?? this.defaultModel,
-			messages,
-			stream: true,
-			temperature: options.temperature,
-			max_completion_tokens: options.maxCompletionTokens,
-			top_p: options.topP,
-			frequency_penalty: options.frequencyPenalty,
-			presence_penalty: options.presencePenalty,
-		};
-
-		const stream = await this.client.chat.completions.create(params, {
-			signal: options.abortSignal,
-		});
-
-		for await (const chunk of stream) {
-			const delta = chunk.choices[0]?.delta;
-			const text = delta?.content;
-			if (text) yield text;
-			const refusal = delta?.refusal;
-			if (refusal) yield refusal;
-		}
-	}
-}
-
-export class NVIDIAProvider implements AIProvider {
-	readonly providerId = "nvidia";
-	private readonly client: OpenAI;
-
-	constructor(
-		apiKey: string,
-		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-8b-instruct",
-	) {
-		this.client = new OpenAI({
-			apiKey,
-			baseURL: "https://integrate.api.nvidia.com/v1",
-		});
-	}
-
-	async *generateTextStream(
-		messages: ChatCompletionMessageParam[],
-		options: ProviderOptions,
-	): AsyncGenerator<string, void, undefined> {
-		const params: ChatCompletionCreateParamsStreaming = {
-			model: options.model ?? this.defaultModel,
-			messages,
-			stream: true,
-			temperature: options.temperature,
-			max_completion_tokens: options.maxCompletionTokens,
-			top_p: options.topP,
-			frequency_penalty: options.frequencyPenalty,
-			presence_penalty: options.presencePenalty,
-		};
-
-		const stream = await this.client.chat.completions.create(params, {
-			signal: options.abortSignal,
-		});
-
-		for await (const chunk of stream) {
-			const delta = chunk.choices[0]?.delta;
-			const text = delta?.content;
-			if (text) yield text;
-			const refusal = delta?.refusal;
-			if (refusal) yield refusal;
-		}
-	}
-}
-
 export class ProviderRouter {
 	private readonly providers: Map<string, AIProvider> = new Map();
 
@@ -118,6 +29,25 @@ export class ProviderRouter {
 
 	registerProvider(provider: AIProvider) {
 		this.providers.set(provider.providerId, provider);
+	}
+
+	static async createDefault(): Promise<ProviderRouter> {
+		const { OpenAIProvider } = await import("./openai-provider");
+		const { NVIDIAProvider } = await import("./nvidia-provider");
+
+		const router = new ProviderRouter();
+
+		const openAiKey = process.env.OPENAI_API_KEY;
+		if (openAiKey) {
+			router.registerProvider(new OpenAIProvider(openAiKey));
+		}
+
+		const nvidiaKey = process.env.NVIDIA_API_KEY;
+		if (nvidiaKey) {
+			router.registerProvider(new NVIDIAProvider(nvidiaKey));
+		}
+
+		return router;
 	}
 
 	async *streamChat(

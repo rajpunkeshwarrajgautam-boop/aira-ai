@@ -7,7 +7,7 @@ import {
 	type RankingOptions,
 	type SourceCandidate,
 } from "./citations";
-import { createOpenAIService, OpenAIService, type OpenAIService as OpenAIServiceType } from "./openai";
+import { ProviderRouter, type ProviderOptions } from "./providers/provider-router";
 import {
 	createExaSearchService,
 	DEFAULT_EXA_SEARCH_OPTIONS,
@@ -23,11 +23,13 @@ Rules:
 - If the sources are insufficient, say so clearly and answer only what they support; you may add high-level general knowledge only when clearly separated and labeled as general background (no fake citations).
 - Be concise but thorough. Use markdown sections when it improves readability.`;
 
+import { getResearchPreset } from "./research-presets";
+
 export interface GroundedAnswerInput {
 	/** User question (non-empty). */
 	query: string;
 	abortSignal?: AbortSignal;
-	openai?: OpenAIServiceType;
+	router?: ProviderRouter;
 	exa?: ExaSearchService;
 	search?: Partial<ExaSearchOptions>;
 	ranking?: Partial<RankingOptions>;
@@ -43,6 +45,8 @@ export interface GroundedAnswerInput {
 	}[];
 	/** Additional long-term memory snippets relevant to this question. */
 	contextualMemory?: readonly string[];
+	/** Optional research preset ID. */
+	presetId?: string;
 }
 
 export interface GroundedAnswerStreamResult {
@@ -71,8 +75,10 @@ function buildMessages(
 			readonly content: string;
 		}[];
 		readonly contextualMemory?: readonly string[];
+		readonly presetId?: string;
 	},
 ): ChatCompletionMessageParam[] {
+	const preset = getResearchPreset(options.presetId);
 	const userParts: string[] = [];
 
 	if (sources.length > 0) {
@@ -100,7 +106,9 @@ function buildMessages(
 				query.trim(),
 		);
 	}
-	const messages: ChatCompletionMessageParam[] = [{ role: "system", content: SYSTEM_PROMPT }];
+
+	const systemPrompt = `${SYSTEM_PROMPT}\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
+	const messages: ChatCompletionMessageParam[] = [{ role: "system", content: systemPrompt }];
 
 	if (options.contextualMemory && options.contextualMemory.length > 0) {
 		messages.push({
@@ -122,6 +130,7 @@ function buildMessages(
 	return messages;
 }
 
+
 /**
  * End-to-end Perplexity-style pipeline: Exa retrieval → ranking → OpenAI streaming answer with citations.
  */
@@ -129,8 +138,8 @@ export async function streamGroundedAnswer(
 	input: GroundedAnswerInput,
 ): Promise<GroundedAnswerStreamResult> {
 	assertNonEmptyQuery(input.query);
-
-	const openaiClient = input.openai ?? createOpenAIService();
+	
+	const router = input.router ?? (await ProviderRouter.createDefault());
 	const exa = input.exa ?? createExaSearchService();
 
 	let sources: RankedSource[] = [];
@@ -162,10 +171,11 @@ export async function streamGroundedAnswer(
 		searchDisabled: input.disableSearch === true,
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
+		presetId: input.presetId,
 	});
 
 	async function* stream(): AsyncGenerator<string, void, undefined> {
-		yield* openaiClient.streamChatText(messages, {
+		yield* router.streamChat(messages, {
 			model: input.model,
 			temperature: input.temperature,
 			maxCompletionTokens: input.maxCompletionTokens,
@@ -194,6 +204,9 @@ export async function completeGroundedAnswer(
 	exaSearchType?: string;
 }> {
 	const { textStream, sources, exaRequestId, exaSearchType } = await streamGroundedAnswer(input);
-	const text = await OpenAIService.collectTextStream(textStream);
+	let text = "";
+	for await (const part of textStream) {
+		text += part;
+	}
 	return { text, sources, exaRequestId, exaSearchType };
 }

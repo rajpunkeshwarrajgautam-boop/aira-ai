@@ -2,11 +2,11 @@ import type {
 	ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import {
-	OpenAIProvider,
-	NVIDIAProvider,
 	ProviderRouter,
 	type ProviderOptions,
 } from "./providers/provider-router";
+import { OpenAIProvider } from "./providers/openai-provider";
+import { NVIDIAProvider } from "./providers/nvidia-provider";
 
 export interface OpenAIServiceConfig {
 	readonly apiKey?: string;

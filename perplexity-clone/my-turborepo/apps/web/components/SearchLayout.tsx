@@ -88,11 +88,14 @@ function safeJson<T>(raw: string): T | null {
 	}
 }
 
+import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/research-presets";
+
 export function SearchLayout({ className }: SearchLayoutProps) {
 	const [query, setQuery] = useState("");
 	const [phase, setPhase] = useState<SearchPhase>("idle");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
+	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
@@ -345,6 +348,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					parentMessageId,
 					continueResearch: Boolean(parentMessageId),
 					mode: currentMode,
+					presetId: selectedPresetId,
 				}),
 				signal: controller.signal,
 				credentials: "include",
@@ -633,44 +637,67 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</p>
 
 						<div className="flex flex-col gap-3">
-							<div
-								className={cn(
-									"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
-									"sm:max-w-[520px]",
-								)}
-								role="group"
-								aria-label="Search mode"
-							>
-								<button
-									type="button"
-									onClick={() => setResearchMode("standard")}
-									disabled={busy}
+							<div className="flex flex-col sm:flex-row gap-3">
+								<div
 									className={cn(
-										"flex-1 px-3 py-2 text-sm font-medium transition",
-										"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-										researchMode === "standard"
-											? "bg-accent/20 text-accent"
-											: "bg-transparent text-content-secondary hover:text-content-primary",
-										"disabled:opacity-40 disabled:pointer-events-none",
+										"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
+										"sm:max-w-[200px]",
 									)}
 								>
-									Standard Search
-								</button>
-								<button
-									type="button"
-									onClick={() => setResearchMode("deep")}
-									disabled={busy}
+									<select
+										className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
+										value={selectedPresetId}
+										onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
+										disabled={busy}
+										aria-label="Research focus"
+									>
+										{Object.values(RESEARCH_PRESETS).map((p) => (
+											<option key={p.id} value={p.id}>
+												{p.label}
+											</option>
+										))}
+									</select>
+								</div>
+
+								<div
 									className={cn(
-										"flex-1 px-3 py-2 text-sm font-medium transition",
-										"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-										researchMode === "deep"
-											? "bg-accent/20 text-accent"
-											: "bg-transparent text-content-secondary hover:text-content-primary",
-										"disabled:opacity-40 disabled:pointer-events-none",
+										"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
+										"sm:max-w-[320px]",
 									)}
+									role="group"
+									aria-label="Search mode"
 								>
-									Deep Research
-								</button>
+									<button
+										type="button"
+										onClick={() => setResearchMode("standard")}
+										disabled={busy}
+										className={cn(
+											"flex-1 px-3 py-2 text-sm font-medium transition",
+											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+											researchMode === "standard"
+												? "bg-accent/20 text-accent"
+												: "bg-transparent text-content-secondary hover:text-content-primary",
+											"disabled:opacity-40 disabled:pointer-events-none",
+										)}
+									>
+										Standard Search
+									</button>
+									<button
+										type="button"
+										onClick={() => setResearchMode("deep")}
+										disabled={busy}
+										className={cn(
+											"flex-1 px-3 py-2 text-sm font-medium transition",
+											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+											researchMode === "deep"
+												? "bg-accent/20 text-accent"
+												: "bg-transparent text-content-secondary hover:text-content-primary",
+											"disabled:opacity-40 disabled:pointer-events-none",
+										)}
+									>
+										Deep Research
+									</button>
+								</div>
 							</div>
 
 							<SearchBox

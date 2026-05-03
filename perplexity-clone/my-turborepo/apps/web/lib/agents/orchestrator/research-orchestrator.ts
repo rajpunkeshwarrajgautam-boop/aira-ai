@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { globalToolRegistry } from "../tools/tool-registry";
-import { createOpenAIService, OpenAIService } from "../../../src/services/openai";
+import { ProviderRouter } from "../../../src/services/providers/provider-router";
 import type { DeepResearchInput, DeepResearchStreamResult } from "../../../src/services/deep-research";
 import type { RankedSource } from "../../../src/services/citations";
 
@@ -19,7 +19,8 @@ export class ResearchOrchestrator {
 		const { registerBuiltInTools } = await import("../tools/tool-registry");
 		await registerBuiltInTools();
 		
-		const openai = input.openai ?? createOpenAIService();
+		
+		const router = input.router ?? (await ProviderRouter.createDefault());
 		const abortSignal = input.abortSignal;
 
 		// 1. Planning Phase
@@ -29,9 +30,12 @@ export class ResearchOrchestrator {
 			{ role: "user", content: `Question: ${input.query}` }
 		];
 
-		const planRaw = await OpenAIService.collectTextStream(
-			openai.streamChatText(planningMessages as any, { temperature: 0.2, abortSignal })
-		);
+
+		const streamPlan = router.streamChat(planningMessages as any, { temperature: 0.2, abortSignal });
+		let planRaw = "";
+		for await (const part of streamPlan) {
+			planRaw += part;
+		}
 
 		let plan: PlanOutput;
 		try {
@@ -78,13 +82,18 @@ export class ResearchOrchestrator {
 
 		// 4. Generation Phase
 		console.log("[Orchestrator] Phase 4: Generating Final Answer");
+		const { getResearchPreset } = await import("../../../src/services/research-presets");
+		const preset = getResearchPreset(input.presetId);
+		
+		const systemPrompt = `You are a helpful assistant. Answer the question using the provided sources and citations [1], [2], etc.\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
+
 		const finalMessages = [
-			{ role: "system", content: "You are a helpful assistant. Answer the question using the provided sources and citations [1], [2], etc." },
+			{ role: "system", content: systemPrompt },
 			{ role: "user", content: `Sources:\n${JSON.stringify(sources)}\n\nQuestion: ${input.query}\n\nOutline: ${plan.answerOutline.join(", ")}` }
 		];
 
 		async function* stream() {
-			yield* openai.streamChatText(finalMessages as any, { 
+			yield* router.streamChat(finalMessages as any, { 
 				temperature: 0.2, 
 				abortSignal 
 			});

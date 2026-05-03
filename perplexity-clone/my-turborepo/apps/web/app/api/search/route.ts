@@ -39,6 +39,7 @@ const SearchRequestSchema = z.object({
 	parentMessageId: z.string().min(3).max(128).optional(),
 	continueResearch: z.boolean().optional(),
 	mode: z.enum(["standard", "deep"]).optional().default("standard"),
+	presetId: z.string().optional().default("general"),
 });
 
 type CitationPayload = {
@@ -275,6 +276,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					abortSignal: abort.signal,
 					chatHistory: context.chatHistory,
 					contextualMemory: context.contextualMemory,
+					presetId: parsed.data.presetId,
 				});
 			} else {
 				grounded = await streamDeepResearchAnswer({
@@ -282,6 +284,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					abortSignal: abort.signal,
 					chatHistory: context.chatHistory,
 					contextualMemory: context.contextualMemory,
+					presetId: parsed.data.presetId,
 				});
 			}
 		} else if (intent === "simple_chat") {
@@ -310,6 +313,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					chatHistory: context.chatHistory,
 					contextualMemory: context.contextualMemory,
 					disableSearch: true,
+					presetId: parsed.data.presetId,
 				});
 			}
 		} else {
@@ -318,6 +322,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				abortSignal: abort.signal,
 				chatHistory: context.chatHistory,
 				contextualMemory: context.contextualMemory,
+				presetId: parsed.data.presetId,
 			});
 		}
 	} catch (e) {
