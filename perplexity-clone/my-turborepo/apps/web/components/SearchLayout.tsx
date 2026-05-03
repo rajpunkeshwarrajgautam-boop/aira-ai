@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { cn } from "../lib/cn";
+import { globalCommandRegistry } from "../lib/agents/commands/command-registry";
 
 import { type CitationItem } from "./CitationCards";
 import { SearchBox, type SearchBoxHandle } from "./SearchBox";
@@ -260,8 +261,61 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	}, []);
 
 	const runSearch = useCallback(async () => {
-		const q = query.trim();
+		let q = query.trim();
+		let currentMode = researchMode;
 		if (!q || busy) return;
+
+		if (globalCommandRegistry.isCommand(q)) {
+			const result = await globalCommandRegistry.parseAndExecute(q, {
+				conversationId: selectedConversationId,
+			});
+
+			if (!result) return;
+
+			if (result.type === "error") {
+				setErrorMessage(result.message ?? "Unknown command. Try /new, /history, /deep, or /share.");
+				return;
+			}
+
+			setQuery("");
+
+			if (result.type === "redirect" && result.payload === "/") {
+				await onCreateConversation();
+				return;
+			}
+
+			if (result.type === "system_message") {
+				const historySelect = document.querySelector('select');
+				if (historySelect) historySelect.focus();
+				const newChatBtn = document.querySelector('button[aria-label="New conversation"]') as HTMLElement;
+				if (newChatBtn) newChatBtn.focus();
+				return;
+			}
+
+			if (result.type === "action") {
+				if (result.payload?.mode === "deep") {
+					setResearchMode("deep");
+					currentMode = "deep";
+					q = result.payload.query?.trim() || "";
+					if (!q) return;
+				} else if (result.payload?.action === "create_share") {
+					const shareBtns = document.querySelectorAll('button');
+					for (const btn of Array.from(shareBtns)) {
+						if (btn.textContent?.includes('Share') || btn.getAttribute('aria-label')?.includes('Share')) {
+							btn.click();
+							break;
+						}
+					}
+					return;
+				} else {
+					return;
+				}
+			} else {
+				return;
+			}
+		}
+
+		if (!q) return;
 
 		// Ensure there is a selected conversation thread for persistence.
 		let conversationId = selectedConversationId;
@@ -290,7 +344,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					conversationId,
 					parentMessageId,
 					continueResearch: Boolean(parentMessageId),
-					mode: researchMode,
+					mode: currentMode,
 				}),
 				signal: controller.signal,
 				credentials: "include",
@@ -632,6 +686,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										: "Ask anything — Press Enter to search"
 								}
 							/>
+							<div className="text-xs text-content-tertiary px-2">
+								Try <span className="font-mono text-content-secondary">/new</span>, <span className="font-mono text-content-secondary">/history</span>, <span className="font-mono text-content-secondary">/deep</span>, <span className="font-mono text-content-secondary">/share</span>
+							</div>
 
 							{phase === "error" && errorMessage ? (
 								<div
