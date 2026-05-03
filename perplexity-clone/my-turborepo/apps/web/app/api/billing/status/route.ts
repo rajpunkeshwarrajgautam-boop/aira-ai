@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
+import { getBillingUsageSummary } from "@/lib/billing/plan-enforcement";
 
 export const runtime = "nodejs";
 
@@ -14,12 +14,12 @@ export async function GET(): Promise<Response> {
 		);
 	}
 
-	const entitlements = await getEffectiveEntitlements(session.user.id);
+	const summary = await getBillingUsageSummary(session.user.id);
 	return Response.json({
-		billingPlan: entitlements.billingPlan,
-		teamSeats: entitlements.teamSeats,
-		monthlySearchLimit: entitlements.monthlySearchLimit,
-		searchesUsed: entitlements.searchesUsed,
-		searchesRemaining: entitlements.searchesRemaining,
+		billingPlan: summary.billingPlan,
+		teamSeats: summary.teamSeats,
+		monthlySearchLimit: summary.monthlySearchLimit,
+		searchesUsed: summary.searchesUsed,
+		searchesRemaining: summary.searchesRemaining,
 	});
 }

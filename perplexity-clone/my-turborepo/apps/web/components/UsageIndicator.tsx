@@ -18,7 +18,7 @@ export function UsageIndicator({ className }: { className?: string }) {
 	useEffect(() => {
 		async function fetchStatus() {
 			try {
-				const res = await fetch("/api/billing/status");
+				const res = await fetch("/api/billing/status", { credentials: "include" });
 				if (res.ok) {
 					const data = await res.json();
 					setStatus(data);
@@ -59,7 +59,7 @@ export function UsageIndicator({ className }: { className?: string }) {
 				</div>
 				{isFree && (
 					<a
-						href="/pricing"
+						href="/upgrade"
 						className="inline-flex h-8 items-center justify-center rounded-lg bg-accent px-3 text-[11px] font-bold text-white transition hover:bg-accent/80 active:scale-95"
 					>
 						Upgrade

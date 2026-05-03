@@ -12,12 +12,14 @@ import {
 import {
 	consumeSearchQuota,
 	assertMinPlan,
+	getEffectiveEntitlements,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
 import {
 	getFollowUpContext,
 	persistConversationTurn,
 } from "@/lib/conversation-memory";
+import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
 import { BillingPlan } from "@/generated/prisma/enums";
@@ -180,59 +182,26 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		return jsonErrorResponse(400, "VALIDATION_ERROR", "Invalid request body.", z.treeifyError(parsed.error));
 	}
 
-	function classifyQueryIntent(query: string): "simple_chat" | "research" | "math" {
-		const q = query.trim().toLowerCase();
-		
-		if (/^[0-9+\-*/().\s]+$/.test(q) && /[0-9]/.test(q) && /[+\-*/]/.test(q)) {
-			return "math";
-		}
+	const mathAnswer = tryParseMathAnswer(parsed.data.query);
+	const greetingOnly =
+		mathAnswer === null && isGreetingOnlyQuery(parsed.data.query);
+	const skipSearchQuota = mathAnswer !== null || greetingOnly;
 
-		const exactGreetings = ["hi", "hello", "hey", "yo", "thanks", "thank you", "ok", "yes", "no"];
-		if (exactGreetings.includes(q)) return "simple_chat";
-
-		const researchKeywords = [
-			"latest", "current", "news", "comparison", "compare", 
-			"explain", "research", "best", "how", "why", "what", "who", "when", "where"
-		];
-		const words = q.split(/\s+/);
-
-		for (const w of words) {
-			if (researchKeywords.includes(w)) return "research";
-		}
-
-		if (words.length < 4 && !q.includes("?")) {
-			return "simple_chat";
-		}
-
-		return "research";
-	}
-
-	const query = parsed.data.query;
-	const intent = classifyQueryIntent(query);
-
-	let entitlements:
-		| Awaited<ReturnType<typeof consumeSearchQuota>>
-		| undefined;
-
-	// Only consume quota for research queries (math is tool-based, simple_chat is greeting)
-	const shouldConsumeQuota = intent === "research" || parsed.data.mode === "deep";
-
+	let entitlements: Awaited<ReturnType<typeof getEffectiveEntitlements>>;
 	try {
-		if (parsed.data.mode === "deep") {
-			await assertMinPlan(session.user.id, BillingPlan.PRO);
-		}
-		
-		if (shouldConsumeQuota) {
+		if (!skipSearchQuota) {
+			if (parsed.data.mode === "deep") {
+				await assertMinPlan(session.user.id, BillingPlan.PRO);
+			}
 			entitlements = await consumeSearchQuota(session.user.id);
-			await ensureSignupCompletedTracked({
-				userId: session.user.id,
-				anonymousId,
-				plan: entitlements.billingPlan,
-			});
 		} else {
-			// Mock entitlements for non-quota queries
-			entitlements = { billingPlan: BillingPlan.FREE, remaining: 999 } as any;
+			entitlements = await getEffectiveEntitlements(session.user.id);
 		}
+		await ensureSignupCompletedTracked({
+			userId: session.user.id,
+			anonymousId,
+			plan: entitlements.billingPlan,
+		});
 	} catch (e) {
 		if (e instanceof PlanEnforcementError) {
 			if (e.code === "QUOTA_EXCEEDED") {
@@ -282,45 +251,54 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	let grounded:
 		| Awaited<ReturnType<typeof streamGroundedAnswer>>
 		| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
+	/** Analytics mode: bypass paths always count as standard (no web retrieval). */
+	let analyticsSearchMode: "standard" | "deep" = parsed.data.mode;
 	try {
-
-		if (intent === "math") {
-			const { globalToolRegistry, registerBuiltInTools } = await import("@/lib/agents/tools/tool-registry");
-			await registerBuiltInTools();
-			
-			const result = await globalToolRegistry.executeTool("calculator", { expression: query });
-			
-			async function* mathStream() {
-				yield `The result of **${query}** is **${result.result}**.`;
+		if (mathAnswer !== null) {
+			analyticsSearchMode = "standard";
+			let resultText = mathAnswer;
+			try {
+				const mathExpression = parsed.data.query
+					.trim()
+					.replace(/^\/calc\s+/i, "")
+					.replace(/^=\s*/, "");
+				const { globalToolRegistry, registerBuiltInTools } = await import(
+					"@/lib/agents/tools/tool-registry"
+				);
+				await registerBuiltInTools();
+				const toolResult = await globalToolRegistry.executeTool("calculator", {
+					expression: mathExpression,
+				});
+				resultText = String(toolResult.result);
+			} catch {
+				// keep tryParseMathAnswer fallback
 			}
-			
 			grounded = {
-				query: query,
+				query: parsed.data.query.trim(),
 				sources: [],
-				textStream: mathStream(),
+				exaRequestId: undefined,
+				exaSearchType: undefined,
+				textStream: (async function* () {
+					yield `The result is **${resultText}**.`;
+				})(),
 			};
-		} else if (intent === "simple_chat") {
-			async function* simpleStream() {
-				const q = query.toLowerCase().trim();
-				if (["hi", "hello", "hey", "yo"].includes(q)) {
-					yield "Hi! How can I help you today? Ask me anything you'd like to research.";
-				} else if (["thanks", "thank you", "ok"].includes(q)) {
-					yield "You're welcome! Let me know if you have more questions.";
-				} else {
-					yield "I'm here to help with your research. Feel free to ask a specific question!";
-				}
-			}
-
-			grounded = {
-				query: query,
-				sources: [],
-				textStream: simpleStream(),
-			};
+		} else if (greetingOnly) {
+			analyticsSearchMode = "standard";
+			grounded = await streamGroundedAnswer({
+				query: parsed.data.query,
+				abortSignal: abort.signal,
+				chatHistory: context.chatHistory,
+				contextualMemory: context.contextualMemory,
+				disableSearch: true,
+				presetId: parsed.data.presetId,
+			});
 		} else if (parsed.data.mode === "deep") {
 			const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
-			
+
 			if (isAgenticEnabled) {
-				const { ResearchOrchestrator } = await import("@/lib/agents/orchestrator/research-orchestrator");
+				const { ResearchOrchestrator } = await import(
+					"@/lib/agents/orchestrator/research-orchestrator"
+				);
 				grounded = await ResearchOrchestrator.streamAnswer({
 					query: parsed.data.query,
 					abortSignal: abort.signal,
@@ -408,8 +386,8 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					await trackSearchEvent({
 						userId: session.user.id,
 						anonymousId,
-						plan: entitlements?.billingPlan,
-						mode: parsed.data.mode,
+						plan: entitlements.billingPlan,
+						mode: analyticsSearchMode,
 						citationCount: metadata.citations.length,
 						exaSearchType: metadata.exaSearchType,
 					});

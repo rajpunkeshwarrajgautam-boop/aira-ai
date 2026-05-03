@@ -32,6 +32,8 @@ export interface EffectiveEntitlements {
 	readonly searchesRemaining: number;
 }
 
+export type BillingUsageSummary = EffectiveEntitlements;
+
 async function loadEntitlements(
 	db: DbClient,
 	userId: string,
@@ -79,6 +81,15 @@ export async function getEffectiveEntitlements(
 }
 
 /**
+ * Current-period usage for dashboards and UI (does not consume quota).
+ */
+export async function getBillingUsageSummary(
+	userId: string,
+): Promise<BillingUsageSummary> {
+	return getEffectiveEntitlements(userId);
+}
+
+/**
  * Enforces monthly search quota atomically. Call once per successful search request.
  */
 export async function consumeSearchQuota(userId: string): Promise<EffectiveEntitlements> {
@@ -109,7 +120,7 @@ export async function consumeSearchQuota(userId: string): Promise<EffectiveEntit
 			data: { searches: { increment: 1 } },
 		});
 
-		return entitlements;
+		return loadEntitlements(tx, userId);
 	});
 }
 

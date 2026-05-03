@@ -1,11 +1,14 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import { cn } from "../lib/cn";
 import { globalCommandRegistry } from "../lib/agents/commands/command-registry";
+import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/research-presets";
 
 import { type CitationItem } from "./CitationCards";
 import { SearchBox, type SearchBoxHandle } from "./SearchBox";
@@ -42,6 +45,27 @@ interface ApiErrorBody {
 		readonly message?: string;
 		readonly details?: unknown;
 	};
+}
+
+interface BillingStatusPayload {
+	readonly billingPlan: string;
+	readonly teamSeats: number;
+	readonly monthlySearchLimit: number;
+	readonly searchesUsed: number;
+	readonly searchesRemaining: number;
+}
+
+function planDisplayName(plan: string): string {
+	switch (plan) {
+		case "FREE":
+			return "Free";
+		case "PRO":
+			return "Pro";
+		case "TEAM":
+			return "Team";
+		default:
+			return plan;
+	}
 }
 
 interface MetadataPayload {
@@ -89,14 +113,15 @@ function safeJson<T>(raw: string): T | null {
 	}
 }
 
-import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/research-presets";
-
 export function SearchLayout({ className }: SearchLayoutProps) {
+	const { status: sessionStatus } = useSession();
 	const [query, setQuery] = useState("");
 	const [phase, setPhase] = useState<SearchPhase>("idle");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [limitErrorAction, setLimitErrorAction] = useState<"quota" | "plan" | null>(null);
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
 	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
+	const [billing, setBilling] = useState<BillingStatusPayload | null>(null);
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
@@ -264,6 +289,36 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		})();
 	}, []);
 
+	const refreshBilling = useCallback(async () => {
+		if (sessionStatus !== "authenticated") return;
+		try {
+			const res = await fetch("/api/billing/status", { credentials: "include" });
+			if (!res.ok) return;
+			const j = (await res.json()) as BillingStatusPayload;
+			setBilling(j);
+		} catch {
+			// ignore
+		}
+	}, [sessionStatus]);
+
+	useEffect(() => {
+		if (sessionStatus !== "authenticated") {
+			setBilling(null);
+			return;
+		}
+		void refreshBilling();
+	}, [sessionStatus, refreshBilling]);
+
+	const onCreateConversation = useCallback(async () => {
+		if (busy) return;
+		setStreamingUserQuery(null);
+		setStreamingAssistantMarkdown(null);
+		setStreamingCitations([]);
+		setErrorMessage(null);
+		setPhase("idle");
+		await createConversation();
+	}, [busy, createConversation]);
+
 	const runSearch = useCallback(async () => {
 		let q = query.trim();
 		let currentMode = researchMode;
@@ -332,6 +387,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		abortRef.current = controller;
 
 		setErrorMessage(null);
+		setLimitErrorAction(null);
 		setQuery("");
 		setStreamingUserQuery(q);
 		setStreamingAssistantMarkdown("");
@@ -358,16 +414,31 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			if (!response.ok) {
 				const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
 				const raw = parsed?.error?.message ?? `Request failed (${response.status})`;
-				const msg =
-					response.status === 401 || response.status === 403
-						? "Sign in to run a search, then try again."
-						: response.status === 429
-							? "Too many requests. Please wait a moment and try again."
-							: response.status >= 500
-								? "The service is temporarily unavailable. Please try again in a few minutes."
-								: raw;
+				const code = parsed?.error?.code;
+				let msg: string;
+				let action: "quota" | "plan" | null = null;
+				if (response.status === 401 || code === "UNAUTHENTICATED") {
+					msg = "Sign in to run a search, then try again.";
+				} else if (response.status === 402 || code === "QUOTA_EXCEEDED") {
+					action = "quota";
+					msg =
+						"You've used all included searches for this month. Upgrade for a higher limit, or try again after your quota resets (UTC month).";
+				} else if (code === "PLAN_REQUIRED") {
+					action = "plan";
+					msg = "Deep Research is included on Pro and Team plans.";
+				} else if (response.status === 403) {
+					msg = raw;
+				} else if (response.status === 429) {
+					msg = "Too many requests. Please wait a moment and try again.";
+				} else if (response.status >= 500) {
+					msg = "The service is temporarily unavailable. Please try again in a few minutes.";
+				} else {
+					msg = raw;
+				}
 				setPhase("error");
+				setLimitErrorAction(action);
 				setErrorMessage(msg);
+				void refreshBilling();
 				return;
 			}
 
@@ -445,6 +516,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			if (sawDone && (doneConversationId ?? conversationId)) {
 				const finalId = doneConversationId ?? conversationId;
 				await fetchMessagesForConversation(finalId);
+				void refreshBilling();
 			}
 
 			setStreamingUserQuery(null);
@@ -470,10 +542,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		busy,
 		createConversation,
 		fetchMessagesForConversation,
+		onCreateConversation,
 		parentMessageId,
 		query,
 		selectedConversationId,
+		selectedPresetId,
 		researchMode,
+		refreshBilling,
 	]);
 
 	const onSelectConversation = useCallback(
@@ -499,16 +574,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		[apiFetchJson, busy, fetchMessagesForConversation],
 	);
 
-	const onCreateConversation = useCallback(async () => {
-		if (busy) return;
-		setStreamingUserQuery(null);
-		setStreamingAssistantMarkdown(null);
-		setStreamingCitations([]);
-		setErrorMessage(null);
-		setPhase("idle");
-		await createConversation();
-	}, [busy, createConversation]);
-
 	return (
 		<div className={cn("relative min-h-dvh w-full overflow-hidden bg-surface", className)}>
 			<div className="relative z-10 flex min-h-dvh flex-col md:flex-row max-w-7xl mx-auto">
@@ -526,33 +591,61 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					<div className="bg-accent/10 px-4 py-2 text-center text-sm font-medium text-accent">
 						🚀 New: AI Research Engine with citations. Try it and give feedback!
 					</div>
-					<header className="flex items-center justify-between gap-3 px-4 py-8 md:px-8 max-w-4xl mx-auto w-full">
-						<div className="flex min-w-0 flex-1 items-center gap-3">
-							<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white shadow-sm">
-								<Sparkles className="size-5" aria-hidden />
+					<header className="flex flex-col gap-3 px-4 py-8 md:px-8 max-w-4xl mx-auto w-full">
+						{billing && sessionStatus === "authenticated" ? (
+							<div
+								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-subtle bg-surface-elevated/60 px-4 py-3 text-sm backdrop-blur-md"
+								aria-label="Plan and usage"
+							>
+								<span className="font-semibold text-content-primary">
+									{planDisplayName(billing.billingPlan)} plan
+								</span>
+								<span className="text-content-secondary">
+									<span className="tabular-nums font-medium text-content-primary">
+										{billing.searchesRemaining}
+									</span>
+									{" / "}
+									<span className="tabular-nums">{billing.monthlySearchLimit}</span>
+									<span className="text-content-tertiary"> searches left this month</span>
+								</span>
+								{billing.billingPlan === "FREE" ? (
+									<Link
+										href="/upgrade"
+										className="ml-auto inline-flex items-center rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+									>
+										Upgrade
+									</Link>
+								) : null}
 							</div>
-							<div className="min-w-0">
-								<h1
-									className={cn(
-										"font-semibold tracking-tight text-content-primary",
-										showConversationEmpty
-											? "text-lg md:text-2xl"
-											: "truncate text-lg md:text-xl",
-									)}
-								>
-									{showConversationEmpty
-										? "AI Research Engine"
-										: (selectedConversationTitle ?? "Research")}
-								</h1>
-								<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
-									{showConversationEmpty
-										? "Get accurate answers with citations and deep research."
-										: "Persistent threads with live web citations."}
-								</p>
+						) : null}
+						<div className="flex items-center justify-between gap-3">
+							<div className="flex min-w-0 flex-1 items-center gap-3">
+								<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white shadow-sm">
+									<Sparkles className="size-5" aria-hidden />
+								</div>
+								<div className="min-w-0">
+									<h1
+										className={cn(
+											"font-semibold tracking-tight text-content-primary",
+											showConversationEmpty
+												? "text-lg md:text-2xl"
+												: "truncate text-lg md:text-xl",
+										)}
+									>
+										{showConversationEmpty
+											? "AI Research Engine"
+											: (selectedConversationTitle ?? "Research")}
+									</h1>
+									<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
+										{showConversationEmpty
+											? "Get accurate answers with citations and deep research."
+											: "Persistent threads with live web citations."}
+									</p>
+								</div>
 							</div>
-						</div>
-						<div className="flex shrink-0 items-center gap-2">
-							<UserMenu className="hidden sm:flex" />
+							<div className="flex shrink-0 items-center gap-2">
+								<UserMenu className="hidden sm:flex" />
+							</div>
 						</div>
 					</header>
 
@@ -700,6 +793,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</button>
 								</div>
 							</div>
+							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
+								<p className="text-center text-xs text-amber-200/90">
+									Deep Research requires a Pro or Team plan.{" "}
+									<Link href="/upgrade" className="font-medium text-accent underline-offset-2 hover:underline">
+										Upgrade
+									</Link>
+								</p>
+							) : null}
 
 							<SearchBox
 								ref={searchBoxRef}
@@ -723,8 +824,38 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									className="rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200"
 									role="alert"
 								>
-									<p className="font-medium text-red-100">Something went wrong</p>
+									<p className="font-medium text-red-100">
+										{limitErrorAction === "quota"
+											? "Monthly search limit reached"
+											: limitErrorAction === "plan"
+												? "Upgrade required"
+												: "Something went wrong"}
+									</p>
 									<p className="mt-1 text-red-200/95">{errorMessage}</p>
+									{limitErrorAction === "quota" || limitErrorAction === "plan" ? (
+										<div className="mt-3 flex flex-wrap gap-2">
+											<Link
+												href="/upgrade"
+												className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+											>
+												View plans & upgrade
+											</Link>
+											{limitErrorAction === "plan" ? (
+												<button
+													type="button"
+													onClick={() => {
+														setResearchMode("standard");
+														setLimitErrorAction(null);
+														setErrorMessage(null);
+														setPhase("idle");
+													}}
+													className="inline-flex items-center justify-center rounded-xl border border-border-subtle bg-surface-elevated/80 px-4 py-2 text-sm font-medium text-content-primary hover:bg-surface-elevated"
+												>
+													Switch to Standard Search
+												</button>
+											) : null}
+										</div>
+									) : null}
 								</div>
 							) : null}
 						</div>
