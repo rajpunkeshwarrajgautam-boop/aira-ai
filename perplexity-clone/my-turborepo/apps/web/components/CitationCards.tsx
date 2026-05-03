@@ -44,22 +44,29 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 	return (
 		<Card
 			className={cn(
-				"scroll-mt-6 rounded-2xl border-border-subtle bg-surface-elevated/80 shadow-float backdrop-blur-md",
+				"scroll-mt-6 overflow-hidden rounded-3xl border-border-subtle bg-surface-elevated/70 shadow-float backdrop-blur-xl",
 				className,
 			)}
 			aria-label="Sources"
 		>
-			<CardHeader className="mb-1 flex flex-row items-center justify-between gap-3 p-4 pb-0">
-				<CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-content-tertiary">
-					Sources
-				</CardTitle>
-				<span className="text-xs tabular-nums text-content-tertiary">{citations.length} pages</span>
+			<CardHeader className="flex flex-row items-center justify-between gap-3 px-6 py-5 pb-2">
+				<div className="flex items-center gap-2.5">
+					<div className="flex size-6 items-center justify-center rounded-full bg-accent/10">
+						<div className="size-2 rounded-full bg-accent animate-pulse" />
+					</div>
+					<CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-content-tertiary/80">
+						Sources Retrieved
+					</CardTitle>
+				</div>
+				<span className="rounded-full bg-surface-inset/80 px-3 py-1 text-[11px] font-bold tabular-nums text-accent ring-1 ring-border-subtle/50">
+					{citations.length}
+				</span>
 			</CardHeader>
-			<CardContent className="p-4 pt-3">
-				<ul className="grid gap-2 sm:grid-cols-2">
+			<CardContent className="px-6 pb-6 pt-3">
+				<ul className="grid gap-3 sm:grid-cols-2">
 					{citations.map((c) => {
 						const host = hostnameFromUrl(c.url);
-						const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`;
+						const favicon = `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(host)}`;
 						const dateLabel = formatDate(c.publishedDate);
 
 						return (
@@ -69,32 +76,44 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 									target="_blank"
 									rel="noopener noreferrer"
 									className={cn(
-										"group flex gap-3 rounded-xl border border-transparent bg-surface-inset/60 p-3 transition-all",
-										"hover:border-border hover:bg-surface-inset hover:shadow-sm",
+										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/30 bg-surface-inset/40 p-4 transition-all duration-300 ease-out",
+										"hover:border-accent/40 hover:bg-surface-inset/80 hover:shadow-panel hover:-translate-y-0.5",
 									)}
 								>
-									<Image
-										src={favicon}
-										alt=""
-										width={32}
-										height={32}
-										className="mt-0.5 size-8 shrink-0 rounded-md bg-surface-elevated ring-1 ring-border-subtle"
-										unoptimized
-									/>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-start justify-between gap-2">
-											<span className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-accent/15 text-[11px] font-semibold text-accent">
+									<div className="flex items-center justify-between gap-3">
+										<div className="relative size-10 shrink-0">
+											<div className="absolute inset-0 animate-pulse rounded-lg bg-accent/5" />
+											<Image
+												src={favicon}
+												alt=""
+												width={40}
+												height={40}
+												className="relative size-10 shrink-0 rounded-lg bg-surface-elevated object-contain p-1.5 shadow-sm ring-1 ring-border-subtle/50 transition-transform group-hover:scale-110"
+												unoptimized
+											/>
+										</div>
+										<div className="flex flex-col items-end gap-1">
+											<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
 												{c.index}
 											</span>
-											<ExternalLink className="size-3.5 shrink-0 text-content-tertiary opacity-0 transition-opacity group-hover:opacity-100" />
+											<ExternalLink className="size-3 text-content-tertiary opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:opacity-100" />
 										</div>
-										<p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-content-primary">
+									</div>
+									
+									<div className="flex flex-1 flex-col justify-between">
+										<p className="line-clamp-2 text-[13px] font-semibold leading-relaxed text-content-primary transition-colors group-hover:text-accent">
 											{c.title}
 										</p>
-										<p className="mt-1 truncate text-xs text-content-tertiary">{host}</p>
-										{dateLabel ? (
-											<p className="mt-1 text-[11px] tabular-nums text-content-tertiary">{dateLabel}</p>
-										) : null}
+										<div className="mt-3 flex items-center justify-between gap-2 border-t border-border-subtle/20 pt-3">
+											<p className="truncate text-[11px] font-medium text-content-tertiary">
+												{host}
+											</p>
+											{dateLabel ? (
+												<p className="shrink-0 text-[10px] font-bold tabular-nums text-content-tertiary/60">
+													{dateLabel}
+												</p>
+											) : null}
+										</div>
 									</div>
 								</a>
 							</li>

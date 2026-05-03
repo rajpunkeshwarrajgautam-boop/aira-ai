@@ -29,73 +29,79 @@ export function AnswerStream({
 	return (
 		<section
 			className={cn(
-				"relative min-h-[120px] scroll-mt-8 rounded-2xl border border-border-subtle bg-surface-elevated/40 p-6 shadow-panel backdrop-blur-md",
+				"relative min-h-[160px] scroll-mt-8 overflow-hidden rounded-3xl border border-border-subtle/50 bg-surface-elevated/60 p-8 shadow-float backdrop-blur-xl transition-all duration-500",
 				className,
 			)}
 			aria-busy={isStreaming}
 			aria-live="polite"
 		>
-			<div className="mb-4 flex items-center gap-2 border-b border-border-subtle pb-4">
-				<div className="flex size-8 items-center justify-center rounded-lg bg-accent/15">
-					<Sparkles className="size-4 text-accent" aria-hidden />
+			<div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+			
+			<div className="mb-6 flex items-center gap-4 border-b border-border-subtle/30 pb-6">
+				<div className="flex size-10 items-center justify-center rounded-xl bg-accent/10 ring-1 ring-accent/20">
+					<Sparkles className={cn("size-5 text-accent", isStreaming && "animate-spin-slow")} aria-hidden />
 				</div>
-				<div>
-					<h2 className="text-sm font-semibold tracking-tight text-content-primary">Answer</h2>
-					<p className="text-xs text-content-tertiary">
+				<div className="flex-1">
+					<h2 className="text-[13px] font-bold tracking-tight text-content-primary">Assistant Response</h2>
+					<p className="text-[11px] font-medium text-content-tertiary">
 						{phase === "streaming"
-							? "Generating with live sources…"
+							? "Generating intelligent synthesis…"
 							: phase === "complete"
-								? "Grounded response"
+								? "Verified grounded response"
 								: phase === "connecting"
-									? "Retrieving sources…"
+									? "Analyzing retrieved intelligence…"
 									: phase === "error"
-										? "Something went wrong"
-										: "Results appear here"}
+										? "System encounter error"
+										: "Synthesized results will appear here"}
 					</p>
 				</div>
 				{isStreaming ? (
-					<span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-accent">
-						<span className="relative flex size-2">
-							<span className="absolute inline-flex size-full animate-ping rounded-full bg-accent/40 opacity-75" />
-							<span className="relative inline-flex size-2 rounded-full bg-accent" />
-						</span>
-						Live
-					</span>
+					<div className="ml-auto flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1.5 ring-1 ring-accent/20">
+						<div className="flex items-center gap-1">
+							<span className="size-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.3s]" />
+							<span className="size-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
+							<span className="size-1.5 animate-bounce rounded-full bg-accent" />
+						</div>
+						<span className="text-[10px] font-bold uppercase tracking-widest text-accent">Processing</span>
+					</div>
 				) : null}
 			</div>
 
 			{showError ? (
 				<div
-					className="flex gap-3 rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200"
+					className="flex gap-3 rounded-2xl border border-red-500/25 bg-red-500/5 p-5 text-sm text-red-200"
 					role="alert"
 				>
 					<AlertCircle className="size-5 shrink-0 text-red-400" aria-hidden />
-					<p className="leading-relaxed">{errorMessage}</p>
+					<p className="font-medium leading-relaxed">{errorMessage}</p>
 				</div>
 			) : null}
 
 			{showIdleHint ? (
-				<p className="text-sm leading-relaxed text-content-tertiary">
-					Ask a question below. Answers stream in real time with numbered citations linked to web sources.
-				</p>
+				<div className="flex flex-col items-center justify-center py-8 text-center">
+					<div className="mb-4 flex size-12 items-center justify-center rounded-full bg-surface-inset ring-1 ring-border-subtle/50">
+						<Sparkles className="size-6 text-content-tertiary/40" />
+					</div>
+					<p className="max-w-[280px] text-[13px] leading-relaxed text-content-tertiary/80">
+						Initiate a query to generate real-time synthesized answers with verifiable citations.
+					</p>
+				</div>
 			) : null}
 
-			{showConnectingHint ? (
-				<p className="text-sm leading-relaxed text-content-secondary">
-					Connecting and retrieving sources…
-				</p>
-			) : null}
-
-			{showStreamingHint ? (
-				<p className="text-sm leading-relaxed text-content-tertiary">Synthesizing answer…</p>
+			{showConnectingHint || showStreamingHint ? (
+				<div className="space-y-4 py-4">
+					<div className="h-4 w-3/4 animate-pulse rounded-md bg-surface-inset/60" />
+					<div className="h-4 w-1/2 animate-pulse rounded-md bg-surface-inset/40" />
+					<div className="h-4 w-2/3 animate-pulse rounded-md bg-surface-inset/50" />
+				</div>
 			) : null}
 
 			{markdown ? (
-				<div className={cn("answer-markdown text-[15px] leading-7 text-content-secondary")}>
+				<div className={cn("answer-markdown text-[15px] leading-8 text-content-secondary/90")}>
 					<ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
 					{isStreaming ? (
 						<span
-							className="ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-sm bg-accent align-middle"
+							className="ml-1 inline-block h-5 w-1 animate-pulse rounded-full bg-accent align-middle"
 							aria-hidden
 						/>
 					) : null}

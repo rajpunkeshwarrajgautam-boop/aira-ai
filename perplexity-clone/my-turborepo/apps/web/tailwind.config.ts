@@ -39,6 +39,15 @@ const config: Config = {
 				sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
 				mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
 			},
+			animation: {
+				"spin-slow": "spin 3s linear infinite",
+			},
+			keyframes: {
+				spin: {
+					from: { transform: "rotate(0deg)" },
+					to: { transform: "rotate(360deg)" },
+				},
+			},
 		},
 	},
 	plugins: [typography],
