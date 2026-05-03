@@ -29,7 +29,7 @@ export function AnswerStream({
 	return (
 		<section
 			className={cn(
-				"relative min-h-[160px] scroll-mt-8 overflow-hidden rounded-3xl border border-border-subtle/50 bg-surface-elevated/85 p-8 shadow-float backdrop-blur-xl transition-all duration-500",
+				"relative min-h-[160px] scroll-mt-8 overflow-hidden rounded-3xl border border-border-subtle/70 bg-surface-elevated/85 p-8 shadow-glass ring-1 ring-white/40 backdrop-blur-sm transition-all duration-500 md:backdrop-blur-xl",
 				className,
 			)}
 			aria-busy={isStreaming}
@@ -69,10 +69,10 @@ export function AnswerStream({
 
 			{showError ? (
 				<div
-					className="flex gap-3 rounded-2xl border border-red-500/25 bg-red-500/5 p-5 text-sm text-red-200"
+					className="flex gap-3 rounded-2xl border border-red-200/90 bg-red-50/95 p-5 text-sm text-red-800 backdrop-blur-sm"
 					role="alert"
 				>
-					<AlertCircle className="size-5 shrink-0 text-red-400" aria-hidden />
+					<AlertCircle className="size-5 shrink-0 text-red-600" aria-hidden />
 					<p className="font-medium leading-relaxed">{errorMessage}</p>
 				</div>
 			) : null}

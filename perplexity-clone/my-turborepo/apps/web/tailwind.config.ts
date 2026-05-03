@@ -31,9 +31,11 @@ const config: Config = {
 			},
 			boxShadow: {
 				panel:
-					"0 0 0 1px hsl(var(--border-subtle) / 0.4), 0 4px 16px -2px hsl(0 0% 0% / 0.05)",
+					"0 0 0 1px hsl(var(--border-subtle) / 0.45), 0 4px 20px -4px hsl(217 50% 50% / 0.06), 0 2px 8px -2px hsl(0 0% 0% / 0.04)",
 				float:
-					"0 0 0 1px hsl(var(--border-subtle) / 0.5), 0 12px 32px -4px hsl(0 0% 0% / 0.08)",
+					"0 0 0 1px hsl(0 0% 100% / 0.65), 0 0 0 1px hsl(var(--border-subtle) / 0.35) inset, 0 20px 50px -12px hsl(217 45% 40% / 0.12), 0 8px 24px -8px hsl(0 0% 0% / 0.06)",
+				glass:
+					"0 0 0 1px hsl(0 0% 100% / 0.55), 0 1px 2px hsl(0 0% 0% / 0.04), 0 16px 40px -20px hsl(217 40% 50% / 0.14)",
 			},
 			fontFamily: {
 				sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],

@@ -44,15 +44,16 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 	return (
 		<Card
 			className={cn(
-				"scroll-mt-6 overflow-hidden rounded-3xl border-border-subtle bg-surface-elevated/70 shadow-float backdrop-blur-xl",
+				"scroll-mt-6 overflow-hidden rounded-3xl border-border-subtle/80 bg-surface-elevated/75 shadow-float ring-1 ring-white/45 backdrop-blur-sm md:backdrop-blur-xl",
 				className,
 			)}
 			aria-label="Sources"
 		>
+			<div className="h-0.5 w-full bg-gradient-to-r from-accent/0 via-accent/50 to-accent/0" aria-hidden />
 			<CardHeader className="flex flex-row items-center justify-between gap-3 px-6 py-5 pb-2">
 				<div className="flex items-center gap-2.5">
-					<div className="flex size-6 items-center justify-center rounded-full bg-accent/10">
-						<div className="size-2 rounded-full bg-accent animate-pulse" />
+					<div className="flex size-7 items-center justify-center rounded-xl bg-accent/12 ring-1 ring-accent/20">
+						<div className="size-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_hsl(var(--accent)/0.5)]" />
 					</div>
 					<CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-content-tertiary/80">
 						Sources Retrieved
@@ -76,8 +77,8 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 									target="_blank"
 									rel="noopener noreferrer"
 									className={cn(
-										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/30 bg-surface-inset/40 p-4 transition-all duration-300 ease-out",
-										"hover:border-accent/40 hover:bg-surface-inset/80 hover:shadow-panel hover:-translate-y-0.5",
+										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/50 bg-surface-inset/50 p-4 shadow-sm ring-1 ring-white/30 transition-all duration-300 ease-out backdrop-blur-sm md:backdrop-blur-md",
+										"hover:border-accent/45 hover:bg-surface-elevated/90 hover:shadow-panel hover:-translate-y-0.5",
 									)}
 								>
 									<div className="flex items-center justify-between gap-3">

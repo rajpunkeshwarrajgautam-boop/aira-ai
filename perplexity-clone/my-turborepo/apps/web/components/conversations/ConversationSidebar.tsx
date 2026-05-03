@@ -48,7 +48,7 @@ export function ConversationSidebar({
 	return (
 		<aside
 			className={cn(
-				"flex h-full w-full flex-col border-r border-border-subtle bg-surface-elevated/40 backdrop-blur-md",
+				"flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border-subtle/70 bg-surface-elevated/55 shadow-glass ring-1 ring-white/40 backdrop-blur-md md:min-h-[calc(100dvh-2rem)]",
 				className,
 			)}
 			aria-label="Conversation sidebar"
@@ -90,10 +90,10 @@ export function ConversationSidebar({
 										onClick={() => onSelectConversation(c.id)}
 										disabled={disabled}
 										className={cn(
-											"flex h-auto w-full flex-col items-start gap-1 rounded-xl px-3 py-2 text-left transition-colors",
+											"flex h-auto w-full flex-col items-start gap-1 rounded-2xl px-3 py-2.5 text-left shadow-sm transition-colors",
 											selected
-												? "bg-accent/12 ring-1 ring-accent/35 hover:bg-accent/15"
-												: "bg-transparent hover:bg-surface-inset/60",
+												? "bg-accent/14 ring-1 ring-accent/30 shadow-panel hover:bg-accent/18"
+												: "bg-surface-elevated/30 hover:bg-surface-inset/70",
 										)}
 									>
 										<div className="flex w-full items-start justify-between gap-3">

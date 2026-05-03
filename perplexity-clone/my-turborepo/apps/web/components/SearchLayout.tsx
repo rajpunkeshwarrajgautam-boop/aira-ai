@@ -701,10 +701,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	);
 
 	return (
-		<div className={cn("relative min-h-dvh w-full overflow-hidden bg-surface", className)}>
-			<div className="relative z-10 flex min-h-dvh flex-col md:flex-row max-w-7xl mx-auto">
+		<div className={cn("relative min-h-dvh w-full overflow-hidden", className)}>
+			<div className="relative z-10 mx-auto flex min-h-dvh max-w-7xl flex-col md:flex-row">
 				{isAuthed ? (
-					<div className="hidden w-[320px] shrink-0 md:block">
+					<div className="hidden w-[320px] shrink-0 md:block md:py-4 md:pl-4">
 						<ConversationSidebar
 							conversations={conversations}
 							selectedConversationId={selectedConversationId}
@@ -715,15 +715,19 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</div>
 				) : null}
 
-				<main className="flex min-h-dvh flex-1 flex-col">
-					<div className="bg-accent/10 px-4 py-2 text-center text-sm font-medium text-accent">
-						Research with live citations—try standard search here. Sign in for saved threads, Deep Research, and share
-						links.
+				<main className="flex min-h-dvh flex-1 flex-col md:py-4 md:pr-4">
+					<div className="px-4 pt-4 md:pt-0">
+						<div className="mx-auto flex max-w-4xl justify-center">
+							<div className="inline-flex max-w-full items-center justify-center rounded-full border border-accent/15 bg-surface-elevated/70 px-4 py-2 text-center text-xs font-medium text-accent shadow-panel backdrop-blur-sm sm:text-sm md:bg-surface-elevated/55 md:backdrop-blur-md">
+								Research with live citations—try standard search here. Sign in for saved threads, Deep Research, and
+								share links.
+							</div>
+						</div>
 					</div>
-					<header className="flex flex-col gap-3 px-4 py-8 md:px-8 max-w-4xl mx-auto w-full">
+					<header className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 py-6 md:px-8 md:py-8">
 						{billing && sessionStatus === "authenticated" ? (
 							<div
-								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-subtle bg-surface-elevated/60 px-4 py-3 text-sm backdrop-blur-md"
+								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-3xl border border-border-subtle bg-surface-elevated/75 px-4 py-3 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
 								aria-label="Plan and usage"
 							>
 								<span className="font-semibold text-content-primary">
@@ -749,7 +753,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						) : null}
 						<div className="flex items-center justify-between gap-3">
 							<div className="flex min-w-0 flex-1 items-center gap-3">
-								<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white shadow-sm">
+								<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-glass ring-1 ring-white/25">
 									<Sparkles className="size-5" aria-hidden />
 								</div>
 								<div className="min-w-0">
@@ -780,12 +784,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</div>
 					</header>
 
-					<div className="flex flex-1 flex-col gap-6 px-4 pb-8 md:px-8 max-w-4xl mx-auto w-full">
+					<div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 pb-8 md:px-8">
 						{isAuthed ? (
 							<div className="md:hidden">
 								<div className="flex items-center gap-3">
 									<select
-										className="flex-1 rounded-xl border border-border-subtle bg-surface-elevated/80 p-3 text-sm text-content-primary"
+										className="flex-1 rounded-3xl border border-border-subtle/80 bg-surface-elevated/90 p-3 text-sm text-content-primary shadow-panel backdrop-blur-sm md:backdrop-blur-md"
 										value={selectedConversationId ?? ""}
 										onChange={(e) => {
 											const v = e.target.value;
@@ -808,7 +812,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										onClick={() => void onCreateConversation()}
 										disabled={busy}
 										className={cn(
-											"h-11 w-11 shrink-0 rounded-xl bg-accent/15 text-accent ring-1 ring-accent/25",
+											"h-11 w-11 shrink-0 rounded-2xl bg-accent/15 text-accent shadow-panel ring-1 ring-accent/25 backdrop-blur-sm",
 											"hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
 											"disabled:opacity-40 disabled:pointer-events-none",
 										)}
@@ -825,7 +829,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						{isAuthed ? <ResearchHistoryPanel items={researchHistory} /> : null}
 
 						<div
-							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/30 backdrop-blur-md"
+							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl"
 							aria-busy={busy}
 						>
 							<div className="min-h-0 flex-1 overflow-y-auto">
@@ -851,7 +855,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							) : null}
 							{!isAuthed && messages.length > 0 && !busy ? (
 								<div
-									className="flex flex-col gap-2 border-t border-border-subtle bg-surface-elevated/45 px-3 py-3 backdrop-blur-sm sm:px-4"
+									className="flex flex-col gap-2 border-t border-border-subtle/80 bg-surface-elevated/60 px-3 py-3 backdrop-blur-sm sm:px-4 md:backdrop-blur-md"
 									role="region"
 									aria-label="Share this answer"
 								>
@@ -885,8 +889,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							<div className="flex flex-col sm:flex-row gap-3">
 								<div
 									className={cn(
-										"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
-										"sm:max-w-[200px]",
+										"flex w-full overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 shadow-panel backdrop-blur-sm ring-1 ring-white/40 sm:max-w-[200px] md:backdrop-blur-md",
 									)}
 								>
 									<select
@@ -907,8 +910,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								{isAuthed ? (
 									<div
 										className={cn(
-											"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
-											"sm:max-w-[320px]",
+											"flex w-full overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 shadow-panel backdrop-blur-sm ring-1 ring-white/40 sm:max-w-[320px] md:backdrop-blur-md",
 										)}
 										role="group"
 										aria-label="Search mode"
@@ -952,7 +954,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`)
 										}
 										className={cn(
-											"flex w-full items-center justify-center rounded-2xl border border-border-subtle bg-surface-elevated/80 px-3 py-2 text-sm font-medium text-content-secondary backdrop-blur-md ring-1 ring-border-subtle",
+											"flex w-full items-center justify-center rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 px-3 py-2 text-sm font-medium text-content-secondary shadow-panel backdrop-blur-sm ring-1 ring-white/40 md:backdrop-blur-md",
 											"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
 											"sm:max-w-[320px]",
 											"disabled:opacity-40 disabled:pointer-events-none",
@@ -978,7 +980,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								</p>
 							) : null}
 							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
-								<p className="text-center text-xs text-amber-200/90">
+								<p className="text-center text-xs text-amber-800/90">
 									Deep Research requires a Pro or Team plan.{" "}
 									<Link href="/upgrade" className="font-medium text-accent underline-offset-2 hover:underline">
 										Upgrade
@@ -1012,10 +1014,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 							{phase === "error" && errorMessage ? (
 								<div
-									className="rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200"
+									className="rounded-3xl border border-red-200/80 bg-red-50/90 p-4 text-sm text-red-800 shadow-panel backdrop-blur-sm md:backdrop-blur-md"
 									role="alert"
 								>
-									<p className="font-medium text-red-100">
+									<p className="font-medium text-red-900">
 										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
 											? "Guest search limit reached"
 											: errorCode === "SIGNIN_DEEP" || (errorCode === "PLAN_REQUIRED" && !isAuthed)
@@ -1026,7 +1028,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 														? "Upgrade required"
 														: "Something went wrong"}
 									</p>
-									<p className="mt-1 text-red-200/95">{errorMessage}</p>
+									<p className="mt-1 text-red-800/95">{errorMessage}</p>
 									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
 									errorCode === "SIGNIN_DEEP" ||
 									(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") ? (
@@ -1073,10 +1075,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</div>
 					</div>
 
-					<footer className="mt-auto flex flex-col items-center gap-2 border-t border-border-subtle py-6 text-center text-xs text-content-tertiary">
+					<footer className="mt-auto flex flex-col items-center gap-2 border-t border-border-subtle/70 py-6 text-center text-xs text-content-tertiary">
 						<p>Responses are generated from retrieved sources. Verify critical facts independently.</p>
 						<p>Built for fast, reliable research with sources.</p>
-						<a href="mailto:feedback@example.com" className="mt-2 inline-flex h-8 items-center justify-center rounded-lg bg-surface-elevated px-4 font-medium text-content-primary ring-1 ring-border-subtle transition hover:bg-surface-elevated/80 hover:text-accent focus-visible:outline-accent">
+						<a
+							href="mailto:feedback@example.com"
+							className="mt-2 inline-flex h-8 items-center justify-center rounded-xl bg-surface-elevated/90 px-4 font-medium text-content-primary shadow-panel ring-1 ring-border-subtle/80 backdrop-blur-sm transition hover:bg-surface-elevated hover:text-accent focus-visible:outline-accent md:backdrop-blur-md"
+						>
 							Send feedback
 						</a>
 					</footer>

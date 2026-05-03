@@ -91,8 +91,10 @@ export function ConversationMessageList({
 
 		return (
 			<div className="flex flex-col gap-5 py-2">
-				<div className="whitespace-pre-wrap text-[16px] leading-8 text-content-secondary">
-					<MarkdownContent markdown={msg.content} />
+				<div className="rounded-3xl border border-border-subtle/60 bg-surface-elevated/50 px-4 py-4 shadow-panel backdrop-blur-sm sm:px-5 sm:py-5 md:bg-surface-elevated/40 md:backdrop-blur-md">
+					<div className="whitespace-pre-wrap text-[16px] leading-8 text-content-secondary">
+						<MarkdownContent markdown={msg.content} />
+					</div>
 				</div>
 				{effectiveCitations.length > 0 ? <CitationCards citations={effectiveCitations} /> : null}
 			</div>
@@ -100,10 +102,10 @@ export function ConversationMessageList({
 	};
 
 	return (
-		<div className="flex flex-col gap-4 px-2 py-2">
+		<div className="flex flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
 			{showEmptyHint ? (
 				<div
-					className="flex min-h-[240px] flex-col items-center justify-center gap-8 rounded-2xl border border-dashed border-border-subtle bg-surface-inset/35 px-4 py-16 text-center sm:px-8"
+					className="flex min-h-[240px] flex-col items-center justify-center gap-8 rounded-3xl border border-dashed border-accent/20 bg-surface-elevated/55 px-4 py-16 text-center shadow-panel backdrop-blur-sm sm:px-8 md:backdrop-blur-md"
 					role="status"
 				>
 					<MessageCircle className="size-10 text-accent/50" aria-hidden />
@@ -125,8 +127,8 @@ export function ConversationMessageList({
 										type="button"
 										onClick={() => onPickExample(q)}
 										className={cn(
-											"w-full rounded-xl border border-border-subtle bg-surface-elevated/50 px-5 py-4 text-left text-sm text-content-primary shadow-sm",
-											"transition hover:border-accent/35 hover:bg-accent/5 hover:shadow-panel",
+											"w-full rounded-2xl border border-border-subtle/80 bg-surface-elevated/80 px-5 py-4 text-left text-sm text-content-primary shadow-panel backdrop-blur-sm transition md:backdrop-blur-md",
+											"hover:border-accent/40 hover:bg-accent/5 hover:shadow-float",
 											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
 										)}
 									>
@@ -144,7 +146,11 @@ export function ConversationMessageList({
 				if (m.role === "USER") {
 					return (
 						<div key={m.id} className="flex w-full justify-end">
-							<div className={cn("max-w-[80%] rounded-3xl bg-surface-inset px-5 py-4")}>
+							<div
+								className={cn(
+									"max-w-[80%] rounded-3xl border border-white/60 bg-surface-elevated/85 px-5 py-4 shadow-panel ring-1 ring-border-subtle/50 backdrop-blur-sm md:backdrop-blur-md",
+								)}
+							>
 								<div className="whitespace-pre-wrap text-[16px] leading-relaxed text-content-primary">
 									{m.content}
 								</div>
@@ -164,7 +170,11 @@ export function ConversationMessageList({
 
 			{streamingUserQuery ? (
 				<div className="flex w-full justify-end" aria-label="Streaming user message">
-					<div className={cn("max-w-[80%] rounded-3xl bg-surface-inset px-5 py-4")}>
+					<div
+						className={cn(
+							"max-w-[80%] rounded-3xl border border-white/60 bg-surface-elevated/85 px-5 py-4 shadow-panel ring-1 ring-border-subtle/50 backdrop-blur-sm md:backdrop-blur-md",
+						)}
+					>
 						<div className="whitespace-pre-wrap text-[16px] leading-relaxed text-content-primary">
 							{streamingUserQuery}
 						</div>
