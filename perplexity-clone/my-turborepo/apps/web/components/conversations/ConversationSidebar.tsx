@@ -28,6 +28,8 @@ function formatShortDate(iso: string): string {
 	return new Intl.DateTimeFormat(undefined, { month: "short", day: "2-digit" }).format(d);
 }
 
+import { UsageIndicator } from "../UsageIndicator";
+
 export function ConversationSidebar({
 	conversations,
 	selectedConversationId,
@@ -51,6 +53,9 @@ export function ConversationSidebar({
 			)}
 			aria-label="Conversation sidebar"
 		>
+			<div className="p-4">
+				<UsageIndicator />
+			</div>
 			<div className="flex items-center justify-between gap-3 px-4 py-4">
 				<div>
 					<h2 className="text-sm font-semibold text-content-primary">Conversations</h2>
