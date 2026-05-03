@@ -32,9 +32,10 @@ function buildDescription(answer: string): string {
 export async function generateMetadata({
 	params,
 }: {
-	readonly params: { readonly id: string };
+	readonly params: Promise<{ readonly id: string }>;
 }): Promise<Metadata> {
-	const share = await getPublicResearchShareByToken(params.id);
+	const { id } = await params;
+	const share = await getPublicResearchShareByToken(id);
 	if (!share) notFound();
 
 	const baseUrl = await baseUrlFromRequestHeaders();
@@ -63,9 +64,10 @@ export async function generateMetadata({
 export default async function SharePage({
 	params,
 }: {
-	readonly params: { readonly id: string };
+	readonly params: Promise<{ readonly id: string }>;
 }) {
-	const share = await getPublicResearchShareByToken(params.id);
+	const { id } = await params;
+	const share = await getPublicResearchShareByToken(id);
 	if (!share) notFound();
 
 	const baseUrl = await baseUrlFromRequestHeaders();

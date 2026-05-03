@@ -104,6 +104,8 @@ export async function getPublicResearchShareByToken(token: string): Promise<{
 	readonly citations: readonly PublicCitation[];
 	readonly createdAt: Date;
 } | null> {
+	if (!token?.trim()) return null;
+
 	const row = await prisma.researchHistory.findFirst({
 		where: { publicShareToken: token },
 		select: {
