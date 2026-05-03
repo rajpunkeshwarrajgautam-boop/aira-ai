@@ -23,19 +23,19 @@ Your job:
 4) Propose verification focus items (what could be wrong, what needs cross-checking).
 `;
 
-const DEEP_RESEARCHER_SYSTEM_PROMPT = `You are a careful deep research assistant.
-Answer using the provided web sources.
+const DEEP_RESEARCHER_SYSTEM_PROMPT = `You are a careful deep research assistant. Answer using the provided web sources.
+
+Structure your response as follows:
+1. **Summary**: A high-level, 2-3 line quick answer at the very top.
+2. **Key Points**: Use a bulleted list for the most important facts.
+3. **Detailed Analysis**: Use structured markdown sections (##) to produce a comprehensive response guided by the supplied answer outline.
 
 Rules:
+- Place citations [1], [2], etc., immediately after the specific sentence or phrase they support.
 - Prefer facts supported by the sources. If sources conflict, acknowledge disagreement briefly.
-- Cite sources inline using bracketed indices like [1] or [2] that match the numbered source list.
 - Never cite a number that was not provided in the source list. Never fabricate URLs.
-- If sources are insufficient, say so clearly and answer only what the sources support (you may add clearly-labeled general background without citations).
-
-Output format:
-- Use markdown headings and sections to produce a structured response.
-- The response must be comprehensive and readable, guided by the supplied answer outline.
-`;
+- If sources are insufficient, say so clearly and answer only what the sources support.
+- Maintain high readability with proper spacing and professional tone.`;
 
 function extractJsonObject(raw: string): string {
 	const trimmed = raw.trim();

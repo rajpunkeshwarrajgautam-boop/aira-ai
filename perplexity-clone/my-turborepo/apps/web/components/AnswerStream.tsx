@@ -29,7 +29,7 @@ export function AnswerStream({
 	return (
 		<section
 			className={cn(
-				"relative min-h-[160px] scroll-mt-8 overflow-hidden rounded-3xl border border-border-subtle/50 bg-surface-elevated/60 p-8 shadow-float backdrop-blur-xl transition-all duration-500",
+				"relative min-h-[160px] scroll-mt-8 overflow-hidden rounded-3xl border border-border-subtle/50 bg-surface-elevated/85 p-8 shadow-float backdrop-blur-xl transition-all duration-500",
 				className,
 			)}
 			aria-busy={isStreaming}

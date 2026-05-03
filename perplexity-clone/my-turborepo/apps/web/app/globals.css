@@ -49,6 +49,7 @@ a {
 	--tw-prose-links: hsl(var(--accent));
 	--tw-prose-bold: hsl(var(--content-primary));
 	--tw-prose-quotes: hsl(var(--content-tertiary));
+	line-height: 1.8;
 }
 
 .answer-markdown a {

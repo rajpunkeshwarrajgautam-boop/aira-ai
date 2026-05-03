@@ -85,7 +85,16 @@ export class ResearchOrchestrator {
 		const { getResearchPreset } = await import("../../../src/services/research-presets");
 		const preset = getResearchPreset(input.presetId);
 		
-		const systemPrompt = `You are a helpful assistant. Answer the question using the provided sources and citations [1], [2], etc.\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
+		const systemPrompt = `You are a helpful research assistant. Answer the question using the provided sources and citations [1], [2], etc.
+		
+Structure your response as follows:
+1. **Summary**: A high-level, 2-3 line quick answer at the very top.
+2. **Key Points**: Use a bulleted list for the most important facts.
+3. **Detailed Analysis**: Use structured markdown sections (##) for in-depth explanation.
+
+Rules:
+- Place citations [1], [2], etc., immediately after the specific sentence or phrase they support.
+- Maintain high readability with proper spacing and professional tone.\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
 
 		const finalMessages = [
 			{ role: "system", content: systemPrompt },
