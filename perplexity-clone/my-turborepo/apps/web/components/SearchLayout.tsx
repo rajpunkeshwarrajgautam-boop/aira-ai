@@ -120,6 +120,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [query, setQuery] = useState("");
 	const [phase, setPhase] = useState<SearchPhase>("idle");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [errorCode, setErrorCode] = useState<string | null>(null);
 	const [limitErrorAction, setLimitErrorAction] = useState<"quota" | "plan" | null>(null);
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
 	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
@@ -129,6 +130,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
 	/** Avoid duplicate auto-submit for the same `?q=` after OAuth return. */
 	const hasAutoRunUrlQueryRef = useRef<string | null>(null);
+	/** Last submitted question (state is cleared at search start; used for sign-in callback URLs). */
+	const lastSubmittedQueryRef = useRef("");
 
 	const searchParams = useSearchParams();
 	useEffect(() => {
@@ -425,6 +428,21 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		if (!q) return;
 
 		const isGuest = sessionStatus !== "authenticated";
+
+		if (isGuest && messages.length > 0) {
+			redirectToSignInWithQuery(q);
+			return;
+		}
+
+		if (isGuest && currentMode === "deep") {
+			lastSubmittedQueryRef.current = q;
+			setLimitErrorAction(null);
+			setErrorCode("SIGNIN_DEEP");
+			setErrorMessage("Sign in to use Deep Research.");
+			setPhase("error");
+			return;
+		}
+
 		let conversationId: string | null = selectedConversationId;
 
 		if (!isGuest) {
@@ -435,11 +453,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			conversationId = null;
 		}
 
+		lastSubmittedQueryRef.current = q;
+
 		abortRef.current?.abort();
 		const controller = new AbortController();
 		abortRef.current = controller;
 
 		setErrorMessage(null);
+		setErrorCode(null);
 		setLimitErrorAction(null);
 		setQuery("");
 		setStreamingUserQuery(q);
@@ -476,23 +497,29 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
 				const raw = parsed?.error?.message ?? `Request failed (${response.status})`;
 				const code = parsed?.error?.code;
+				setErrorCode(typeof code === "string" ? code : null);
 				let msg: string;
 				let action: "quota" | "plan" | null = null;
 				if (response.status === 401 || code === "UNAUTHENTICATED") {
 					msg = "Sign in to continue a saved thread or use Deep Research.";
 				} else if (code === "ANONYMOUS_QUOTA_EXCEEDED") {
-					msg = raw;
+					msg = "Sign in to continue researching.";
 				} else if (response.status === 402 || code === "QUOTA_EXCEEDED") {
 					action = "quota";
 					msg =
 						"You've used all included searches for this month. Upgrade for a higher limit, or try again after your quota resets (UTC month).";
 				} else if (code === "PLAN_REQUIRED") {
-					action = "plan";
-					msg = "Deep Research is included on Pro and Team plans.";
+					action = isGuest ? null : "plan";
+					msg = isGuest
+						? "Sign in to use Deep Research."
+						: "Deep Research is included on Pro and Team plans.";
 				} else if (response.status === 403) {
 					msg = raw;
 				} else if (response.status === 429) {
-					msg = "Too many requests. Please wait a moment and try again.";
+					msg =
+						code === "ANONYMOUS_QUOTA_EXCEEDED"
+							? "Sign in to continue researching."
+							: "Too many requests. Please wait a moment and try again.";
 				} else if (response.status >= 500) {
 					msg = "The service is temporarily unavailable. Please try again in a few minutes.";
 				} else {
@@ -617,6 +644,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			if (e instanceof DOMException && e.name === "AbortError") {
 				setPhase("idle");
 				setErrorMessage(null);
+				setErrorCode(null);
 				setStreamingUserQuery(null);
 				setStreamingAssistantMarkdown(null);
 				setStreamingCitations([]);
@@ -634,6 +662,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		createConversation,
 		fetchMessagesForConversation,
 		onCreateConversation,
+		messages.length,
 		parentMessageId,
 		query,
 		selectedConversationId,
@@ -814,6 +843,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									messageId={shareContext.messageId}
 								/>
 							) : null}
+							{!isAuthed && messages.length > 0 && !busy ? (
+								<div
+									className="flex flex-col gap-2 border-t border-border-subtle bg-surface-elevated/45 px-3 py-3 backdrop-blur-sm sm:px-4"
+									role="region"
+									aria-label="Share this answer"
+								>
+									<p className="text-sm text-content-secondary">
+										Sign in to create shareable research pages.
+									</p>
+									<Link
+										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
+										className="inline-flex w-fit items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+									>
+										Sign in
+									</Link>
+								</div>
+							) : null}
 						</div>
 
 						<p className="sr-only" aria-live="polite">
@@ -829,29 +875,29 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</p>
 
 						<div className="flex flex-col gap-3">
-							{isAuthed ? (
-								<div className="flex flex-col sm:flex-row gap-3">
-									<div
-										className={cn(
-											"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
-											"sm:max-w-[200px]",
-										)}
+							<div className="flex flex-col sm:flex-row gap-3">
+								<div
+									className={cn(
+										"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
+										"sm:max-w-[200px]",
+									)}
+								>
+									<select
+										className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
+										value={selectedPresetId}
+										onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
+										disabled={busy}
+										aria-label="Research focus"
 									>
-										<select
-											className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
-											value={selectedPresetId}
-											onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
-											disabled={busy}
-											aria-label="Research focus"
-										>
-											{Object.values(RESEARCH_PRESETS).map((p) => (
-												<option key={p.id} value={p.id}>
-													{p.label}
-												</option>
-											))}
-										</select>
-									</div>
+										{Object.values(RESEARCH_PRESETS).map((p) => (
+											<option key={p.id} value={p.id}>
+												{p.label}
+											</option>
+										))}
+									</select>
+								</div>
 
+								{isAuthed ? (
 									<div
 										className={cn(
 											"flex w-full overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated/80 backdrop-blur-md ring-1 ring-border-subtle",
@@ -891,8 +937,26 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											Deep Research
 										</button>
 									</div>
-								</div>
-							) : (
+								) : (
+									<button
+										type="button"
+										disabled={busy}
+										onClick={() =>
+											router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`)
+										}
+										className={cn(
+											"flex w-full items-center justify-center rounded-2xl border border-border-subtle bg-surface-elevated/80 px-3 py-2 text-sm font-medium text-content-secondary backdrop-blur-md ring-1 ring-border-subtle",
+											"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+											"sm:max-w-[320px]",
+											"disabled:opacity-40 disabled:pointer-events-none",
+										)}
+										aria-label="Deep Research — sign in required"
+									>
+										Deep Research (sign in)
+									</button>
+								)}
+							</div>
+							{!isAuthed ? (
 								<p className="text-center text-xs text-content-tertiary">
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
@@ -900,9 +964,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									>
 										Sign in
 									</Link>{" "}
-									to save threads, use slash commands, and unlock Deep Research.
+									to save threads, use slash commands, and keep follow-ups in one place.
 								</p>
-							)}
+							) : null}
 							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
 								<p className="text-center text-xs text-amber-200/90">
 									Deep Research requires a Pro or Team plan.{" "}
@@ -921,7 +985,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								isBusy={busy}
 								placeholder={
 									!isAuthed
-										? "Ask anything — Press Enter for standard search (sign in to save threads & Deep Research)"
+										? "Ask anything — standard search works without an account"
 										: messages.length > 0
 											? "Send a follow-up…"
 											: "Ask anything — Press Enter to search"
@@ -949,6 +1013,22 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 												: "Something went wrong"}
 									</p>
 									<p className="mt-1 text-red-200/95">{errorMessage}</p>
+									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
+									errorCode === "SIGNIN_DEEP" ||
+									(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") ? (
+										<div className="mt-3">
+											<Link
+												href={`/signin?callbackUrl=${encodeURIComponent(
+													lastSubmittedQueryRef.current.trim().length > 0
+														? `/?q=${encodeURIComponent(lastSubmittedQueryRef.current.trim())}`
+														: "/",
+												)}`}
+												className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+											>
+												Sign in
+											</Link>
+										</div>
+									) : null}
 									{limitErrorAction === "quota" || limitErrorAction === "plan" ? (
 										<div className="mt-3 flex flex-wrap gap-2">
 											<Link
@@ -964,6 +1044,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 														setResearchMode("standard");
 														setLimitErrorAction(null);
 														setErrorMessage(null);
+														setErrorCode(null);
 														setPhase("idle");
 													}}
 													className="inline-flex items-center justify-center rounded-xl border border-border-subtle bg-surface-elevated/80 px-4 py-2 text-sm font-medium text-content-primary hover:bg-surface-elevated"

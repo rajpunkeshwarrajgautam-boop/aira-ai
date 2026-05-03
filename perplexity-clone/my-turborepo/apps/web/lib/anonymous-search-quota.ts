@@ -10,7 +10,7 @@ export class AnonymousQuotaError extends Error {
 	readonly code = "ANONYMOUS_QUOTA_EXCEEDED";
 
 	constructor() {
-		super("Daily limit reached for searches without an account. Sign in to continue.");
+		super("Sign in to continue researching.");
 		this.name = "AnonymousQuotaError";
 	}
 }
@@ -19,8 +19,8 @@ export class AnonymousQuotaError extends Error {
  * Enforces a per-day cap on completed searches for unsigned visitors (tracked via analytics events).
  */
 export async function assertAnonymousSearchAllowed(anonymousId: string): Promise<void> {
-	const raw = process.env.ANONYMOUS_DAILY_SEARCH_LIMIT ?? "10";
-	const limit = Math.max(1, Math.min(500, parseInt(raw, 10) || 10));
+	const raw = process.env.ANONYMOUS_DAILY_SEARCH_LIMIT ?? "2";
+	const limit = Math.max(1, Math.min(500, parseInt(raw, 10) || 2));
 	const eventDay = startOfUtcDay(new Date());
 
 	const count = await prisma.analyticsEvent.count({

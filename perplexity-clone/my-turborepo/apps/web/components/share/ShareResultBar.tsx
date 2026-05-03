@@ -160,7 +160,9 @@ export function ShareResultBar({
 				</div>
 
 				{status === "unauthenticated" ? (
-					<p className="text-xs text-content-tertiary">Sign in to share this answer.</p>
+					<p className="text-xs text-content-tertiary">
+						Sign in to create shareable research pages.
+					</p>
 				) : null}
 
 				{error ? (

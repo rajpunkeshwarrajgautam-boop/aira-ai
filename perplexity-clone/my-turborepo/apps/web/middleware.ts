@@ -39,8 +39,13 @@ export default auth((req) => {
 	}
 
 	// API: session required (route handlers also enforce; belt + suspenders).
-	// /api/search allows unsigned standard search; handler enforces limits.
-	if (pathname.startsWith("/api/conversations") || pathname.startsWith("/api/billing") || pathname.startsWith("/api/history")) {
+	// POST /api/search: unauthenticated allowed — route enforces standard-only guest flow + daily cap.
+	if (
+		pathname.startsWith("/api/conversations") ||
+		pathname.startsWith("/api/billing") ||
+		pathname.startsWith("/api/history") ||
+		pathname.startsWith("/api/share")
+	) {
 		if (!req.auth) {
 			return jsonUnauthorized();
 		}
