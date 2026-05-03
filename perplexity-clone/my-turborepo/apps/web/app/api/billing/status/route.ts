@@ -19,5 +19,7 @@ export async function GET(): Promise<Response> {
 		billingPlan: entitlements.billingPlan,
 		teamSeats: entitlements.teamSeats,
 		monthlySearchLimit: entitlements.monthlySearchLimit,
+		searchesUsed: entitlements.searchesUsed,
+		searchesRemaining: entitlements.searchesRemaining,
 	});
 }

@@ -19,6 +19,7 @@ import {
 	ConversationSidebar,
 } from "./conversations/ConversationSidebar";
 import { ResearchHistoryPanel, type ResearchHistoryRow } from "./conversations/ResearchHistoryPanel";
+import { UsageIndicator } from "./UsageIndicator";
 import { ShareResultBar } from "./share/ShareResultBar";
 
 export type SearchPhase = "idle" | "connecting" | "streaming" | "complete" | "error";
@@ -511,7 +512,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	return (
 		<div className={cn("relative min-h-dvh w-full overflow-hidden bg-surface", className)}>
 			<div className="relative z-10 flex min-h-dvh flex-col md:flex-row max-w-7xl mx-auto">
-				<div className="hidden w-[320px] shrink-0 md:block">
+				<div className="hidden w-[320px] shrink-0 md:block border-r border-border-subtle bg-surface-elevated/10">
+					<div className="p-4">
+						<UsageIndicator />
+					</div>
 					<ConversationSidebar
 						conversations={conversations}
 						selectedConversationId={selectedConversationId}

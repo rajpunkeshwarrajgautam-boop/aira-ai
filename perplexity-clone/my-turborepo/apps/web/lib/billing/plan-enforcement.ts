@@ -28,6 +28,8 @@ export interface EffectiveEntitlements {
 	readonly billingPlan: BillingPlan;
 	readonly teamSeats: number;
 	readonly monthlySearchLimit: number;
+	readonly searchesUsed: number;
+	readonly searchesRemaining: number;
 }
 
 async function loadEntitlements(
@@ -51,11 +53,22 @@ async function loadEntitlements(
 	const billingPlan = paid ? sub.plan : BillingPlan.FREE;
 	const teamSeats =
 		billingPlan === BillingPlan.TEAM ? (sub?.teamSeats ?? 1) : 1;
+	const limit = effectiveMonthlySearchLimit(billingPlan, teamSeats);
+
+	// Load current month's usage
+	const periodStart = startOfUtcMonth(new Date());
+	const usage = await db.usageRecord.findUnique({
+		where: { userId_periodStart: { userId, periodStart } },
+	});
+
+	const searchesUsed = usage?.searches ?? 0;
 
 	return {
 		billingPlan,
 		teamSeats,
-		monthlySearchLimit: effectiveMonthlySearchLimit(billingPlan, teamSeats),
+		monthlySearchLimit: limit,
+		searchesUsed,
+		searchesRemaining: Math.max(0, limit - searchesUsed),
 	};
 }
 
