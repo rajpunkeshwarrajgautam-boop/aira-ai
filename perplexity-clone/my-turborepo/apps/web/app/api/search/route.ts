@@ -180,19 +180,59 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		return jsonErrorResponse(400, "VALIDATION_ERROR", "Invalid request body.", z.treeifyError(parsed.error));
 	}
 
+	function classifyQueryIntent(query: string): "simple_chat" | "research" | "math" {
+		const q = query.trim().toLowerCase();
+		
+		if (/^[0-9+\-*/().\s]+$/.test(q) && /[0-9]/.test(q) && /[+\-*/]/.test(q)) {
+			return "math";
+		}
+
+		const exactGreetings = ["hi", "hello", "hey", "yo", "thanks", "thank you", "ok", "yes", "no"];
+		if (exactGreetings.includes(q)) return "simple_chat";
+
+		const researchKeywords = [
+			"latest", "current", "news", "comparison", "compare", 
+			"explain", "research", "best", "how", "why", "what", "who", "when", "where"
+		];
+		const words = q.split(/\s+/);
+
+		for (const w of words) {
+			if (researchKeywords.includes(w)) return "research";
+		}
+
+		if (words.length < 4 && !q.includes("?")) {
+			return "simple_chat";
+		}
+
+		return "research";
+	}
+
+	const query = parsed.data.query;
+	const intent = classifyQueryIntent(query);
+
 	let entitlements:
 		| Awaited<ReturnType<typeof consumeSearchQuota>>
 		| undefined;
+
+	// Only consume quota for research queries (math is tool-based, simple_chat is greeting)
+	const shouldConsumeQuota = intent === "research" || parsed.data.mode === "deep";
+
 	try {
 		if (parsed.data.mode === "deep") {
 			await assertMinPlan(session.user.id, BillingPlan.PRO);
 		}
-		entitlements = await consumeSearchQuota(session.user.id);
-		await ensureSignupCompletedTracked({
-			userId: session.user.id,
-			anonymousId,
-			plan: entitlements.billingPlan,
-		});
+		
+		if (shouldConsumeQuota) {
+			entitlements = await consumeSearchQuota(session.user.id);
+			await ensureSignupCompletedTracked({
+				userId: session.user.id,
+				anonymousId,
+				plan: entitlements.billingPlan,
+			});
+		} else {
+			// Mock entitlements for non-quota queries
+			entitlements = { billingPlan: BillingPlan.FREE, remaining: 999 } as any;
+		}
 	} catch (e) {
 		if (e instanceof PlanEnforcementError) {
 			if (e.code === "QUOTA_EXCEEDED") {
@@ -238,41 +278,11 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		return jsonErrorResponse(404, "CONVERSATION_NOT_FOUND", "Conversation not found.");
 	}
 
-	function classifyQueryIntent(query: string): "simple_chat" | "research" | "math" {
-		const q = query.trim().toLowerCase();
-		
-		// Math detection (minimal: check if it looks like a simple arithmetic expression)
-		// Matches: 2+2, 10 * 45, (10+5)/2, etc.
-		if (/^[0-9+\-*/().\s]+$/.test(q) && /[0-9]/.test(q) && /[+\-*/]/.test(q)) {
-			return "math";
-		}
-
-		const exactGreetings = ["hi", "hello", "hey", "yo", "thanks", "thank you", "ok", "yes", "no"];
-		if (exactGreetings.includes(q)) return "simple_chat";
-
-		const researchKeywords = [
-			"latest", "current", "news", "comparison", "compare", 
-			"explain", "research", "best", "how", "why", "what", "who", "when", "where"
-		];
-		const words = q.split(/\s+/);
-
-		for (const w of words) {
-			if (researchKeywords.includes(w)) return "research";
-		}
-
-		if (words.length < 4 && !q.includes("?")) {
-			return "simple_chat";
-		}
-
-		return "research";
-	}
 
 	let grounded:
 		| Awaited<ReturnType<typeof streamGroundedAnswer>>
 		| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 	try {
-		const query = parsed.data.query;
-		const intent = classifyQueryIntent(query);
 
 		if (intent === "math") {
 			const { globalToolRegistry, registerBuiltInTools } = await import("@/lib/agents/tools/tool-registry");
