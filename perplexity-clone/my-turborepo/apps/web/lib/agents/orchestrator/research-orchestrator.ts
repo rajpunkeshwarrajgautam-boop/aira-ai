@@ -23,6 +23,41 @@ export class ResearchOrchestrator {
 		const router = input.router ?? (await ProviderRouter.createDefault());
 		const abortSignal = input.abortSignal;
 
+		// 0. Intent Classification (Intelligent Layer)
+		const queryLower = input.query.toLowerCase().trim();
+		const isMath = /^[0-9+\-*/().\s]+$/.test(queryLower) && /[0-9]/.test(queryLower) && /[+\-*/]/.test(queryLower);
+		const isCalculatorRequested = queryLower.includes("calculate") || queryLower.includes("sum") || queryLower.includes("multiply");
+
+		if (isMath || isCalculatorRequested) {
+			console.log("[Orchestrator] Detected math/calculator intent. Executing calculator tool.");
+			try {
+				const mathResult = await globalToolRegistry.executeTool("calculator", { expression: input.query });
+				
+				async function* mathResultStream() {
+					yield `The result of your calculation is: **${mathResult.result}**\n\nI used the deterministic calculator tool to ensure accuracy.`;
+				}
+
+				return {
+					query: input.query,
+					sources: [],
+					textStream: mathResultStream(),
+				};
+			} catch (error) {
+				console.error("[Orchestrator] Calculator tool failed, falling back to research flow", error);
+			}
+		}
+
+		// Factual Bypass: Very short queries or specific factual keywords
+		const factualKeywords = ["capital of", "who is", "when was", "where is", "population of", "height of"];
+		const isFactual = factualKeywords.some(k => queryLower.includes(k)) || (queryLower.split(/\s+/).length <= 4 && queryLower.endsWith("?"));
+
+		if (isFactual) {
+			console.log("[Orchestrator] Detected simple factual intent. Bypassing complex planning.");
+			// We skip Phase 1 (Planning) and set a single sub-query
+			const plan = { subQueries: [input.query], answerOutline: ["Introduction", "Quick Fact", "Source Verification"] };
+			return await this.executePlanAndStream(input, plan, router, abortSignal);
+		}
+
 		// 1. Planning Phase
 		console.log("[Orchestrator] Phase 1: Planning");
 		const planningMessages = [
@@ -47,6 +82,15 @@ export class ResearchOrchestrator {
 			plan = { subQueries: [input.query], answerOutline: ["Introduction", "Analysis", "Conclusion"] };
 		}
 
+		return await this.executePlanAndStream(input, plan, router, abortSignal);
+	}
+
+	private static async executePlanAndStream(
+		input: DeepResearchInput, 
+		plan: PlanOutput, 
+		router: ProviderRouter, 
+		abortSignal?: AbortSignal
+	): Promise<DeepResearchStreamResult> {
 		// 2. Execution Phase (Tools)
 		console.log(`[Orchestrator] Phase 2: Executing ${plan.subQueries.length} tool calls`);
 		const allCandidates: any[] = [];
