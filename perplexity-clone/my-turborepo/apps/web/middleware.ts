@@ -39,12 +39,8 @@ export default auth((req) => {
 	}
 
 	// API: session required (route handlers also enforce; belt + suspenders).
-	if (
-		pathname.startsWith("/api/search") ||
-		pathname.startsWith("/api/conversations") ||
-		pathname.startsWith("/api/billing") ||
-		pathname.startsWith("/api/history")
-	) {
+	// /api/search allows unsigned standard search; handler enforces limits.
+	if (pathname.startsWith("/api/conversations") || pathname.startsWith("/api/billing") || pathname.startsWith("/api/history")) {
 		if (!req.auth) {
 			return jsonUnauthorized();
 		}

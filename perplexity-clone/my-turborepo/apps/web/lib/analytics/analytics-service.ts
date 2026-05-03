@@ -155,7 +155,7 @@ export async function trackAnalyticsEvent(args: TrackAnalyticsEventInput): Promi
 }
 
 export async function trackSearchEvent(params: {
-	readonly userId: string;
+	readonly userId?: string;
 	readonly anonymousId?: string;
 	readonly plan?: BillingPlan;
 	readonly mode: "standard" | "deep";

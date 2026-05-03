@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { assertAnonymousSearchAllowed, AnonymousQuotaError } from "@/lib/anonymous-search-quota";
 import { getOrCreateAnonymousIdCookie } from "@/lib/analytics/anon-id";
 import {
 	ensureSignupCompletedTracked,
@@ -16,6 +17,7 @@ import {
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
 import {
+	getAnonymousSearchContext,
 	getFollowUpContext,
 	persistConversationTurn,
 } from "@/lib/conversation-memory";
@@ -161,11 +163,7 @@ function classifyUpstreamError(err: Error): { status: number; code: string; clie
 
 async function handleSearchPost(req: Request): Promise<Response> {
 	const session = await auth();
-	if (!session?.user?.id) {
-		console.error("SEARCH_ERROR:", { code: "UNAUTHENTICATED", message: "Sign in to run search." });
-		return jsonErrorResponse(401, "UNAUTHENTICATED", "Sign in to run search.");
-	}
-
+	const userId = session?.user?.id ?? null;
 	const anonymousId = await getOrCreateAnonymousIdCookie();
 
 	let body: unknown;
@@ -187,40 +185,70 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		mathAnswer === null && isGreetingOnlyQuery(parsed.data.query);
 	const skipSearchQuota = mathAnswer !== null || greetingOnly;
 
-	let entitlements: Awaited<ReturnType<typeof getEffectiveEntitlements>>;
-	try {
-		if (!skipSearchQuota) {
-			if (parsed.data.mode === "deep") {
-				await assertMinPlan(session.user.id, BillingPlan.PRO);
-			}
-			entitlements = await consumeSearchQuota(session.user.id);
-		} else {
-			entitlements = await getEffectiveEntitlements(session.user.id);
+	if (!userId) {
+		if (parsed.data.conversationId || parsed.data.parentMessageId || parsed.data.continueResearch) {
+			return jsonErrorResponse(
+				401,
+				"UNAUTHENTICATED",
+				"Sign in to continue a saved conversation.",
+			);
 		}
-		await ensureSignupCompletedTracked({
-			userId: session.user.id,
-			anonymousId,
-			plan: entitlements.billingPlan,
-		});
-	} catch (e) {
-		if (e instanceof PlanEnforcementError) {
-			if (e.code === "QUOTA_EXCEEDED") {
-				await trackQuotaExceededEvent({
-					userId: session.user.id,
-					anonymousId,
-				});
-			} else if (e.code === "PLAN_REQUIRED" && parsed.data.mode === "deep") {
-				await trackPlanRequiredEvent({
-					userId: session.user.id,
-					anonymousId,
-					requiredPlan: BillingPlan.PRO,
-				});
+		if (parsed.data.mode === "deep") {
+			return jsonErrorResponse(
+				402,
+				"PLAN_REQUIRED",
+				"Sign in to use Deep Research.",
+			);
+		}
+		if (!skipSearchQuota) {
+			try {
+				await assertAnonymousSearchAllowed(anonymousId);
+			} catch (e) {
+				if (e instanceof AnonymousQuotaError) {
+					return jsonErrorResponse(e.status, e.code, e.message);
+				}
+				throw e;
+			}
+		}
+	}
+
+	let entitlements: Awaited<ReturnType<typeof getEffectiveEntitlements>> | null = null;
+
+	if (userId) {
+		try {
+			if (!skipSearchQuota) {
+				if (parsed.data.mode === "deep") {
+					await assertMinPlan(userId, BillingPlan.PRO);
+				}
+				entitlements = await consumeSearchQuota(userId);
+			} else {
+				entitlements = await getEffectiveEntitlements(userId);
+			}
+			await ensureSignupCompletedTracked({
+				userId,
+				anonymousId,
+				plan: entitlements.billingPlan,
+			});
+		} catch (e) {
+			if (e instanceof PlanEnforcementError) {
+				if (e.code === "QUOTA_EXCEEDED") {
+					await trackQuotaExceededEvent({
+						userId,
+						anonymousId,
+					});
+				} else if (e.code === "PLAN_REQUIRED" && parsed.data.mode === "deep") {
+					await trackPlanRequiredEvent({
+						userId,
+						anonymousId,
+						requiredPlan: BillingPlan.PRO,
+					});
+				}
+				console.error("SEARCH_ERROR:", e);
+				return jsonErrorResponse(e.status, e.code, e.message);
 			}
 			console.error("SEARCH_ERROR:", e);
-			return jsonErrorResponse(e.status, e.code, e.message);
+			throw e;
 		}
-		console.error("SEARCH_ERROR:", e);
-		throw e;
 	}
 
 	const abort = new AbortController();
@@ -234,14 +262,18 @@ async function handleSearchPost(req: Request): Promise<Response> {
 
 	let context: Awaited<ReturnType<typeof getFollowUpContext>>;
 	try {
-		context = await getFollowUpContext({
-			userId: session.user.id,
-			query: parsed.data.query,
-			conversationId: parsed.data.conversationId,
-			parentMessageId: parsed.data.parentMessageId,
-			messageLimit: parsed.data.continueResearch ? 20 : 10,
-			memoryLimit: parsed.data.continueResearch ? 8 : 5,
-		});
+		if (userId) {
+			context = await getFollowUpContext({
+				userId,
+				query: parsed.data.query,
+				conversationId: parsed.data.conversationId,
+				parentMessageId: parsed.data.parentMessageId,
+				messageLimit: parsed.data.continueResearch ? 20 : 10,
+				memoryLimit: parsed.data.continueResearch ? 8 : 5,
+			});
+		} else {
+			context = getAnonymousSearchContext();
+		}
 	} catch (e) {
 		console.error("SEARCH_ERROR:", e);
 		return jsonErrorResponse(404, "CONVERSATION_NOT_FOUND", "Conversation not found.");
@@ -332,7 +364,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 			process.env.NODE_ENV === "development" ? err.message : clientMessage;
 
 		await trackSearchErrorEvent({
-			userId: session.user.id,
+			userId: userId ?? undefined,
 			anonymousId,
 			code,
 			message,
@@ -369,24 +401,25 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				}
 
 				if (!abort.signal.aborted) {
-					const persisted = await persistConversationTurn({
-						userId: session.user.id,
-						query: parsed.data.query,
-						answer: fullText,
-						conversationId: context.resolvedConversationId,
-						parentMessageId: parsed.data.parentMessageId,
-						citations: metadata.citations,
-						exaRequestId: metadata.exaRequestId,
-						exaSearchType: metadata.exaSearchType,
-					});
-					persistedConversationId = persisted.conversationId;
-					persistedAssistantMessageId = persisted.assistantMessageId;
+					if (userId) {
+						const persisted = await persistConversationTurn({
+							userId,
+							query: parsed.data.query,
+							answer: fullText,
+							conversationId: context.resolvedConversationId,
+							parentMessageId: parsed.data.parentMessageId,
+							citations: metadata.citations,
+							exaRequestId: metadata.exaRequestId,
+							exaSearchType: metadata.exaSearchType,
+						});
+						persistedConversationId = persisted.conversationId;
+						persistedAssistantMessageId = persisted.assistantMessageId;
+					}
 
-					// Track successful search completion (funnel stage).
 					await trackSearchEvent({
-						userId: session.user.id,
+						userId: userId ?? undefined,
 						anonymousId,
-						plan: entitlements.billingPlan,
+						plan: entitlements?.billingPlan ?? BillingPlan.FREE,
 						mode: analyticsSearchMode,
 						citationCount: metadata.citations.length,
 						exaSearchType: metadata.exaSearchType,
@@ -407,7 +440,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					process.env.NODE_ENV === "development" ? err.message : clientMessage;
 
 				await trackSearchErrorEvent({
-					userId: session.user.id,
+					userId: userId ?? undefined,
 					anonymousId,
 					code,
 					message,

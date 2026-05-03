@@ -104,6 +104,15 @@ export async function listConversationMessages(
 	});
 }
 
+/** No DB reads — for unsigned standard search only (no thread / memory). */
+export function getAnonymousSearchContext(): {
+	readonly chatHistory: readonly { readonly role: "user" | "assistant"; readonly content: string }[];
+	readonly contextualMemory: readonly string[];
+	readonly resolvedConversationId?: string;
+} {
+	return { chatHistory: [], contextualMemory: [], resolvedConversationId: undefined };
+}
+
 export async function getFollowUpContext(args: {
 	readonly userId: string;
 	readonly query: string;

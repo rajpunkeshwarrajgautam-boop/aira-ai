@@ -260,7 +260,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	}, [sessionStatus]);
 
 	useEffect(() => {
-		if (sessionStatus !== "authenticated" || busy) return;
+		if (sessionStatus === "loading" || busy) return;
 		const qParam = searchParams.get("q")?.trim();
 		if (!qParam) return;
 		if (hasAutoRunUrlQueryRef.current === qParam) return;
@@ -424,15 +424,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 		if (!q) return;
 
-		if (sessionStatus !== "authenticated") {
-			redirectToSignInWithQuery(q);
-			return;
-		}
+		const isGuest = sessionStatus !== "authenticated";
+		let conversationId: string | null = selectedConversationId;
 
-		// Ensure there is a selected conversation thread for persistence.
-		let conversationId = selectedConversationId;
-		if (!conversationId) {
-			conversationId = await createConversation(q);
+		if (!isGuest) {
+			if (!conversationId) {
+				conversationId = await createConversation(q);
+			}
+		} else {
+			conversationId = null;
 		}
 
 		abortRef.current?.abort();
@@ -452,14 +452,22 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			const response = await fetch("/api/search", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					query: q,
-					conversationId,
-					parentMessageId,
-					continueResearch: Boolean(parentMessageId),
-					mode: currentMode,
-					presetId: selectedPresetId,
-				}),
+				body: JSON.stringify(
+					isGuest
+						? {
+								query: q,
+								mode: "standard",
+								presetId: selectedPresetId,
+							}
+						: {
+								query: q,
+								conversationId,
+								parentMessageId,
+								continueResearch: Boolean(parentMessageId),
+								mode: currentMode,
+								presetId: selectedPresetId,
+							},
+				),
 				signal: controller.signal,
 				credentials: "include",
 			});
@@ -471,7 +479,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				let msg: string;
 				let action: "quota" | "plan" | null = null;
 				if (response.status === 401 || code === "UNAUTHENTICATED") {
-					msg = "Sign in to run a search, then try again.";
+					msg = "Sign in to continue a saved thread or use Deep Research.";
+				} else if (code === "ANONYMOUS_QUOTA_EXCEEDED") {
+					msg = raw;
 				} else if (response.status === 402 || code === "QUOTA_EXCEEDED") {
 					action = "quota";
 					msg =
@@ -510,6 +520,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			let sawDone = false;
 			let doneConversationId: string | undefined;
 			let doneMessageId: string | undefined;
+			let streamedAnswer = "";
+			let finalCitations: CitationItem[] = [];
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -526,11 +538,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					if (block.event === "metadata") {
 						const meta = safeJson<MetadataPayload>(block.data);
 						if (meta && Array.isArray(meta.citations)) {
+							finalCitations = [...meta.citations];
 							setStreamingCitations([...meta.citations]);
 						}
 					} else if (block.event === "text") {
 						const chunk = safeJson<TextPayload>(block.data);
 						if (chunk?.delta) {
+							streamedAnswer += chunk.delta;
 							setStreamingAssistantMarkdown((prev) => (prev ?? "") + chunk.delta);
 						}
 					} else if (block.event === "done") {
@@ -565,9 +579,33 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setPhase((p) => (p === "streaming" || p === "connecting" ? "complete" : p));
 			}
 
+			if (isGuest && sawDone) {
+				const ts = new Date().toISOString();
+				const uid = `guest-${Date.now()}-u`;
+				const aid = `guest-${Date.now()}-a`;
+				setMessages([
+					{
+						id: uid,
+						role: "USER",
+						content: q,
+						parentMessageId: null,
+						citations: null,
+						createdAt: ts,
+					},
+					{
+						id: aid,
+						role: "ASSISTANT",
+						content: streamedAnswer,
+						parentMessageId: uid,
+						citations: finalCitations,
+						createdAt: ts,
+					},
+				]);
+			}
+
 			// Refetch persisted full history inside the selected thread.
-			if (sawDone && (doneConversationId ?? conversationId)) {
-				const finalId = doneConversationId ?? conversationId;
+			if (!isGuest && sawDone && (doneConversationId ?? conversationId)) {
+				const finalId = doneConversationId ?? conversationId!;
 				await fetchMessagesForConversation(finalId);
 				void refreshBilling();
 			}
@@ -862,7 +900,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									>
 										Sign in
 									</Link>{" "}
-									to save threads, run research, and unlock Deep Research.
+									to save threads, use slash commands, and unlock Deep Research.
 								</p>
 							)}
 							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
@@ -883,7 +921,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								isBusy={busy}
 								placeholder={
 									!isAuthed
-										? "Ask anything — sign in when prompted to run research"
+										? "Ask anything — Press Enter for standard search (sign in to save threads & Deep Research)"
 										: messages.length > 0
 											? "Send a follow-up…"
 											: "Ask anything — Press Enter to search"
