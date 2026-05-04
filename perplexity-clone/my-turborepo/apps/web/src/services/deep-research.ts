@@ -8,6 +8,12 @@ import {
 	type RankingOptions,
 	type SourceCandidate,
 } from "./citations";
+import {
+	buildMultiEntityPromptInstruction,
+	buildSupplementaryQueries,
+	detectMultiEntityQuery,
+	normalizeMergedCandidateRanks,
+} from "./multi-entity-retrieval";
 import { createExaSearchService, DEFAULT_EXA_SEARCH_OPTIONS, type ExaSearchOptions, type ExaSearchService, type ExaSearchType } from "./search";
 import { ProviderRouter } from "./providers/provider-router";
 
@@ -170,6 +176,12 @@ function buildChatMessages(
 	return messages;
 }
 
+function replaceCandidatesNormalized(pool: SourceCandidate[]): void {
+	const normalized = normalizeMergedCandidateRanks(pool);
+	pool.length = 0;
+	pool.push(...normalized);
+}
+
 
 async function collectRouterText(
 	router: ProviderRouter,
@@ -288,6 +300,9 @@ export async function streamDeepResearchAnswer(
 	const router = input.router ?? (await ProviderRouter.createDefault());
 	const exa = input.exa ?? createExaSearchService();
 
+	const multiEntityActive = detectMultiEntityQuery(input.query);
+	const multiEntityPromptBlock = multiEntityActive ? buildMultiEntityPromptInstruction() : "";
+
 	const planMaxSubQueries = input.plan?.maxSubQueries ?? 3;
 	const maxFollowUpSearches = input.plan?.maxFollowUpSearches ?? 2;
 
@@ -346,6 +361,35 @@ export async function streamDeepResearchAnswer(
 
 	await Promise.all(subQueries.map((sq) => runExaFor(sq)));
 
+	if (multiEntityActive) {
+		await Promise.all(
+			buildSupplementaryQueries(input.query).map(async (sq) => {
+				try {
+					if (input.abortSignal?.aborted) return;
+					const searchOpts: Partial<ExaSearchOptions> = {
+						...DEFAULT_EXA_SEARCH_OPTIONS,
+						...input.search,
+						type: (input.search?.type as ExaSearchType | undefined) ?? "deep-lite",
+						numResults: 6,
+						contents: {
+							...DEFAULT_EXA_SEARCH_OPTIONS.contents,
+							...input.search?.contents,
+							highlightQuery: sq,
+						},
+					};
+					const retrieved = await exa.search(sq, searchOpts);
+					if (retrieved.requestId) requestIds.push(retrieved.requestId);
+					if (retrieved.searchType) searchTypes.push(retrieved.searchType);
+					allCandidates.push(...retrieved.candidates);
+				} catch {
+					/* supplementary retrieval failed — keep planner results */
+				}
+			}),
+		);
+	}
+
+	replaceCandidatesNormalized(allCandidates);
+
 	// 3) Source deduplication + ranking
 	let sources: RankedSource[] = rankFilterAndNumberSources(allCandidates, {
 		...input.ranking,
@@ -359,7 +403,7 @@ export async function streamDeepResearchAnswer(
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
 		systemPrompt: DEEP_RESEARCHER_SYSTEM_PROMPT,
-		extraUserInstructions: buildDraftInstructions(plan),
+		extraUserInstructions: [buildDraftInstructions(plan), multiEntityPromptBlock].filter((s) => s.trim()).join("\n\n"),
 		presetId: input.presetId,
 	});
 
@@ -420,6 +464,7 @@ export async function streamDeepResearchAnswer(
 	const followUps = verification.followUpSearches.slice(0, maxFollowUpSearches);
 	if (followUps.length > 0) {
 		await Promise.all(followUps.map((fu) => runExaFor(fu)));
+		replaceCandidatesNormalized(allCandidates);
 		sources = rankFilterAndNumberSources(allCandidates, {
 			...input.ranking,
 			maxSources: input.ranking?.maxSources ?? 12,
@@ -433,7 +478,9 @@ export async function streamDeepResearchAnswer(
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
 		systemPrompt: DEEP_RESEARCHER_SYSTEM_PROMPT,
-		extraUserInstructions: buildFinalInstructions(plan, verification),
+		extraUserInstructions: [buildFinalInstructions(plan, verification), multiEntityPromptBlock]
+			.filter((s) => s.trim())
+			.join("\n\n"),
 		presetId: input.presetId,
 	});
 

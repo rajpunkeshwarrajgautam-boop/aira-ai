@@ -9,6 +9,13 @@ import {
 } from "./citations";
 import { ProviderRouter, type ProviderOptions } from "./providers/provider-router";
 import {
+	buildMultiEntityPromptInstruction,
+	buildSupplementaryQueries,
+	detectMultiEntityQuery,
+	MULTI_ENTITY_SUPPLEMENTARY_NUM_RESULTS,
+	normalizeMergedCandidateRanks,
+} from "./multi-entity-retrieval";
+import {
 	createExaSearchService,
 	DEFAULT_EXA_SEARCH_OPTIONS,
 	type ExaSearchOptions,
@@ -83,6 +90,7 @@ function buildMessages(
 		}[];
 		readonly contextualMemory?: readonly string[];
 		readonly presetId?: string;
+		readonly multiEntityPrompt?: string;
 	},
 ): ChatCompletionMessageParam[] {
 	const preset = getResearchPreset(options.presetId);
@@ -92,6 +100,9 @@ function buildMessages(
 		const { sourcesMarkdown, inlineCitationReminder } = buildCitationContextBlocks(sources);
 		userParts.push("## Retrieved sources\n\n" + sourcesMarkdown);
 		userParts.push("\n## Instructions\n\n" + inlineCitationReminder);
+		if (options.multiEntityPrompt?.trim()) {
+			userParts.push("\n## Additional instructions\n\n" + options.multiEntityPrompt.trim());
+		}
 		userParts.push("\n## Question\n\n" + query.trim());
 	} else if (options.searchDisabled) {
 		userParts.push(
@@ -169,16 +180,44 @@ export async function streamGroundedAnswer(
 		exaRequestId = retrieved.requestId;
 		exaSearchType = retrieved.searchType;
 
-		const candidates: SourceCandidate[] = retrieved.candidates;
+		let candidates: SourceCandidate[] = [...retrieved.candidates];
+
+		if (detectMultiEntityQuery(input.query)) {
+			const supplementaryQueries = buildSupplementaryQueries(input.query);
+			const supplementarySettled = await Promise.allSettled(
+				supplementaryQueries.map((sq) => {
+					const supOpts: Partial<ExaSearchOptions> = {
+						...DEFAULT_EXA_SEARCH_OPTIONS,
+						...input.search,
+						numResults: MULTI_ENTITY_SUPPLEMENTARY_NUM_RESULTS,
+						contents: {
+							...DEFAULT_EXA_SEARCH_OPTIONS.contents,
+							...input.search?.contents,
+							highlightQuery: sq,
+						},
+					};
+					return exa.search(sq, supOpts);
+				}),
+			);
+			for (const r of supplementarySettled) {
+				if (r.status === "fulfilled") {
+					candidates.push(...r.value.candidates);
+				}
+			}
+		}
+
+		candidates = normalizeMergedCandidateRanks(candidates);
 		sources = rankFilterAndNumberSources(candidates, input.ranking);
 	}
 
+	const multiEntityActive = detectMultiEntityQuery(input.query);
 	const messages = buildMessages(input.query, sources, {
 		searchRan,
 		searchDisabled: input.disableSearch === true,
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
 		presetId: input.presetId,
+		multiEntityPrompt: multiEntityActive ? buildMultiEntityPromptInstruction() : undefined,
 	});
 
 	async function* stream(): AsyncGenerator<string, void, undefined> {
