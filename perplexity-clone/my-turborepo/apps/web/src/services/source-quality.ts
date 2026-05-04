@@ -20,7 +20,10 @@ const CONTROL_OR_FORMAT = /\p{Cc}|\p{Cf}/gu;
  */
 export function sanitizeSourceExcerpt(text: string): string {
 	if (!text) return "";
-	const stripped = text.replace(CONTROL_OR_FORMAT, "");
+	// Soft hyphen (U+00AD) is Cf; turning it into a real hyphen before stripping
+	// other format chars avoids glued words like "thirdparty".
+	const withVisibleHyphens = text.replace(/\u00AD/g, "-");
+	const stripped = withVisibleHyphens.replace(CONTROL_OR_FORMAT, "");
 	return stripped
 		.replace(/\r\n/g, "\n")
 		.replace(/\r/g, "\n")
