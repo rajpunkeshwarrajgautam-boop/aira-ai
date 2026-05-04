@@ -49,15 +49,31 @@ export function buildSupplementaryQueries(query: string): string[] {
 
 export function buildMultiEntityPromptInstruction(): string {
 	return [
-		"For questions about companies, competitors, or key players, include a **Leading companies** section with a markdown table:",
+		"For questions about companies, competitors, or key players, you must include a markdown table.",
+		"Do not replace the table with bullets or prose.",
+		"",
+		"Place it under **Detailed Analysis** using this exact subsection heading (including capitalization):",
+		"",
+		"### Leading companies",
+		"",
+		"Immediately under that heading, output this exact markdown table structure (header row, then separator row, then your data rows):",
 		"",
 		"| Company | Therapy/Program | Approach | Trial stage | Evidence/source |",
-		"| --- | --- | --- | --- | --- |",
+		"|---|---|---|---|---|",
 		"",
-		"Rules:",
-		"- Use citation numbers in the Evidence/source column (e.g. [1][3]) that match the provided source list only.",
-		"- Do not list companies not clearly supported by the sources.",
-		"- Avoid over-focusing on one company if the sources support a broader landscape.",
+		"Data rows:",
+		"- When retrieved sources support at least one company, include at least one data row.",
+		"- Add additional rows for other companies the sources clearly support.",
+		"- If a cell cannot be filled from retrieved sources, write exactly: Not specified in retrieved sources",
+		"",
+		"Evidence/source column:",
+		"- Must include citation numbers like [1], [2] that appear in the provided source list only.",
+		"- Do not cite unsupported claims.",
+		"",
+		"Other rules:",
+		"- Do not invent companies not clearly supported by the sources.",
+		"- Compare multiple distinct companies when the sources support them.",
+		"- Avoid over-focusing on one company or domain when the sources support a broader landscape.",
 	].join("\n");
 }
 
