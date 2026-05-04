@@ -9,6 +9,7 @@ const CitationSchema = z.object({
 	title: z.string(),
 	publishedDate: z.string().nullable(),
 	rankingScore: z.number(),
+	excerpt: z.string().optional(),
 });
 
 export type PublicCitation = z.infer<typeof CitationSchema>;

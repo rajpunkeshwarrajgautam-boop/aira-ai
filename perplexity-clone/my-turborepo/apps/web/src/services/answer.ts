@@ -27,6 +27,7 @@ Rules:
 - Prefer facts supported by the sources. If sources conflict, acknowledge the disagreement briefly.
 - Never cite a number that was not provided in the source list. Never fabricate URLs.
 - If the sources are insufficient, say so clearly and answer only what they support.
+- If the question asks which companies are involved, who the leading companies or key players are, or who the competitors are, compare multiple distinct entities grounded in the sources and avoid letting one company or domain dominate the answer when the sources support a broader landscape.
 - Maintain professional tone and high readability with proper spacing between paragraphs.`;
 
 import { getResearchPreset } from "./research-presets";

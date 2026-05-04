@@ -4,6 +4,7 @@ import { AlertCircle, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { markdownExternalLinkComponents } from "./markdownComponents";
 import { cn } from "../lib/cn";
 
 export interface AnswerStreamProps {
@@ -98,7 +99,9 @@ export function AnswerStream({
 
 			{markdown ? (
 				<div className={cn("answer-markdown text-[15px] leading-8 text-content-secondary/90")}>
-					<ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+					<ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownExternalLinkComponents}>
+						{markdown}
+					</ReactMarkdown>
 					{isStreaming ? (
 						<span
 							className="ml-1 inline-block h-5 w-1 animate-pulse rounded-full bg-accent align-middle"

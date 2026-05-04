@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { Loader2, MessageCircle } from "lucide-react";
 
 import { CitationCards, type CitationItem } from "../CitationCards";
+import { markdownExternalLinkComponents } from "../markdownComponents";
 import { cn } from "../../lib/cn";
 
 export interface ConversationMessageDto {
@@ -27,7 +28,8 @@ function isCitationArray(value: unknown): value is readonly CitationItem[] {
 			typeof o.title === "string" &&
 			typeof o.index === "number" &&
 			(o.publishedDate === null || typeof o.publishedDate === "string") &&
-			typeof o.rankingScore === "number"
+			typeof o.rankingScore === "number" &&
+			(o.excerpt === undefined || typeof o.excerpt === "string")
 		);
 	});
 }
@@ -47,7 +49,9 @@ export interface ConversationMessageListProps {
 function MarkdownContent({ markdown }: { readonly markdown: string }) {
 	return (
 		<div className="answer-markdown">
-			<ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+			<ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownExternalLinkComponents}>
+				{markdown}
+			</ReactMarkdown>
 		</div>
 	);
 }

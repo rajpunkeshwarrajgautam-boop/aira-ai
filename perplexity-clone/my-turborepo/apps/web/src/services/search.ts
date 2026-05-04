@@ -65,7 +65,7 @@ export interface ExaSearchOptions {
 
 export const DEFAULT_EXA_SEARCH_OPTIONS: ExaSearchOptions = {
 	type: "auto",
-	numResults: 12,
+	numResults: 20,
 	moderation: true,
 	contents: {
 		textMaxCharacters: 3500,

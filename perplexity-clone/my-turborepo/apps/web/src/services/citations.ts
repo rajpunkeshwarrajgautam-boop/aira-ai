@@ -105,6 +105,49 @@ function orderPrior(originalRank: number, poolSize: number): number {
 }
 
 /**
+ * Simple registrable-domain key: for 3+ hostname segments, use the last two labels
+ * (e.g. `investors.crisprtx.com` → `crisprtx.com`). Two-part hosts stay as-is (`nih.gov`).
+ */
+function registrableDomainKey(host: string): string {
+	const h = host.replace(/^www\./, "").toLowerCase().trim();
+	if (!h) return "";
+	const parts = h.split(".").filter(Boolean);
+	if (parts.length <= 2) return h;
+	return parts.slice(-2).join(".");
+}
+
+const HIGH_AUTHORITY_REGISTRABLE = new Set([
+	"nature.com",
+	"nih.gov",
+	"fda.gov",
+	"sec.gov",
+	"clinicaltrials.gov",
+]);
+
+function maxSourcesPerRegistrableDomain(domainKey: string): number {
+	return HIGH_AUTHORITY_REGISTRABLE.has(domainKey) ? 3 : 2;
+}
+
+/** Soft down-rank for IR / press-release style pages (not excluded). */
+const INVESTOR_RELATIONS_SCORE_FACTOR = 0.88;
+
+function investorRelationsScoreFactor(url: string): number {
+	try {
+		const u = new URL(url);
+		const host = u.hostname.toLowerCase();
+		const path = u.pathname.toLowerCase();
+		if (host.startsWith("ir.")) return INVESTOR_RELATIONS_SCORE_FACTOR;
+		if (host.startsWith("investors.")) return INVESTOR_RELATIONS_SCORE_FACTOR;
+		if (path.includes("investor-relations")) return INVESTOR_RELATIONS_SCORE_FACTOR;
+		if (path.includes("/investors")) return INVESTOR_RELATIONS_SCORE_FACTOR;
+		if (path.includes("/news-releases")) return INVESTOR_RELATIONS_SCORE_FACTOR;
+		return 1;
+	} catch {
+		return 1;
+	}
+}
+
+/**
  * Deduplicate by canonical URL, drop blocked domains and thin excerpts,
  * then rank by a weighted composite of API order, snippet strength, highlight similarity, and recency.
  */
@@ -138,16 +181,28 @@ export function rankFilterAndNumberSources(
 		const hl = avgHighlightScore(c.highlightScores);
 		const snippetScore = 0.65 * rich + 0.35 * hl;
 		const rec = recencyScore(c.publishedDate, now);
-		const composite =
+		let composite =
 			((w.order * op + w.snippet * snippetScore + w.recency * rec) / wSum) *
 			1000;
+		composite *= investorRelationsScoreFactor(c.url);
 
 		return { c, compositeScore: composite };
 	});
 
 	scored.sort((a, b) => b.compositeScore - a.compositeScore);
 
-	const top = scored.slice(0, opts.maxSources);
+	const domainCounts = new Map<string, number>();
+	const top: typeof scored = [];
+	for (const row of scored) {
+		if (top.length >= opts.maxSources) break;
+		const host = hostnameOf(row.c.url);
+		const domainKey = registrableDomainKey(host) || host || "_";
+		const cap = maxSourcesPerRegistrableDomain(domainKey);
+		const used = domainCounts.get(domainKey) ?? 0;
+		if (used >= cap) continue;
+		domainCounts.set(domainKey, used + 1);
+		top.push(row);
+	}
 
 	return top.map((row, i) =>
 		RankedSourceSchema.parse({

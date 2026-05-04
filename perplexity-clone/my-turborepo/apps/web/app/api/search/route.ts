@@ -52,7 +52,17 @@ type CitationPayload = {
 	readonly title: string;
 	readonly publishedDate: string | null;
 	readonly rankingScore: number;
+	readonly excerpt?: string;
 };
+
+const MAX_CITATION_EXCERPT_CHARS = 400;
+
+function trimCitationExcerpt(excerpt: string): string | undefined {
+	const t = excerpt.replace(/\s+/g, " ").trim();
+	if (!t) return undefined;
+	if (t.length <= MAX_CITATION_EXCERPT_CHARS) return t;
+	return `${t.slice(0, MAX_CITATION_EXCERPT_CHARS - 1)}…`;
+}
 
 function mapCitation(s: {
 	readonly index: number;
@@ -60,13 +70,16 @@ function mapCitation(s: {
 	readonly title: string;
 	readonly publishedDate: string | null;
 	readonly compositeScore: number;
+	readonly excerpt: string;
 }): CitationPayload {
+	const excerpt = trimCitationExcerpt(s.excerpt);
 	return {
 		index: s.index,
 		url: s.url,
 		title: s.title,
 		publishedDate: s.publishedDate,
 		rankingScore: s.compositeScore,
+		...(excerpt !== undefined ? { excerpt } : {}),
 	};
 }
 

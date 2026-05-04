@@ -207,6 +207,7 @@ export async function persistConversationTurn(args: {
 		readonly title: string;
 		readonly publishedDate: string | null;
 		readonly rankingScore: number;
+		readonly excerpt?: string;
 	}[];
 	readonly exaRequestId?: string;
 	readonly exaSearchType?: string;

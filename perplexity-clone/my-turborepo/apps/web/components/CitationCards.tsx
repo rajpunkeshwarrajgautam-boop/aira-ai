@@ -12,6 +12,8 @@ export interface CitationItem {
 	readonly title: string;
 	readonly publishedDate: string | null;
 	readonly rankingScore: number;
+	/** Short preview from retrieved excerpt (optional for legacy stored citations). */
+	readonly excerpt?: string;
 }
 
 export interface CitationCardsProps {
@@ -36,6 +38,14 @@ function formatDate(iso: string | null): string | null {
 		month: "short",
 		day: "numeric",
 	}).format(d);
+}
+
+function previewSnippet(text: string | undefined, maxChars: number): string | null {
+	if (!text) return null;
+	const t = text.replace(/\s+/g, " ").trim();
+	if (!t) return null;
+	if (t.length <= maxChars) return t;
+	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
 export function CitationCards({ citations, className }: CitationCardsProps) {
@@ -69,6 +79,7 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 						const host = hostnameFromUrl(c.url);
 						const favicon = `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(host)}`;
 						const dateLabel = formatDate(c.publishedDate);
+						const snippet = previewSnippet(c.excerpt, 220);
 
 						return (
 							<li key={`${c.index}-${c.url}`}>
@@ -105,6 +116,11 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 										<p className="line-clamp-2 text-[13px] font-semibold leading-relaxed text-content-primary transition-colors group-hover:text-accent">
 											{c.title}
 										</p>
+										{snippet ? (
+											<p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-content-tertiary/90">
+												{snippet}
+											</p>
+										) : null}
 										<div className="mt-3 flex items-center justify-between gap-2 border-t border-border-subtle/20 pt-3">
 											<p className="truncate text-[11px] font-medium text-content-tertiary">
 												{host}
