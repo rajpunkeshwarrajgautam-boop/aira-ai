@@ -14,6 +14,8 @@ export interface CitationItem {
 	readonly rankingScore: number;
 	/** Short preview from retrieved excerpt (optional for legacy stored citations). */
 	readonly excerpt?: string;
+	/** Domain heuristic only; omitted on older stored citations. */
+	readonly sourceQuality?: string;
 }
 
 export interface CitationCardsProps {
@@ -42,7 +44,7 @@ function formatDate(iso: string | null): string | null {
 
 function previewSnippet(text: string | undefined, maxChars: number): string | null {
 	if (!text) return null;
-	const t = text.replace(/\s+/g, " ").trim();
+	const t = text.replace(/[\s\u00A0]+/g, " ").trim();
 	if (!t) return null;
 	if (t.length <= maxChars) return t;
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
@@ -108,6 +110,14 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 											<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
 												{c.index}
 											</span>
+											{c.sourceQuality ? (
+												<span
+													className="max-w-[7.5rem] truncate rounded-md bg-surface-elevated/90 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-content-tertiary/80 ring-1 ring-border-subtle/40"
+													title={c.sourceQuality}
+												>
+													{c.sourceQuality}
+												</span>
+											) : null}
 											<ExternalLink className="size-3 text-content-tertiary opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:opacity-100" />
 										</div>
 									</div>

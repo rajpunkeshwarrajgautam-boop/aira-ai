@@ -35,7 +35,12 @@ Rules:
 - Never cite a number that was not provided in the source list. Never fabricate URLs.
 - If the sources are insufficient, say so clearly and answer only what they support.
 - If the question asks which companies are involved, who the leading companies or key players are, or who the competitors are, compare multiple distinct entities grounded in the sources and avoid letting one company or domain dominate the answer when the sources support a broader landscape.
-- Maintain professional tone and high readability with proper spacing between paragraphs.`;
+- Maintain professional tone and high readability with proper spacing between paragraphs.
+
+Current practice and "state of the field" questions (e.g. open challenges, a specific year such as 2025, autonomous agents, production-style AI systems):
+- Balance academic or survey-style sources with practitioner-facing evidence when the sources include it: official APIs and documentation, widely used frameworks, vendor product/docs pages, engineering blogs, and standards or benchmarks.
+- The Summary should answer the question directly. Key Points should be scannable (short bullets, minimal repetition). Detailed Analysis should cover tradeoffs, gaps, and current challenges without restating the same conclusion multiple times.
+- Source lines may include a heuristic "Source quality" hint; use it as weak metadata only—ground claims in the actual excerpts.`;
 
 import { getResearchPreset } from "./research-presets";
 

@@ -27,6 +27,7 @@ Your job:
 2) Ensure sub-queries are specific enough to retrieve useful evidence with web search.
 3) Propose an answer outline (headings) for the final response.
 4) Propose verification focus items (what could be wrong, what needs cross-checking).
+5) When the user asks about current state, a specific recent year, open challenges, or industry practice (including autonomous agents and similar), include at least one sub-query aimed at practitioner or vendor evidence—such as official docs/APIs, major frameworks, product documentation, or engineering blogs—when that angle is relevant to the question.
 `;
 
 const DEEP_RESEARCHER_SYSTEM_PROMPT = `You are a careful deep research assistant. Answer using the provided web sources.
@@ -42,7 +43,12 @@ Rules:
 - Never cite a number that was not provided in the source list. Never fabricate URLs.
 - If sources are insufficient, say so clearly and answer only what the sources support.
 - If the question asks which companies are involved, who the leading companies or key players are, or who the competitors are, compare multiple distinct entities grounded in the sources and avoid letting one company or domain dominate the answer when the sources support a broader landscape.
-- Maintain high readability with proper spacing and professional tone.`;
+- Maintain high readability with proper spacing and professional tone.
+
+Current practice and "state of the field" questions (e.g. open challenges, a specific year such as 2025, autonomous agents, production-style AI):
+- Balance research literature with practitioner ecosystem material when sources support it: official APIs/docs, major frameworks, vendor documentation, engineering blogs, standards and benchmarks.
+- The Summary should answer directly. Key Points should be scannable. Detailed Analysis should emphasize tradeoffs, gaps, and current challenges—avoid repeating the same closing conclusion in multiple sections.
+- Source lines may include a heuristic "Source quality" hint; treat it as weak metadata only—ground claims in the actual excerpts.`;
 
 function extractJsonObject(raw: string): string {
 	const trimmed = raw.trim();

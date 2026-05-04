@@ -2,6 +2,7 @@ import axios, { type AxiosInstance } from "axios";
 import { z } from "zod";
 
 import type { SourceCandidate } from "./citations";
+import { sanitizeSourceExcerpt } from "./source-quality";
 
 const EXA_API_BASE = "https://api.exa.ai";
 
@@ -109,7 +110,7 @@ export function mapExaHitsToSourceCandidates(hits: readonly ExaSearchHit[]): Sou
 			url,
 			title: safeTitle(hit, url),
 			publishedDate: hit.publishedDate ?? null,
-			excerpt: buildExcerpt(hit),
+			excerpt: sanitizeSourceExcerpt(buildExcerpt(hit)),
 			summary: hit.summary,
 			highlightScores: hit.highlightScores,
 			originalRank,

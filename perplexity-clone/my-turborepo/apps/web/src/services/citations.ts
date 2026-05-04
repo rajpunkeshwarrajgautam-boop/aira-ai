@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { inferSourceQualityLabel, sanitizeSourceExcerpt } from "./source-quality";
+
 /**
  * Canonical shape for a retrieved URL before ranking and citation numbering.
  * Produced by the search service from Exa results.
@@ -168,10 +170,10 @@ export function rankFilterAndNumberSources(
 		if (seen.has(canonical)) continue;
 		const host = hostnameOf(c.url);
 		if (host && opts.excludeDomains.has(host)) continue;
-		const excerpt = c.excerpt.trim();
+		const excerpt = sanitizeSourceExcerpt(c.excerpt);
 		if (excerpt.length < opts.minExcerptLength) continue;
 		seen.add(canonical);
-		filtered.push({ ...c, url: canonical });
+		filtered.push({ ...c, url: canonical, excerpt });
 	}
 
 	const n = filtered.length;
@@ -210,7 +212,7 @@ export function rankFilterAndNumberSources(
 			url: row.c.url,
 			title: row.c.title.trim() || hostnameOf(row.c.url) || row.c.url,
 			publishedDate: row.c.publishedDate,
-			excerpt: row.c.excerpt.trim(),
+			excerpt: sanitizeSourceExcerpt(row.c.excerpt),
 			compositeScore: row.compositeScore,
 		}),
 	);
@@ -227,10 +229,12 @@ export function buildCitationContextBlocks(sources: readonly RankedSource[]): Ci
 	const lines: string[] = [];
 	for (const s of sources) {
 		const datePart = s.publishedDate ? ` (${s.publishedDate})` : "";
+		const quality = inferSourceQualityLabel(s.url, s.title);
 		lines.push(`### [${s.index}] ${s.title}${datePart}`);
 		lines.push(`URL: ${s.url}`);
+		lines.push(`Source quality (heuristic): ${quality}`);
 		lines.push("");
-		lines.push(s.excerpt);
+		lines.push(sanitizeSourceExcerpt(s.excerpt));
 		lines.push("");
 	}
 

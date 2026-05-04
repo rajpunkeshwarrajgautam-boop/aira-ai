@@ -29,7 +29,8 @@ function isCitationArray(value: unknown): value is readonly CitationItem[] {
 			typeof o.index === "number" &&
 			(o.publishedDate === null || typeof o.publishedDate === "string") &&
 			typeof o.rankingScore === "number" &&
-			(o.excerpt === undefined || typeof o.excerpt === "string")
+			(o.excerpt === undefined || typeof o.excerpt === "string") &&
+			(o.sourceQuality === undefined || typeof o.sourceQuality === "string")
 		);
 	});
 }

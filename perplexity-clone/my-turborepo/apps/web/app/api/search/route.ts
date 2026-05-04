@@ -24,6 +24,11 @@ import {
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
+import {
+	inferSourceQualityLabel,
+	sanitizeSourceExcerpt,
+	type SourceQualityLabel,
+} from "@services/source-quality";
 import { BillingPlan } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
@@ -53,12 +58,13 @@ type CitationPayload = {
 	readonly publishedDate: string | null;
 	readonly rankingScore: number;
 	readonly excerpt?: string;
+	readonly sourceQuality?: SourceQualityLabel;
 };
 
 const MAX_CITATION_EXCERPT_CHARS = 400;
 
 function trimCitationExcerpt(excerpt: string): string | undefined {
-	const t = excerpt.replace(/\s+/g, " ").trim();
+	const t = sanitizeSourceExcerpt(excerpt);
 	if (!t) return undefined;
 	if (t.length <= MAX_CITATION_EXCERPT_CHARS) return t;
 	return `${t.slice(0, MAX_CITATION_EXCERPT_CHARS - 1)}…`;
@@ -73,12 +79,14 @@ function mapCitation(s: {
 	readonly excerpt: string;
 }): CitationPayload {
 	const excerpt = trimCitationExcerpt(s.excerpt);
+	const sourceQuality = inferSourceQualityLabel(s.url, s.title);
 	return {
 		index: s.index,
 		url: s.url,
 		title: s.title,
 		publishedDate: s.publishedDate,
 		rankingScore: s.compositeScore,
+		sourceQuality,
 		...(excerpt !== undefined ? { excerpt } : {}),
 	};
 }
