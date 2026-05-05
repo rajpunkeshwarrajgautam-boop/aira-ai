@@ -37,6 +37,29 @@ function extractSourceIdentifier(url: string): string | null {
 }
 
 /**
+ * Normalizes research paper titles to a canonical key to catch mirrors across domains.
+ * Uses exact match only to avoid false merges.
+ */
+function normalizeTitleKey(title: string): string | null {
+	const t = title.trim();
+	if (!t) return null;
+
+	// Normalize: lowercase, remove punctuation, collapse whitespace
+	const normalized = t
+		.toLowerCase()
+		.replace(/[^\w\s]/g, "") // Remove all non-word/non-space punctuation
+		.replace(/\s+/g, " ") // Collapse multiple spaces
+		.replace(/\b(?:pdf|proceedings|neurips|acm|researchgate|full text|preprint|arxiv)\b/g, "")
+		.trim();
+
+	// Only deduplicate by title if it is long enough to be unique (e.g. not "Introduction")
+	// and after normalization still carries significant entropy.
+	if (normalized.length <= 20) return null;
+
+	return normalized;
+}
+
+/**
  * Canonical shape for a retrieved URL before ranking and citation numbering.
  * Produced by the search service from Exa results.
  */
@@ -197,7 +220,8 @@ export function rankFilterAndNumberSources(
 	const now = Date.now();
 
 	const seenUrls = new Set<string>();
-	const seenIds = new Map<string, { c: SourceCandidate; quality: SourceQualityLabel }>();
+	/** Identifier or title-based identity map to track unique research papers. */
+	const seenPapers = new Map<string, { c: SourceCandidate; quality: SourceQualityLabel }>();
 	const filtered: SourceCandidate[] = [];
 
 	for (const c of candidates) {
@@ -207,17 +231,22 @@ export function rankFilterAndNumberSources(
 		const excerpt = sanitizeSourceExcerpt(c.excerpt);
 		if (excerpt.length < opts.minExcerptLength) continue;
 
-		const id = extractSourceIdentifier(c.url);
+		const arxivDoiId = extractSourceIdentifier(c.url);
+		const titleId = normalizeTitleKey(c.title);
+		// Paper fingerprint: DOI/arXiv first, fallback to exact normalized title
+		// This handles cases like NeurIPS or ACM where the ID isn't in the URL.
+		const paperId = arxivDoiId || titleId;
+
 		const quality = inferSourceQualityLabel(c.url, c.title);
 
-		if (id) {
-			const existing = seenIds.get(id);
+		if (paperId) {
+			const existing = seenPapers.get(paperId);
 			if (!existing) {
-				seenIds.set(id, { c: { ...c, url: canonical, excerpt }, quality });
+				seenPapers.set(paperId, { c: { ...c, url: canonical, excerpt }, quality });
 			} else if (SOURCE_QUALITY_PRIORITY[quality] > SOURCE_QUALITY_PRIORITY[existing.quality]) {
-				// Keep the best version but use the earliest rank found for this paper
+				// Keep the best version (e.g. Peer-reviewed > Preprint) but preserve earliest search rank
 				const bestRank = Math.min(existing.c.originalRank, c.originalRank);
-				seenIds.set(id, {
+				seenPapers.set(paperId, {
 					c: { ...c, url: canonical, excerpt, originalRank: bestRank },
 					quality,
 				});
@@ -230,8 +259,8 @@ export function rankFilterAndNumberSources(
 		filtered.push({ ...c, url: canonical, excerpt });
 	}
 
-	// Merge unique identifier-based sources back into filtered list
-	for (const item of seenIds.values()) {
+	// Merge unique paper-based sources back into filtered list
+	for (const item of seenPapers.values()) {
 		if (!seenUrls.has(item.c.url)) {
 			filtered.push(item.c);
 			seenUrls.add(item.c.url);
