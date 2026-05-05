@@ -1,3 +1,4 @@
+// SSE boundary fix: robust parsing of LF/CRLF
 "use client";
 
 import { Sparkles } from "lucide-react";
