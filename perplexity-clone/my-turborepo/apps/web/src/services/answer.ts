@@ -16,6 +16,11 @@ import {
 	normalizeMergedCandidateRanks,
 } from "./multi-entity-retrieval";
 import {
+	buildContestedPromptInstruction,
+	buildContestedSupplementaryQueries,
+	detectContestedQuery,
+} from "./contested-query";
+import {
 	createExaSearchService,
 	DEFAULT_EXA_SEARCH_OPTIONS,
 	type ExaSearchOptions,
@@ -96,6 +101,7 @@ function buildMessages(
 		readonly contextualMemory?: readonly string[];
 		readonly presetId?: string;
 		readonly multiEntityPrompt?: string;
+		readonly contestedPrompt?: string;
 	},
 ): ChatCompletionMessageParam[] {
 	const preset = getResearchPreset(options.presetId);
@@ -107,6 +113,9 @@ function buildMessages(
 		userParts.push("\n## Instructions\n\n" + inlineCitationReminder);
 		if (options.multiEntityPrompt?.trim()) {
 			userParts.push("\n## Additional instructions\n\n" + options.multiEntityPrompt.trim());
+		}
+		if (options.contestedPrompt?.trim()) {
+			userParts.push("\n## Additional instructions\n\n" + options.contestedPrompt.trim());
 		}
 		userParts.push("\n## Question\n\n" + query.trim());
 	} else if (options.searchDisabled) {
@@ -211,6 +220,30 @@ export async function streamGroundedAnswer(
 			}
 		}
 
+		if (detectContestedQuery(input.query)) {
+			const supplementaryQueries = buildContestedSupplementaryQueries(input.query);
+			const supplementarySettled = await Promise.allSettled(
+				supplementaryQueries.map((sq) => {
+					const supOpts: Partial<ExaSearchOptions> = {
+						...DEFAULT_EXA_SEARCH_OPTIONS,
+						...input.search,
+						numResults: 6,
+						contents: {
+							...DEFAULT_EXA_SEARCH_OPTIONS.contents,
+							...input.search?.contents,
+							highlightQuery: sq,
+						},
+					};
+					return exa.search(sq, supOpts);
+				}),
+			);
+			for (const r of supplementarySettled) {
+				if (r.status === "fulfilled") {
+					candidates.push(...r.value.candidates);
+				}
+			}
+		}
+
 		candidates = normalizeMergedCandidateRanks(candidates);
 		sources = rankFilterAndNumberSources(candidates, input.ranking);
 	}
@@ -223,6 +256,9 @@ export async function streamGroundedAnswer(
 		contextualMemory: input.contextualMemory,
 		presetId: input.presetId,
 		multiEntityPrompt: multiEntityActive ? buildMultiEntityPromptInstruction() : undefined,
+		contestedPrompt: detectContestedQuery(input.query)
+			? buildContestedPromptInstruction()
+			: undefined,
 	});
 
 	async function* stream(): AsyncGenerator<string, void, undefined> {

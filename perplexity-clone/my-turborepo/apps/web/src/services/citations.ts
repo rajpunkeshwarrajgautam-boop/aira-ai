@@ -1,6 +1,40 @@
 import { z } from "zod";
 
-import { inferSourceQualityLabel, sanitizeSourceExcerpt } from "./source-quality";
+import {
+	inferSourceQualityLabel,
+	sanitizeSourceExcerpt,
+	type SourceQualityLabel,
+} from "./source-quality";
+
+const SOURCE_QUALITY_PRIORITY: Record<SourceQualityLabel, number> = {
+	"Peer-reviewed": 7,
+	"Official": 6,
+	"Preprint": 5,
+	"Aggregator": 4,
+	"Blog": 3,
+	"Company": 2,
+	"Unknown": 1,
+};
+
+function extractSourceIdentifier(url: string): string | null {
+	try {
+		const decoded = decodeURIComponent(url).toLowerCase();
+
+		// arXiv: detect in path or as arxiv:<id>
+		const arxivMatch =
+			decoded.match(/arxiv\.org\/(?:abs|pdf)\/(\d{4}\.\d{4,5})/i) ||
+			decoded.match(/arxiv:(\d{4}\.\d{4,5})/i);
+		if (arxivMatch?.[1]) return `arxiv:${arxivMatch[1]}`;
+
+		// DOI: detect 10.xxxx/... pattern
+		const doiMatch = decoded.match(/(10\.\d{4,9}\/[-._;()/:a-z0-9]+)/i);
+		if (doiMatch?.[1]) return `doi:${doiMatch[1].replace(/\/$/, "")}`;
+
+		return null;
+	} catch {
+		return null;
+	}
+}
 
 /**
  * Canonical shape for a retrieved URL before ranking and citation numbering.
@@ -162,18 +196,46 @@ export function rankFilterAndNumberSources(
 	const wSum = w.order + w.snippet + w.recency;
 	const now = Date.now();
 
-	const seen = new Set<string>();
+	const seenUrls = new Set<string>();
+	const seenIds = new Map<string, { c: SourceCandidate; quality: SourceQualityLabel }>();
 	const filtered: SourceCandidate[] = [];
 
 	for (const c of candidates) {
 		const canonical = normalizeCanonicalUrl(c.url);
-		if (seen.has(canonical)) continue;
 		const host = hostnameOf(c.url);
 		if (host && opts.excludeDomains.has(host)) continue;
 		const excerpt = sanitizeSourceExcerpt(c.excerpt);
 		if (excerpt.length < opts.minExcerptLength) continue;
-		seen.add(canonical);
+
+		const id = extractSourceIdentifier(c.url);
+		const quality = inferSourceQualityLabel(c.url, c.title);
+
+		if (id) {
+			const existing = seenIds.get(id);
+			if (!existing) {
+				seenIds.set(id, { c: { ...c, url: canonical, excerpt }, quality });
+			} else if (SOURCE_QUALITY_PRIORITY[quality] > SOURCE_QUALITY_PRIORITY[existing.quality]) {
+				// Keep the best version but use the earliest rank found for this paper
+				const bestRank = Math.min(existing.c.originalRank, c.originalRank);
+				seenIds.set(id, {
+					c: { ...c, url: canonical, excerpt, originalRank: bestRank },
+					quality,
+				});
+			}
+			continue;
+		}
+
+		if (seenUrls.has(canonical)) continue;
+		seenUrls.add(canonical);
 		filtered.push({ ...c, url: canonical, excerpt });
+	}
+
+	// Merge unique identifier-based sources back into filtered list
+	for (const item of seenIds.values()) {
+		if (!seenUrls.has(item.c.url)) {
+			filtered.push(item.c);
+			seenUrls.add(item.c.url);
+		}
 	}
 
 	const n = filtered.length;

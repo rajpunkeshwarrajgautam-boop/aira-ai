@@ -14,6 +14,11 @@ import {
 	detectMultiEntityQuery,
 	normalizeMergedCandidateRanks,
 } from "./multi-entity-retrieval";
+import {
+	buildContestedPromptInstruction,
+	buildContestedSupplementaryQueries,
+	detectContestedQuery,
+} from "./contested-query";
 import { createExaSearchService, DEFAULT_EXA_SEARCH_OPTIONS, type ExaSearchOptions, type ExaSearchService, type ExaSearchType } from "./search";
 import { ProviderRouter } from "./providers/provider-router";
 
@@ -308,6 +313,8 @@ export async function streamDeepResearchAnswer(
 
 	const multiEntityActive = detectMultiEntityQuery(input.query);
 	const multiEntityPromptBlock = multiEntityActive ? buildMultiEntityPromptInstruction() : "";
+	const contestedActive = detectContestedQuery(input.query);
+	const contestedPromptBlock = contestedActive ? buildContestedPromptInstruction() : "";
 
 	const planMaxSubQueries = input.plan?.maxSubQueries ?? 3;
 	const maxFollowUpSearches = input.plan?.maxFollowUpSearches ?? 2;
@@ -394,6 +401,33 @@ export async function streamDeepResearchAnswer(
 		);
 	}
 
+	if (contestedActive) {
+		await Promise.all(
+			buildContestedSupplementaryQueries(input.query).map(async (sq) => {
+				try {
+					if (input.abortSignal?.aborted) return;
+					const searchOpts: Partial<ExaSearchOptions> = {
+						...DEFAULT_EXA_SEARCH_OPTIONS,
+						...input.search,
+						type: (input.search?.type as ExaSearchType | undefined) ?? "deep-lite",
+						numResults: 6,
+						contents: {
+							...DEFAULT_EXA_SEARCH_OPTIONS.contents,
+							...input.search?.contents,
+							highlightQuery: sq,
+						},
+					};
+					const retrieved = await exa.search(sq, searchOpts);
+					if (retrieved.requestId) requestIds.push(retrieved.requestId);
+					if (retrieved.searchType) searchTypes.push(retrieved.searchType);
+					allCandidates.push(...retrieved.candidates);
+				} catch {
+					/* supplementary retrieval failed — keep planner results */
+				}
+			}),
+		);
+	}
+
 	replaceCandidatesNormalized(allCandidates);
 
 	// 3) Source deduplication + ranking
@@ -409,7 +443,13 @@ export async function streamDeepResearchAnswer(
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
 		systemPrompt: DEEP_RESEARCHER_SYSTEM_PROMPT,
-		extraUserInstructions: [buildDraftInstructions(plan), multiEntityPromptBlock].filter((s) => s.trim()).join("\n\n"),
+		extraUserInstructions: [
+			buildDraftInstructions(plan),
+			multiEntityPromptBlock,
+			contestedPromptBlock,
+		]
+			.filter((s) => s.trim())
+			.join("\n\n"),
 		presetId: input.presetId,
 	});
 
@@ -484,7 +524,11 @@ export async function streamDeepResearchAnswer(
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
 		systemPrompt: DEEP_RESEARCHER_SYSTEM_PROMPT,
-		extraUserInstructions: [buildFinalInstructions(plan, verification), multiEntityPromptBlock]
+		extraUserInstructions: [
+			buildFinalInstructions(plan, verification),
+			multiEntityPromptBlock,
+			contestedPromptBlock,
+		]
 			.filter((s) => s.trim())
 			.join("\n\n"),
 		presetId: input.presetId,

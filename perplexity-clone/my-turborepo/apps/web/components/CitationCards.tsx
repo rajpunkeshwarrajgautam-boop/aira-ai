@@ -110,7 +110,7 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 											<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
 												{c.index}
 											</span>
-											{c.sourceQuality ? (
+											{c.sourceQuality && c.sourceQuality !== "Unknown" ? (
 												<span
 													className="max-w-[7.5rem] truncate rounded-md bg-surface-elevated/90 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-content-tertiary/80 ring-1 ring-border-subtle/40"
 													title={c.sourceQuality}

@@ -439,7 +439,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		const isGuest = sessionStatus !== "authenticated";
 
 		if (isGuest && messages.length > 0) {
-			redirectToSignInWithQuery(q);
+			setErrorCode("SIGNIN_FOLLOWUP");
+			setErrorMessage(
+				"Guest searches are limited to one question per thread. Sign in to ask follow-ups and save your research.",
+			);
+			setPhase("error");
 			return;
 		}
 
@@ -1042,7 +1046,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									<p className="font-medium text-red-900">
 										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
 											? "Guest search limit reached"
-											: errorCode === "SIGNIN_DEEP" || (errorCode === "PLAN_REQUIRED" && !isAuthed)
+											: errorCode === "SIGNIN_DEEP" ||
+											  (errorCode === "PLAN_REQUIRED" && !isAuthed) ||
+											  errorCode === "SIGNIN_FOLLOWUP"
 												? "Account required"
 												: limitErrorAction === "quota"
 													? "Monthly search limit reached"
