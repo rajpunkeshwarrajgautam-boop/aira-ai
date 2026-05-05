@@ -100,7 +100,9 @@ interface DonePayload {
 }
 
 function parseSseBlock(block: string): { event: string; data: string } | null {
-	const lines = block.split(/\r?\n/).filter((line) => line.length > 0);
+	const trimmed = block.trim();
+	if (!trimmed) return null;
+	const lines = trimmed.split(/\r?\n/).filter((line) => line.trim().length > 0);
 	let eventName = "message";
 	const dataLines: string[] = [];
 	for (const line of lines) {
@@ -570,17 +572,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			let streamedAnswer = "";
 			let finalCitations: CitationItem[] = [];
 
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-
-				let sep: number;
-				while ((sep = buffer.indexOf("\n\n")) !== -1) {
-					const raw = buffer.slice(0, sep);
-					buffer = buffer.slice(sep + 2);
+			const processBlock = (raw: string) => {
+				try {
 					const block = parseSseBlock(raw);
-					if (!block) continue;
+					if (!block) return;
 
 					if (block.event === "metadata") {
 						const meta = safeJson<MetadataPayload>(block.data);
@@ -619,6 +614,32 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						setPhase("error");
 						setErrorMessage(err?.message ?? "Stream interrupted.");
 					}
+				} catch (e) {
+					console.error("SSE_PARSE_ERROR:", e);
+					setPhase("error");
+					setErrorMessage("A technical error occurred while parsing the response.");
+				}
+			};
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) {
+					if (buffer.trim().length > 0) {
+						processBlock(buffer);
+					}
+					break;
+				}
+				buffer += decoder.decode(value, { stream: true });
+
+				while (true) {
+					const match = buffer.match(/\r?\n\r?\n/);
+					if (!match) break;
+
+					const sep = match.index!;
+					const sepLen = match[0].length;
+					const raw = buffer.slice(0, sep);
+					buffer = buffer.slice(sep + sepLen);
+					processBlock(raw);
 				}
 			}
 
