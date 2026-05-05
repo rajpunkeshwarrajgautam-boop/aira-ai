@@ -38,6 +38,7 @@ Completed:
 
 - Calculator tool
 
+- Improved contested-query retrieval and source deduplication (ready for verification)
 - Multi-step tool chaining
 
 Not completed:
