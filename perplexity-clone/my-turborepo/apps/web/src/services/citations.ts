@@ -39,6 +39,7 @@ function extractSourceIdentifier(url: string): string | null {
 /**
  * Normalizes research paper titles to a canonical key to catch mirrors across domains.
  * Uses exact match only to avoid false merges.
+ * Trigger: Redeploy.
  */
 function normalizeTitleKey(title: string): string | null {
 	const t = title.trim();
