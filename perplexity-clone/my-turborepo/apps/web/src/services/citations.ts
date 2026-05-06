@@ -66,6 +66,22 @@ function normalizeTitleKey(title: string): string | null {
 }
 
 /**
+ * Returns all possible identity keys for a candidate source.
+ * Multiple keys allow union-based deduplication: if ANY key matches a
+ * previously seen paper, the candidate is treated as a duplicate.
+ * v4: Fixes the single-key OR-fallback that allowed the same paper
+ * to survive under different DOI strings or arXiv vs title keys.
+ */
+function getAllPaperKeys(url: string, title: string): string[] {
+	const keys: string[] = [];
+	const urlId = extractSourceIdentifier(url);
+	if (urlId) keys.push(urlId);
+	const titleKey = normalizeTitleKey(title);
+	if (titleKey) keys.push(`title:${titleKey}`);
+	return keys;
+}
+
+/**
  * Canonical shape for a retrieved URL before ranking and citation numbering.
  * Produced by the search service from Exa results.
  */
@@ -226,7 +242,12 @@ export function rankFilterAndNumberSources(
 	const now = Date.now();
 
 	const seenUrls = new Set<string>();
-	/** Identifier or title-based identity map to track unique research papers. */
+	/**
+	 * Multi-key identity map: each paper key (arXiv ID, DOI, title) points to the
+	 * same shared entry object. If ANY key matches, the candidate is a duplicate.
+	 * v4: Fixes single-key OR-fallback that let the same paper survive under
+	 * different DOI strings (arXiv DOI vs ACM DOI) or arXiv vs title keys.
+	 */
 	const seenPapers = new Map<string, { c: SourceCandidate; quality: SourceQualityLabel }>();
 	const filtered: SourceCandidate[] = [];
 
@@ -237,25 +258,34 @@ export function rankFilterAndNumberSources(
 		const excerpt = sanitizeSourceExcerpt(c.excerpt);
 		if (excerpt.length < opts.minExcerptLength) continue;
 
-		const arxivDoiId = extractSourceIdentifier(c.url);
-		const titleId = normalizeTitleKey(c.title);
-		// Paper fingerprint: DOI/arXiv first, fallback to exact normalized title
-		// This handles cases like NeurIPS or ACM where the ID isn't in the URL.
-		const paperId = arxivDoiId || titleId;
-
+		const keys = getAllPaperKeys(c.url, c.title);
 		const quality = inferSourceQualityLabel(c.url, c.title);
 
-		if (paperId) {
-			const existing = seenPapers.get(paperId);
+		if (keys.length > 0) {
+			// Check if ANY key already has an entry (union lookup)
+			let existing: { c: SourceCandidate; quality: SourceQualityLabel } | undefined;
+			for (const k of keys) {
+				existing = seenPapers.get(k);
+				if (existing) break;
+			}
+
 			if (!existing) {
-				seenPapers.set(paperId, { c: { ...c, url: canonical, excerpt }, quality });
-			} else if (SOURCE_QUALITY_PRIORITY[quality] > SOURCE_QUALITY_PRIORITY[existing.quality]) {
-				// Keep the best version (e.g. Peer-reviewed > Preprint) but preserve earliest search rank
-				const bestRank = Math.min(existing.c.originalRank, c.originalRank);
-				seenPapers.set(paperId, {
-					c: { ...c, url: canonical, excerpt, originalRank: bestRank },
-					quality,
-				});
+				// New paper — register all keys pointing to the same shared entry
+				const entry = { c: { ...c, url: canonical, excerpt }, quality };
+				for (const k of keys) seenPapers.set(k, entry);
+			} else {
+				// Duplicate — upgrade quality if better, preserve earliest rank
+				if (SOURCE_QUALITY_PRIORITY[quality] > SOURCE_QUALITY_PRIORITY[existing.quality]) {
+					const bestRank = Math.min(existing.c.originalRank, c.originalRank);
+					existing.c = { ...c, url: canonical, excerpt, originalRank: bestRank };
+					existing.quality = quality;
+				} else {
+					existing.c = { ...existing.c, originalRank: Math.min(existing.c.originalRank, c.originalRank) };
+				}
+				// Register any NEW keys so future candidates also dedupe
+				for (const k of keys) {
+					if (!seenPapers.has(k)) seenPapers.set(k, existing);
+				}
 			}
 			continue;
 		}
@@ -265,13 +295,17 @@ export function rankFilterAndNumberSources(
 		filtered.push({ ...c, url: canonical, excerpt });
 	}
 
-	// Merge unique paper-based sources back into filtered list
-	for (const item of seenPapers.values()) {
-		if (!seenUrls.has(item.c.url)) {
-			filtered.push(item.c);
-			seenUrls.add(item.c.url);
+	// Merge unique paper-based sources back into filtered list (deduplicate shared refs)
+	const addedPaperEntries = new Set<{ c: SourceCandidate; quality: SourceQualityLabel }>();
+	for (const entry of seenPapers.values()) {
+		if (addedPaperEntries.has(entry)) continue;
+		addedPaperEntries.add(entry);
+		if (!seenUrls.has(entry.c.url)) {
+			filtered.push(entry.c);
+			seenUrls.add(entry.c.url);
 		}
 	}
+
 
 	const n = filtered.length;
 	const scored = filtered.map((c) => {
