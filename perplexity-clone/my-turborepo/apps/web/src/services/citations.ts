@@ -39,18 +39,23 @@ function extractSourceIdentifier(url: string): string | null {
 /**
  * Normalizes research paper titles to a canonical key to catch mirrors across domains.
  * Uses exact match only to avoid false merges.
- * Trigger: Redeploy.
+ * v3: Strips arXiv ID prefixes and common scholarly platform suffixes.
  */
 function normalizeTitleKey(title: string): string | null {
-	const t = title.trim();
+	let t = title.trim().toLowerCase();
 	if (!t) return null;
 
-	// Normalize: lowercase, remove punctuation, collapse whitespace
+	// 1. Strip bracketed arXiv-style ID prefixes: [2304.15004], [cs.CL/2304.15004], etc.
+	t = t.replace(/^\[[^\]]+\]\s*/, "");
+
+	// 2. Improve trailing platform suffix cleanup after common separators: -, |, :, —
+	// Only strips when they appear as trailing markers.
+	t = t.replace(/\s*[-|:—]\s*(?:acm digital library|arxiv|neurips|researchgate|science\s*direct|nature|ieee\s*xplore|openreview|proceedings)\s*$/g, "");
+
+	// 3. Final normalization: remove remaining punctuation and collapse whitespace
 	const normalized = t
-		.toLowerCase()
 		.replace(/[^\w\s]/g, "") // Remove all non-word/non-space punctuation
 		.replace(/\s+/g, " ") // Collapse multiple spaces
-		.replace(/\b(?:pdf|proceedings|neurips|acm|researchgate|full text|preprint|arxiv)\b/g, "")
 		.trim();
 
 	// Only deduplicate by title if it is long enough to be unique (e.g. not "Introduction")
