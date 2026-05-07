@@ -422,11 +422,22 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				}
 
 				if (!abort.signal.aborted) {
+					// Strip phantom citation markers before persisting.
+					// Valid indices come from the ranked sources sent in metadata.
+					const validIndices = new Set(grounded.sources.map((s) => s.index));
+					const cleanedText = fullText.replace(
+						/\[(\d{1,4})\]/g,
+						(match, num: string) => {
+							const n = parseInt(num, 10);
+							return validIndices.has(n) ? match : "";
+						},
+					);
+
 					if (userId) {
 						const persisted = await persistConversationTurn({
 							userId,
 							query: parsed.data.query,
-							answer: fullText,
+							answer: cleanedText,
 							conversationId: context.resolvedConversationId,
 							parentMessageId: parsed.data.parentMessageId,
 							citations: metadata.citations,

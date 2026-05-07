@@ -52,6 +52,7 @@ export function buildContestedPromptInstruction(): string {
 		"  - Do not invent mechanisms unsupported by sources. If sources provide limited evidence for governance, explicitly state that the retrieved sources offer thin evidence for specific policy implications.",
 		"",
 		"When citing sources for contested topics, check ALL provided sources for relevant counterpoints before writing the Evidence Against section. Do not over-rely on the first few sources.",
+		"Use each section heading exactly once. Do not create sub-sections like '(continued)' or split a single section across multiple headings.",
 		"Ensure you use citations [1], [2], etc., in each of these sections.",
 	].join("\n");
 }

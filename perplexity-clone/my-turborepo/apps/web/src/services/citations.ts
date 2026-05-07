@@ -371,9 +371,13 @@ export function buildCitationContextBlocks(sources: readonly RankedSource[]): Ci
 
 	const sourcesMarkdown = lines.join("\n").trim();
 
+	const maxIndex = sources.length > 0 ? sources[sources.length - 1]!.index : 0;
 	const inlineCitationReminder =
-		"When you state facts from these sources, cite them inline using bracketed numbers that match the source list, e.g. [1] or [1][3]. " +
-		"Only cite numbers that exist in the provided source list. Do not invent URLs or new citation numbers.";
+		"When you state facts from these sources, cite them inline using bracketed numbers " +
+		`that match the source list, e.g. [1] or [1][3]. ` +
+		`The valid citation numbers are [1] through [${maxIndex}]. ` +
+		`Never cite [${maxIndex + 1}] or any number outside this range. ` +
+		`Do not invent URLs or new citation numbers.`;
 
 	return { sourcesMarkdown, inlineCitationReminder };
 }

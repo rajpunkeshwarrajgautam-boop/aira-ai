@@ -648,6 +648,21 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setPhase((p) => (p === "streaming" || p === "connecting" ? "complete" : p));
 			}
 
+			// Client-side phantom citation cleanup.
+			// Strip any [N] where N is not in the valid citation set.
+			const validCitationIndices = new Set(finalCitations.map((c) => c.index));
+			const stripPhantomCitations = (text: string): string =>
+				text.replace(/\[(\d{1,4})\]/g, (match, num: string) => {
+					const n = parseInt(num, 10);
+					return validCitationIndices.has(n) ? match : "";
+				});
+			const cleanedStreamedAnswer = stripPhantomCitations(streamedAnswer);
+
+			// Replace live streamed markdown with cleaned version
+			if (cleanedStreamedAnswer !== streamedAnswer) {
+				setStreamingAssistantMarkdown(cleanedStreamedAnswer);
+			}
+
 			if (isGuest && sawDone) {
 				const ts = new Date().toISOString();
 				const uid = `guest-${Date.now()}-u`;
@@ -664,7 +679,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					{
 						id: aid,
 						role: "ASSISTANT",
-						content: streamedAnswer,
+						content: cleanedStreamedAnswer,
 						parentMessageId: uid,
 						citations: finalCitations,
 						createdAt: ts,
