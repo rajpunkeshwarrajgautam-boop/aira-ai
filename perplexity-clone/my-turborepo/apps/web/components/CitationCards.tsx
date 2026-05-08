@@ -45,8 +45,8 @@ function formatDate(iso: string | null): string | null {
 
 function previewSnippet(text: string | undefined, maxChars: number): string | null {
 	if (!text) return null;
-	// Strip markdown links: [text](url) -> text
-	const cleanText = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+	// Strip markdown links: [text](url) -> text (with spaces around to preserve word boundaries)
+	const cleanText = text.replace(/\[([^\]]+)\]\([^)]+\)/g, " $1 ");
 	const t = cleanText.replace(/[\s\u00A0]+/g, " ").trim();
 	if (!t) return null;
 	if (t.length <= maxChars) return t;

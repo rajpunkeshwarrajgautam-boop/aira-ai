@@ -24,7 +24,7 @@ export const markdownExternalLinkComponents: Partial<Components> = {
 						const id = href.slice(1);
 						const el = document.getElementById(id);
 						if (el) {
-							el.scrollIntoView({ behavior: "smooth", block: "start" });
+							el.scrollIntoView({ behavior: "smooth", block: "center" });
 							window.history.pushState(null, "", href);
 						}
 					}}
