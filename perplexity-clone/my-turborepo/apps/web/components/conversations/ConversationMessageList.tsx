@@ -8,6 +8,7 @@ import { Loader2, MessageCircle } from "lucide-react";
 import { CitationCards, type CitationItem } from "../CitationCards";
 import { markdownExternalLinkComponents } from "../markdownComponents";
 import { cn } from "../../lib/cn";
+import { linkifyCitations, parseCitationIndicesFromAnswer } from "../../src/services/citations";
 
 export interface ConversationMessageDto {
 	readonly id: string;
@@ -93,15 +94,19 @@ export function ConversationMessageList({
 	}) => {
 		const citations = isCitationArray(msg.citations) ? msg.citations : [];
 		const effectiveCitations = msg.streaming ? streamingCitations : citations;
+		const citedIndices = parseCitationIndicesFromAnswer(msg.content);
+		const linkedContent = linkifyCitations(msg.content, effectiveCitations.length);
 
 		return (
 			<div className="flex flex-col gap-5 py-2">
 				<div className="rounded-3xl border border-border-subtle/60 bg-surface-elevated/50 px-4 py-4 shadow-panel backdrop-blur-sm sm:px-5 sm:py-5 md:bg-surface-elevated/40 md:backdrop-blur-md">
 					<div className="whitespace-pre-wrap text-[16px] leading-8 text-content-secondary">
-						<MarkdownContent markdown={msg.content} />
+						<MarkdownContent markdown={linkedContent} />
 					</div>
 				</div>
-				{effectiveCitations.length > 0 ? <CitationCards citations={effectiveCitations} /> : null}
+				{effectiveCitations.length > 0 ? (
+					<CitationCards citations={effectiveCitations} citedIndices={citedIndices} />
+				) : null}
 			</div>
 		);
 	};

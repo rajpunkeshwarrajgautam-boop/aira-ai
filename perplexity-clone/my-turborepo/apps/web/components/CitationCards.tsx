@@ -21,6 +21,7 @@ export interface CitationItem {
 export interface CitationCardsProps {
 	readonly citations: readonly CitationItem[];
 	readonly className?: string;
+	readonly citedIndices?: number[];
 }
 
 function hostnameFromUrl(url: string): string {
@@ -50,7 +51,7 @@ function previewSnippet(text: string | undefined, maxChars: number): string | nu
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
-export function CitationCards({ citations, className }: CitationCardsProps) {
+export function CitationCards({ citations, className, citedIndices }: CitationCardsProps) {
 	if (citations.length === 0) return null;
 
 	return (
@@ -82,9 +83,10 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 						const favicon = `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(host)}`;
 						const dateLabel = formatDate(c.publishedDate);
 						const snippet = previewSnippet(c.excerpt, 220);
+						const isCited = citedIndices ? citedIndices.includes(c.index) : true;
 
 						return (
-							<li key={`${c.index}-${c.url}`}>
+							<li key={`${c.index}-${c.url}`} id={`source-${c.index}`} className="scroll-mt-24">
 								<a
 									href={c.url}
 									target="_blank"
@@ -92,6 +94,7 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 									className={cn(
 										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/50 bg-surface-inset/50 p-4 shadow-sm ring-1 ring-white/30 transition-all duration-300 ease-out backdrop-blur-sm md:backdrop-blur-md",
 										"hover:border-accent/45 hover:bg-surface-elevated/90 hover:shadow-panel hover:-translate-y-0.5",
+										!isCited && "opacity-60 grayscale-[20%]"
 									)}
 								>
 									<div className="flex items-center justify-between gap-3">
@@ -107,9 +110,16 @@ export function CitationCards({ citations, className }: CitationCardsProps) {
 											/>
 										</div>
 										<div className="flex flex-col items-end gap-1">
-											<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
-												{c.index}
-											</span>
+											<div className="flex items-center gap-1.5">
+												{!isCited && (
+													<span className="rounded-md bg-surface-inset/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-content-tertiary ring-1 ring-border-subtle/50">
+														Retrieved only
+													</span>
+												)}
+												<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
+													{c.index}
+												</span>
+											</div>
 											{c.sourceQuality && c.sourceQuality !== "Unknown" ? (
 												<span
 													className="max-w-[7.5rem] truncate rounded-md bg-surface-elevated/90 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-content-tertiary/80 ring-1 ring-border-subtle/40"

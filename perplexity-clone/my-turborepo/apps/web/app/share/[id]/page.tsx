@@ -8,6 +8,7 @@ import { ShareAnswerMarkdown } from "@/components/share/ShareAnswerMarkdown";
 import { ShareFollowUpCta } from "@/components/share/ShareFollowUpCta";
 import { cn } from "@/lib/cn";
 import { getPublicResearchShareByToken, buildShareUrl } from "@/lib/research-share";
+import { parseCitationIndicesFromAnswer } from "@/src/services/citations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,7 @@ export default async function SharePage({
 
 	const baseUrl = await baseUrlFromRequestHeaders();
 	const url = buildShareUrl(share.token, baseUrl);
+	const citedIndices = parseCitationIndicesFromAnswer(share.assistantAnswer);
 
 	return (
 		<div className="relative min-h-dvh w-full overflow-hidden bg-surface">
@@ -103,11 +105,11 @@ export default async function SharePage({
 						)}
 						aria-label="Research answer"
 					>
-						<ShareAnswerMarkdown markdown={share.assistantAnswer} />
+						<ShareAnswerMarkdown markdown={share.assistantAnswer} maxValid={share.citations.length} />
 					</section>
 
 					{share.citations.length > 0 ? (
-						<CitationCards citations={share.citations} className="p-0" />
+						<CitationCards citations={share.citations} className="p-0" citedIndices={citedIndices} />
 					) : null}
 
 					<section className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-elevated/30 p-5 backdrop-blur-md">

@@ -377,7 +377,10 @@ export function buildCitationContextBlocks(sources: readonly RankedSource[]): Ci
 		`that match the source list, e.g. [1] or [1][3]. ` +
 		`The valid citation numbers are [1] through [${maxIndex}]. ` +
 		`Never cite [${maxIndex + 1}] or any number outside this range. ` +
-		`Do not invent URLs or new citation numbers.`;
+		`Do not invent URLs or new citation numbers. ` +
+		"Cite the source number that directly supports the sentence. " +
+		"Do not cite a source merely because it is related. " +
+		"Use the most specific source available.";
 
 	return { sourcesMarkdown, inlineCitationReminder };
 }
@@ -393,6 +396,20 @@ export function parseCitationIndicesFromAnswer(answer: string): number[] {
 		out.add(Number.parseInt(m[1]!, 10));
 	}
 	return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * Converts inline citation markers like [1], [2] into markdown links [#source-1], [#source-2]
+ * if they are within the valid range.
+ */
+export function linkifyCitations(text: string, maxValid: number): string {
+	return text.replace(/\[(\d{1,4})\]/g, (match, num) => {
+		const n = parseInt(num, 10);
+		if (n > 0 && n <= maxValid) {
+			return `[${num}](#source-${num})`;
+		}
+		return match;
+	});
 }
 
 /**
