@@ -49,13 +49,32 @@ function previewSnippet(text: string | undefined, maxChars: number): string | nu
 	let cleanText = text.replace(/^#+\s+/, "");
 	// Strip markdown links: [text](url) -> text (with spaces around to preserve word boundaries)
 	cleanText = cleanText.replace(/\[([^\]]+)\]\([^)]+\)/g, " $1 ");
-	// Clean repeated [...] artifacts
-	cleanText = cleanText.replace(/\[\.{2,}\]/g, "...");
+	
+	// Collapse repeated adjacent phrases if exactly repeated: "was once confined was once confined" -> "was once confined"
+	cleanText = cleanText.replace(/\b(\w+(?:\s+\w+)+)\s+\1\b/g, "$1");
+	
+	// Clean repeated [...] artifacts more aggressively: replace repeated [...] with "… "
+	cleanText = cleanText.replace(/\[\.{2,}\]/g, "… ");
 	// Remove weird footnote fragments like "plant.38[...]" -> "plant..."
 	cleanText = cleanText.replace(/(\w+)\.\d+\[\.{2,}\]/g, "$1...");
 	
-	const t = cleanText.replace(/[\s\u00A0]+/g, " ").trim();
+	// Remove leading punctuation/fragments
+	cleanText = cleanText.replace(/^[.,;:!?—…\s]+/, "");
+	
+	let t = cleanText.replace(/[\s\u00A0]+/g, " ").trim();
 	if (!t) return null;
+	
+	// If snippet starts mid-word or with a lowercase fragment and later contains a cleaner sentence start, prefer the cleaner start if safe
+	if (t.length > 0 && /^[a-z]/.test(t)) {
+		const match = t.match(/[.!?]\s+([A-Z])/);
+		if (match && match.index !== undefined) {
+			const candidate = t.slice(match.index + match[0].length - 1);
+			if (candidate.length > 30) {
+				t = candidate;
+			}
+		}
+	}
+	
 	if (t.length <= maxChars) return t;
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
 }
