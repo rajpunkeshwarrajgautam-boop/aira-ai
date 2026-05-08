@@ -442,12 +442,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		const isGuest = sessionStatus !== "authenticated";
 
 		if (isGuest && messages.length > 0) {
-			setErrorCode("SIGNIN_FOLLOWUP");
-			setErrorMessage(
-				"Guest searches are limited to one question per thread. Sign in to ask follow-ups and save your research.",
-			);
-			setPhase("error");
-			return;
+			// Clear previous messages and thread context for guest to allow a new standalone search
+			setMessages([]);
+			setParentMessageId(undefined);
+			setSelectedConversationId(null);
+			setSelectedConversationTitle(null);
+			setShareContext(null);
+			setStreamingUserQuery(null);
+			setStreamingAssistantMarkdown(null);
+			setStreamingCitations([]);
 		}
 
 		if (isGuest && currentMode === "deep") {
