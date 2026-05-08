@@ -89,7 +89,7 @@ export default async function SharePage({
 							{share.query}
 						</h1>
 						<p className="mt-0.5 text-xs text-content-secondary">
-							Shared research with live web citations{share.conversationTitle ? ` • ${share.conversationTitle}` : ""}.
+							Shared research with live web citations.
 						</p>
 					</div>
 

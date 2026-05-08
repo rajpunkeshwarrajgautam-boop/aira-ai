@@ -16,7 +16,20 @@ export const markdownExternalLinkComponents: Partial<Components> = {
 		// Add citation-link class to source anchors for styling
 		if (href && href.startsWith("#source-")) {
 			return (
-				<a href={href} className="citation-link" {...props}>
+				<a
+					href={href}
+					className="citation-link"
+					onClick={(e) => {
+						e.preventDefault();
+						const id = href.slice(1);
+						const el = document.getElementById(id);
+						if (el) {
+							el.scrollIntoView({ behavior: "smooth", block: "start" });
+							window.history.pushState(null, "", href);
+						}
+					}}
+					{...props}
+				>
 					{children}
 				</a>
 			);

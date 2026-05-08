@@ -45,7 +45,9 @@ function formatDate(iso: string | null): string | null {
 
 function previewSnippet(text: string | undefined, maxChars: number): string | null {
 	if (!text) return null;
-	const t = text.replace(/[\s\u00A0]+/g, " ").trim();
+	// Strip markdown links: [text](url) -> text
+	const cleanText = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+	const t = cleanText.replace(/[\s\u00A0]+/g, " ").trim();
 	if (!t) return null;
 	if (t.length <= maxChars) return t;
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
@@ -94,12 +96,12 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 									className={cn(
 										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/50 bg-surface-inset/50 p-4 shadow-sm ring-1 ring-white/30 transition-all duration-300 ease-out backdrop-blur-sm md:backdrop-blur-md",
 										"hover:border-accent/45 hover:bg-surface-elevated/90 hover:shadow-panel hover:-translate-y-0.5",
-										!isCited && "opacity-60 grayscale-[20%]"
+										!isCited && "opacity-75 grayscale-[20%]"
 									)}
 								>
 									<div className="flex items-center justify-between gap-3">
 										<div className="relative size-10 shrink-0">
-											<div className="absolute inset-0 animate-pulse rounded-lg bg-accent/5" />
+											{isCited && <div className="absolute inset-0 animate-pulse rounded-lg bg-accent/5" />}
 											<Image
 												src={favicon}
 												alt=""
@@ -112,8 +114,12 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 										<div className="flex flex-col items-end gap-1">
 											<div className="flex items-center gap-1.5">
 												{!isCited && (
-													<span className="rounded-md bg-surface-inset/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-content-tertiary ring-1 ring-border-subtle/50">
-														Retrieved only
+													<span
+														className="rounded-md bg-surface-inset/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-content-tertiary ring-1 ring-border-subtle/50"
+														title="Retrieved during research but not directly cited in the answer."
+														aria-label="Retrieved during research but not directly cited in the answer."
+													>
+														Not directly cited
 													</span>
 												)}
 												<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
@@ -134,7 +140,7 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 									
 									<div className="flex flex-1 flex-col justify-between">
 										<p className="line-clamp-2 text-[13px] font-semibold leading-relaxed text-content-primary transition-colors group-hover:text-accent">
-											{c.title}
+											{c.title.replace(/\\"/g, '"')}
 										</p>
 										{snippet ? (
 											<p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-content-tertiary/90">
