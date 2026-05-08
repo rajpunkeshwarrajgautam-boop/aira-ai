@@ -121,6 +121,8 @@ export interface RankingOptions {
 		snippet: number;
 		recency: number;
 	};
+	/** Flag for medical/high-stakes queries to boost peer-reviewed/official sources. */
+	isMedical?: boolean;
 }
 
 export const DEFAULT_RANKING_OPTIONS: RankingOptions = {
@@ -318,6 +320,13 @@ export function rankFilterAndNumberSources(
 			((w.order * op + w.snippet * snippetScore + w.recency * rec) / wSum) *
 			1000;
 		composite *= investorRelationsScoreFactor(c.url);
+
+		if (opts.isMedical) {
+			const quality = inferSourceQualityLabel(c.url, c.title);
+			if (quality === "Peer-reviewed" || quality === "Official") {
+				composite += 150;
+			}
+		}
 
 		return { c, compositeScore: composite };
 	});

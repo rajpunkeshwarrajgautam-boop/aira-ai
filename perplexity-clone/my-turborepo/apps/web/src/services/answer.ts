@@ -41,7 +41,7 @@ Rules:
 - If the sources are insufficient, say so clearly and answer only what they support.
 - If the question asks which companies are involved, who the leading companies or key players are, or who the competitors are, compare multiple distinct entities grounded in the sources and avoid letting one company or domain dominate the answer when the sources support a broader landscape.
 - Maintain professional tone and high readability with proper spacing between paragraphs.
-- Do not include a Conclusion section in standard answers unless the user explicitly asks for one.
+- Do not output a section named Conclusion, Final Thoughts, Bottom Line, Takeaway, or similar closing summary unless the user explicitly asks for one.
 - Calibrate confidence to the evidence. Do not present forecasts, projections, estimates, or contested claims as certain facts. Use phrases like "some experts estimate", "sources suggest", "evidence points toward", "with significant uncertainty", or "estimates vary".
 - For high-stakes domains (health, security, finance, law, safety), explicitly mention uncertainty when evidence is observational, preliminary, contested, or based on projections.
 - Prefer ranges over single-point certainty when sources provide ranges.
@@ -108,6 +108,7 @@ function buildMessages(
 		readonly presetId?: string;
 		readonly multiEntityPrompt?: string;
 		readonly contestedPrompt?: string;
+		readonly medicalPrompt?: string;
 	},
 ): ChatCompletionMessageParam[] {
 	const preset = getResearchPreset(options.presetId);
@@ -122,6 +123,9 @@ function buildMessages(
 		}
 		if (options.contestedPrompt?.trim()) {
 			userParts.push("\n## Additional instructions\n\n" + options.contestedPrompt.trim());
+		}
+		if (options.medicalPrompt?.trim()) {
+			userParts.push("\n## Additional instructions for medical topics\n\n" + options.medicalPrompt.trim());
 		}
 		userParts.push("\n## Question\n\n" + query.trim());
 	} else if (options.searchDisabled) {
@@ -184,6 +188,9 @@ export async function streamGroundedAnswer(
 	let exaRequestId: string | undefined;
 	let exaSearchType: string | undefined;
 	let searchRan = false;
+
+	const MEDICAL_KEYWORDS = /\b(health|medical|medicine|medication|drug|treatment|disease|clinical|trial|fda|patient|safety|side\s*effect|glp-1|ozempic|wegovy|diabetes|obesity|cancer|alzheimer|kidney|liver|cardiovascular)\b/i;
+	const isMedicalQuery = MEDICAL_KEYWORDS.test(input.query);
 
 	if (!input.disableSearch) {
 		searchRan = true;
@@ -251,7 +258,7 @@ export async function streamGroundedAnswer(
 		}
 
 		candidates = normalizeMergedCandidateRanks(candidates);
-		sources = rankFilterAndNumberSources(candidates, input.ranking);
+		sources = rankFilterAndNumberSources(candidates, { ...input.ranking, isMedical: isMedicalQuery });
 	}
 
 	const multiEntityActive = detectMultiEntityQuery(input.query);
@@ -265,6 +272,7 @@ export async function streamGroundedAnswer(
 		contestedPrompt: detectContestedQuery(input.query)
 			? buildContestedPromptInstruction()
 			: undefined,
+		medicalPrompt: isMedicalQuery ? buildMedicalPromptInstruction() : undefined,
 	});
 
 	async function* stream(): AsyncGenerator<string, void, undefined> {
@@ -302,4 +310,28 @@ export async function completeGroundedAnswer(
 		text += part;
 	}
 	return { text, sources, exaRequestId, exaSearchType };
+}
+
+function buildMedicalPromptInstruction(): string {
+	return `## Special Instructions for Medical/High-Stakes Health Queries
+Rules:
+1. Prefer peer-reviewed, PubMed/PMC, official/regulatory, clinical-trial, or primary sources for clinical efficacy/safety claims.
+2. Do not use news/blog sources as primary support for clinical claims when stronger sources are available.
+3. If citing a news source, phrase it as "reported by" or "covered by", not "published in".
+4. Never name a journal, study, trial, or institution unless that exact name appears in the cited source title, excerpt, URL, or metadata.
+5. Do not imply a cited news source is the journal or primary study.
+6. Clearly label evidence strength: approved/RCT-backed, peer-reviewed review, observational, post-hoc, preclinical, news report, or uncertain.
+7. If evidence is mixed, preliminary, observational, or indirect, say so clearly.
+8. For medical answers, avoid giving personal medical advice and remind users to consult a qualified clinician for decisions.
+
+Structure your response as follows:
+1. **Summary**: A high-level, 2-3 line quick answer at the very top that answers the question directly.
+2. **Key Points**: Use a bulleted list for the most important facts.
+3. **Detailed Analysis**: Use structured markdown sections (##) for in-depth explanation.
+   - Stronger evidence / approved or RCT-backed uses
+   - Preliminary or observational signals
+   - Safety concerns and limitations
+   - What remains uncertain
+
+Do not output a section named Conclusion, Final Thoughts, Bottom Line, Takeaway, or similar closing summary unless the user explicitly asks for one.`;
 }
