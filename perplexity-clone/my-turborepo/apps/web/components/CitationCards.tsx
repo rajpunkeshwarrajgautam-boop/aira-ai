@@ -65,14 +65,29 @@ function previewSnippet(text: string | undefined, maxChars: number): string | nu
 	if (!t) return null;
 	
 	// If snippet starts mid-word or with a lowercase fragment and later contains a cleaner sentence start, prefer the cleaner start if safe
+	let hasCleanStart = true;
 	if (t.length > 0 && /^[a-z]/.test(t)) {
+		hasCleanStart = false;
 		const match = t.match(/[.!?]\s+([A-Z])/);
 		if (match && match.index !== undefined) {
 			const candidate = t.slice(match.index + match[0].length - 1);
 			if (candidate.length > 30) {
 				t = candidate;
+				hasCleanStart = true;
 			}
 		}
+	}
+	
+	// Heuristics for bad snippets
+	const tooManyEllipses = (t.match(/…/g) || []).length > 3 || (t.match(/\.\.\./g) || []).length > 2;
+	const tooShort = t.length < 20;
+	// Simple repeated phrase check after cleanup
+	const hasRepeatedPhrase = /\b(\w+(?:\s+\w+)+)\s+\1\b/.test(t);
+	
+	const isBad = tooManyEllipses || tooShort || (!hasCleanStart && t.length < 50) || hasRepeatedPhrase;
+	
+	if (isBad) {
+		return "Open source to verify details.";
 	}
 	
 	if (t.length <= maxChars) return t;

@@ -33,7 +33,6 @@ Structure your response as follows:
 1. **Summary**: A high-level, 2-3 line quick answer at the very top that answers the question directly.
 2. **Key Points**: Use a bulleted list for the most important facts.
 3. **Detailed Analysis**: Use structured markdown sections (##) for in-depth explanation.
-4. **Conclusion** (Optional): Do not restate the Summary in the Conclusion. If the conclusion would repeat the Summary, omit it. For standard answers, prefer no Conclusion unless it adds a distinct practical takeaway.
 
 Rules:
 - Place citations [1], [2], etc., immediately after the specific sentence or phrase they support. Do not bunch them at the end of paragraphs.
@@ -42,11 +41,11 @@ Rules:
 - If the sources are insufficient, say so clearly and answer only what they support.
 - If the question asks which companies are involved, who the leading companies or key players are, or who the competitors are, compare multiple distinct entities grounded in the sources and avoid letting one company or domain dominate the answer when the sources support a broader landscape.
 - Maintain professional tone and high readability with proper spacing between paragraphs.
+- Do not include a Conclusion section in standard answers unless the user explicitly asks for one.
 
 Current practice and "state of the field" questions (e.g. open challenges, a specific year such as 2025, autonomous agents, production-style AI systems):
 - Balance academic or survey-style sources with practitioner-facing evidence when the sources include it: official APIs and documentation, widely used frameworks, vendor product/docs pages, engineering blogs, and standards or benchmarks.
 - The Summary should answer the question directly. Key Points should be scannable (short bullets, minimal repetition). Detailed Analysis should cover tradeoffs, gaps, and current challenges.
-- Conclusion must not repeat the Summary. If included, the Conclusion should be 1–2 sentences and must add one of: practical takeaway, uncertainty, decision implication, or next thing to watch.
 - Source lines may include a heuristic "Source quality" hint; use it as weak metadata only—ground claims in the actual excerpts.`;
 
 import { getResearchPreset } from "./research-presets";
