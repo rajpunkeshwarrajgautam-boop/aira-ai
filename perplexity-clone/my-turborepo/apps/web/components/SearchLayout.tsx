@@ -137,6 +137,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
 	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
 	const [billing, setBilling] = useState<BillingStatusPayload | null>(null);
+	const [statusText, setStatusText] = useState("Searching the web...");
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
@@ -186,6 +187,20 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		() => phase === "idle" && messages.length === 0 && !streamingUserQuery,
 		[phase, messages.length, streamingUserQuery],
 	);
+
+	useEffect(() => {
+		if (!showAssistantSkeleton) {
+			setStatusText("Searching the web...");
+			return;
+		}
+		const texts = ["Searching the web...", "Reading sources...", "Writing answer..."];
+		let idx = 0;
+		const id = setInterval(() => {
+			idx = (idx + 1) % texts.length;
+			setStatusText(texts[idx] as string);
+		}, 2500); // Rotate every 2.5 seconds
+		return () => clearInterval(id);
+	}, [showAssistantSkeleton]);
 
 	const apiFetchJson = useCallback(
 		async <T,>(url: string, options?: RequestInit): Promise<T> => {
@@ -827,11 +842,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											: (selectedConversationTitle ?? "Research")}
 									</h1>
 									<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
-										{showConversationEmpty
-											? isAuthed
-												? "Grounded answers with citations—switch to Deep Research when you need more depth."
-												: "Ask below and get an answer with web citations. No account needed to try standard search."
-											: "Persistent threads with live web citations."}
+										{showAssistantSkeleton
+											? statusText
+											: showConversationEmpty
+												? isAuthed
+													? "Grounded answers with citations—switch to Deep Research when you need more depth."
+													: "Ask below and get an answer with web citations. No account needed to try standard search."
+												: "Persistent threads with live web citations."}
 									</p>
 								</div>
 							</div>

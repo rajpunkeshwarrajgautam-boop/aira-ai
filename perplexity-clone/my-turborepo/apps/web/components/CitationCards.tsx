@@ -45,12 +45,40 @@ function formatDate(iso: string | null): string | null {
 
 function previewSnippet(text: string | undefined, maxChars: number): string | null {
 	if (!text) return null;
+	// Strip leading markdown headers: # title -> title
+	let cleanText = text.replace(/^#+\s+/, "");
 	// Strip markdown links: [text](url) -> text (with spaces around to preserve word boundaries)
-	const cleanText = text.replace(/\[([^\]]+)\]\([^)]+\)/g, " $1 ");
+	cleanText = cleanText.replace(/\[([^\]]+)\]\([^)]+\)/g, " $1 ");
+	// Clean repeated [...] artifacts
+	cleanText = cleanText.replace(/\[\.{2,}\]/g, "...");
+	// Remove weird footnote fragments like "plant.38[...]" -> "plant..."
+	cleanText = cleanText.replace(/(\w+)\.\d+\[\.{2,}\]/g, "$1...");
+	
 	const t = cleanText.replace(/[\s\u00A0]+/g, " ").trim();
 	if (!t) return null;
 	if (t.length <= maxChars) return t;
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
+}
+
+function cleanTitle(title: string, url: string, snippet?: string | null): string {
+	let t = title.trim().replace(/\\"/g, '"');
+	// Strip leading markdown headers
+	t = t.replace(/^#+\s+/, "");
+	
+	const host = hostnameFromUrl(url);
+	const isBareDomain = t === host || t === `www.${host}` || t.startsWith("http://") || t.startsWith("https://") || t.includes("://");
+	
+	if (isBareDomain) {
+		if (snippet && snippet.trim().length > 10) {
+			const dotIdx = snippet.indexOf(".");
+			const phrase = dotIdx > 10 ? snippet.slice(0, dotIdx).trim() : snippet.slice(0, 50).trim();
+			if (phrase.length > 10) {
+				return phrase;
+			}
+		}
+		return host;
+	}
+	return t;
 }
 
 export function CitationCards({ citations, className, citedIndices }: CitationCardsProps) {
@@ -65,18 +93,25 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 			aria-label="Sources"
 		>
 			<div className="h-0.5 w-full bg-gradient-to-r from-accent/0 via-accent/50 to-accent/0" aria-hidden />
-			<CardHeader className="flex flex-row items-center justify-between gap-3 px-6 py-5 pb-2">
-				<div className="flex items-center gap-2.5">
-					<div className="flex size-7 items-center justify-center rounded-xl bg-accent/12 ring-1 ring-accent/20">
-						<div className="size-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_hsl(var(--accent)/0.5)]" />
+			<CardHeader className="flex flex-col gap-1 px-6 py-5 pb-2">
+				<div className="flex flex-row items-center justify-between gap-3">
+					<div className="flex items-center gap-2.5">
+						<div className="flex size-7 items-center justify-center rounded-xl bg-accent/12 ring-1 ring-accent/20">
+							<div className="size-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_hsl(var(--accent)/0.5)]" />
+						</div>
+						<CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-content-tertiary/80">
+							Sources Retrieved
+						</CardTitle>
 					</div>
-					<CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-content-tertiary/80">
-						Sources Retrieved
-					</CardTitle>
+					<span className="rounded-full bg-surface-inset/80 px-3 py-1 text-[11px] font-bold tabular-nums text-accent ring-1 ring-border-subtle/50">
+						{citations.length}
+					</span>
 				</div>
-				<span className="rounded-full bg-surface-inset/80 px-3 py-1 text-[11px] font-bold tabular-nums text-accent ring-1 ring-border-subtle/50">
-					{citations.length}
-				</span>
+				{citedIndices && citedIndices.length < citations.length && (
+					<p className="text-[11px] text-content-tertiary mt-1">
+						Some sources were retrieved for context but not directly cited.
+					</p>
+				)}
 			</CardHeader>
 			<CardContent className="px-6 pb-6 pt-3">
 				<ul className="grid gap-3 sm:grid-cols-2">
@@ -140,7 +175,7 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 									
 									<div className="flex flex-1 flex-col justify-between">
 										<p className="line-clamp-2 text-[13px] font-semibold leading-relaxed text-content-primary transition-colors group-hover:text-accent">
-											{c.title.replace(/\\"/g, '"')}
+											{cleanTitle(c.title, c.url, snippet)}
 										</p>
 										{snippet ? (
 											<p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-content-tertiary/90">
