@@ -193,14 +193,33 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			setStatusText("Searching the web...");
 			return;
 		}
-		const texts = ["Searching the web...", "Reading sources...", "Writing answer..."];
+
+		const hasCitations = streamingCitations.length > 0;
+		const texts = hasCitations
+			? ["Reading sources...", "Preparing answer...", "Writing answer..."]
+			: ["Searching the web...", "Reading sources...", "Writing answer..."];
+
+		// Initialize text if it doesn't match the current state constraints
+		setStatusText((current) => {
+			if (hasCitations && current === "Searching the web...") {
+				return "Reading sources...";
+			}
+			return current;
+		});
+
 		let idx = 0;
 		const id = setInterval(() => {
-			idx = (idx + 1) % texts.length;
-			setStatusText(texts[idx] as string);
-		}, 2500); // Rotate every 2.5 seconds
+			setStatusText((current) => {
+				// Find current index to step sequentially
+				idx = texts.indexOf(current);
+				if (idx === -1) idx = 0;
+				const nextIdx = (idx + 1) % texts.length;
+				return texts[nextIdx] as string;
+			});
+		}, 2500);
+
 		return () => clearInterval(id);
-	}, [showAssistantSkeleton]);
+	}, [showAssistantSkeleton, streamingCitations.length]);
 
 	const apiFetchJson = useCallback(
 		async <T,>(url: string, options?: RequestInit): Promise<T> => {
