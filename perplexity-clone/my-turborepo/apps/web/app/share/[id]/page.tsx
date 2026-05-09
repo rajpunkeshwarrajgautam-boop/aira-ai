@@ -105,7 +105,7 @@ export default async function SharePage({
 						)}
 						aria-label="Research answer"
 					>
-						<ShareAnswerMarkdown markdown={share.assistantAnswer} maxValid={share.citations.length} />
+						<ShareAnswerMarkdown markdown={share.assistantAnswer} citations={share.citations} maxValid={share.citations.length} />
 					</section>
 
 					{share.citations.length > 0 ? (

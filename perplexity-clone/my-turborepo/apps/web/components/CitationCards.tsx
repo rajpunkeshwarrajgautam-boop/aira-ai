@@ -24,7 +24,7 @@ export interface CitationCardsProps {
 	readonly citedIndices?: number[];
 }
 
-function hostnameFromUrl(url: string): string {
+export function hostnameFromUrl(url: string): string {
 	try {
 		return new URL(url).hostname.replace(/^www\./, "");
 	} catch {
@@ -32,7 +32,7 @@ function hostnameFromUrl(url: string): string {
 	}
 }
 
-function formatDate(iso: string | null): string | null {
+export function formatDate(iso: string | null): string | null {
 	if (!iso) return null;
 	const d = new Date(iso);
 	if (Number.isNaN(d.getTime())) return null;
@@ -43,7 +43,7 @@ function formatDate(iso: string | null): string | null {
 	}).format(d);
 }
 
-function previewSnippet(text: string | undefined, maxChars: number): string | null {
+export function previewSnippet(text: string | undefined, maxChars: number): string | null {
 	if (!text) return null;
 	// Strip leading markdown headers: # title -> title
 	let cleanText = text.replace(/^#+\s+/, "");
@@ -94,7 +94,7 @@ function previewSnippet(text: string | undefined, maxChars: number): string | nu
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
-function cleanTitle(title: string, url: string, snippet?: string | null): string {
+export function cleanTitle(title: string, url: string, snippet?: string | null): string {
 	let t = title.trim().replace(/\\"/g, '"');
 	// Strip leading markdown headers
 	t = t.replace(/^#+\s+/, "");
