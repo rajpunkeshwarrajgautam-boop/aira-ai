@@ -83,7 +83,9 @@ function AssistantSkeleton({
 				<p className="text-sm leading-relaxed text-content-secondary">
 					{statusText === "Writing answer..." || statusText === "Preparing answer..."
 						? "Writing the answer from retrieved sources."
-						: "Finding and reading sources before writing the answer."}
+						: statusText === "Reading sources..."
+							? "Reading retrieved sources before writing the answer."
+							: "Searching the web for relevant sources."}
 				</p>
 				<div className="mt-2 flex flex-col gap-3">
 					<div className="h-3 w-[92%] animate-pulse rounded-md bg-surface-inset" />

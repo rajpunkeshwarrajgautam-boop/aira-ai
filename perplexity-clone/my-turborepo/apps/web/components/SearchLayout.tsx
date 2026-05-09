@@ -995,7 +995,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 						<p className="sr-only" aria-live="polite">
 							{phase === "connecting"
-								? "Researching."
+								? statusText
 								: phase === "streaming"
 									? "Streaming answer."
 									: phase === "complete"
