@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUp, Loader2 } from "lucide-react";
-import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
@@ -42,6 +42,10 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		el.style.height = "auto";
 		el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
 	}, []);
+
+	useEffect(() => {
+		resize();
+	}, [value, resize]);
 
 	const busy = Boolean(disabled || isBusy);
 
