@@ -46,6 +46,7 @@ export interface ConversationMessageListProps {
 	readonly showEmptyHint?: boolean;
 	readonly exampleQueries?: readonly string[];
 	readonly onPickExample?: (query: string) => void;
+	readonly statusText?: string;
 }
 
 function MarkdownContent({ markdown }: { readonly markdown: string }) {
@@ -58,20 +59,35 @@ function MarkdownContent({ markdown }: { readonly markdown: string }) {
 	);
 }
 
-function AssistantSkeleton() {
+function AssistantSkeleton({
+	statusText,
+	sourceCount,
+}: {
+	readonly statusText?: string;
+	readonly sourceCount: number;
+}) {
 	return (
-		<div className="flex w-full flex-col gap-5 py-2" aria-busy="true" aria-label="Researching">
-			<div className="flex items-center gap-3">
-				<Loader2 className="size-5 animate-spin text-accent" aria-hidden />
-				<p className="text-base font-medium tracking-tight text-content-primary">
-					Researching
-					<span className="inline-block w-6 animate-pulse text-accent">...</span>
+		<div className="flex w-full flex-col gap-4 py-2" aria-busy="true" aria-label="Researching">
+			<div className="flex flex-col gap-3 rounded-3xl border border-border-subtle/60 bg-surface-elevated/40 px-5 py-5 shadow-panel backdrop-blur-sm md:backdrop-blur-md">
+				<div className="flex items-center gap-3">
+					<Loader2 className="size-5 animate-spin text-accent" aria-hidden />
+					<p className="text-[15px] font-semibold tracking-tight text-content-primary">
+						{statusText || "Researching..."}
+					</p>
+					{sourceCount > 0 ? (
+						<div className="ml-auto rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent ring-1 ring-accent/20">
+							{sourceCount} {sourceCount === 1 ? "source" : "sources"} found
+						</div>
+					) : null}
+				</div>
+				<p className="text-sm leading-relaxed text-content-secondary">
+					Finding and reading sources before writing the answer.
 				</p>
-			</div>
-			<div className="flex flex-col gap-3">
-				<div className="h-4 w-[92%] animate-pulse rounded-md bg-surface-inset" />
-				<div className="h-4 w-[78%] animate-pulse rounded-md bg-surface-inset [animation-delay:120ms]" />
-				<div className="h-4 w-[64%] animate-pulse rounded-md bg-surface-inset [animation-delay:240ms]" />
+				<div className="mt-2 flex flex-col gap-3">
+					<div className="h-3 w-[92%] animate-pulse rounded-md bg-surface-inset" />
+					<div className="h-3 w-[78%] animate-pulse rounded-md bg-surface-inset [animation-delay:120ms]" />
+					<div className="h-3 w-[64%] animate-pulse rounded-md bg-surface-inset [animation-delay:240ms]" />
+				</div>
 			</div>
 		</div>
 	);
@@ -86,6 +102,7 @@ export function ConversationMessageList({
 	showEmptyHint = false,
 	exampleQueries = [],
 	onPickExample,
+	statusText,
 }: ConversationMessageListProps) {
 	const renderAssistant = (msg: {
 		readonly content: string;
@@ -207,7 +224,10 @@ export function ConversationMessageList({
 			{showAssistantSkeleton ? (
 				<div className="flex w-full justify-start" aria-label="Assistant loading">
 					<div className={cn("w-full")}>
-						<AssistantSkeleton />
+						<AssistantSkeleton
+							statusText={statusText}
+							sourceCount={streamingCitations.length}
+						/>
 					</div>
 				</div>
 			) : null}

@@ -945,6 +945,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										setQuery(q);
 										requestAnimationFrame(() => searchBoxRef.current?.focus());
 									}}
+									statusText={statusText}
 								/>
 							</div>
 							{isAuthed && shareContext && !busy ? (
