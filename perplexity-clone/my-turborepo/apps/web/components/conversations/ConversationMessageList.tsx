@@ -136,7 +136,7 @@ export function ConversationMessageList({
 		<div className="flex flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
 			{showEmptyHint ? (
 				<div
-					className="flex min-h-[240px] flex-col items-center justify-center gap-8 rounded-3xl border border-dashed border-accent/20 bg-surface-elevated/55 px-4 py-16 text-center shadow-panel backdrop-blur-sm sm:px-8 md:backdrop-blur-md"
+					className="flex min-h-[240px] flex-col items-center justify-center gap-4 md:gap-8 rounded-3xl border border-dashed border-accent/20 bg-surface-elevated/55 px-4 py-8 md:py-16 text-center shadow-panel backdrop-blur-sm sm:px-8 md:backdrop-blur-md"
 					role="status"
 				>
 					<MessageCircle className="size-10 text-accent/50" aria-hidden />

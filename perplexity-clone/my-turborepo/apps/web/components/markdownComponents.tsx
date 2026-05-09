@@ -42,7 +42,7 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 
 	if (!citation) {
 		return (
-			<a href={href} className="citation-link" onClick={handleClick} {...props}>
+			<a href={href} className="citation-link relative after:absolute after:-inset-y-2 after:-inset-x-3 after:content-['']" onClick={handleClick} {...props}>
 				{children}
 			</a>
 		);
@@ -62,7 +62,7 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 		>
 			<a
 				href={href}
-				className="citation-link"
+				className="citation-link relative after:absolute after:-inset-y-2 after:-inset-x-3 after:content-['']"
 				onClick={handleClick}
 				onFocus={handleFocus}
 				onBlur={handleBlur}

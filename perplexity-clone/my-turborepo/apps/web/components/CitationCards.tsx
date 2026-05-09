@@ -212,16 +212,16 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 											{cleanTitle(c.title, c.url, snippet)}
 										</p>
 										{snippet ? (
-											<p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-content-tertiary/90">
+											<p className="mt-1.5 line-clamp-2 text-[12px] md:text-[11px] leading-snug text-content-tertiary/90">
 												{snippet}
 											</p>
 										) : null}
 										<div className="mt-3 flex items-center justify-between gap-2 border-t border-border-subtle/20 pt-3">
-											<p className="truncate text-[11px] font-medium text-content-tertiary">
+											<p className="truncate text-[12px] md:text-[11px] font-medium text-content-tertiary">
 												{host}
 											</p>
 											{dateLabel ? (
-												<p className="shrink-0 text-[10px] font-bold tabular-nums text-content-tertiary/60">
+												<p className="shrink-0 text-[11px] md:text-[10px] font-bold tabular-nums text-content-tertiary/60">
 													{dateLabel}
 												</p>
 											) : null}

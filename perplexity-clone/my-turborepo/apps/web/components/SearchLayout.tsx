@@ -898,7 +898,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								>
 									Feedback
 								</a>
-								<UserMenu className="hidden sm:flex" />
+								<UserMenu className="flex" />
 							</div>
 						</div>
 					</header>
@@ -948,7 +948,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						{isAuthed ? <ResearchHistoryPanel items={researchHistory} /> : null}
 
 						<div
-							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl"
+							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl order-4 md:order-none"
 							aria-busy={busy}
 						>
 							<div className="min-h-0 flex-1 overflow-y-auto">
@@ -1011,7 +1011,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											: ""}
 						</p>
 
-						<div className="flex flex-col gap-3">
+						<div className="flex flex-col gap-3 order-3 md:order-none">
 							<div className="flex flex-col sm:flex-row gap-3">
 								<div
 									className={cn(

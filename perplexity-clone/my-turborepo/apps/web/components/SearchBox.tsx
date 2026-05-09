@@ -98,6 +98,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						onChange(e.target.value);
 						resize();
 					}}
+					onFocus={(e) => {
+						if (typeof window !== "undefined" && window.innerWidth < 768) {
+							setTimeout(() => {
+								e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+							}, 300);
+						}
+					}}
 					onInput={resize}
 					onKeyDown={onKeyDown}
 					placeholder={placeholder}
@@ -119,7 +126,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						type="submit"
 						disabled={busy || !value.trim()}
 						size="icon"
-						className="size-10 rounded-2xl shadow-md shadow-accent/20"
+						className="size-11 md:size-10 rounded-2xl shadow-md shadow-accent/20"
 						aria-label="Submit question"
 					>
 						{isBusy ? (
