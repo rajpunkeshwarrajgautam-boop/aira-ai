@@ -52,24 +52,7 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 	const host = hostnameFromUrl(citation.url);
 	const snippet = previewSnippet(citation.excerpt, 120);
 
-	const isOfficial = citation.sourceQuality?.includes("OFFICIAL");
-	const isPeerReviewed = citation.sourceQuality?.includes("PEER_REVIEWED");
-	const isHighQuality = citation.sourceQuality?.includes("HIGH_QUALITY");
-	const labelColor = isPeerReviewed
-		? "bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-purple-500/20"
-		: isOfficial
-			? "bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20"
-			: isHighQuality
-				? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20"
-				: "bg-surface-elevated text-content-tertiary ring-border-subtle/50";
-
-	const labelText = isPeerReviewed
-		? "PEER-REVIEWED"
-		: isOfficial
-			? "OFFICIAL"
-			: isHighQuality
-				? "HIGH QUALITY"
-				: null;
+	const showBadge = citation.sourceQuality && citation.sourceQuality !== "Unknown";
 
 	return (
 		<span
@@ -102,14 +85,12 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 							</span>
 							<span className="mt-0.5 flex items-center gap-2 text-[11px] text-content-secondary">
 								<span className="truncate">{host}</span>
-								{labelText ? (
+								{showBadge ? (
 									<span
-										className={cn(
-											"shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wider ring-1 inset ring-inset",
-											labelColor,
-										)}
+										className="max-w-[7.5rem] truncate rounded-md bg-surface-elevated/90 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-content-tertiary/80 ring-1 ring-border-subtle/40"
+										title={citation.sourceQuality}
 									>
-										{labelText}
+										{citation.sourceQuality}
 									</span>
 								) : null}
 							</span>
