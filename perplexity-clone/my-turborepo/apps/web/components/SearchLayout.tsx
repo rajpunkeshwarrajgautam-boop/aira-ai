@@ -981,7 +981,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									: phase === "complete"
 										? "Answer complete."
 										: phase === "error"
-											? "An error occurred."
+											? errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+												? "Guest search limit reached."
+												: errorCode === "SIGNIN_DEEP" ||
+												  (errorCode === "PLAN_REQUIRED" && !isAuthed) ||
+												  errorCode === "SIGNIN_FOLLOWUP"
+													? "Account required."
+													: "An error occurred."
 											: ""}
 						</p>
 
