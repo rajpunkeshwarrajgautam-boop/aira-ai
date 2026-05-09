@@ -536,7 +536,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			if (!response.ok) {
 				const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
 				const raw = parsed?.error?.message ?? `Request failed (${response.status})`;
-				const code = parsed?.error?.code;
+				let code = parsed?.error?.code;
+
+				if (response.status === 429 && !code && isGuest) {
+					code = "ANONYMOUS_QUOTA_EXCEEDED";
+				}
+
 				setErrorCode(typeof code === "string" ? code : null);
 				let msg: string;
 				let action: "quota" | "plan" | null = null;
@@ -544,7 +549,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					msg = "That needs an account—sign in to continue a saved thread or use Deep Research.";
 				} else if (code === "ANONYMOUS_QUOTA_EXCEEDED") {
 					msg =
-						"You've used your complimentary searches for today. Sign in to keep going with your plan limits.";
+						"You’ve used your complimentary searches for today. Sign in to continue with saved threads, follow-ups, Deep Research, and sharing.";
 				} else if (response.status === 402 || code === "QUOTA_EXCEEDED") {
 					action = "quota";
 					msg =
@@ -559,7 +564,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				} else if (response.status === 429) {
 					msg =
 						code === "ANONYMOUS_QUOTA_EXCEEDED"
-							? "You've used your complimentary searches for today. Sign in to keep going with your plan limits."
+							? "You’ve used your complimentary searches for today. Sign in to continue with saved threads, follow-ups, Deep Research, and sharing."
 							: "Too many requests. Please wait a moment and try again.";
 				} else if (response.status >= 500) {
 					msg = "The service is temporarily unavailable. Please try again in a few minutes.";
@@ -570,6 +575,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setLimitErrorAction(action);
 				setErrorMessage(msg);
 				void refreshBilling();
+
+				if (
+					response.status === 401 ||
+					response.status === 402 ||
+					response.status === 429 ||
+					code === "ANONYMOUS_QUOTA_EXCEEDED" ||
+					code === "PLAN_REQUIRED"
+				) {
+					setQuery(q);
+					setStreamingUserQuery(null);
+				}
+
 				return;
 			}
 
