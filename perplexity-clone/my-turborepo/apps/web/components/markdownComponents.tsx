@@ -1,7 +1,10 @@
+"use client";
+
 import React, { useState, useRef, useEffect } from "react";
 import type { Components } from "react-markdown";
 import { ExternalLink } from "lucide-react";
 import { cn } from "../lib/cn";
+import { logProductEvent } from "../lib/log-product-event";
 import { type CitationItem, hostnameFromUrl, cleanTitle, previewSnippet } from "./CitationCards";
 
 /** Parse #source-N (strict digits only) for deterministic preview + scroll targets. */
@@ -61,6 +64,17 @@ function CitationPreviewPopover({
 	const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
 		e.preventDefault();
 		const id = href.startsWith("#") ? href.slice(1) : href;
+		const idx = sourceIndex;
+		try {
+			logProductEvent({
+				event: "citation_clicked",
+				surface: "citation",
+				citationIndex: idx,
+				sourceDomain: citation ? hostnameFromUrl(citation.url) : undefined,
+			});
+		} catch {
+			// ignore analytics
+		}
 		const el = document.getElementById(id);
 		if (el) {
 			el.scrollIntoView({ behavior: "smooth", block: "center" });

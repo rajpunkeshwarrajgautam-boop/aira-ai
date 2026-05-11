@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
+import { logProductEvent } from "../lib/log-product-event";
 
 export function UserMenu({ className }: { readonly className?: string }) {
 	const { data: session, status } = useSession();
@@ -37,6 +38,13 @@ export function UserMenu({ className }: { readonly className?: string }) {
 				<Link
 					href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
 					title="Sign in to save threads, use Deep Research, and share results"
+					onClick={() => {
+						try {
+							logProductEvent({ event: "sign_in_clicked", surface: "auth", userType: "guest" });
+						} catch {
+							// ignore analytics
+						}
+					}}
 				>
 					Sign in
 				</Link>

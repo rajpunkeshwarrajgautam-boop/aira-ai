@@ -141,6 +141,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
+	const answerStreamStartedLoggedRef = useRef(false);
 	/** Avoid duplicate auto-submit for the same `?q=` after OAuth return. */
 	const hasAutoRunUrlQueryRef = useRef<string | null>(null);
 	/** Last submitted question (state is cleared at search start; used for sign-in callback URLs). */
@@ -523,9 +524,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setStreamingCitations([]);
 		setShareContext(null);
 		setPhase("connecting");
+		answerStreamStartedLoggedRef.current = false;
 
-		if (isGuest) {
-			logProductEvent({ event: "guest_search_started", surface: "search" });
+		try {
+			logProductEvent({
+				event: "search_submitted",
+				surface: messages.length === 0 ? "home" : "search",
+				userType: isGuest ? "guest" : "signed_in",
+				queryLength: q.length,
+			});
+		} catch {
+			// ignore analytics
 		}
 
 		try {
@@ -595,6 +604,19 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setErrorMessage(msg);
 				void refreshBilling();
 
+				if (code === "ANONYMOUS_QUOTA_EXCEEDED") {
+					try {
+						logProductEvent({
+							event: "guest_quota_reached",
+							surface: "search",
+							userType: "guest",
+							errorCode: "ANONYMOUS_QUOTA_EXCEEDED",
+						});
+					} catch {
+						// ignore analytics
+					}
+				}
+
 				if (
 					response.status === 401 ||
 					response.status === 402 ||
@@ -638,9 +660,38 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							finalCitations = [...meta.citations];
 							setStreamingCitations([...meta.citations]);
 						}
+						if (!answerStreamStartedLoggedRef.current) {
+							answerStreamStartedLoggedRef.current = true;
+							try {
+								logProductEvent({
+									event: "answer_stream_started",
+									surface: "answer",
+									userType: isGuest ? "guest" : "signed_in",
+									queryLength: q.length,
+									sourceCount:
+										meta && Array.isArray(meta.citations) ? meta.citations.length : undefined,
+								});
+							} catch {
+								// ignore analytics
+							}
+						}
 					} else if (block.event === "text") {
 						const chunk = safeJson<TextPayload>(block.data);
 						if (chunk?.delta) {
+							if (!answerStreamStartedLoggedRef.current) {
+								answerStreamStartedLoggedRef.current = true;
+								try {
+									logProductEvent({
+										event: "answer_stream_started",
+										surface: "answer",
+										userType: isGuest ? "guest" : "signed_in",
+										queryLength: q.length,
+										sourceCount: finalCitations.length > 0 ? finalCitations.length : undefined,
+									});
+								} catch {
+									// ignore analytics
+								}
+							}
 							streamedAnswer += chunk.delta;
 							setStreamingAssistantMarkdown((prev) => (prev ?? "") + chunk.delta);
 						}
@@ -664,6 +715,19 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							});
 						}
 						setPhase("complete");
+						try {
+							logProductEvent({
+								event: "answer_completed",
+								surface: "answer",
+								userType: isGuest ? "guest" : "signed_in",
+								queryLength: q.length,
+								sourceCount: finalCitations.length,
+								conversationId: finalConversationId ?? undefined,
+								messageId: doneMessageId,
+							});
+						} catch {
+							// ignore analytics
+						}
 					} else if (block.event === "error") {
 						const err = safeJson<StreamErrorPayload>(block.data);
 						setPhase("error");
@@ -961,6 +1025,16 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									showEmptyHint={showConversationEmpty}
 									exampleQueries={EXAMPLE_QUERIES}
 									onPickExample={(q) => {
+										try {
+											logProductEvent({
+												event: "example_query_clicked",
+												surface: "home",
+												userType: isAuthed ? "signed_in" : "guest",
+												queryLength: q.length,
+											});
+										} catch {
+											// ignore analytics
+										}
 										setQuery(q);
 										requestAnimationFrame(() => searchBoxRef.current?.focus());
 									}}
@@ -985,6 +1059,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</p>
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
+										onClick={() => {
+											try {
+												logProductEvent({
+													event: "sign_in_clicked",
+													surface: "auth",
+													userType: "guest",
+												});
+											} catch {
+												// ignore analytics
+											}
+										}}
 										className="inline-flex w-fit items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 									>
 										Sign in to share
@@ -1058,7 +1143,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										</button>
 										<button
 											type="button"
-											onClick={() => setResearchMode("deep")}
+											onClick={() => {
+												try {
+													logProductEvent({
+														event: "deep_research_clicked",
+														surface: "deep_research",
+														userType: "signed_in",
+													});
+												} catch {
+													// ignore analytics
+												}
+												setResearchMode("deep");
+											}}
 											disabled={busy}
 											className={cn(
 												"flex-1 px-3 py-2 text-sm font-medium transition",
@@ -1076,9 +1172,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									<button
 										type="button"
 										disabled={busy}
-										onClick={() =>
-											router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`)
-										}
+										onClick={() => {
+											try {
+												logProductEvent({
+													event: "deep_research_clicked",
+													surface: "deep_research",
+													userType: "guest",
+												});
+											} catch {
+												// ignore analytics
+											}
+											router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
+										}}
 										className={cn(
 											"flex w-full items-center justify-center rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 px-3 py-2 text-sm font-medium text-content-secondary shadow-panel backdrop-blur-sm ring-1 ring-white/40 md:backdrop-blur-md",
 											"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
@@ -1098,6 +1203,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</span>
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
+										onClick={() => {
+											try {
+												logProductEvent({
+													event: "sign_in_clicked",
+													surface: "auth",
+													userType: "guest",
+												});
+											} catch {
+												// ignore analytics
+											}
+										}}
 										className="font-medium text-accent underline-offset-2 hover:underline"
 									>
 										Sign in
@@ -1167,6 +1283,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 														? `/?q=${encodeURIComponent(lastSubmittedQueryRef.current.trim())}`
 														: "/",
 												)}`}
+												onClick={() => {
+													try {
+														logProductEvent({
+															event: "sign_in_clicked",
+															surface: "auth",
+															userType: "guest",
+															errorCode: errorCode ?? undefined,
+														});
+													} catch {
+														// ignore analytics
+													}
+												}}
 												className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 											>
 												Sign in to continue

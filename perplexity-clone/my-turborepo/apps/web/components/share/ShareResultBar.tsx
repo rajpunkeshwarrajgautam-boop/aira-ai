@@ -63,7 +63,17 @@ export function ShareResultBar({
 
 	const onShareResult = useCallback(async () => {
 		if (!canShare || loading) return;
-		logProductEvent({ event: "share_clicked", surface: "share_bar" });
+		try {
+			logProductEvent({
+				event: "share_clicked",
+				surface: "share_bar",
+				userType: "signed_in",
+				conversationId,
+				messageId,
+			});
+		} catch {
+			// ignore analytics
+		}
 		setError(null);
 
 		if (resolvedUrl) {
