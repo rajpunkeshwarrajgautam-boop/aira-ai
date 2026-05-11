@@ -4,12 +4,40 @@ import { ExternalLink } from "lucide-react";
 import { cn } from "../lib/cn";
 import { type CitationItem, hostnameFromUrl, cleanTitle, previewSnippet } from "./CitationCards";
 
-function CitationPreviewPopover({ citation, href, children, ...props }: any) {
+/** Parse #source-N (strict digits only) for deterministic preview + scroll targets. */
+function citationIndexFromFragmentHref(href: string): number | undefined {
+	const m = /^#source-(\d+)$/.exec(href);
+	if (!m) return undefined;
+	const n = Number.parseInt(m[1]!, 10);
+	return Number.isFinite(n) ? n : undefined;
+}
+
+/** Stable per-occurrence key so duplicate #source-1 links do not share popover state. */
+function citationLinkInstanceKey(
+	href: string,
+	node: { position?: { start?: { offset?: number } } } | undefined,
+): string {
+	const o = node?.position?.start?.offset;
+	return typeof o === "number" ? `citation-${o}` : href;
+}
+
+function CitationPreviewPopover({
+	citations,
+	href,
+	children,
+	...props
+}: React.PropsWithChildren<
+	{ citations: readonly CitationItem[]; href: string } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href">
+>) {
 	const [open, setOpen] = useState(false);
-	const closeTimeout = useRef<any>(null);
+	const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const sourceIndex = citationIndexFromFragmentHref(href);
+	const citation =
+		sourceIndex !== undefined ? citations.find((c) => c.index === sourceIndex) : undefined;
 
 	const handleMouseEnter = () => {
-		clearTimeout(closeTimeout.current);
+		if (closeTimeout.current) clearTimeout(closeTimeout.current);
 		setOpen(true);
 	};
 
@@ -32,7 +60,7 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 
 	const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
 		e.preventDefault();
-		const id = href.slice(1);
+		const id = href.startsWith("#") ? href.slice(1) : href;
 		const el = document.getElementById(id);
 		if (el) {
 			el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -40,9 +68,14 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 		}
 	};
 
+	const anchorClass = cn(
+		"citation-link relative after:absolute after:-inset-y-4 after:-inset-x-2 after:content-['']",
+		props.className,
+	);
+
 	if (!citation) {
 		return (
-			<a href={href} className="citation-link relative after:absolute after:-inset-y-4 after:-inset-x-2 after:content-['']" onClick={handleClick} {...props}>
+			<a {...props} href={href} className={anchorClass} onClick={handleClick}>
 				{children}
 			</a>
 		);
@@ -61,12 +94,12 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
 			onMouseLeave={handleMouseLeave}
 		>
 			<a
+				{...props}
 				href={href}
-				className="citation-link relative after:absolute after:-inset-y-4 after:-inset-x-2 after:content-['']"
+				className={anchorClass}
 				onClick={handleClick}
 				onFocus={handleFocus}
 				onBlur={handleBlur}
-				{...props}
 			>
 				{children}
 			</a>
@@ -121,7 +154,7 @@ function CitationPreviewPopover({ citation, href, children, ...props }: any) {
  */
 export function getMarkdownComponents(citations: readonly CitationItem[] = []): Partial<Components> {
 	return {
-		a: ({ href, children, ...props }) => {
+		a: ({ href, children, node, ...props }) => {
 			if (href && /^https?:\/\//i.test(href)) {
 				return (
 					<a href={href} target="_blank" rel="noopener noreferrer" {...props}>
@@ -130,11 +163,10 @@ export function getMarkdownComponents(citations: readonly CitationItem[] = []): 
 				);
 			}
 			if (href && href.startsWith("#source-")) {
-				const index = parseInt(href.slice(8), 10);
-				const citation = citations.find((c) => c.index === index);
+				const key = citationLinkInstanceKey(href, node);
 
 				return (
-					<CitationPreviewPopover citation={citation} href={href} {...props}>
+					<CitationPreviewPopover key={key} citations={citations} href={href} {...props}>
 						{children}
 					</CitationPreviewPopover>
 				);
@@ -147,5 +179,3 @@ export function getMarkdownComponents(citations: readonly CitationItem[] = []): 
 		},
 	};
 }
-
-
