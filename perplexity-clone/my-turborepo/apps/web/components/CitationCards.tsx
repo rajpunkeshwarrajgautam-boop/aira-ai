@@ -5,6 +5,7 @@ import Image from "next/image";
 
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { cn } from "../lib/cn";
+import { logProductEvent } from "../lib/log-product-event";
 
 export interface CitationItem {
 	readonly index: number;
@@ -162,6 +163,18 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 									href={c.url}
 									target="_blank"
 									rel="noopener noreferrer"
+									onClick={() => {
+										try {
+											logProductEvent({
+												event: "source_opened",
+												surface: "source_cards",
+												citationIndex: c.index,
+												sourceDomain: host,
+											});
+										} catch {
+											// ignore analytics
+										}
+									}}
 									className={cn(
 										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/50 bg-surface-inset/50 p-4 shadow-sm ring-1 ring-white/30 transition-all duration-300 ease-out backdrop-blur-sm md:backdrop-blur-md",
 										"hover:border-accent/45 hover:bg-surface-elevated/90 hover:shadow-panel hover:-translate-y-0.5",
