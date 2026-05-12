@@ -4,6 +4,7 @@ import { requireAnalyticsAdmin } from "@/lib/analytics/admin";
 import {
 	getConversionFunnel,
 	getDailyAnalyticsPoints,
+	getProductEventCounts,
 } from "@/lib/analytics/analytics-metrics";
 import { prisma } from "@/lib/prisma";
 import type { AnalyticsEventType } from "@/lib/analytics/analytics-types";
@@ -24,7 +25,7 @@ export default async function OwnerAnalyticsDashboardPage() {
 	const now = new Date();
 	const from = new Date(now.getTime() - (days - 1) * 86_400_000);
 
-	const [points, funnel, latestErrors] = await Promise.all([
+	const [points, funnel, latestErrors, productEvents] = await Promise.all([
 		getDailyAnalyticsPoints({ days }),
 		getConversionFunnel({ from, to: now }),
 		prisma.analyticsEvent.findMany({
@@ -41,6 +42,7 @@ export default async function OwnerAnalyticsDashboardPage() {
 				metadata: true,
 			},
 		}),
+		getProductEventCounts(),
 	]);
 
 	const maxVisitorCount = Math.max(1, ...points.map((p) => p.visitors));
@@ -126,6 +128,35 @@ export default async function OwnerAnalyticsDashboardPage() {
 								</tbody>
 							</table>
 						</div>
+					</div>
+				</section>
+
+				<section className="mt-8 rounded-2xl border border-border-subtle bg-surface-elevated/30 p-4 backdrop-blur-md">
+					<h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-content-tertiary">Product Events</h2>
+					<p className="mt-1 text-sm text-content-secondary">
+						Granular product events tracked in the last 30 days.
+					</p>
+					<div className="mt-4 overflow-x-auto rounded-xl border border-border-subtle bg-surface-inset">
+						<table className="min-w-[720px] w-full border-collapse text-sm">
+							<thead>
+								<tr className="text-left text-xs text-content-tertiary">
+									<th className="px-3 py-2">Event</th>
+									<th className="px-3 py-2">Last 24h</th>
+									<th className="px-3 py-2">Last 7d</th>
+									<th className="px-3 py-2">Last 30d</th>
+								</tr>
+							</thead>
+							<tbody>
+								{productEvents.map((e) => (
+									<tr key={e.event} className="border-t border-border-subtle/60">
+										<td className="px-3 py-2 font-medium text-content-primary">{e.event}</td>
+										<td className="px-3 py-2 tabular-nums">{e.count24h}</td>
+										<td className="px-3 py-2 tabular-nums">{e.count7d}</td>
+										<td className="px-3 py-2 tabular-nums">{e.count30d}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
 					</div>
 				</section>
 
