@@ -232,3 +232,24 @@ model AnalyticsEvent {
   @@index([anonymousId, eventDay])
   @@index([userId, eventDay])
 }
+
+model ProductAnalyticsEvent {
+  id              String   @id @default(cuid())
+  event           String
+  surface         String?
+  userType        String?
+  queryLength     Int?
+  sourceCount     Int?
+  citationCount   Int?
+  citationIndex   Int?
+  sourceDomain    String?
+  conversationId  String?
+  messageId       String?
+  errorCode       String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([event, createdAt])
+  @@index([userType, createdAt])
+  @@index([surface, createdAt])
+}

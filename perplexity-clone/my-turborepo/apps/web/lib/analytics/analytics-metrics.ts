@@ -233,3 +233,69 @@ export interface RateLimitAnalyticsPoint {
 	readonly planRequired: number;
 }
 
+export interface ProductEventCounts {
+	readonly event: string;
+	readonly count24h: number;
+	readonly count7d: number;
+	readonly count30d: number;
+}
+
+export async function getProductEventCounts(): Promise<readonly ProductEventCounts[]> {
+	const now = new Date();
+	const past30d = new Date(now.getTime() - 30 * 86_400_000);
+	const past7d = new Date(now.getTime() - 7 * 86_400_000);
+	const past24h = new Date(now.getTime() - 24 * 3600_000);
+
+	let events: { event: string; createdAt: Date }[] = [];
+	try {
+		events = await prisma.productAnalyticsEvent.findMany({
+			where: {
+				createdAt: { gte: past30d },
+			},
+			select: {
+				event: true,
+				createdAt: true,
+			},
+		});
+	} catch (error) {
+		console.error("Failed to fetch product events from DB (might be missing migration):", error);
+		events = [];
+	}
+
+	const counts = new Map<string, { count24h: number; count7d: number; count30d: number }>();
+
+	const expectedEvents = [
+		"search_submitted",
+		"answer_stream_started",
+		"answer_completed",
+		"citation_clicked",
+		"source_opened",
+		"example_query_clicked",
+		"sign_in_clicked",
+		"guest_quota_reached",
+		"deep_research_clicked",
+		"share_clicked",
+	];
+
+	for (const e of expectedEvents) {
+		counts.set(e, { count24h: 0, count7d: 0, count30d: 0 });
+	}
+
+	for (const ev of events) {
+		let data = counts.get(ev.event);
+		if (!data) {
+			data = { count24h: 0, count7d: 0, count30d: 0 };
+			counts.set(ev.event, data);
+		}
+
+		data.count30d++;
+		if (ev.createdAt >= past7d) data.count7d++;
+		if (ev.createdAt >= past24h) data.count24h++;
+	}
+
+	return Array.from(counts.entries()).map(([event, c]) => ({
+		event,
+		...c,
+	}));
+}
+
