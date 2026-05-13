@@ -1051,11 +1051,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								<div
 									className="flex flex-col gap-2 border-t border-border-subtle/80 bg-surface-elevated/60 px-3 py-3 backdrop-blur-sm sm:px-4 md:backdrop-blur-md"
 									role="region"
-									aria-label="Share this answer"
+									aria-label="Continue research"
 								>
-									<p className="text-sm font-medium text-content-primary">Share this result</p>
+									<p className="text-sm font-medium text-content-primary">Continue your research</p>
 									<p className="text-xs leading-relaxed text-content-secondary">
-										Public links include your answer and sources. Sign in to create a shareable page.
+										Save this thread, continue research, and unlock Deep Research by signing in.
 									</p>
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
@@ -1072,7 +1072,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										}}
 										className="inline-flex w-fit items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 									>
-										Sign in to share
+										Sign in to continue
 									</Link>
 								</div>
 							) : null}
