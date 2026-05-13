@@ -17,6 +17,7 @@ const ProductEventNameSchema = z.enum([
 	"share_clicked",
 	"guest_search_started",
 	"feedback_clicked",
+	"search_failed",
 ]);
 
 const BodySchema = z.object({

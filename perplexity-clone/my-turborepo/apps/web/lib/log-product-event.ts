@@ -14,6 +14,7 @@ export type ProductAnalyticsEvent =
 	| "guest_quota_reached"
 	| "deep_research_clicked"
 	| "share_clicked"
+	| "search_failed"
 	/** @deprecated Prefer search_submitted */
 	| "guest_search_started"
 	| "feedback_clicked";

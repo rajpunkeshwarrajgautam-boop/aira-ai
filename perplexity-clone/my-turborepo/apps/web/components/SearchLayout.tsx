@@ -615,6 +615,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					} catch {
 						// ignore analytics
 					}
+				} else {
+					try {
+						logProductEvent({
+							event: "search_failed",
+							surface: "search",
+							userType: isGuest ? "guest" : "signed_in",
+							queryLength: q.length,
+							errorCode: `phase:connecting|status:${response.status}|code:${code || "HTTP_ERROR"}`,
+						});
+					} catch {
+						// ignore analytics
+					}
 				}
 
 				if (
@@ -817,6 +829,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			setStreamingCitations([]);
 		} catch (e: unknown) {
 			if (e instanceof DOMException && e.name === "AbortError") {
+				try {
+					logProductEvent({
+						event: "search_failed",
+						surface: "search",
+						userType: sessionStatus === "authenticated" ? "signed_in" : "guest",
+						queryLength: query.length,
+						errorCode: `phase:${phase}|code:ABORTED`,
+					});
+				} catch {
+					// ignore analytics
+				}
+
 				setPhase("idle");
 				setErrorMessage(null);
 				setErrorCode(null);
@@ -829,6 +853,26 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			const msg = /network|fetch|Failed to fetch/i.test(raw)
 				? "Network error. Check your connection and try again."
 				: raw;
+
+			try {
+				let codeStr = `phase:${phase}|code:`;
+				if (/network|fetch|Failed to fetch/i.test(raw)) {
+					codeStr += "NETWORK_ERROR";
+				} else {
+					codeStr += "UNKNOWN_ERROR";
+				}
+
+				logProductEvent({
+					event: "search_failed",
+					surface: "search",
+					userType: sessionStatus === "authenticated" ? "signed_in" : "guest",
+					queryLength: query.length,
+					errorCode: codeStr,
+				});
+			} catch {
+				// ignore analytics
+			}
+
 			setPhase("error");
 			setErrorMessage(msg);
 		}
