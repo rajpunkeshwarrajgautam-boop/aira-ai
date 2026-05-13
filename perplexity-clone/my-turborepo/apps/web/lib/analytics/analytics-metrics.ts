@@ -275,6 +275,7 @@ export async function getProductEventCounts(): Promise<readonly ProductEventCoun
 		"guest_quota_reached",
 		"deep_research_clicked",
 		"share_clicked",
+		"search_failed",
 	];
 
 	for (const e of expectedEvents) {
