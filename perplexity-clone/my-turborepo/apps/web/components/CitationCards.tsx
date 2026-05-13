@@ -44,8 +44,10 @@ export function formatDate(iso: string | null): string | null {
 	}).format(d);
 }
 
-export function previewSnippet(text: string | undefined, maxChars: number): string | null {
-	if (!text) return null;
+export function previewSnippet(text: unknown, maxChars: number): string | null {
+	if (typeof text !== "string") return null;
+	if (text.includes("[object Object]")) return "Open source to verify details.";
+
 	// Strip leading markdown headers: # title -> title
 	let cleanText = text.replace(/^#+\s+/, "");
 	// Strip markdown links: [text](url) -> text (with spaces around to preserve word boundaries)
@@ -95,8 +97,10 @@ export function previewSnippet(text: string | undefined, maxChars: number): stri
 	return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
-export function cleanTitle(title: string, url: string, snippet?: string | null): string {
+export function cleanTitle(title: unknown, url: string, snippet?: string | null): string {
+	if (typeof title !== "string") return hostnameFromUrl(url);
 	let t = title.trim().replace(/\\"/g, '"');
+	if (t.includes("[object Object]")) return hostnameFromUrl(url);
 	// Strip leading markdown headers
 	t = t.replace(/^#+\s+/, "");
 	

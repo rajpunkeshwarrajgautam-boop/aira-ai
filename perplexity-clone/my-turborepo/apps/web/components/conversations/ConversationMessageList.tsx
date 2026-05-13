@@ -122,7 +122,10 @@ export function ConversationMessageList({
 			<div className="flex flex-col gap-5 py-2">
 				<div className="rounded-3xl border border-border-subtle/60 bg-surface-elevated/50 px-4 py-4 shadow-panel backdrop-blur-sm sm:px-5 sm:py-5 md:bg-surface-elevated/40 md:backdrop-blur-md">
 					<div className="whitespace-pre-wrap text-[16px] leading-8 text-content-secondary">
-						<MarkdownContent markdown={linkedContent} citations={effectiveCitations} />
+						<MarkdownContent
+							markdown={linkedContent.trim() || (effectiveCitations.length > 0 ? "The model did not generate a text response, but found the following sources." : "No response generated.")}
+							citations={effectiveCitations}
+						/>
 					</div>
 				</div>
 				{effectiveCitations.length > 0 ? (
