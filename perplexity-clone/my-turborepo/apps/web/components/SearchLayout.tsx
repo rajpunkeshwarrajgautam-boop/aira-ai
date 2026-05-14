@@ -1053,7 +1053,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							</div>
 						) : null}
 
-						{isAuthed ? <ResearchHistoryPanel items={researchHistory} /> : null}
+						{isAuthed ? <ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} /> : null}
 
 						<div
 							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl order-4 md:order-none"
@@ -1067,6 +1067,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									streamingCitations={streamingCitations}
 									showAssistantSkeleton={showAssistantSkeleton}
 									showEmptyHint={showConversationEmpty}
+									isAuthed={isAuthed}
+									recentConversations={conversations}
+									onSelectConversation={onSelectConversation}
 									exampleQueries={EXAMPLE_QUERIES}
 									onPickExample={(q) => {
 										try {

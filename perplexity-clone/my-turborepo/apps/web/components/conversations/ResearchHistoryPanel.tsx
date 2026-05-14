@@ -15,9 +15,11 @@ export interface ResearchHistoryRow {
 
 export function ResearchHistoryPanel({
 	items,
+	onSelectItem,
 	className,
 }: {
 	readonly items: readonly ResearchHistoryRow[];
+	readonly onSelectItem?: (conversationId: string) => void;
 	readonly className?: string;
 }) {
 	const [open, setOpen] = useState(false);
@@ -55,15 +57,22 @@ export function ResearchHistoryPanel({
 			{open ? (
 				<ul className="mt-3 space-y-2">
 					{content.map((r) => (
-						<li
-							key={r.id}
-							className="rounded-xl border border-border-subtle bg-surface-inset/50 p-3"
-						>
-							<p className="truncate text-sm font-medium text-content-primary">{r.query}</p>
-							<p className="mt-1 text-[11px] text-content-tertiary">
-								{new Date(r.createdAt).toLocaleString()}
-								{r.citationCount > 0 ? ` · ${r.citationCount} citations` : ""}
-							</p>
+						<li key={r.id}>
+							<button
+								type="button"
+								onClick={() => r.conversationId && onSelectItem?.(r.conversationId)}
+								disabled={!r.conversationId}
+								className={cn(
+									"flex w-full flex-col items-start gap-1 rounded-xl border border-border-subtle bg-surface-inset/50 p-3 text-left transition-all",
+									r.conversationId ? "hover:border-accent/40 hover:bg-accent/5 hover:shadow-sm active:scale-[0.98]" : "cursor-default opacity-80",
+								)}
+							>
+								<p className="truncate text-sm font-medium text-content-primary">{r.query}</p>
+								<p className="mt-1 text-[11px] text-content-tertiary">
+									{new Date(r.createdAt).toLocaleString()}
+									{r.citationCount > 0 ? ` · ${r.citationCount} citations` : ""}
+								</p>
+							</button>
 						</li>
 					))}
 				</ul>
