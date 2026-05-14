@@ -1300,10 +1300,20 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 							{phase === "error" && errorMessage ? (
 								<div
-									className="rounded-3xl border border-red-200/80 bg-red-50/90 p-4 text-sm text-red-800 shadow-panel backdrop-blur-sm md:backdrop-blur-md"
+									className={cn(
+										"rounded-3xl border p-4 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md",
+										errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+											? "border-indigo-200 bg-indigo-50/90 text-indigo-950"
+											: "border-red-200/80 bg-red-50/90 text-red-800",
+									)}
 									role="alert"
 								>
-									<p className="font-medium text-red-900">
+									<p
+										className={cn(
+											"font-semibold",
+											errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ? "text-indigo-950" : "text-red-900",
+										)}
+									>
 										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
 											? "Guest search limit reached"
 											: errorCode === "SIGNIN_DEEP" ||
@@ -1316,11 +1326,29 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 														? "Upgrade required"
 														: "Something went wrong"}
 									</p>
-									<p className="mt-1 text-red-800/95">
-										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
-											? "You’ve used your free searches for today. Sign in to continue this research, save your threads, ask follow-ups, and unlock Deep Research."
-											: errorMessage}
-									</p>
+									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ? (
+										<div className="mt-2 space-y-3">
+											<p className="text-indigo-900/90">
+												You’ve used your free searches for today. Sign in to continue this research.
+											</p>
+											<ul className="space-y-1.5 text-indigo-900/80">
+												<li className="flex items-center gap-2">
+													<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+													<span>Save this thread</span>
+												</li>
+												<li className="flex items-center gap-2">
+													<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+													<span>Ask follow-up questions</span>
+												</li>
+												<li className="flex items-center gap-2">
+													<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+													<span>Unlock Deep Research</span>
+												</li>
+											</ul>
+										</div>
+									) : (
+										<p className="mt-1 text-red-800/95">{errorMessage}</p>
+									)}
 									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
 									errorCode === "SIGNIN_DEEP" ||
 									(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") ? (
