@@ -10,6 +10,9 @@ import { getMarkdownComponents } from "../markdownComponents";
 import { cn } from "../../lib/cn";
 import { linkifyCitations, parseCitationIndicesFromAnswer } from "../../src/services/citations";
 
+import { type ConversationSummary } from "./ConversationSidebar";
+import { Clock, History, ArrowRight } from "lucide-react";
+
 export interface ConversationMessageDto {
 	readonly id: string;
 	readonly role: "USER" | "ASSISTANT";
@@ -17,6 +20,21 @@ export interface ConversationMessageDto {
 	readonly parentMessageId: string | null;
 	readonly citations: unknown;
 	readonly createdAt: string;
+}
+
+function formatLastUpdated(iso: string): string {
+	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return "";
+	const now = new Date();
+	const diffMs = now.getTime() - d.getTime();
+	const diffHrs = diffMs / (1000 * 60 * 60);
+	if (diffHrs < 24) {
+		return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
+			-Math.round(diffHrs) || -1,
+			"hour",
+		);
+	}
+	return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
 }
 
 function isCitationArray(value: unknown): value is readonly CitationItem[] {
@@ -44,6 +62,9 @@ export interface ConversationMessageListProps {
 	/** True while waiting for the first assistant token (connecting or streaming start). */
 	readonly showAssistantSkeleton?: boolean;
 	readonly showEmptyHint?: boolean;
+	readonly isAuthed?: boolean;
+	readonly recentConversations?: readonly ConversationSummary[];
+	readonly onSelectConversation?: (id: string) => void;
 	readonly exampleQueries?: readonly string[];
 	readonly onPickExample?: (query: string) => void;
 	readonly statusText?: string;
@@ -104,6 +125,9 @@ export function ConversationMessageList({
 	streamingCitations,
 	showAssistantSkeleton = false,
 	showEmptyHint = false,
+	isAuthed = false,
+	recentConversations = [],
+	onSelectConversation,
 	exampleQueries = [],
 	onPickExample,
 	statusText,
@@ -138,41 +162,102 @@ export function ConversationMessageList({
 	return (
 		<div className="flex flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
 			{showEmptyHint ? (
-				<div
-					className="flex min-h-[240px] flex-col items-center justify-center gap-4 md:gap-8 rounded-3xl border border-dashed border-accent/20 bg-surface-elevated/55 px-4 py-8 md:py-16 text-center shadow-panel backdrop-blur-sm sm:px-8 md:backdrop-blur-md"
-					role="status"
-				>
-					<MessageCircle className="size-10 text-accent/50" aria-hidden />
-					<div className="max-w-lg space-y-2">
-						<p className="text-sm font-semibold text-content-primary">Try an example</p>
-						<p className="text-sm leading-relaxed text-content-secondary">
-							Pick a question to fill the search box, then press{" "}
-							<kbd className="rounded-md border border-border-subtle bg-surface-elevated px-1.5 py-0.5 font-mono text-[11px] text-content-primary">
-								Enter
-							</kbd>{" "}
-							to search.
-						</p>
-					</div>
-					{exampleQueries.length > 0 && onPickExample ? (
-						<ul className="flex w-full max-w-xl flex-col gap-3 sm:max-w-2xl">
-							{exampleQueries.map((q) => (
-								<li key={q} className="w-full">
-									<button
-										type="button"
-										onClick={() => onPickExample(q)}
-										className={cn(
-											"w-full rounded-2xl border border-border-subtle/80 bg-surface-elevated/80 px-5 py-4 text-left text-sm text-content-primary shadow-panel backdrop-blur-sm transition md:backdrop-blur-md",
-											"hover:border-accent/40 hover:bg-accent/5 hover:shadow-float",
-											"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-										)}
-									>
-										{q}
-									</button>
-								</li>
-							))}
-						</ul>
+				<div className="flex flex-col gap-6 md:gap-8">
+					{isAuthed ? (
+						<div
+							className="flex flex-col gap-4 rounded-3xl border border-border-subtle/70 bg-surface-elevated/45 p-6 shadow-panel backdrop-blur-sm md:p-8 md:backdrop-blur-md"
+							role="region"
+							aria-label="Recent research"
+						>
+							<div className="flex items-center gap-3">
+								<History className="size-5 text-accent" aria-hidden />
+								<div>
+									<h2 className="text-base font-semibold text-content-primary">Continue your research</h2>
+									<p className="text-xs text-content-tertiary">Pick up where you left off.</p>
+								</div>
+							</div>
+
+							{recentConversations.length > 0 ? (
+								<ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+									{recentConversations.slice(0, 4).map((c) => (
+										<li key={c.id}>
+											<button
+												type="button"
+												onClick={() => onSelectConversation?.(c.id)}
+												className={cn(
+													"group flex w-full flex-col items-start gap-2 rounded-2xl border border-border-subtle/80 bg-surface-elevated/80 p-4 text-left transition-all duration-200",
+													"hover:border-accent/40 hover:bg-accent/5 hover:shadow-float active:scale-[0.98]",
+													"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+												)}
+											>
+												<span className="line-clamp-2 min-h-[2.5rem] w-full text-sm font-medium text-content-primary group-hover:text-accent">
+													{c.title}
+												</span>
+												<div className="mt-1 flex w-full items-center justify-between">
+													<div className="flex items-center gap-1.5 text-[11px] text-content-tertiary">
+														<Clock className="size-3" aria-hidden />
+														{formatLastUpdated(c.lastMessageAt)}
+													</div>
+													<ArrowRight className="size-3.5 -translate-x-1 text-accent opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+												</div>
+											</button>
+										</li>
+									))}
+								</ul>
+							) : (
+								<div className="flex flex-col items-center justify-center py-6 text-center">
+									<div className="rounded-2xl bg-surface-inset/50 p-4 ring-1 ring-border-subtle/50">
+										<p className="text-sm font-medium text-content-primary">Your saved research threads will appear here.</p>
+										<p className="mt-1 text-xs text-content-tertiary">Threads are automatically saved to your account.</p>
+									</div>
+								</div>
+							)}
+						</div>
 					) : null}
-					<p className="text-xs text-content-tertiary">Press Enter to search</p>
+
+					<div
+						className={cn(
+							"flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-accent/20 bg-surface-elevated/55 px-4 py-8 text-center shadow-panel backdrop-blur-sm sm:px-8 md:gap-8 md:py-16 md:backdrop-blur-md",
+							isAuthed && "border-none bg-transparent py-4 md:py-4 shadow-none backdrop-blur-none",
+						)}
+						role="status"
+					>
+						{!isAuthed && <MessageCircle className="size-10 text-accent/50" aria-hidden />}
+						<div className="max-w-lg space-y-2">
+							<p className={cn("text-sm font-semibold text-content-primary", isAuthed && "text-left")}>
+								{isAuthed ? "Or start with an example" : "Try an example"}
+							</p>
+							{!isAuthed && (
+								<p className="text-sm leading-relaxed text-content-secondary">
+									Pick a question to fill the search box, then press{" "}
+									<kbd className="rounded-md border border-border-subtle bg-surface-elevated px-1.5 py-0.5 font-mono text-[11px] text-content-primary">
+										Enter
+									</kbd>{" "}
+									to search.
+								</p>
+							)}
+						</div>
+						{exampleQueries.length > 0 && onPickExample ? (
+							<ul className={cn("flex w-full max-w-xl flex-col gap-3 sm:max-w-2xl", isAuthed && "max-w-none sm:max-w-none")}>
+								{exampleQueries.map((q) => (
+									<li key={q} className="w-full">
+										<button
+											type="button"
+											onClick={() => onPickExample(q)}
+											className={cn(
+												"w-full rounded-2xl border border-border-subtle/80 bg-surface-elevated/80 px-5 py-4 text-left text-sm text-content-primary shadow-panel backdrop-blur-sm transition md:backdrop-blur-md",
+												"hover:border-accent/40 hover:bg-accent/5 hover:shadow-float",
+												"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+											)}
+										>
+											{q}
+										</button>
+									</li>
+								))}
+							</ul>
+						) : null}
+						{!isAuthed && <p className="text-xs text-content-tertiary">Press Enter to search</p>}
+					</div>
 				</div>
 			) : null}
 
