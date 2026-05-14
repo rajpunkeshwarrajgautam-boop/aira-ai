@@ -1316,7 +1316,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 														? "Upgrade required"
 														: "Something went wrong"}
 									</p>
-									<p className="mt-1 text-red-800/95">{errorMessage}</p>
+									<p className="mt-1 text-red-800/95">
+										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+											? "You’ve used your free searches for today. Sign in to continue this research, save your threads, ask follow-ups, and unlock Deep Research."
+											: errorMessage}
+									</p>
 									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
 									errorCode === "SIGNIN_DEEP" ||
 									(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") ? (
