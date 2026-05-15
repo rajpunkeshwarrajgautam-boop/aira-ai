@@ -9,7 +9,7 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<BillingPlan, PlanLimits> = {
 	[BillingPlan.FREE]: {
-		searchesPerMonth: 25,
+		searchesPerMonth: 250,
 		minTeamSeats: 1,
 		maxTeamSeats: 1,
 	},
