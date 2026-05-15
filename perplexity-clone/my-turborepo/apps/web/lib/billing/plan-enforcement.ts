@@ -100,27 +100,24 @@ export async function consumeSearchQuota(userId: string): Promise<EffectiveEntit
 		const limit = entitlements.monthlySearchLimit;
 
 		const row = await tx.usageRecord.upsert({
-			where: {
-				userId_periodStart: { userId, periodStart },
-			},
-			create: { userId, periodStart, searches: 0 },
-			update: {},
+			where: { userId_periodStart: { userId, periodStart } },
+			create: { userId, periodStart, searches: 1 },
+			update: { searches: { increment: 1 } },
 		});
 
-		if (row.searches >= limit) {
+		if (row.searches > limit) {
 			throw new PlanEnforcementError(
 				402,
 				"QUOTA_EXCEEDED",
-				"Monthly search quota exceeded for your plan.",
+				`You have reached your monthly search limit of ${limit}. Upgrade to Pro for unlimited searches.`
 			);
 		}
 
-		await tx.usageRecord.update({
-			where: { userId_periodStart: { userId, periodStart } },
-			data: { searches: { increment: 1 } },
-		});
-
-		return loadEntitlements(tx, userId);
+		return {
+			...entitlements,
+			searchesUsed: row.searches,
+			searchesRemaining: Math.max(0, limit - row.searches),
+		};
 	});
 }
 
