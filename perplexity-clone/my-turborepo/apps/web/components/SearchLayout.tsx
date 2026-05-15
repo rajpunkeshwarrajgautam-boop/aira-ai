@@ -1088,13 +1088,16 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									statusText={statusText}
 								/>
 							</div>
-							{isAuthed && shareContext && !busy ? (
+							{shareContext && !busy ? (
 								<ShareResultBar
 									conversationId={shareContext.conversationId}
 									messageId={shareContext.messageId}
+									onGuestClick={() => {
+										router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
+									}}
 								/>
 							) : null}
-							{!isAuthed && messages.length > 0 && !busy ? (
+							{!isAuthed && messages.length > 0 && !busy && !shareContext ? (
 								<div
 									className="flex flex-col gap-2 border-t border-border-subtle/80 bg-surface-elevated/60 px-3 py-3 backdrop-blur-sm sm:px-4 md:backdrop-blur-md"
 									role="region"
