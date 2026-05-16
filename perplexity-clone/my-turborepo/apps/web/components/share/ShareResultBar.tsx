@@ -11,8 +11,8 @@ export function ShareResultBar({
 	className,
 	onGuestClick,
 }: {
-	readonly conversationId: string;
-	readonly messageId: string;
+	readonly conversationId?: string;
+	readonly messageId?: string;
 	readonly className?: string;
 	readonly onGuestClick?: () => void;
 }) {
@@ -24,7 +24,8 @@ export function ShareResultBar({
 	const [toast, setToast] = useState(false);
 	const toastHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const canShare = conversationId.length > 0 && messageId.length > 0;
+	const hasValidIds = (conversationId?.length ?? 0) > 0 && (messageId?.length ?? 0) > 0;
+	const canShare = isAuthed ? hasValidIds : true;
 
 	useEffect(() => {
 		setResolvedUrl(null);
@@ -77,6 +78,12 @@ export function ShareResultBar({
 				// ignore
 			}
 			onGuestClick?.();
+			return;
+		}
+
+		// Strictly authenticated path below
+		if (!hasValidIds) {
+			setError("Cannot share this research turn.");
 			return;
 		}
 
@@ -134,6 +141,7 @@ export function ShareResultBar({
 	}, [
 		canShare,
 		isAuthed,
+		hasValidIds,
 		loading,
 		resolvedUrl,
 		conversationId,
