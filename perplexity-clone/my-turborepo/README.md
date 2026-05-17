@@ -2,6 +2,10 @@
 
 This Turborepo starter is maintained by the Turborepo core team.
 
+## Launch & QA Information
+
+For production smoke checklists, beta testing templates, and deployment verification steps, please refer to the [Production QA & Launch Checklist](docs/production-qa.md).
+
 ## Using this example
 
 Run the following command:
