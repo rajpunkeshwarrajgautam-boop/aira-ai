@@ -220,7 +220,6 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 													{c.sourceQuality}
 												</span>
 											) : null}
-											<ExternalLink className="size-3 text-content-tertiary opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:opacity-100" />
 										</div>
 									</div>
 									
@@ -233,15 +232,24 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 												{snippet}
 											</p>
 										) : null}
-										<div className="mt-3 flex items-center justify-between gap-2 border-t border-border-subtle/20 pt-3">
-											<p className="truncate text-[12px] md:text-[11px] font-medium text-content-tertiary">
-												{host}
-											</p>
-											{dateLabel ? (
-												<p className="shrink-0 text-[11px] md:text-[10px] font-bold tabular-nums text-content-tertiary/60">
-													{dateLabel}
+										<div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle/20 pt-3">
+											<div className="flex items-center gap-2 overflow-hidden">
+												<p className="truncate text-[12px] md:text-[11px] font-medium text-content-tertiary">
+													{host}
 												</p>
-											) : null}
+												{dateLabel ? (
+													<>
+														<span className="text-[10px] text-content-tertiary/40">•</span>
+														<p className="shrink-0 text-[11px] md:text-[10px] font-bold tabular-nums text-content-tertiary/60">
+															{dateLabel}
+														</p>
+													</>
+												) : null}
+											</div>
+											<div className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-accent opacity-90 transition-opacity group-hover:opacity-100">
+												<span>Open source</span>
+												<ExternalLink className="size-3" />
+											</div>
 										</div>
 									</div>
 								</a>
