@@ -1088,10 +1088,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									statusText={statusText}
 								/>
 							</div>
-							{shareContext && !busy ? (
+							{(shareContext || (!isAuthed && phase === "complete" && messages.length > 0)) && !busy ? (
 								<ShareResultBar
-									conversationId={shareContext.conversationId}
-									messageId={shareContext.messageId}
+									conversationId={shareContext?.conversationId}
+									messageId={shareContext?.messageId}
 									onGuestClick={() => {
 										router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
 									}}
