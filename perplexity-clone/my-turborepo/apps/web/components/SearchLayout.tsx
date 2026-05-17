@@ -1,7 +1,7 @@
 // SSE boundary fix: robust parsing of LF/CRLF
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Sparkles, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -829,18 +829,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			setStreamingCitations([]);
 		} catch (e: unknown) {
 			if (e instanceof DOMException && e.name === "AbortError") {
-				try {
-					logProductEvent({
-						event: "search_failed",
-						surface: "search",
-						userType: sessionStatus === "authenticated" ? "signed_in" : "guest",
-						queryLength: query.length,
-						errorCode: `phase:${phase}|code:ABORTED`,
-					});
-				} catch {
-					// ignore analytics
-				}
-
+				// A client-side abort (user navigated away, submitted new query, etc)
+				// is an expected cancellation, NOT a system failure. Do not log search_failed.
 				setPhase("idle");
 				setErrorMessage(null);
 				setErrorCode(null);
@@ -1406,6 +1396,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 													Switch to Standard Search
 												</button>
 											) : null}
+										</div>
+									) : limitErrorAction === null &&
+									  errorCode !== "ANONYMOUS_QUOTA_EXCEEDED" &&
+									  errorCode !== "SIGNIN_DEEP" &&
+									  !(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") &&
+									  errorCode !== "SIGNIN_FOLLOWUP" ? (
+										<div className="mt-3">
+											<button
+												type="button"
+												onClick={() => {
+													void runSearch();
+												}}
+												className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-100/50 px-4 py-2 text-sm font-medium text-red-900 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+											>
+												<RotateCw className="mr-2 size-4" />
+												Retry Search
+											</button>
 										</div>
 									) : null}
 								</div>
