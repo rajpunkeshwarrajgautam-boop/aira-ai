@@ -980,8 +980,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											? statusText
 											: showConversationEmpty
 												? isAuthed
-													? "Grounded answers with citations—switch to Deep Research when you need more depth."
-													: "Ask below and get an answer with web citations. No account needed to try standard search."
+													? "Persistent research threads with live web citations. Switch to Deep Research for comprehensive reports."
+													: "Get answers grounded with live web citations. No account required."
 												: "Persistent threads with live web citations."}
 									</p>
 								</div>
@@ -1239,7 +1239,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							{!isAuthed ? (
 								<p className="text-center text-xs leading-relaxed text-content-tertiary">
 									<span className="text-content-secondary">
-										Guest mode: a few standard searches per day.{" "}
+										Guest mode: 5 free searches per day.{" "}
 									</span>
 									<Link
 										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
@@ -1279,10 +1279,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								isBusy={busy}
 								placeholder={
 									!isAuthed
-										? "Ask anything — Enter to search (live citations, no account required)"
+										? "Ask anything..."
 										: messages.length > 0
 											? "Send a follow-up…"
-											: "Ask anything — Press Enter to search"
+											: "Ask anything..."
 								}
 							/>
 							{isAuthed ? (
