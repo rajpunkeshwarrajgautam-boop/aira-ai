@@ -150,14 +150,25 @@ function hostnameOf(url: string): string {
 	}
 }
 
+/**
+ * Strip trailing punctuation characters that can appear when a search provider
+ * appends a URL inside prose — e.g. "see https://example.com/page,"
+ * Characters stripped (from the END only): , . ; : ) ] " ' \u2019 \u2018 \u201d \u201c
+ * Query params, paths, and fragments are untouched.
+ */
+function stripTrailingUrlPunctuation(url: string): string {
+	return url.replace(/[,.:;)"'\u2019\u2018\u201d\u201c\]]+$/, "");
+}
+
 function normalizeCanonicalUrl(url: string): string {
+	const cleaned = stripTrailingUrlPunctuation(url.trim());
 	try {
-		const u = new URL(url);
+		const u = new URL(cleaned);
 		u.hash = "";
 		u.pathname = u.pathname.replace(/\/$/, "") || "/";
 		return u.toString();
 	} catch {
-		return url.trim();
+		return cleaned;
 	}
 }
 

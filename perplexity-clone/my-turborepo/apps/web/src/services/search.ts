@@ -103,9 +103,14 @@ function safeTitle(hit: ExaSearchHit, fallbackUrl: string): string {
 	}
 }
 
+/** Strip trailing punctuation that providers occasionally append inside prose URLs. */
+function stripTrailingUrlPunctuation(url: string): string {
+	return url.replace(/[,.:;)"'\u2019\u2018\u201d\u201c\]]+$/, "");
+}
+
 export function mapExaHitsToSourceCandidates(hits: readonly ExaSearchHit[]): SourceCandidate[] {
 	return hits.map((hit, originalRank) => {
-		const url = hit.url.trim();
+		const url = stripTrailingUrlPunctuation(hit.url.trim());
 		return {
 			url,
 			title: safeTitle(hit, url),
