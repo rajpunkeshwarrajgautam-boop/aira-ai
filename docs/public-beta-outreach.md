@@ -1,7 +1,7 @@
 # Public beta outreach pack
 
 **Live app:** https://perplexity-clone-saas.vercel.app  
-**Positioning (accurate):** AI research engine with **web citations**, **Deep Research** (signed-in), and **shareable read-only report links** (signed-in).  
+**Positioning (accurate):** AiraAI with **web citations**, **Deep Research** (signed-in), and **shareable read-only report links** (signed-in).
 **Scope:** Draft copy only—do not auto-post. Tailor for each community’s rules; avoid drive-by links and mass DMs.
 
 ---
@@ -18,7 +18,7 @@
 
 ## Short product description (for reuse)
 
-**Perplexity-clone (beta)** is a web app for **grounded research**: you ask a question, it streams an answer and pulls in **citations from the open web** so you can verify sources. **Standard search** works without an account (with a small guest limit). **Deep Research** and **shareable public report pages** need a **free sign-in**. We’re in **public beta** and want **real feedback** from people running **one genuine research query** (work or learning—not a toy prompt).
+**AiraAI (beta)** is a web app for **grounded research**: you ask a question, it streams an answer and pulls in **citations from the open web** so you can verify sources. **Standard search** works without an account (with a small guest limit). **Deep Research** and **shareable public report pages** need a **free sign-in**. We’re in **public beta** and want **real feedback** from people running **one genuine research query** (work or learning—not a toy prompt).
 
 ---
 
