@@ -1,7 +1,7 @@
 // SSE boundary fix: robust parsing of LF/CRLF
 "use client";
 
-import { Sparkles, RotateCw } from "lucide-react";
+import { Sparkles, RotateCw, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -175,6 +175,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		readonly conversationId: string;
 		readonly messageId: string;
 	} | null>(null);
+
+	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
 	const showAssistantSkeleton = useMemo(
 		() =>
@@ -930,7 +932,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							</div>
 						</div>
 					</div>
-					<header className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 py-6 md:px-8 md:py-8">
+					<header className={cn(
+						"mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 transition-all duration-300",
+						showConversationEmpty ? "py-10 md:py-16" : "py-6 md:py-8"
+					)}>
 						{billing && sessionStatus === "authenticated" ? (
 							<div
 								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-3xl border border-border-subtle bg-surface-elevated/75 px-4 py-3 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
@@ -959,15 +964,37 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						) : null}
 						<div className="flex items-center justify-between gap-3">
 							<div className="flex min-w-0 flex-1 items-center gap-3">
-								<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-glass ring-1 ring-white/25">
-									<Sparkles className="size-5" aria-hidden />
-								</div>
+								{isAuthed ? (
+									<>
+										<button
+											type="button"
+											onClick={() => setMobileSidebarOpen(true)}
+											className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border-subtle bg-surface-elevated/80 text-content-primary shadow-panel backdrop-blur-sm md:hidden hover:bg-surface-elevated active:scale-95 transition-transform"
+											aria-label="Open conversation list"
+										>
+											<Menu className="size-5" />
+										</button>
+										<div className={cn(
+											"hidden shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-glass ring-1 ring-white/25 md:flex transition-all duration-300",
+											showConversationEmpty ? "size-12 md:size-14" : "size-11"
+										)}>
+											<Sparkles className={cn(showConversationEmpty ? "size-6 md:size-7" : "size-5")} aria-hidden />
+										</div>
+									</>
+								) : (
+									<div className={cn(
+										"flex shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-glass ring-1 ring-white/25 transition-all duration-300",
+										showConversationEmpty ? "size-14 md:size-16" : "size-11"
+									)}>
+										<Sparkles className={cn(showConversationEmpty ? "size-6 md:size-8" : "size-5")} aria-hidden />
+									</div>
+								)}
 								<div className="min-w-0">
 									<h1
 										className={cn(
-											"font-semibold tracking-tight text-content-primary",
+											"font-semibold tracking-tight text-content-primary transition-all duration-300",
 											showConversationEmpty
-												? "text-lg md:text-2xl"
+												? "text-3xl md:text-4xl font-extrabold"
 												: "truncate text-lg md:text-xl",
 										)}
 									>
@@ -1002,51 +1029,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</header>
 
 					<div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 pb-8 md:px-8">
-						{isAuthed ? (
-							<div className="md:hidden">
-								<div className="flex items-center gap-3">
-									<select
-										className="flex-1 rounded-3xl border border-border-subtle/80 bg-surface-elevated/90 p-3 text-sm text-content-primary shadow-panel backdrop-blur-sm md:backdrop-blur-md"
-										value={selectedConversationId ?? ""}
-										onChange={(e) => {
-											const v = e.target.value;
-											if (v) void onSelectConversation(v);
-										}}
-										disabled={conversations.length === 0 || busy}
-									>
-										<option value="" disabled>
-											Select conversation
-										</option>
-										{conversations.map((c) => (
-											<option key={c.id} value={c.id}>
-												{c.title}
-											</option>
-										))}
-									</select>
-
-									<button
-										type="button"
-										onClick={() => void onCreateConversation()}
-										disabled={busy}
-										className={cn(
-											"h-11 w-11 shrink-0 rounded-2xl bg-accent/15 text-accent shadow-panel ring-1 ring-accent/25 backdrop-blur-sm",
-											"hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-											"disabled:opacity-40 disabled:pointer-events-none",
-										)}
-										aria-label="New conversation"
-									>
-										<span className="text-lg font-semibold" aria-hidden>
-											+
-										</span>
-									</button>
-								</div>
-							</div>
+						{isAuthed && showConversationEmpty ? (
+							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
 
-						{isAuthed ? <ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} /> : null}
-
 						<div
-							className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl order-4 md:order-none"
+							className={cn(
+								"flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl",
+								showConversationEmpty ? "order-4 md:order-none" : "order-1 md:order-none"
+							)}
 							aria-busy={busy}
 						>
 							<div className="min-h-0 flex-1 overflow-y-auto">
@@ -1136,7 +1127,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											: ""}
 						</p>
 
-						<div className="flex flex-col gap-3 order-3 md:order-none">
+						<div
+							className={cn(
+								"flex flex-col gap-3",
+								showConversationEmpty
+									? "order-3 md:order-none"
+									: "order-2 md:order-none sticky bottom-0 z-20 -mx-4 bg-surface/95 px-4 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none"
+							)}
+						>
 							<div className="flex flex-col sm:flex-row gap-3">
 								<div
 									className={cn(
@@ -1435,6 +1433,43 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</footer>
 				</main>
 			</div>
+
+			{isAuthed && mobileSidebarOpen ? (
+				<div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true">
+					<div
+						className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+						onClick={() => setMobileSidebarOpen(false)}
+					/>
+					<div className="relative flex w-[300px] max-w-[85vw] flex-col bg-surface shadow-glass animate-in slide-in-from-left duration-300 ease-out ring-1 ring-black/5">
+						<div className="flex h-14 items-center justify-between border-b border-border-subtle/80 px-4">
+							<span className="font-semibold text-content-primary">Menu</span>
+							<button
+								type="button"
+								onClick={() => setMobileSidebarOpen(false)}
+								className="rounded-lg p-1.5 text-content-secondary hover:bg-surface-inset active:scale-95 transition-transform"
+								aria-label="Close menu"
+							>
+								<X className="size-5" />
+							</button>
+						</div>
+						<div className="flex-1 overflow-y-auto p-4">
+							<ConversationSidebar
+								conversations={conversations}
+								selectedConversationId={selectedConversationId}
+								onSelectConversation={(id) => {
+									void onSelectConversation(id);
+									setMobileSidebarOpen(false);
+								}}
+								onCreateConversation={() => {
+									void onCreateConversation();
+									setMobileSidebarOpen(false);
+								}}
+								disabled={busy}
+							/>
+						</div>
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

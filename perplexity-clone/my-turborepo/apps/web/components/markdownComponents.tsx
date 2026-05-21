@@ -33,6 +33,8 @@ function CitationPreviewPopover({
 	{ citations: readonly CitationItem[]; href: string } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href">
 >) {
 	const [open, setOpen] = useState(false);
+	const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+	const anchorRef = useRef<HTMLSpanElement>(null);
 	const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const sourceIndex = citationIndexFromFragmentHref(href);
@@ -59,6 +61,29 @@ function CitationPreviewPopover({
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [open]);
+
+	useEffect(() => {
+		if (!open || !anchorRef.current) return;
+		const rect = anchorRef.current.getBoundingClientRect();
+		const viewportWidth = window.innerWidth;
+		const popoverWidth = 288; // matches w-72 (288px)
+
+		let leftOffset = -popoverWidth / 2 + rect.width / 2;
+
+		const leftBoundary = rect.left + leftOffset;
+		const rightBoundary = rect.left + leftOffset + popoverWidth;
+
+		if (leftBoundary < 12) {
+			leftOffset += (12 - leftBoundary);
+		} else if (rightBoundary > viewportWidth - 12) {
+			leftOffset -= (rightBoundary - (viewportWidth - 12));
+		}
+
+		setPopoverStyle({
+			left: `${rect.width / 2}px`,
+			transform: `translateX(calc(-50% + ${leftOffset}px))`,
+		});
 	}, [open]);
 
 	const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -103,6 +128,7 @@ function CitationPreviewPopover({
 
 	return (
 		<span
+			ref={anchorRef}
 			className="relative inline-block"
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}
@@ -119,6 +145,7 @@ function CitationPreviewPopover({
 			</a>
 			{open ? (
 				<span
+					style={popoverStyle}
 					className="absolute bottom-full left-1/2 z-50 mb-2 flex w-72 -translate-x-1/2 flex-col rounded-2xl border border-border-subtle/60 bg-surface-elevated/95 p-4 shadow-glass backdrop-blur-md"
 					role="tooltip"
 				>

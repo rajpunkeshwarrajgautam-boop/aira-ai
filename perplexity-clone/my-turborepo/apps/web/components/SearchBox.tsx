@@ -79,8 +79,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		>
 			<div
 				className={cn(
-					"relative overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/90 shadow-glass ring-1 ring-white/50 backdrop-blur-sm transition-all duration-300 md:bg-surface-elevated/80 md:backdrop-blur-xl",
-					"focus-within:border-accent/45 focus-within:shadow-[0_0_0_4px_hsl(var(--accent)/0.12),0_12px_40px_-8px_hsl(217_50%_50%_/_0.12)]",
+					"relative overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/90 shadow-glass ring-1 ring-white/50 backdrop-blur-sm transition-all duration-200 md:bg-surface-elevated/80 md:backdrop-blur-xl",
+					"focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 focus-within:shadow-glass",
 					busy && "opacity-90",
 				)}
 			>
@@ -126,7 +126,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						type="submit"
 						disabled={busy || !value.trim()}
 						size="icon"
-						className="size-11 md:size-10 rounded-2xl shadow-md shadow-accent/20"
+						className="size-11 md:size-10 rounded-2xl shadow-md shadow-accent/20 hover:scale-[1.04] active:scale-[0.96] transition-transform duration-150 disabled:scale-100 disabled:opacity-40 disabled:pointer-events-none"
 						aria-label="Submit question"
 					>
 						{isBusy ? (

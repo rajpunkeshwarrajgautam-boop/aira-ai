@@ -217,7 +217,7 @@ export function ConversationMessageList({
 
 					<div
 						className={cn(
-							"flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-accent/20 bg-surface-elevated/55 px-4 py-8 text-center shadow-panel backdrop-blur-sm sm:px-8 md:gap-8 md:py-16 md:backdrop-blur-md",
+							"flex flex-col items-center justify-center gap-4 rounded-3xl border border-border-subtle bg-surface-elevated/40 px-4 py-8 text-center shadow-glass backdrop-blur-md sm:px-8 md:gap-8 md:py-16",
 							isAuthed && "border-none bg-transparent py-4 md:py-4 shadow-none backdrop-blur-none",
 						)}
 						role="status"
@@ -245,8 +245,9 @@ export function ConversationMessageList({
 											type="button"
 											onClick={() => onPickExample(q)}
 											className={cn(
-												"w-full rounded-2xl border border-border-subtle/80 bg-surface-elevated/80 px-5 py-4 text-left text-sm text-content-primary shadow-panel backdrop-blur-sm transition md:backdrop-blur-md",
-												"hover:border-accent/40 hover:bg-accent/5 hover:shadow-float",
+												"w-full rounded-2xl border border-border-subtle bg-surface-elevated/90 px-5 py-4 text-left text-sm text-content-primary shadow-sm backdrop-blur-sm transition-all duration-200 md:backdrop-blur-md",
+												"hover:border-accent/40 hover:bg-surface-elevated hover:shadow-md hover:translate-y-[-1px] hover:scale-[1.005]",
+												"active:scale-[0.99] active:translate-y-0",
 												"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
 											)}
 										>
