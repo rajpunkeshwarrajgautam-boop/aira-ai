@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Research — grounded answers",
+  title: "AiraAI — grounded answers with live citations",
   description:
     "Ask questions and get answers with live web citations. Try standard search without an account; sign in to save threads, run Deep Research, and share results.",
 };

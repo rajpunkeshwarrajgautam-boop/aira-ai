@@ -999,7 +999,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										)}
 									>
 										{showConversationEmpty
-											? "AI Research Engine"
+											? "AiraAI"
 											: (selectedConversationTitle ?? "Research")}
 									</h1>
 									<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">

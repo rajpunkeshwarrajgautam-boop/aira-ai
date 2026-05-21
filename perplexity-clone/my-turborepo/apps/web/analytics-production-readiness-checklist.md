@@ -1,4 +1,4 @@
-# Analytics & launch readiness checklist (Perplexity clone SaaS)
+# Analytics & launch readiness checklist (AiraAI)
 
 ## 1) Analytics data model deployed
 1. Prisma schema contains:
