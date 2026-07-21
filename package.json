@@ -1,22 +1,15 @@
 {
 	"packageManager": "pnpm@10.28.1",
-	"dependencies": {
-		"@prisma/client": "^7.8.0",
-		"ai": "^6.0.169",
-		"axios": "^1.15.2",
-		"dotenv": "^17.4.2",
-		"ioredis": "^5.10.1",
-		"next-auth": "^4.24.14",
-		"openai": "^6.35.0",
-		"prisma": "^7.8.0",
-		"stripe": "^22.1.0",
-		"zod": "^4.3.6"
-	},
 	"scripts": {
-		"build": "turbo run build --filter=web"
+		"build": "turbo run build --filter=web",
+		"lint": "turbo run lint --filter=web",
+		"check-types": "turbo run check-types --filter=web",
+		"audit:prod": "pnpm audit --prod",
+		"ci": "pnpm run audit:prod && pnpm run lint && pnpm run check-types && pnpm run build"
 	},
 	"devDependencies": {
-		"next": "16.2.0",
+		"dotenv": "^17.4.2",
+		"prisma": "^7.9.0",
 		"turbo": "^2.9.6"
 	}
 }

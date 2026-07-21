@@ -7,7 +7,7 @@ import {
 	type RankingOptions,
 	type SourceCandidate,
 } from "./citations";
-import { ProviderRouter, type ProviderOptions } from "./providers/provider-router";
+import { ProviderRouter } from "./providers/provider-router";
 import {
 	buildMultiEntityPromptInstruction,
 	buildSupplementaryQueries,

@@ -11,7 +11,7 @@ const GREETING_PATTERNS: ReadonlyArray<RegExp> = [
 	/^(gm|gn)\b[!.,\s]*$/i,
 	/^(ok|okay|k|cool|nice|great)[!.,\s]*$/i,
 	/^how are you\??[!.,\s]*$/i,
-	/^what\'?s up\??[!.,\s]*$/i,
+	/^what'?s up\??[!.,\s]*$/i,
 	/^sup\??[!.,\s]*$/i,
 ];
 

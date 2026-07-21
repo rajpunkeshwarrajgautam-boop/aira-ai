@@ -352,7 +352,7 @@ export async function streamDeepResearchAnswer(
 	let plan: PlanOutput;
 	try {
 		plan = PlanOutputSchema.parse(JSON.parse(extractJsonObject(planRaw)));
-	} catch (e) {
+	} catch {
 		throw new Error("Deep research planning failed: invalid JSON output.");
 	}
 
@@ -567,4 +567,3 @@ export async function streamDeepResearchAnswer(
 		textStream: stream(),
 	};
 }
-

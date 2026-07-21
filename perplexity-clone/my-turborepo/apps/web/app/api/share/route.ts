@@ -30,11 +30,9 @@ const BodySchema = z
 	);
 
 function buildBaseUrlFromRequest(req: Request): string {
-	// Works behind common proxies; falls back to host header.
-	const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-	if (!host) return "http://localhost:3000";
-	const proto = req.headers.get("x-forwarded-proto") ?? "https";
-	return `${proto}://${host}`;
+	const configured = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL;
+	if (configured) return new URL(configured).origin;
+	return new URL(req.url).origin;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -119,9 +117,13 @@ export async function POST(req: Request): Promise<Response> {
 			);
 		}
 		return Response.json(
-			{ error: { code: "INTERNAL_ERROR", message: msg } },
+			{
+				error: {
+					code: "INTERNAL_ERROR",
+					message: "Unable to create a share link.",
+				},
+			},
 			{ status: 500 },
 		);
 	}
 }
-

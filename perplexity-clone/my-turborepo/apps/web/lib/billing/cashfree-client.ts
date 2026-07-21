@@ -1,5 +1,7 @@
 import { getCashfreeConfig } from "./cashfree-config";
 
+const CASHFREE_REQUEST_TIMEOUT_MS = 20_000;
+
 export interface CashfreeCustomerDetails {
 	readonly customer_name: string;
 	readonly customer_email: string;
@@ -60,6 +62,7 @@ export async function cashfreeCreateSubscription(
 		method: "POST",
 		headers: cashfreeHeaders(),
 		body: JSON.stringify(body),
+		signal: AbortSignal.timeout(CASHFREE_REQUEST_TIMEOUT_MS),
 	});
 
 	const text = await res.text();
@@ -67,13 +70,11 @@ export async function cashfreeCreateSubscription(
 	try {
 		json = text ? JSON.parse(text) : {};
 	} catch {
-		throw new Error(`Cashfree create subscription: invalid JSON (${res.status}): ${text}`);
+		throw new Error(`Cashfree create subscription returned invalid JSON (${res.status}).`);
 	}
 
 	if (!res.ok) {
-		throw new Error(
-			`Cashfree create subscription failed (${res.status}): ${text}`,
-		);
+		throw new Error(`Cashfree create subscription failed (${res.status}).`);
 	}
 
 	return json as CashfreeSubscriptionEntity;
@@ -93,18 +94,17 @@ export async function cashfreeGetSubscription(
 			"x-client-id": cfg.clientId,
 			"x-client-secret": cfg.clientSecret,
 		},
+		signal: AbortSignal.timeout(CASHFREE_REQUEST_TIMEOUT_MS),
 	});
 
 	const text = await res.text();
 	if (!res.ok) {
-		throw new Error(
-			`Cashfree get subscription failed (${res.status}): ${text}`,
-		);
+		throw new Error(`Cashfree get subscription failed (${res.status}).`);
 	}
 
 	try {
 		return text ? (JSON.parse(text) as CashfreeSubscriptionEntity) : {};
 	} catch {
-		throw new Error(`Cashfree get subscription: invalid JSON: ${text}`);
+		throw new Error("Cashfree get subscription returned invalid JSON.");
 	}
 }

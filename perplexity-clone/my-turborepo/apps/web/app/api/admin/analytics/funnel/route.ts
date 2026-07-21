@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { requireAnalyticsAdmin } from "@/lib/analytics/admin";
+import {
+	analyticsAdminDeniedResponse,
+	requireAnalyticsAdmin,
+} from "@/lib/analytics/admin";
 import { getConversionFunnel } from "@/lib/analytics/analytics-metrics";
 
 export const runtime = "nodejs";
@@ -11,8 +14,11 @@ const QuerySchema = z.object({
 });
 
 export async function GET(req: Request): Promise<Response> {
-	const session = await requireAnalyticsAdmin();
-	void session;
+	try {
+		await requireAnalyticsAdmin();
+	} catch {
+		return analyticsAdminDeniedResponse();
+	}
 
 	const url = new URL(req.url);
 	const parsed = QuerySchema.safeParse({ days: url.searchParams.get("days") });
@@ -30,4 +36,3 @@ export async function GET(req: Request): Promise<Response> {
 	const funnel = await getConversionFunnel({ from, to: now });
 	return Response.json({ funnel });
 }
-

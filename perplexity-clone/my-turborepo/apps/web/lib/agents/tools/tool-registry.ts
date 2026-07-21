@@ -1,34 +1,43 @@
 import { z } from "zod";
 
-export interface AgentTool<TInput = any, TOutput = any> {
+export interface AgentTool<TInput = unknown, TOutput = unknown, TContext = unknown> {
 	name: string;
 	description: string;
 	category: string;
 	requiresAuth: boolean;
 	requiresPermission: boolean;
 	inputSchema: z.ZodType<TInput>;
-	execute: (input: TInput, context?: any) => Promise<TOutput>;
+	execute: (input: TInput, context?: TContext) => Promise<TOutput>;
 }
 
 export class ToolRegistry {
-	private tools = new Map<string, AgentTool>();
+	private tools = new Map<string, AgentTool<unknown, unknown, unknown>>();
 
-	registerTool(tool: AgentTool) {
+	registerTool<TInput, TOutput, TContext = unknown>(
+		tool: AgentTool<TInput, TOutput, TContext>,
+	) {
 		if (this.tools.has(tool.name)) {
 			console.warn(`Tool ${tool.name} is already registered. Overwriting.`);
 		}
-		this.tools.set(tool.name, tool);
+		this.tools.set(
+			tool.name,
+			tool as unknown as AgentTool<unknown, unknown, unknown>,
+		);
 	}
 
-	getTool(name: string): AgentTool | undefined {
+	getTool(name: string): AgentTool<unknown, unknown, unknown> | undefined {
 		return this.tools.get(name);
 	}
 
-	getAllTools(): AgentTool[] {
+	getAllTools(): AgentTool<unknown, unknown, unknown>[] {
 		return Array.from(this.tools.values());
 	}
 
-	async executeTool(name: string, input: unknown, context?: any): Promise<any> {
+	async executeTool<TOutput = unknown, TContext = unknown>(
+		name: string,
+		input: unknown,
+		context?: TContext,
+	): Promise<TOutput> {
 		const tool = this.tools.get(name);
 		if (!tool) {
 			throw new Error(`Tool ${name} not found in registry.`);
@@ -43,7 +52,7 @@ export class ToolRegistry {
 		// Security step wrapper (auth/permissions would be checked here in higher layers)
 		try {
 			const result = await tool.execute(parsedInput.data, context);
-			return result;
+			return result as TOutput;
 		} catch (error) {
 			console.error(`Error executing tool ${name}:`, error);
 			throw error;

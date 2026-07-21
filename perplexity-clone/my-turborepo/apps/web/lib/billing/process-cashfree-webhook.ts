@@ -1,14 +1,16 @@
 import { createHash } from "node:crypto";
 
 import { BillingPlan, SubscriptionStatus } from "@/generated/prisma/enums";
+import { trackUpgradeCompletedEvent } from "@/lib/analytics/analytics-service";
 import { prisma } from "@/lib/prisma";
-import { mapCashfreeStatusToPrisma } from "./subscription-sync";
 
 import { cashfreeGetSubscription } from "./cashfree-client";
 import { resolveCashfreeWebhookSecret } from "./cashfree-config";
-import { syncSubscriptionFromCashfreeEntity } from "./subscription-sync";
+import {
+	mapCashfreeStatusToPrisma,
+	syncSubscriptionFromCashfreeEntity,
+} from "./subscription-sync";
 import { verifyCashfreeWebhookSignature } from "./webhook-verify";
-import { trackUpgradeCompletedEvent } from "@/lib/analytics/analytics-service";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
 	if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -55,32 +57,36 @@ function teamSeatsFromTags(
 	return Number.isFinite(n) ? n : undefined;
 }
 
-export async function handleCashfreeWebhookRequest(req: Request): Promise<Response> {
-	const rawBody = await req.text();
-	const secret = resolveCashfreeWebhookSecret();
-	if (!verifyCashfreeWebhookSignature(rawBody, req.headers, secret)) {
-		return new Response("Invalid signature", { status: 400 });
-	}
+function isUniqueConstraintError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as { readonly code?: unknown }).code === "P2002"
+	);
+}
 
-	const dedupeId = createHash("sha256").update(rawBody).digest("hex");
+async function claimWebhook(dedupeId: string): Promise<boolean> {
 	try {
 		await prisma.processedCashfreeWebhook.create({ data: { id: dedupeId } });
-	} catch {
-		return new Response("OK", { status: 200 });
+		return true;
+	} catch (error) {
+		if (isUniqueConstraintError(error)) return false;
+		throw error;
 	}
+}
 
-	let parsed: unknown;
+async function releaseWebhookClaim(dedupeId: string): Promise<void> {
 	try {
-		parsed = JSON.parse(rawBody);
-	} catch {
-		return new Response("Invalid JSON", { status: 400 });
+		await prisma.processedCashfreeWebhook.delete({ where: { id: dedupeId } });
+	} catch (error) {
+		console.error("[billing:webhook] Failed to release webhook claim", error);
 	}
+}
 
-	const merchantId = extractMerchantSubscriptionId(parsed);
-	if (!merchantId) {
-		return new Response("OK", { status: 200 });
-	}
-
+async function processVerifiedCashfreeWebhook(
+	merchantId: string,
+): Promise<void> {
 	const local = await prisma.billingSubscription.findUnique({
 		where: { merchantSubscriptionId: merchantId },
 	});
@@ -88,13 +94,9 @@ export async function handleCashfreeWebhookRequest(req: Request): Promise<Respon
 	const remote = await cashfreeGetSubscription(merchantId);
 	const tagUserId = remote.subscription_tags?.app_user_id;
 	const userId = local?.userId ?? tagUserId;
-	if (!userId) {
-		return new Response("OK", { status: 200 });
-	}
+	if (!userId) return;
 
-	if (local && local.userId !== userId) {
-		return new Response("OK", { status: 200 });
-	}
+	if (local && local.userId !== userId) return;
 
 	const fallback = local?.plan ?? fallbackPlanFromTags(remote.subscription_tags);
 	const seats = teamSeatsFromTags(remote.subscription_tags);
@@ -116,6 +118,38 @@ export async function handleCashfreeWebhookRequest(req: Request): Promise<Respon
 			userId,
 			plan: fallback,
 		});
+	}
+}
+
+export async function handleCashfreeWebhookRequest(req: Request): Promise<Response> {
+	const rawBody = await req.text();
+	const secret = resolveCashfreeWebhookSecret();
+	if (!verifyCashfreeWebhookSignature(rawBody, req.headers, secret)) {
+		return new Response("Invalid signature", { status: 400 });
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(rawBody);
+	} catch {
+		return new Response("Invalid JSON", { status: 400 });
+	}
+
+	const merchantId = extractMerchantSubscriptionId(parsed);
+	if (!merchantId) {
+		return new Response("OK", { status: 200 });
+	}
+
+	const dedupeId = createHash("sha256").update(rawBody).digest("hex");
+	const claimed = await claimWebhook(dedupeId);
+	if (!claimed) return new Response("OK", { status: 200 });
+
+	try {
+		await processVerifiedCashfreeWebhook(merchantId);
+	} catch (error) {
+		// A failed claim must be released so Cashfree's next retry can process it.
+		await releaseWebhookClaim(dedupeId);
+		throw error;
 	}
 
 	return new Response("OK", { status: 200 });

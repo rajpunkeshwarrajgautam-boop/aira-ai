@@ -31,3 +31,9 @@ export async function requireAnalyticsAdmin(): Promise<{ readonly userId: string
 	throw new Error("ANALYTICS_ADMIN_REQUIRED");
 }
 
+export function analyticsAdminDeniedResponse(): Response {
+	return Response.json(
+		{ error: { code: "FORBIDDEN", message: "Not found." } },
+		{ status: 403, headers: { "Cache-Control": "no-store" } },
+	);
+}

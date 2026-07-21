@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "./ui/button";
-import { cn } from "../lib/cn";
 
 export interface SignInPanelProps {
 	readonly showGoogle: boolean;
