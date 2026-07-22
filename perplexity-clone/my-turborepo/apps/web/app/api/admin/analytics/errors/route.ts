@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { requireAnalyticsAdmin } from "@/lib/analytics/admin";
+import {
+	analyticsAdminDeniedResponse,
+	requireAnalyticsAdmin,
+} from "@/lib/analytics/admin";
 import { prisma } from "@/lib/prisma";
 import { AnalyticsEventType } from "@/generated/prisma/enums";
 
@@ -12,8 +15,11 @@ const QuerySchema = z.object({
 });
 
 export async function GET(req: Request): Promise<Response> {
-	const session = await requireAnalyticsAdmin();
-	void session;
+	try {
+		await requireAnalyticsAdmin();
+	} catch {
+		return analyticsAdminDeniedResponse();
+	}
 
 	const url = new URL(req.url);
 	const parsed = QuerySchema.safeParse({ limit: url.searchParams.get("limit") });
@@ -47,4 +53,3 @@ export async function GET(req: Request): Promise<Response> {
 
 	return Response.json({ events });
 }
-

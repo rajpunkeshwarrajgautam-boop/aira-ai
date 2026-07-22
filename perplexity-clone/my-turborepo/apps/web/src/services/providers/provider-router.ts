@@ -19,6 +19,19 @@ export interface AIProvider {
 	): AsyncGenerator<string, void, undefined>;
 }
 
+function errorMessage(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	return String(error);
+}
+
+function errorStatus(error: unknown): number | undefined {
+	if (typeof error !== "object" || error === null || !("status" in error)) {
+		return undefined;
+	}
+	const status = (error as { readonly status?: unknown }).status;
+	return typeof status === "number" ? status : undefined;
+}
+
 export class ProviderRouter {
 	private readonly providers: Map<string, AIProvider> = new Map();
 
@@ -67,12 +80,12 @@ export class ProviderRouter {
 			try {
 				yield* primary.generateTextStream(messages, options);
 				return; // Success, exit
-			} catch (error: any) {
-				const errorStr = String(error?.message || error).toLowerCase();
-				const isQuotaError =
-					errorStr.includes("insufficient_quota") ||
-					errorStr.includes("429") ||
-					error?.status === 429 ||
+				} catch (error: unknown) {
+					const errorStr = errorMessage(error).toLowerCase();
+					const isQuotaError =
+						errorStr.includes("insufficient_quota") ||
+						errorStr.includes("429") ||
+						errorStatus(error) === 429 ||
 					errorStr.includes("limit_reached");
 
 				if (isQuotaError && fallback) {

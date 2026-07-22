@@ -1,8 +1,10 @@
 import { z } from "zod";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { globalToolRegistry } from "../tools/tool-registry";
 import { ProviderRouter } from "../../../src/services/providers/provider-router";
 import type { DeepResearchInput, DeepResearchStreamResult } from "../../../src/services/deep-research";
-import type { RankedSource } from "../../../src/services/citations";
+import type { RankedSource, SourceCandidate } from "../../../src/services/citations";
+import type { ExaSearchExecutionResult } from "../../../src/services/search";
 
 const PlanOutputSchema = z.object({
 	subQueries: z.array(z.string().min(3).max(200)).min(2).max(5),
@@ -31,7 +33,10 @@ export class ResearchOrchestrator {
 		if (isMath || isCalculatorRequested) {
 			console.log("[Orchestrator] Detected math/calculator intent. Executing calculator tool.");
 			try {
-				const mathResult = await globalToolRegistry.executeTool("calculator", { expression: input.query });
+					const mathResult = await globalToolRegistry.executeTool<{ result: number }>(
+						"calculator",
+						{ expression: input.query },
+					);
 				
 				async function* mathResultStream() {
 					yield `The result of your calculation is: **${mathResult.result}**\n\nI used the deterministic calculator tool to ensure accuracy.`;
@@ -64,7 +69,10 @@ export class ResearchOrchestrator {
 				if (isPart1Math) {
 					console.log("[Orchestrator] Step 1: Math Calculation");
 					try {
-						const mathResult = await globalToolRegistry.executeTool("calculator", { expression: part1 });
+							const mathResult = await globalToolRegistry.executeTool<{ result: number }>(
+								"calculator",
+								{ expression: part1 },
+							);
 						console.log("[Orchestrator] Step 2: Research based on math result");
 						
 						const enrichedQuery = `${part2} (Note: previous calculation result was ${mathResult.result})`;
@@ -93,13 +101,13 @@ export class ResearchOrchestrator {
 
 		// 1. Planning Phase
 		console.log("[Orchestrator] Phase 1: Planning");
-		const planningMessages = [
+		const planningMessages: ChatCompletionMessageParam[] = [
 			{ role: "system", content: "You are a research planner. Propose 3-5 sub-queries to answer the user's question. Return JSON only: { \"subQueries\": string[], \"answerOutline\": string[] }" },
 			{ role: "user", content: `Question: ${input.query}` }
 		];
 
 
-		const streamPlan = router.streamChat(planningMessages as any, { temperature: 0.2, abortSignal });
+		const streamPlan = router.streamChat(planningMessages, { temperature: 0.2, abortSignal });
 		let planRaw = "";
 		for await (const part of streamPlan) {
 			planRaw += part;
@@ -126,17 +134,17 @@ export class ResearchOrchestrator {
 	): Promise<DeepResearchStreamResult> {
 		// 2. Execution Phase (Tools)
 		console.log(`[Orchestrator] Phase 2: Executing ${plan.subQueries.length} tool calls`);
-		const allCandidates: any[] = [];
+		const allCandidates: SourceCandidate[] = [];
 		
 		const searchPromises = plan.subQueries.map(async (sq) => {
 			if (abortSignal?.aborted) return;
 			try {
 				console.log(`[Orchestrator] Executing Tool: web_search for "${sq}"`);
-				const result = await globalToolRegistry.executeTool("web_search", { 
-					query: sq, 
-					numResults: 5 
-				});
-				allCandidates.push(...(result.candidates || []));
+				const result = await globalToolRegistry.executeTool<ExaSearchExecutionResult>(
+					"web_search",
+					{ query: sq, numResults: 5 },
+				);
+				allCandidates.push(...result.candidates);
 			} catch (error) {
 				console.error(`[Orchestrator] Tool execution failed for query "${sq}":`, error);
 			}
@@ -148,11 +156,13 @@ export class ResearchOrchestrator {
 		console.log("[Orchestrator] Phase 3: Processing and Ranking Sources");
 		let sources: RankedSource[] = [];
 		try {
-			const formatted = await globalToolRegistry.executeTool("citation_format", {
+			const formatted = await globalToolRegistry.executeTool<{
+				readonly rankedSources: RankedSource[];
+			}>("citation_format", {
 				candidates: allCandidates,
-				rankingOptions: { maxSources: 12 }
+				rankingOptions: { maxSources: 12 },
 			});
-			sources = formatted.rankedSources || [];
+			sources = formatted.rankedSources;
 		} catch (error) {
 			console.error("[Orchestrator] Source processing failed:", error);
 		}
@@ -173,13 +183,13 @@ Rules:
 - Place citations [1], [2], etc., immediately after the specific sentence or phrase they support.
 - Maintain high readability with proper spacing and professional tone.\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
 
-		const finalMessages = [
+		const finalMessages: ChatCompletionMessageParam[] = [
 			{ role: "system", content: systemPrompt },
 			{ role: "user", content: `Sources:\n${JSON.stringify(sources)}\n\nQuestion: ${input.query}\n\nOutline: ${plan.answerOutline.join(", ")}` }
 		];
 
 		async function* stream() {
-			yield* router.streamChat(finalMessages as any, { 
+				yield* router.streamChat(finalMessages, {
 				temperature: 0.2, 
 				abortSignal 
 			});

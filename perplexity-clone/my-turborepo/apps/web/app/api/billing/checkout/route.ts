@@ -118,10 +118,15 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: e.status },
 			);
 		}
-		const message = e instanceof Error ? e.message : "Checkout failed.";
+		console.error("[billing:checkout]", e);
 		return Response.json(
-			{ error: { code: "CHECKOUT_FAILED", message } },
-			{ status: 400 },
+			{
+				error: {
+					code: "CHECKOUT_FAILED",
+					message: "Checkout could not be started. Please retry.",
+				},
+			},
+			{ status: 502 },
 		);
 	}
 }

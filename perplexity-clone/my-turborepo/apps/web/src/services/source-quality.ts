@@ -67,6 +67,7 @@ const BLOG_SUBSTRINGS = ["medium.com", "substack.com", "dev.to", "hashnode.com"]
  * Domain/path heuristics only; first matching rule wins.
  */
 export function inferSourceQualityLabel(url: string, _title?: string): SourceQualityLabel {
+	void _title;
 	const { host, path } = hostAndPath(url);
 	if (!host) return "Unknown";
 

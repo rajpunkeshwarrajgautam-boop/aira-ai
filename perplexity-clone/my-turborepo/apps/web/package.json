@@ -9,25 +9,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
+    "precheck-types": "prisma generate --schema=../../../../prisma/schema.prisma",
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@repo/ui": "file:../../packages/ui",
     "@tailwindcss/typography": "^0.5.16",
     "autoprefixer": "^10.4.21",
-    "axios": "^1.15.2",
+    "axios": "^1.18.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.554.0",
-    "next": "16.2.0",
+    "next": "16.2.6",
     "next-auth": "^5.0.0-beta.30",
     "openai": "^6.35.0",
     "pg": "^8.16.0",
-    "prisma": "^7.8.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
@@ -45,6 +45,7 @@
     "@types/react-dom": "19.2.2",
     "eslint": "^9.39.1",
     "postcss": "^8.5.3",
+    "prisma": "^7.9.0",
     "typescript": "5.9.2"
   }
 }

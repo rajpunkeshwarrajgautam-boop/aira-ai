@@ -24,7 +24,6 @@ import {
 	ConversationSidebar,
 } from "./conversations/ConversationSidebar";
 import { ResearchHistoryPanel, type ResearchHistoryRow } from "./conversations/ResearchHistoryPanel";
-import { UsageIndicator } from "./UsageIndicator";
 import { ShareResultBar } from "./share/ShareResultBar";
 
 export type SearchPhase = "idle" | "connecting" | "streaming" | "complete" | "error";
@@ -426,7 +425,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				return;
 			}
 			const result = await globalCommandRegistry.parseAndExecute(q, {
-				conversationId: selectedConversationId,
+				conversationId: selectedConversationId ?? undefined,
 			});
 
 			if (!result) return;
@@ -452,12 +451,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			}
 
 			if (result.type === "action") {
-				if (result.payload?.mode === "deep") {
+				if ("mode" in result.payload && result.payload.mode === "deep") {
 					setResearchMode("deep");
 					currentMode = "deep";
-					q = result.payload.query?.trim() || "";
+					q = result.payload.query.trim();
 					if (!q) return;
-				} else if (result.payload?.action === "create_share") {
+				} else if (
+					"action" in result.payload &&
+					result.payload.action === "create_share"
+				) {
 					const shareBtns = document.querySelectorAll('button');
 					for (const btn of Array.from(shareBtns)) {
 						if (btn.textContent?.includes('Share') || btn.getAttribute('aria-label')?.includes('Share')) {
@@ -882,6 +884,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		refreshBilling,
 		router,
 		sessionStatus,
+		phase,
 	]);
 
 	const onSelectConversation = useCallback(

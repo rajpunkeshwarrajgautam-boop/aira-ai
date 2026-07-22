@@ -51,11 +51,15 @@ export async function POST(req: Request): Promise<Response> {
 		});
 		return Response.json({ ok: true });
 	} catch (e) {
-		const message =
-			e instanceof Error ? e.message : "Verification failed.";
+		console.error("[billing:verify]", e);
 		return Response.json(
-			{ error: { code: "VERIFY_FAILED", message } },
-			{ status: 400 },
+			{
+				error: {
+					code: "VERIFY_FAILED",
+					message: "Subscription verification could not be completed.",
+				},
+			},
+			{ status: 502 },
 		);
 	}
 }

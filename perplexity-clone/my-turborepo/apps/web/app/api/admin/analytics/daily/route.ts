@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { requireAnalyticsAdmin } from "@/lib/analytics/admin";
+import {
+	analyticsAdminDeniedResponse,
+	requireAnalyticsAdmin,
+} from "@/lib/analytics/admin";
 import { getDailyAnalyticsPoints } from "@/lib/analytics/analytics-metrics";
 
 export const runtime = "nodejs";
@@ -11,8 +14,11 @@ const QuerySchema = z.object({
 });
 
 export async function GET(req: Request): Promise<Response> {
-	const session = await requireAnalyticsAdmin();
-	void session; // only for auth/guard
+	try {
+		await requireAnalyticsAdmin();
+	} catch {
+		return analyticsAdminDeniedResponse();
+	}
 
 	const url = new URL(req.url);
 	const parsed = QuerySchema.safeParse({
@@ -29,4 +35,3 @@ export async function GET(req: Request): Promise<Response> {
 	const points = await getDailyAnalyticsPoints({ days });
 	return Response.json({ points });
 }
-

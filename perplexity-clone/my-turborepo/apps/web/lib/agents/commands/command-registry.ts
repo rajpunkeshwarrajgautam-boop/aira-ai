@@ -1,14 +1,25 @@
-export interface CommandResult {
-	type: "redirect" | "system_message" | "action" | "error";
-	payload: any;
-	message?: string;
+type CommandActionPayload =
+	| { readonly mode: "deep"; readonly query: string }
+	| { readonly action: "create_share"; readonly conversationId: string };
+
+export type CommandResult =
+	| { readonly type: "redirect"; readonly payload: string; readonly message?: string }
+	| { readonly type: "system_message"; readonly payload: null; readonly message?: string }
+	| { readonly type: "action"; readonly payload: CommandActionPayload; readonly message?: string }
+	| { readonly type: "error"; readonly payload: null; readonly message?: string };
+
+export interface CommandContext {
+	readonly conversationId?: string;
 }
 
 export interface AgentCommand {
 	name: string; // e.g. "/new"
 	description: string;
 	aliases?: string[];
-	execute: (args: string[], context?: any) => Promise<CommandResult> | CommandResult;
+	execute: (
+		args: string[],
+		context?: CommandContext,
+	) => Promise<CommandResult> | CommandResult;
 }
 
 export class CommandRegistry {
@@ -37,7 +48,10 @@ export class CommandRegistry {
 		return input.trim().startsWith("/");
 	}
 
-	async parseAndExecute(input: string, context?: any): Promise<CommandResult | null> {
+	async parseAndExecute(
+		input: string,
+		context?: CommandContext,
+	): Promise<CommandResult | null> {
 		const trimmed = input.trim();
 		if (!trimmed.startsWith("/")) {
 			return null;
@@ -108,7 +122,7 @@ globalCommandRegistry.registerCommand({
 globalCommandRegistry.registerCommand({
 	name: "/share",
 	description: "Generate a shareable link for the current conversation",
-	execute: (args, context) => {
+	execute: (_args, context) => {
 		if (!context?.conversationId) {
 			return { type: "error", payload: null, message: "No active conversation to share." };
 		}

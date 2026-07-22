@@ -319,9 +319,10 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					"@/lib/agents/tools/tool-registry"
 				);
 				await registerBuiltInTools();
-				const toolResult = await globalToolRegistry.executeTool("calculator", {
-					expression: mathExpression,
-				});
+				const toolResult = await globalToolRegistry.executeTool<{ result: number }>(
+					"calculator",
+					{ expression: mathExpression },
+				);
 				resultText = String(toolResult.result);
 			} catch {
 				// keep tryParseMathAnswer fallback
@@ -510,10 +511,14 @@ export async function POST(req: Request): Promise<Response> {
 		return await handleSearchPost(req);
 	} catch (error) {
 		console.error("SEARCH_ERROR:", error);
+		const message =
+			process.env.NODE_ENV === "development" && error instanceof Error
+				? error.message
+				: "Search could not be completed.";
 		return new Response(
 			JSON.stringify({
 				error: "Search failed",
-				message: error instanceof Error ? error.message : "unknown",
+				message,
 			}),
 			{
 				status: 500,
