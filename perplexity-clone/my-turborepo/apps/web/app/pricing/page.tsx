@@ -1,6 +1,5 @@
-"use client";
-
 import { Check, Sparkles, Zap, Shield } from "lucide-react";
+import Link from "next/link";
 import { cn } from "../../lib/cn";
 import { Button } from "../../components/ui/button";
 
@@ -10,9 +9,10 @@ const PLANS = [
 		price: "0",
 		description: "Great for occasional research",
 		features: [
-			"25 searches per month",
+			"250 searches per month",
 			"Standard search modes",
 			"Basic citations",
+			"Agent workspace preview",
 			"Community support",
 		],
 		buttonText: "Current Plan",
@@ -25,6 +25,7 @@ const PLANS = [
 		description: "For professionals and power users",
 		features: [
 			"2,000 searches per month",
+			"50 autonomous agent tasks per month",
 			"Deep Research access",
 			"Advanced citations & ranking",
 			"Priority support",
@@ -40,12 +41,13 @@ const PLANS = [
 		priceNote: "per user / month",
 		description: "For organizations and groups",
 		features: [
-			"10,000 searches per month",
+			"10,000 searches per seat / month",
+			"250 autonomous agent tasks per seat",
 			"Centralized billing",
 			"Team-wide research history",
 			"Admin dashboard",
 		],
-		buttonText: "Contact Sales",
+		buttonText: "Choose Team",
 		buttonVariant: "outline" as const,
 		icon: Shield,
 	},
@@ -111,29 +113,29 @@ export default function PricingPage() {
 								))}
 							</ul>
 
-							<Button
-								variant={plan.buttonVariant}
-								className={cn(
-									"w-full h-12 rounded-xl font-semibold",
-									plan.highlight ? "bg-accent hover:bg-accent/90 text-white" : ""
-								)}
-								onClick={() => {
-									if (plan.name === "Pro") {
-										window.location.href = "/api/billing/checkout?plan=pro";
-									} else if (plan.name === "Team") {
-										window.location.href = "mailto:sales@example.com";
-									}
-								}}
-							>
-								{plan.buttonText}
-							</Button>
+							{plan.name === "Free" ? (
+								<Button variant={plan.buttonVariant} className="h-12 w-full rounded-xl font-semibold" disabled>
+									{plan.buttonText}
+								</Button>
+							) : (
+								<Button
+									asChild
+									variant={plan.buttonVariant}
+									className={cn(
+										"h-12 w-full rounded-xl font-semibold",
+										plan.highlight ? "bg-accent text-white hover:bg-accent/90" : "",
+									)}
+								>
+									<Link href="/upgrade">{plan.buttonText}</Link>
+								</Button>
+							)}
 						</div>
 					))}
 				</div>
 
 				<div className="mt-20 text-center">
 					<p className="text-content-tertiary text-sm">
-						Need a custom plan? <a href="mailto:sales@example.com" className="text-accent font-semibold hover:underline">Contact us</a>
+						Need a custom plan? <Link href="/upgrade" className="text-accent font-semibold hover:underline">Start with Team</Link>
 					</p>
 				</div>
 			</div>

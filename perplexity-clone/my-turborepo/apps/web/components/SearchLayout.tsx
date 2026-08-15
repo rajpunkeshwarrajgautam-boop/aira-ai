@@ -40,13 +40,15 @@ const EXAMPLE_QUERIES = [
 	"Best laptops under 1 lakh in India",
 ] as const;
 
-/** Public env only; falls back until `NEXT_PUBLIC_FEEDBACK_EMAIL` is set in Vercel. */
+/** Public support address. The feedback actions stay hidden until configured. */
 const FEEDBACK_EMAIL =
 	(typeof process.env.NEXT_PUBLIC_FEEDBACK_EMAIL === "string"
 		? process.env.NEXT_PUBLIC_FEEDBACK_EMAIL.trim()
-		: "") || "feedback@example.com";
+		: "");
 
-const FEEDBACK_MAILTO_HREF = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent("Research app feedback")}`;
+const FEEDBACK_MAILTO_HREF = FEEDBACK_EMAIL
+	? `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent("Research app feedback")}`
+	: null;
 
 interface ApiErrorBody {
 	readonly error?: {
@@ -1017,15 +1019,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								</div>
 							</div>
 							<div className="flex shrink-0 items-center gap-2">
-								<a
-									href={FEEDBACK_MAILTO_HREF}
-									onClick={() =>
-										logProductEvent({ event: "feedback_clicked", surface: "header" })
-									}
-									className="text-xs font-medium text-content-tertiary underline-offset-2 hover:text-accent hover:underline sm:text-[13px]"
-								>
-									Feedback
-								</a>
+								{FEEDBACK_MAILTO_HREF ? (
+									<a
+										href={FEEDBACK_MAILTO_HREF}
+										onClick={() =>
+											logProductEvent({ event: "feedback_clicked", surface: "header" })
+										}
+										className="text-xs font-medium text-content-tertiary underline-offset-2 hover:text-accent hover:underline sm:text-[13px]"
+									>
+										Feedback
+									</a>
+								) : null}
 								<UserMenu className="flex" />
 							</div>
 						</div>
@@ -1424,15 +1428,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					<footer className="mt-auto flex flex-col items-center gap-2 border-t border-border-subtle/70 py-6 text-center text-xs text-content-tertiary">
 						<p>Responses are generated from retrieved sources. Verify critical facts independently.</p>
 						<p>Built for fast, reliable research with sources.</p>
-						<a
-							href={FEEDBACK_MAILTO_HREF}
-							onClick={() =>
-								logProductEvent({ event: "feedback_clicked", surface: "footer" })
-							}
-							className="mt-2 inline-flex h-8 items-center justify-center rounded-xl bg-surface-elevated/90 px-4 font-medium text-content-primary shadow-panel ring-1 ring-border-subtle/80 backdrop-blur-sm transition hover:bg-surface-elevated hover:text-accent focus-visible:outline-accent md:backdrop-blur-md"
-						>
-							Send feedback
-						</a>
+						{FEEDBACK_MAILTO_HREF ? (
+							<a
+								href={FEEDBACK_MAILTO_HREF}
+								onClick={() =>
+									logProductEvent({ event: "feedback_clicked", surface: "footer" })
+								}
+								className="mt-2 inline-flex h-8 items-center justify-center rounded-xl bg-surface-elevated/90 px-4 font-medium text-content-primary shadow-panel ring-1 ring-border-subtle/80 backdrop-blur-sm transition hover:bg-surface-elevated hover:text-accent focus-visible:outline-accent md:backdrop-blur-md"
+							>
+								Send feedback
+							</a>
+						) : null}
 					</footer>
 				</main>
 			</div>

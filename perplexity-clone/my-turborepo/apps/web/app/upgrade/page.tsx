@@ -109,7 +109,7 @@ export default function UpgradePage() {
 					Upgrade your plan
 				</h1>
 				<p className="mb-8 text-center text-sm leading-relaxed text-content-secondary">
-					Pro and Team include higher monthly search limits and Deep Research. Complete checkout securely with
+					Pro and Team include higher monthly search limits, Deep Research, and autonomous agent tasks. Complete checkout securely with
 					Cashfree.
 				</p>
 

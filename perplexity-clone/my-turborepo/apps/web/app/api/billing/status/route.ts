@@ -21,5 +21,8 @@ export async function GET(): Promise<Response> {
 		monthlySearchLimit: summary.monthlySearchLimit,
 		searchesUsed: summary.searchesUsed,
 		searchesRemaining: summary.searchesRemaining,
+		monthlyAgentRunLimit: summary.monthlyAgentRunLimit,
+		agentRunsUsed: summary.agentRunsUsed,
+		agentRunsRemaining: summary.agentRunsRemaining,
 	});
 }

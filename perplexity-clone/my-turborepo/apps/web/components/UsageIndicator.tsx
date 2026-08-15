@@ -9,6 +9,8 @@ interface BillingStatus {
 	searchesUsed: number;
 	searchesRemaining: number;
 	monthlySearchLimit: number;
+	agentRunsRemaining: number;
+	monthlyAgentRunLimit: number;
 }
 
 export function UsageIndicator({ className }: { className?: string }) {
@@ -55,6 +57,11 @@ export function UsageIndicator({ className }: { className?: string }) {
 						<p className="text-[11px] text-content-tertiary">
 							{status.searchesRemaining} searches left this month
 						</p>
+						{status.monthlyAgentRunLimit > 0 ? (
+							<p className="text-[11px] text-content-tertiary">
+								{status.agentRunsRemaining} agent tasks left
+							</p>
+						) : null}
 					</div>
 				</div>
 				{isFree && (

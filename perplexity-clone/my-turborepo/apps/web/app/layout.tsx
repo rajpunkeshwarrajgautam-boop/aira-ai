@@ -16,7 +16,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "AiraAI — grounded answers with live citations",
   description:
-    "Ask questions and get answers with live web citations. Try standard search without an account; sign in to save threads, run Deep Research, and share results.",
+    "Research with live web citations, save persistent threads, and run controlled autonomous tasks from one workspace.",
 };
 
 export default function RootLayout({
