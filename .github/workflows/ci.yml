@@ -5,10 +5,9 @@ on:
   push:
     branches:
       - main
-      - agent/lock-down-data-api
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -17,7 +16,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -31,17 +30,8 @@ jobs:
       - name: Enable pnpm
         run: corepack enable
 
-      - name: Install and refresh lockfile
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Commit refreshed lockfile on security branch
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/agent/lock-down-data-api' }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml
-          git diff --cached --quiet || git commit -m "Refresh pnpm lockfile after security upgrades"
-          git push
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Run quality gates
         run: pnpm run ci
