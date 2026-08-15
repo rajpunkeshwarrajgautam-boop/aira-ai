@@ -68,7 +68,10 @@ export class ProviderRouter {
 		options: ProviderOptions = {},
 	): AsyncGenerator<string, void, undefined> {
 		const primary = this.providers.get(this.primaryProviderId);
-		const fallback = this.providers.get(this.fallbackProviderId);
+		const fallback =
+			this.fallbackProviderId === this.primaryProviderId
+				? undefined
+				: this.providers.get(this.fallbackProviderId);
 
 		if (!primary && !fallback) {
 			throw new Error("No AI providers configured in ProviderRouter.");
@@ -86,7 +89,7 @@ export class ProviderRouter {
 						errorStr.includes("insufficient_quota") ||
 						errorStr.includes("429") ||
 						errorStatus(error) === 429 ||
-					errorStr.includes("limit_reached");
+						errorStr.includes("limit_reached");
 
 				if (isQuotaError && fallback) {
 					console.warn(
@@ -100,7 +103,12 @@ export class ProviderRouter {
 		}
 
 		if (useFallback && fallback) {
-			yield* fallback.generateTextStream(messages, options);
+			// A fallback provider cannot safely reuse a model identifier from the
+			// primary provider. Always use the fallback provider's configured model.
+			yield* fallback.generateTextStream(messages, {
+				...options,
+				model: fallback.defaultModel,
+			});
 		} else if (useFallback) {
 			throw new Error("Primary provider failed and no fallback is available.");
 		}

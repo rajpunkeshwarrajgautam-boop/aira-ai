@@ -144,18 +144,47 @@ function jsonErrorResponse(
 }
 
 function classifyUpstreamError(err: Error): { status: number; code: string; clientMessage: string } {
-	const msg = err.message.toLowerCase();
+	const upstream = err as Error & {
+		readonly code?: unknown;
+		readonly status?: unknown;
+		readonly error?: {
+			readonly code?: unknown;
+			readonly message?: unknown;
+		};
+	};
+	const msg = [
+		err.message,
+		typeof upstream.code === "string" ? upstream.code : "",
+		typeof upstream.error?.code === "string" ? upstream.error.code : "",
+		typeof upstream.error?.message === "string" ? upstream.error.message : "",
+	]
+		.join(" ")
+		.toLowerCase();
+
+	if (
+		msg.includes("insufficient_quota") ||
+		msg.includes("billing_hard_limit_reached") ||
+		msg.includes("exceeded your current quota")
+	) {
+		return {
+			status: 503,
+			code: "UPSTREAM_QUOTA_EXHAUSTED",
+			clientMessage: "The AI answer provider is temporarily unavailable. Please retry shortly.",
+		};
+	}
 
 	if (
 		msg.includes("api key missing") ||
 		msg.includes("api key") ||
 		msg.includes("authentication") ||
-		msg.includes("401")
+		msg.includes("401") ||
+		msg.includes("no ai providers configured") ||
+		msg.includes("no fallback is available")
 	) {
 		return {
 			status: 503,
 			code: "UPSTREAM_CONFIG",
-			clientMessage: "Search is temporarily unavailable.",
+			clientMessage: "The AI answer provider is temporarily unavailable. Please retry shortly.",
 		};
 	}
 
@@ -163,7 +192,7 @@ function classifyUpstreamError(err: Error): { status: number; code: string; clie
 		return {
 			status: 429,
 			code: "UPSTREAM_RATE_LIMIT",
-			clientMessage: "Too many requests. Please retry shortly.",
+			clientMessage: "The AI answer provider is busy. Please retry in a moment.",
 		};
 	}
 
