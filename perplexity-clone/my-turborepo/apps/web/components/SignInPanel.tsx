@@ -18,9 +18,11 @@ export function SignInPanel({ showGoogle, showGitHub, canonicalOrigin }: SignInP
 	const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 	const authError = searchParams.get("error");
 	const [pending, setPending] = useState<string | null>(null);
+	const [oauthError, setOAuthError] = useState(false);
 
 	const handleOAuth = async (providerId: "google" | "github") => {
 		setPending(providerId);
+		setOAuthError(false);
 		try {
 			if (canonicalOrigin && window.location.origin !== canonicalOrigin) {
 				const canonicalSignIn = new URL("/signin", canonicalOrigin);
@@ -28,7 +30,16 @@ export function SignInPanel({ showGoogle, showGitHub, canonicalOrigin }: SignInP
 				window.location.assign(canonicalSignIn.toString());
 				return;
 			}
-			await signIn(providerId, { callbackUrl, redirect: true });
+			const result = await signIn(providerId, {
+				redirect: false,
+				redirectTo: callbackUrl,
+			});
+			if (!result?.url) {
+				throw new Error("OAuth provider did not return an authorization URL");
+			}
+			window.location.assign(result.url);
+		} catch {
+			setOAuthError(true);
 		} finally {
 			setPending(null);
 		}
@@ -44,12 +55,12 @@ export function SignInPanel({ showGoogle, showGitHub, canonicalOrigin }: SignInP
 
 	return (
 		<div className="flex flex-col gap-3">
-			{authError ? (
+			{authError || oauthError ? (
 				<div
 					role="alert"
 					className="rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-950"
 				>
-					Sign-in could not be completed. Start again from the official AiraAI domain below.
+					Sign-in could not be completed. Please try again from this page.
 				</div>
 			) : null}
 			{showGoogle ? (

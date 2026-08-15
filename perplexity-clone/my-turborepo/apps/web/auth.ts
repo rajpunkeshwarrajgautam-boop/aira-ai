@@ -76,7 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 	...authConfig,
 	adapter: PrismaAdapter(prisma),
 	secret: resolvedSecret,
-	debug: process.env.AUTH_DEBUG === "true",
+	debug: process.env.NODE_ENV !== "production" && process.env.AUTH_DEBUG === "true",
 	logger: {
 		error(error) {
 			console.error("[auth:error]", redact(error));
@@ -84,8 +84,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 		warn(code) {
 			console.warn("[auth:warn]", code);
 		},
-		debug(code, metadata) {
-			console.info("[auth:debug]", code, redact(metadata));
+		debug(code) {
+			console.info("[auth:debug]", code);
 		},
 	},
 });
