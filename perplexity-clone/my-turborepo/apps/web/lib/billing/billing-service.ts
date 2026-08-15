@@ -24,6 +24,12 @@ function subscriptionExpiryIso(): string {
 	return d.toISOString();
 }
 
+function firstRecurringChargeIso(): string {
+	const d = new Date();
+	d.setUTCMonth(d.getUTCMonth() + 1);
+	return d.toISOString();
+}
+
 export interface StartCheckoutInput {
 	readonly userId: string;
 	readonly userEmail: string;
@@ -58,10 +64,10 @@ export async function startSubscriptionCheckout(
 		}
 	}
 
-	const planId =
-		billingPlan === BillingPlan.TEAM ? cfg.teamPlanId : cfg.proPlanId;
-	const planType =
-		billingPlan === BillingPlan.TEAM ? cfg.teamPlanType : cfg.proPlanType;
+	const monthlyAmount =
+		billingPlan === BillingPlan.TEAM
+			? cfg.teamSeatMonthlyAmount * input.teamSeats
+			: cfg.proMonthlyAmount;
 	const merchantSubscriptionId = buildMerchantSubscriptionId(input.userId);
 
 	const phone = input.customerPhone.replace(/\s+/g, "");
@@ -78,14 +84,23 @@ export async function startSubscriptionCheckout(
 			customer_phone: phone,
 		},
 		plan_details: {
-			plan_id: planId,
-			plan_name: billingPlan === BillingPlan.TEAM ? "Team" : "Pro",
-			plan_type: planType,
+			plan_name:
+				billingPlan === BillingPlan.TEAM
+					? `AiraAI Team ${input.teamSeats} Seats`
+					: "AiraAI Pro Monthly",
+			plan_type: "PERIODIC",
+			plan_amount: monthlyAmount,
+			plan_max_amount: monthlyAmount,
+			plan_max_cycles: cfg.planMaxCycles,
+			plan_intervals: 1,
+			plan_currency: cfg.planCurrency,
+			plan_interval_type: "MONTH",
+			plan_note: "AiraAI monthly subscription",
 		},
 		authorization_details: {
-			authorization_amount: cfg.authorizationAmount,
+			authorization_amount: monthlyAmount,
 			authorization_amount_refund: cfg.authorizationAmountRefund,
-			authorization_time: cfg.authorizationTimeMinutes,
+			payment_methods: ["card"],
 		},
 		subscription_meta: {
 			return_url: `${getBillingReturnUrl()}/api/billing/return`,
@@ -97,7 +112,10 @@ export async function startSubscriptionCheckout(
 			team_seats: String(
 				billingPlan === BillingPlan.TEAM ? input.teamSeats : 1,
 			),
+			plan_currency: cfg.planCurrency,
+			monthly_amount: String(monthlyAmount),
 		},
+		subscription_first_charge_time: firstRecurringChargeIso(),
 	};
 
 	const entity = await cashfreeCreateSubscription(payload);

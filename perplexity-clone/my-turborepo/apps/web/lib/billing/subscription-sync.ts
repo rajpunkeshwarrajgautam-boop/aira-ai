@@ -5,7 +5,6 @@ import {
 import { prisma } from "@/lib/prisma";
 
 import type { CashfreeSubscriptionEntity } from "./cashfree-client";
-import { getCashfreeConfig } from "./cashfree-config";
 
 function normalizeCfStatus(raw: string | undefined): string {
 	if (!raw) return "";
@@ -23,13 +22,15 @@ export function mapCashfreeStatusToPrisma(
 		case "TRIAL":
 			return SubscriptionStatus.TRIALING;
 		case "INITIALIZED":
-		case "LINK_EXPIRED":
 			return SubscriptionStatus.INCOMPLETE;
+		case "LINK_EXPIRED":
+			return SubscriptionStatus.INCOMPLETE_EXPIRED;
 		case "CUSTOMER_PAUSED":
 		case "ON_HOLD":
 			return SubscriptionStatus.PAUSED;
 		case "PAST_DUE":
 		case "UNPAID":
+		case "CARD_EXPIRED":
 			return SubscriptionStatus.PAST_DUE;
 		case "CUSTOMER_CANCELLED":
 		case "CANCELLED":
@@ -46,20 +47,6 @@ function parseCfDate(value: string | null | undefined): Date | null {
 	if (!value) return null;
 	const d = new Date(value);
 	return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function billingPlanFromCashfreePlanId(
-	planId: string | undefined,
-	fallback: BillingPlan,
-): BillingPlan {
-	const cfg = getCashfreeConfig();
-	if (planId === cfg.teamPlanId) {
-		return BillingPlan.TEAM;
-	}
-	if (planId === cfg.proPlanId) {
-		return BillingPlan.PRO;
-	}
-	return fallback;
 }
 
 export interface SyncSubscriptionArgs {
@@ -84,9 +71,8 @@ export async function syncSubscriptionFromCashfreeEntity(
 		throw new Error("Cashfree subscription payload missing identifiers.");
 	}
 
-	const cfg = getCashfreeConfig();
 	const planId = entity.plan_details?.plan_id;
-	const plan = billingPlanFromCashfreePlanId(planId, fallbackPlan);
+	const plan = fallbackPlan;
 
 	const status = mapCashfreeStatusToPrisma(entity.subscription_status);
 	const periodEnd = parseCfDate(entity.subscription_expiry_time ?? undefined);
@@ -116,8 +102,8 @@ export async function syncSubscriptionFromCashfreeEntity(
 			planId && planId.length > 0
 				? planId
 				: plan === BillingPlan.TEAM
-					? cfg.teamPlanId
-					: cfg.proPlanId;
+					? "aira-team-inline-monthly-v1"
+					: "aira-pro-inline-monthly-v1";
 
 		await tx.billingSubscription.upsert({
 			where: { userId },
