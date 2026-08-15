@@ -1,0 +1,70 @@
+name: AIRA Desktop Windows
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop-agent/**"
+      - ".github/workflows/aira-desktop-windows.yml"
+  push:
+    branches:
+      - agent/aira-desktop-agent
+    tags:
+      - "aira-desktop-v*"
+    paths:
+      - "desktop-agent/**"
+      - ".github/workflows/aira-desktop-windows.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: desktop-agent
+
+    env:
+      CSC_LINK: ${{ secrets.AIRA_WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.AIRA_WINDOWS_CSC_PASSWORD }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop-agent/package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck, policy tests, and build
+        run: npm run build
+
+      - name: Package Windows installer
+        if: ${{ !startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Package and publish tagged release
+        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win nsis --publish always
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: aira-desktop-windows-${{ github.sha }}
+          path: desktop-agent/dist/**
+          if-no-files-found: error
+          retention-days: 14
