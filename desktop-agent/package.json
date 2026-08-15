@@ -1,0 +1,58 @@
+{
+  "name": "aira-desktop-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AIRA Desktop 1.0 — local-first agentic Windows operating layer with voice, vision, browser automation, semantic memory, RAG and controlled computer use.",
+  "author": "Virexa AI Ventures Private Limited",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "node --import tsx --test tests/policy.test.ts",
+    "build": "npm run typecheck && npm test && electron-vite build",
+    "start": "electron-vite preview",
+    "dist:win": "npm run build && electron-builder --win nsis --publish never",
+    "release:win": "npm run build && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "electron-store": "^10.0.0",
+    "electron-updater": "^6.6.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^43.4.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.1.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.virexa.aira.desktop",
+    "productName": "AIRA Desktop",
+    "asar": true,
+    "artifactName": "AIRA-Desktop-${version}-${arch}.${ext}",
+    "files": ["out/**/*"],
+    "win": { "target": ["nsis"] },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AIRA Desktop"
+    },
+    "publish": [{
+      "provider": "github",
+      "owner": "rajpunkeshwarrajgautam-boop",
+      "repo": "aira-ai",
+      "releaseType": "release"
+    }]
+  }
+}
