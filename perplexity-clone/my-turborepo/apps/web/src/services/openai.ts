@@ -72,7 +72,10 @@ export class OpenAIService {
 		} = {},
 	): AsyncGenerator<string, void, undefined> {
 		const routerOptions: ProviderOptions = {
-			model: options.model ?? this.config.defaultModel,
+			// Let each provider use its own configured default model unless the
+			// caller explicitly requests one. Passing the OpenAI default here made
+			// quota failover send `gpt-4o-mini` to NVIDIA.
+			...(options.model !== undefined ? { model: options.model } : {}),
 			temperature: options.temperature ?? this.config.defaultTemperature,
 			maxCompletionTokens:
 				options.maxCompletionTokens ?? this.config.defaultMaxCompletionTokens,
@@ -111,4 +114,3 @@ export function getOpenAIService(config?: Partial<OpenAIServiceConfig>): OpenAIS
 export function createOpenAIService(config?: Partial<OpenAIServiceConfig>): OpenAIService {
 	return new OpenAIService(config);
 }
-

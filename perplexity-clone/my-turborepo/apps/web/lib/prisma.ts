@@ -19,7 +19,9 @@ function createPrismaClient(): PrismaClient {
 		globalForPrisma.pool ??
 		new Pool({
 			connectionString,
-			max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+			// Each Vercel instance owns its own pool. Keep the default deliberately
+			// small because Supavisor transaction mode multiplexes these connections.
+			max: Number(process.env.DATABASE_POOL_MAX ?? 1),
 			idleTimeoutMillis: 20_000,
 			connectionTimeoutMillis: 10_000,
 		});

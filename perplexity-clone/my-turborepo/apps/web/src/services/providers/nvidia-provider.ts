@@ -11,7 +11,7 @@ export class NVIDIAProvider implements AIProvider {
 
 	constructor(
 		apiKey: string,
-		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-8b-instruct",
+		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? "minimaxai/minimax-m3",
 	) {
 		this.client = new OpenAI({
 			apiKey,
@@ -28,7 +28,7 @@ export class NVIDIAProvider implements AIProvider {
 			messages,
 			stream: true,
 			temperature: options.temperature,
-			max_completion_tokens: options.maxCompletionTokens,
+			max_tokens: options.maxCompletionTokens,
 			top_p: options.topP,
 			frequency_penalty: options.frequencyPenalty,
 			presence_penalty: options.presencePenalty,

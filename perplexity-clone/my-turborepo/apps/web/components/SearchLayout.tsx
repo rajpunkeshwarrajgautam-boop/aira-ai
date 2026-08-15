@@ -79,6 +79,28 @@ function planDisplayName(plan: string): string {
 	}
 }
 
+function searchErrorTitle(
+	code: string | null,
+	action: "quota" | "plan" | null,
+	isAuthed: boolean,
+): string {
+	if (code === "ANONYMOUS_QUOTA_EXCEEDED") return "Guest search limit reached";
+	if (
+		code === "SIGNIN_DEEP" ||
+		(code === "PLAN_REQUIRED" && !isAuthed) ||
+		code === "SIGNIN_FOLLOWUP"
+	) {
+		return "Account required";
+	}
+	if (action === "quota") return "Monthly search limit reached";
+	if (action === "plan") return "Upgrade required";
+	if (code === "UPSTREAM_RATE_LIMIT") return "Answer provider is busy";
+	if (code === "UPSTREAM_TIMEOUT") return "Search timed out";
+	if (code?.startsWith("UPSTREAM_")) return "Search temporarily unavailable";
+	if (code === "NETWORK_ERROR") return "Connection interrupted";
+	return "Something went wrong";
+}
+
 interface MetadataPayload {
 	readonly type?: string;
 	readonly citations?: readonly CitationItem[];
@@ -188,8 +210,16 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	);
 
 	const showConversationEmpty = useMemo(
-		() => phase === "idle" && messages.length === 0 && !streamingUserQuery,
-		[phase, messages.length, streamingUserQuery],
+		() =>
+			messages.length === 0 &&
+			!streamingUserQuery &&
+			!(streamingAssistantMarkdown && streamingAssistantMarkdown.length > 0),
+		[messages.length, streamingUserQuery, streamingAssistantMarkdown],
+	);
+
+	const showConversationPanel = useMemo(
+		() => phase !== "error" || !showConversationEmpty,
+		[phase, showConversationEmpty],
 	);
 
 	useEffect(() => {
@@ -595,6 +625,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						: "Deep Research is included on Pro and Team plans.";
 				} else if (response.status === 403) {
 					msg = raw;
+				} else if (
+					code === "UPSTREAM_QUOTA_EXHAUSTED" ||
+					code === "UPSTREAM_CONFIG" ||
+					code === "UPSTREAM_RATE_LIMIT" ||
+					code === "UPSTREAM_TIMEOUT" ||
+					code === "UPSTREAM_ERROR"
+				) {
+					msg = raw;
 				} else if (response.status === 429) {
 					msg =
 						code === "ANONYMOUS_QUOTA_EXCEEDED"
@@ -608,6 +646,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				setPhase("error");
 				setLimitErrorAction(action);
 				setErrorMessage(msg);
+				setQuery(q);
+				setStreamingUserQuery(null);
+				setStreamingAssistantMarkdown(null);
+				setStreamingCitations([]);
 				void refreshBilling();
 
 				if (code === "ANONYMOUS_QUOTA_EXCEEDED") {
@@ -633,17 +675,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					} catch {
 						// ignore analytics
 					}
-				}
-
-				if (
-					response.status === 401 ||
-					response.status === 402 ||
-					response.status === 429 ||
-					code === "ANONYMOUS_QUOTA_EXCEEDED" ||
-					code === "PLAN_REQUIRED"
-				) {
-					setQuery(q);
-					setStreamingUserQuery(null);
 				}
 
 				return;
@@ -749,7 +780,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					} else if (block.event === "error") {
 						const err = safeJson<StreamErrorPayload>(block.data);
 						setPhase("error");
+						setErrorCode(err?.code ?? null);
 						setErrorMessage(err?.message ?? "Stream interrupted.");
+						setQuery(q);
+						if (streamedAnswer.trim().length === 0) {
+							setStreamingUserQuery(null);
+							setStreamingAssistantMarkdown(null);
+							setStreamingCitations([]);
+						}
 					}
 				} catch (e) {
 					console.error("SSE_PARSE_ERROR:", e);
@@ -870,7 +908,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			}
 
 			setPhase("error");
+			setErrorCode(
+				/network|fetch|Failed to fetch/i.test(raw) ? "NETWORK_ERROR" : "UNKNOWN_ERROR",
+			);
 			setErrorMessage(msg);
+			setQuery(q);
 		}
 	}, [
 		busy,
@@ -912,6 +954,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		},
 		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
 	);
+
+	const isProviderAvailabilityError = errorCode?.startsWith("UPSTREAM_") ?? false;
+	const currentErrorTitle = searchErrorTitle(errorCode, limitErrorAction, isAuthed);
 
 	return (
 		<div className={cn("relative min-h-dvh w-full overflow-hidden", className)}>
@@ -1040,7 +1085,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
 
-						<div
+						{showConversationPanel ? <div
 							className={cn(
 								"flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl",
 								showConversationEmpty ? "order-4 md:order-none" : "order-1 md:order-none"
@@ -1114,7 +1159,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</Link>
 								</div>
 							) : null}
-						</div>
+						</div> : null}
 
 						<p className="sr-only" aria-live="polite">
 							{phase === "connecting"
@@ -1126,6 +1171,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										: phase === "error"
 											? errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
 												? "Guest search limit reached."
+												: isProviderAvailabilityError
+													? "Search provider temporarily unavailable."
 												: errorCode === "SIGNIN_DEEP" ||
 												  (errorCode === "PLAN_REQUIRED" && !isAuthed) ||
 												  errorCode === "SIGNIN_FOLLOWUP"
@@ -1305,27 +1352,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										"rounded-3xl border p-4 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md",
 										errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
 											? "border-indigo-200 bg-indigo-50/90 text-indigo-950"
-											: "border-red-200/80 bg-red-50/90 text-red-800",
+											: isProviderAvailabilityError
+												? "border-amber-200/90 bg-amber-50/95 text-amber-950"
+												: "border-red-200/80 bg-red-50/90 text-red-800",
 									)}
 									role="alert"
 								>
 									<p
 										className={cn(
 											"font-semibold",
-											errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ? "text-indigo-950" : "text-red-900",
+											errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+												? "text-indigo-950"
+												: isProviderAvailabilityError
+													? "text-amber-950"
+													: "text-red-900",
 										)}
 									>
-										{errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
-											? "Guest search limit reached"
-											: errorCode === "SIGNIN_DEEP" ||
-											  (errorCode === "PLAN_REQUIRED" && !isAuthed) ||
-											  errorCode === "SIGNIN_FOLLOWUP"
-												? "Account required"
-												: limitErrorAction === "quota"
-													? "Monthly search limit reached"
-													: limitErrorAction === "plan"
-														? "Upgrade required"
-														: "Something went wrong"}
+										{currentErrorTitle}
 									</p>
 									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ? (
 										<div className="mt-2 space-y-3">
@@ -1348,7 +1391,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											</ul>
 										</div>
 									) : (
-										<p className="mt-1 text-red-800/95">{errorMessage}</p>
+										<p
+											className={cn(
+												"mt-1",
+												isProviderAvailabilityError ? "text-amber-900/95" : "text-red-800/95",
+											)}
+										>
+											{errorMessage}
+										</p>
 									)}
 									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
 									errorCode === "SIGNIN_DEEP" ||
@@ -1413,7 +1463,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 												onClick={() => {
 													void runSearch();
 												}}
-												className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-100/50 px-4 py-2 text-sm font-medium text-red-900 shadow-sm hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+											className={cn(
+												"inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+												isProviderAvailabilityError
+													? "border-amber-200 bg-amber-100/60 text-amber-950 hover:bg-amber-100 focus-visible:outline-amber-600"
+													: "border-red-200 bg-red-100/50 text-red-900 hover:bg-red-100 focus-visible:outline-red-600",
+											)}
 											>
 												<RotateCw className="mr-2 size-4" />
 												Retry Search
