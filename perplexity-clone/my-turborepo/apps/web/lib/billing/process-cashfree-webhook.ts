@@ -25,11 +25,16 @@ function extractMerchantSubscriptionId(payload: unknown): string | null {
 		return null;
 	}
 	const data = asRecord(root["data"]);
+	const statusWebhook = asRecord(data?.["subscription_status_webhook"]);
 	const details =
 		asRecord(data?.["subscription_details"]) ??
 		asRecord(data?.["subscription"]) ??
+		asRecord(statusWebhook?.["subscription_details"]) ??
 		asRecord(root["subscription_details"]);
-	const id = details?.["subscription_id"];
+	// Payment success/failed/cancelled payloads in the 2025 and 2026 API
+	// versions can omit `subscription_details` and expose the merchant
+	// subscription reference directly under `data`.
+	const id = details?.["subscription_id"] ?? data?.["subscription_id"];
 	return typeof id === "string" && id.length > 0 ? id : null;
 }
 

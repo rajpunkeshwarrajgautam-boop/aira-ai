@@ -6,13 +6,11 @@ export interface CashfreeConfig {
 	readonly clientSecret: string;
 	readonly webhookSecret: string;
 	readonly apiVersion: string;
-	readonly proPlanId: string;
-	readonly teamPlanId: string;
-	readonly proPlanType: string;
-	readonly teamPlanType: string;
-	readonly authorizationAmount: number;
+	readonly planCurrency: string;
+	readonly proMonthlyAmount: number;
+	readonly teamSeatMonthlyAmount: number;
+	readonly planMaxCycles: number;
 	readonly authorizationAmountRefund: boolean;
-	readonly authorizationTimeMinutes: number;
 }
 
 export function resolveCashfreeWebhookSecret(): string {
@@ -34,6 +32,15 @@ function requireEnv(name: string): string {
 	return v;
 }
 
+function positiveNumber(name: string, fallback: number): number {
+	const raw = process.env[name];
+	const value = raw === undefined ? fallback : Number(raw);
+	if (!Number.isFinite(value) || value <= 0) {
+		throw new Error(`${name} must be a positive number.`);
+	}
+	return value;
+}
+
 export function getCashfreeConfig(): CashfreeConfig {
 	const envName = (process.env.CASHFREE_ENV ?? "sandbox").toLowerCase();
 	const environment: CashfreeEnvironment =
@@ -44,20 +51,26 @@ export function getCashfreeConfig(): CashfreeConfig {
 			? "https://api.cashfree.com/pg"
 			: "https://sandbox.cashfree.com/pg";
 
+	const planCurrency = (process.env.CASHFREE_PLAN_CURRENCY ?? "USD").toUpperCase();
+	if (!/^[A-Z]{3}$/.test(planCurrency)) {
+		throw new Error("CASHFREE_PLAN_CURRENCY must be a three-letter currency code.");
+	}
+
 	return {
 		baseUrl,
 		clientId: requireEnv("CASHFREE_CLIENT_ID"),
 		clientSecret: requireEnv("CASHFREE_CLIENT_SECRET"),
 		webhookSecret: resolveCashfreeWebhookSecret(),
-		apiVersion: process.env.CASHFREE_API_VERSION ?? "2025-01-01",
-		proPlanId: requireEnv("CASHFREE_PRO_PLAN_ID"),
-		teamPlanId: requireEnv("CASHFREE_TEAM_PLAN_ID"),
-		proPlanType: process.env.CASHFREE_PRO_PLAN_TYPE ?? "PERIODIC",
-		teamPlanType: process.env.CASHFREE_TEAM_PLAN_TYPE ?? "PERIODIC",
-		authorizationAmount: Number(process.env.CASHFREE_AUTH_AMOUNT ?? 1),
+		apiVersion: process.env.CASHFREE_API_VERSION ?? "2026-01-01",
+		planCurrency,
+		proMonthlyAmount: positiveNumber("CASHFREE_PRO_MONTHLY_AMOUNT", 20),
+		teamSeatMonthlyAmount: positiveNumber(
+			"CASHFREE_TEAM_SEAT_MONTHLY_AMOUNT",
+			15,
+		),
+		planMaxCycles: Math.trunc(positiveNumber("CASHFREE_PLAN_MAX_CYCLES", 120)),
 		authorizationAmountRefund:
-			(process.env.CASHFREE_AUTH_REFUND ?? "true").toLowerCase() !== "false",
-		authorizationTimeMinutes: Number(process.env.CASHFREE_AUTH_TIME_MIN ?? 1),
+			(process.env.CASHFREE_AUTH_REFUND ?? "false").toLowerCase() === "true",
 	};
 }
 

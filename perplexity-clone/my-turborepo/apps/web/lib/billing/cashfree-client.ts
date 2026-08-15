@@ -13,19 +13,26 @@ export interface CreateCashfreeSubscriptionInput {
 	readonly subscription_expiry_time: string;
 	readonly customer_details: CashfreeCustomerDetails;
 	readonly plan_details: {
-		readonly plan_id: string;
 		readonly plan_name: string;
-		readonly plan_type: string;
+		readonly plan_type: "PERIODIC";
+		readonly plan_amount: number;
+		readonly plan_max_amount: number;
+		readonly plan_max_cycles: number;
+		readonly plan_intervals: number;
+		readonly plan_currency: string;
+		readonly plan_interval_type: "MONTH";
+		readonly plan_note: string;
 	};
 	readonly authorization_details: {
 		readonly authorization_amount: number;
 		readonly authorization_amount_refund: boolean;
-		readonly authorization_time: number;
+		readonly payment_methods: readonly ["card"];
 	};
 	readonly subscription_meta: {
 		readonly return_url: string;
 		readonly notification_channel: readonly ("EMAIL" | "SMS")[];
 	};
+	readonly subscription_first_charge_time: string;
 	readonly subscription_tags?: Record<string, string>;
 }
 
