@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@repo/ui": "file:../../packages/ui",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
