@@ -3,6 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "NODE_ENV",
+    "VERCEL_ENV",
     "NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
     "AUTH_SECRET",

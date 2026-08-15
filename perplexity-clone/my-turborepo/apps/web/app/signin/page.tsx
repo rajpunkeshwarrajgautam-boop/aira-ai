@@ -16,6 +16,17 @@ function oauthFlags() {
 	};
 }
 
+function canonicalOrigin(): string | undefined {
+	const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+	if (!configuredUrl) return undefined;
+
+	try {
+		return new URL(configuredUrl).origin;
+	} catch {
+		return undefined;
+	}
+}
+
 export const metadata: Metadata = {
 	title: "Sign in — Research",
 	description: "Sign in with Google or GitHub",
@@ -23,6 +34,7 @@ export const metadata: Metadata = {
 
 export default function SignInPage() {
 	const { google: showGoogle, github: showGitHub } = oauthFlags();
+	const authOrigin = canonicalOrigin();
 
 	return (
 		<div className="relative flex min-h-dvh flex-col items-center justify-center bg-surface px-4 py-16">
@@ -46,7 +58,11 @@ export default function SignInPage() {
 						<div className="h-[118px] animate-pulse rounded-2xl bg-surface-inset ring-1 ring-border-subtle" />
 					}
 				>
-					<SignInPanel showGoogle={showGoogle} showGitHub={showGitHub} />
+					<SignInPanel
+						showGoogle={showGoogle}
+						showGitHub={showGitHub}
+						canonicalOrigin={authOrigin}
+					/>
 				</Suspense>
 				<p className="mt-8 text-center text-xs leading-relaxed text-content-tertiary">
 					By continuing, your provider shares basic profile data used only for authentication and account linking.
