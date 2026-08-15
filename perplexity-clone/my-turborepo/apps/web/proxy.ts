@@ -9,6 +9,20 @@ import { authConfig } from "./auth.config";
  */
 const { auth } = NextAuth(authConfig);
 
+function canonicalProductionOrigin(): URL | null {
+	if (process.env.VERCEL_ENV !== "production") return null;
+
+	const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+	if (!configuredUrl) return null;
+
+	try {
+		return new URL(configuredUrl);
+	} catch {
+		console.error("[auth:canonical-host] AUTH_URL/NEXTAUTH_URL is not a valid URL");
+		return null;
+	}
+}
+
 function jsonUnauthorized(): NextResponse {
 	return NextResponse.json(
 		{ error: { code: "UNAUTHENTICATED", message: "Sign in required." } },
@@ -18,6 +32,25 @@ function jsonUnauthorized(): NextResponse {
 
 export default auth((req) => {
 	const { pathname } = req.nextUrl;
+	const canonicalOrigin = canonicalProductionOrigin();
+	const acceptsHtml = req.headers.get("accept")?.includes("text/html") ?? false;
+
+	// OAuth transient cookies are host-scoped. If a user opens a Vercel
+	// deployment alias but GitHub returns to AUTH_URL, the PKCE verifier is not
+	// available on the callback host and Auth.js rejects the login. Canonicalize
+	// browser navigations before rendering a page that can start OAuth.
+	if (
+		canonicalOrigin &&
+		acceptsHtml &&
+		(req.method === "GET" || req.method === "HEAD") &&
+		req.nextUrl.origin !== canonicalOrigin.origin
+	) {
+		const canonicalUrl = new URL(
+			`${req.nextUrl.pathname}${req.nextUrl.search}`,
+			canonicalOrigin.origin,
+		);
+		return NextResponse.redirect(canonicalUrl, 307);
+	}
 
 	if (
 		pathname.startsWith("/_next") ||

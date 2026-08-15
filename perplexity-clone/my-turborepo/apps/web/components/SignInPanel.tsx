@@ -10,16 +10,24 @@ import { Button } from "./ui/button";
 export interface SignInPanelProps {
 	readonly showGoogle: boolean;
 	readonly showGitHub: boolean;
+	readonly canonicalOrigin?: string;
 }
 
-export function SignInPanel({ showGoogle, showGitHub }: SignInPanelProps) {
+export function SignInPanel({ showGoogle, showGitHub, canonicalOrigin }: SignInPanelProps) {
 	const searchParams = useSearchParams();
 	const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+	const authError = searchParams.get("error");
 	const [pending, setPending] = useState<string | null>(null);
 
 	const handleOAuth = async (providerId: "google" | "github") => {
 		setPending(providerId);
 		try {
+			if (canonicalOrigin && window.location.origin !== canonicalOrigin) {
+				const canonicalSignIn = new URL("/signin", canonicalOrigin);
+				canonicalSignIn.searchParams.set("callbackUrl", callbackUrl);
+				window.location.assign(canonicalSignIn.toString());
+				return;
+			}
 			await signIn(providerId, { callbackUrl, redirect: true });
 		} finally {
 			setPending(null);
@@ -36,6 +44,14 @@ export function SignInPanel({ showGoogle, showGitHub }: SignInPanelProps) {
 
 	return (
 		<div className="flex flex-col gap-3">
+			{authError ? (
+				<div
+					role="alert"
+					className="rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+				>
+					Sign-in could not be completed. Start again from the official AiraAI domain below.
+				</div>
+			) : null}
 			{showGoogle ? (
 			<Button
 				variant="outline"
