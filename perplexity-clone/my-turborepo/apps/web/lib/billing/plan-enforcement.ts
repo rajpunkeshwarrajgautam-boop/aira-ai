@@ -5,7 +5,11 @@ import {
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-import { effectiveMonthlySearchLimit, PLAN_LIMITS } from "./plans";
+import {
+	effectiveMonthlyAgentRunLimit,
+	effectiveMonthlySearchLimit,
+	PLAN_LIMITS,
+} from "./plans";
 
 type DbClient = Pick<Prisma.TransactionClient, "user" | "usageRecord">;
 
@@ -30,6 +34,9 @@ export interface EffectiveEntitlements {
 	readonly monthlySearchLimit: number;
 	readonly searchesUsed: number;
 	readonly searchesRemaining: number;
+	readonly monthlyAgentRunLimit: number;
+	readonly agentRunsUsed: number;
+	readonly agentRunsRemaining: number;
 }
 
 export type BillingUsageSummary = EffectiveEntitlements;
@@ -56,6 +63,7 @@ async function loadEntitlements(
 	const teamSeats =
 		billingPlan === BillingPlan.TEAM ? (sub?.teamSeats ?? 1) : 1;
 	const limit = effectiveMonthlySearchLimit(billingPlan, teamSeats);
+	const agentRunLimit = effectiveMonthlyAgentRunLimit(billingPlan, teamSeats);
 
 	// Load current month's usage
 	const periodStart = startOfUtcMonth(new Date());
@@ -64,6 +72,7 @@ async function loadEntitlements(
 	});
 
 	const searchesUsed = usage?.searches ?? 0;
+	const agentRunsUsed = usage?.agentRuns ?? 0;
 
 	return {
 		billingPlan,
@@ -71,6 +80,9 @@ async function loadEntitlements(
 		monthlySearchLimit: limit,
 		searchesUsed,
 		searchesRemaining: Math.max(0, limit - searchesUsed),
+		monthlyAgentRunLimit: agentRunLimit,
+		agentRunsUsed,
+		agentRunsRemaining: Math.max(0, agentRunLimit - agentRunsUsed),
 	};
 }
 
@@ -118,6 +130,64 @@ export async function consumeSearchQuota(userId: string): Promise<EffectiveEntit
 			searchesUsed: row.searches,
 			searchesRemaining: Math.max(0, limit - row.searches),
 		};
+	});
+}
+
+/**
+ * Reserves one AutoGPT run atomically. Call before submitting the remote job.
+ * If remote submission fails, pair it with `refundAgentRunQuota`.
+ */
+export async function consumeAgentRunQuota(
+	userId: string,
+): Promise<EffectiveEntitlements> {
+	const periodStart = startOfUtcMonth(new Date());
+
+	return prisma.$transaction(async (tx) => {
+		const entitlements = await loadEntitlements(tx, userId);
+		const limit = entitlements.monthlyAgentRunLimit;
+
+		if (limit < 1) {
+			throw new PlanEnforcementError(
+				403,
+				"PLAN_REQUIRED",
+				"AutoGPT agent tasks require Pro or Team.",
+			);
+		}
+
+		const row = await tx.usageRecord.upsert({
+			where: { userId_periodStart: { userId, periodStart } },
+			create: { userId, periodStart, agentRuns: 1 },
+			update: { agentRuns: { increment: 1 } },
+		});
+
+		if (row.agentRuns > limit) {
+			throw new PlanEnforcementError(
+				402,
+				"AGENT_QUOTA_EXCEEDED",
+				`You have reached your monthly limit of ${limit} agent tasks.`,
+			);
+		}
+
+		return {
+			...entitlements,
+			agentRunsUsed: row.agentRuns,
+			agentRunsRemaining: Math.max(0, limit - row.agentRuns),
+		};
+	});
+}
+
+/** Refund a reserved run when AutoGPT rejects or cannot accept the job. */
+export async function refundAgentRunQuota(userId: string): Promise<void> {
+	const periodStart = startOfUtcMonth(new Date());
+	await prisma.$transaction(async (tx) => {
+		const row = await tx.usageRecord.findUnique({
+			where: { userId_periodStart: { userId, periodStart } },
+		});
+		if (!row || row.agentRuns < 1) return;
+		await tx.usageRecord.update({
+			where: { userId_periodStart: { userId, periodStart } },
+			data: { agentRuns: { decrement: 1 } },
+		});
 	});
 }
 

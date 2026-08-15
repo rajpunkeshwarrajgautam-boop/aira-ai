@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { Bot, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -69,6 +69,12 @@ export function UserMenu({ className }: { readonly className?: string }) {
 					{label}
 				</span>
 			</div>
+			<Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
+				<Link href="/agents" title="Open autonomous agent tasks">
+					<Bot className="mr-1 size-3.5" aria-hidden />
+					<span className="hidden md:inline">Agents</span>
+				</Link>
+			</Button>
 			<Button
 				variant="ghost"
 				size="sm"

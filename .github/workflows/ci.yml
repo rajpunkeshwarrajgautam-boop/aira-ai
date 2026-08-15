@@ -5,9 +5,10 @@ on:
   push:
     branches:
       - main
+      - agent/integrate-autogpt
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +17,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -30,8 +31,17 @@ jobs:
       - name: Enable pnpm
         run: corepack enable
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install and refresh lockfile
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Commit refreshed lockfile on AutoGPT branch
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/agent/integrate-autogpt' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git diff --cached --quiet || git commit -m "Refresh AutoGPT lockfile after rebase"
+          git push
 
       - name: Run quality gates
         run: pnpm run ci

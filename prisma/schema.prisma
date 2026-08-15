@@ -41,6 +41,15 @@ enum AnalyticsEventType {
   ERROR_EVENT
 }
 
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  TERMINATED
+  REVIEW
+}
+
 model User {
   id                  String                 @id @default(cuid())
   name                String?
@@ -54,6 +63,7 @@ model User {
   sessions            Session[]
   billingSubscription BillingSubscription?
   usageRecords        UsageRecord[]
+  agentRuns           AgentRun[]
   conversations       Conversation[]
   researchHistory     ResearchHistory[]
 }
@@ -127,10 +137,36 @@ model UsageRecord {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   periodStart DateTime
   searches    Int      @default(0)
+  agentRuns   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, periodStart])
+}
+
+/// A user-owned execution submitted to the AutoGPT External API.
+/// Only provider identifiers and execution results are stored; API keys remain server-only.
+model AgentRun {
+  id                String         @id @default(cuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          String         @default("AUTOGPT")
+  /// Client-generated idempotency key; prevents duplicate paid executions on retries.
+  clientRequestId   String
+  remoteExecutionId String?        @unique
+  graphId           String
+  graphVersion      Int
+  objective         String         @db.Text
+  status            AgentRunStatus @default(QUEUED)
+  result            Json?
+  errorMessage      String?        @db.Text
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  completedAt       DateTime?
+
+  @@unique([userId, clientRequestId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, status, updatedAt(sort: Desc)])
 }
 
 /// Cashfree PG webhook idempotency (SHA-256 hex of raw body after signature verification).
