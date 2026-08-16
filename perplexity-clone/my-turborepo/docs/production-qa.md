@@ -51,7 +51,7 @@ If you encounter an issue, please report it using the following format:
 
 Be aware of the following known architectural constraints during testing:
 
-- **Deep Research**: Requires a signed-in account and may be gated depending on the current feature-flag rollout.
+- **Deep Research**: Requires a signed-in Pro or Team account.
 - **Quotas**: 
   - Guest users are strictly limited to **5 searches per day**.
   - Signed-in Free users are limited to **250 searches per month**.
@@ -63,7 +63,7 @@ Be aware of the following known architectural constraints during testing:
 
 Before merging to `main` and deploying to Vercel production:
 
-- [ ] `npm run build` completes successfully in `apps/web`.
+- [ ] `pnpm --filter web build` completes successfully from the monorepo root.
 - [ ] All GitHub PR checks (type-checking, linting, format) are green.
 - [ ] Verify Supabase configuration: Migrations are only required if `schema.prisma` or backend RLS policies were modified.
 - [ ] Post-deploy: Verify the live homepage returns `200` and the app shell loads without client-side console errors.
