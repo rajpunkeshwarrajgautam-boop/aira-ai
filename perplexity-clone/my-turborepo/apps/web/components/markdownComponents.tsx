@@ -108,7 +108,7 @@ function CitationPreviewPopover({
 	};
 
 	const anchorClass = cn(
-		"citation-link relative after:absolute after:-inset-y-4 after:-inset-x-2 after:content-['']",
+		"citation-link relative inline-flex min-h-6 min-w-6 items-center justify-center rounded-md px-1 align-baseline",
 		props.className,
 	);
 
