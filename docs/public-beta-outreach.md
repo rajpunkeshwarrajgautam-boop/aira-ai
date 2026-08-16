@@ -1,6 +1,6 @@
 # Public beta outreach pack
 
-**Live app:** https://perplexity-clone-saas.vercel.app  
+**Live app:** https://aira-ai-live.vercel.app
 **Positioning (accurate):** AiraAI with **web citations**, **Deep Research** (signed-in), and **shareable read-only report links** (signed-in).
 **Scope:** Draft copy only—do not auto-post. Tailor for each community’s rules; avoid drive-by links and mass DMs.
 
@@ -46,7 +46,7 @@ Hey — I’m running a **tiny public beta** (10–20 people) for an **AI resear
 
 Would you try **one genuine question** you’d actually Google for work or study and tell me what felt broken or surprisingly good?
 
-→ https://perplexity-clone-saas.vercel.app
+→ https://aira-ai-live.vercel.app
 
 ---
 
@@ -54,7 +54,7 @@ Would you try **one genuine question** you’d actually Google for work or study
 
 **Title:** [Beta] Grounded research web app—looking for feedback on citations + Deep Research
 
-I’m testing **https://perplexity-clone-saas.vercel.app** in an informal **public beta**—not selling anything. It’s an **AI research-style UI**: answers with **linked web sources**, optional **Deep Research** after sign-in, and **share links** for read-only reports (also after sign-in).
+I’m testing **https://aira-ai-live.vercel.app** in an informal **public beta**—not selling anything. It’s an **AI research-style UI**: answers with **linked web sources**, optional **Deep Research** for Pro and Team accounts, and **share links** for read-only reports after sign-in.
 
 **Ask:** Try **one real research question** you’d normally spend time on (not “hello world”), then comment what worked / didn’t—especially **source usefulness** and **latency**.
 
@@ -68,7 +68,7 @@ Running a **small public beta** for a grounded **AI research** web app—**citat
 
 Looking for feedback from **one serious research query**, not a vibe check.
 
-Free → https://perplexity-clone-saas.vercel.app  
+Free → https://aira-ai-live.vercel.app
 DMs open if something breaks.
 
 ---
@@ -81,7 +81,7 @@ It focuses on **answers with web citations**, optional **Deep Research**, and **
 
 **If you have 10 minutes:** run **one real work or research question** you care about, note whether the **sources and answer** were worth your time, and what felt missing.
 
-**Link:** https://perplexity-clone-saas.vercel.app  
+**Link:** https://aira-ai-live.vercel.app
 **Context:** guest search is limited; sign-in unlocks saving, Deep Research, and sharing. Honest limitations welcome.
 
 ---
