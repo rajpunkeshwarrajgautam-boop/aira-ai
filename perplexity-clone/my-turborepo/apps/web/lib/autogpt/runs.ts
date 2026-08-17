@@ -166,7 +166,11 @@ export async function submitAgentRun(options: {
 
 	let remoteExecutionId: string;
 	try {
-		remoteExecutionId = await executeAutoGptGraph(config, options.objective);
+		remoteExecutionId = await executeAutoGptGraph(
+			config,
+			options.objective,
+			pendingRun.id,
+		);
 	} catch (error) {
 		const outcomeUnknown =
 			error instanceof AutoGptRequestError && error.submissionOutcomeUnknown;

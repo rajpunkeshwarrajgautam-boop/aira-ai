@@ -1,4 +1,4 @@
-import type { AutoGptConfig } from "./config";
+import type { AutoGptConfig, AutoGptTarget } from "./config";
 
 const MAX_RESPONSE_BYTES = 1_000_000;
 const MAX_STORED_RESULT_BYTES = 128_000;
@@ -31,8 +31,8 @@ export class AutoGptRequestError extends Error {
 	}
 }
 
-function endpoint(config: AutoGptConfig, path: string): URL {
-	return new URL(`${config.baseUrl.toString().replace(/\/$/, "")}${path}`);
+function endpoint(target: AutoGptTarget, path: string): URL {
+	return new URL(`${target.baseUrl.toString().replace(/\/$/, "")}${path}`);
 }
 
 async function readLimitedText(response: Response): Promise<string> {
@@ -104,12 +104,14 @@ function errorForProviderStatus(status: number): AutoGptRequestError {
 }
 
 async function requestJson(
-	config: AutoGptConfig,
+	target: AutoGptTarget,
 	url: URL,
 	init: RequestInit,
+	timeoutMs: number,
+	submissionOutcomeUnknown = false,
 ): Promise<unknown> {
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
 		const response = await fetch(url, {
@@ -119,7 +121,7 @@ async function requestJson(
 			headers: {
 				Accept: "application/json",
 				"Content-Type": "application/json",
-				"X-API-Key": config.apiKey,
+				"X-API-Key": target.apiKey,
 				...(init.headers ?? {}),
 			},
 		});
@@ -144,7 +146,7 @@ async function requestJson(
 				message: "AutoGPT did not respond before the request timed out.",
 				status: 504,
 				retryable: true,
-				submissionOutcomeUnknown: true,
+				submissionOutcomeUnknown,
 			});
 		}
 		throw new AutoGptRequestError({
@@ -152,17 +154,95 @@ async function requestJson(
 			message: "Aira could not reach AutoGPT.",
 			status: 502,
 			retryable: true,
-			submissionOutcomeUnknown: true,
+			submissionOutcomeUnknown,
 		});
 	} finally {
 		clearTimeout(timeout);
 	}
 }
 
+function encodeExecutionReference(target: AutoGptTarget, executionId: string): string {
+	const encoded = Buffer.from(executionId, "utf8").toString("base64url");
+	return `aira1.${target.id}.${encoded}`;
+}
+
+function decodeExecutionReference(
+	config: AutoGptConfig,
+	reference: string,
+): { readonly target: AutoGptTarget; readonly executionId: string } {
+	const match = /^aira1\.(primary|secondary)\.([A-Za-z0-9_-]+)$/.exec(reference);
+	if (!match) {
+		if (reference.startsWith("aira1.")) throw new AutoGptConfigReferenceError();
+		const primary = config.targets[0];
+		if (!primary) throw new AutoGptConfigReferenceError();
+		return { target: primary, executionId: reference };
+	}
+
+	const target = config.targets.find((candidate) => candidate.id === match[1]);
+	if (!target) throw new AutoGptConfigReferenceError();
+	try {
+		const executionId = Buffer.from(match[2] ?? "", "base64url").toString("utf8").trim();
+		if (!/^[A-Za-z0-9_-]{1,128}$/.test(executionId)) {
+			throw new Error("invalid execution ID");
+		}
+		return { target, executionId };
+	} catch {
+		throw new AutoGptConfigReferenceError();
+	}
+}
+
+class AutoGptConfigReferenceError extends AutoGptRequestError {
+	constructor() {
+		super({
+			code: "AUTOGPT_TARGET_NOT_CONFIGURED",
+			message: "The AutoGPT host that accepted this task is no longer configured.",
+			status: 503,
+			retryable: false,
+		});
+	}
+}
+
+async function isTargetHealthy(
+	config: AutoGptConfig,
+	target: AutoGptTarget,
+): Promise<boolean> {
+	try {
+		await requestJson(
+			target,
+			endpoint(target, "/health"),
+			{ method: "GET" },
+			config.healthTimeoutMs,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+async function selectSubmissionTarget(config: AutoGptConfig): Promise<AutoGptTarget> {
+	const primary = config.targets[0];
+	if (!primary) throw new AutoGptConfigReferenceError();
+	if (config.targets.length === 1) return primary;
+
+	for (const target of config.targets) {
+		if (await isTargetHealthy(config, target)) return target;
+	}
+
+	throw new AutoGptRequestError({
+		code: "AUTOGPT_UNAVAILABLE",
+		message: "Neither AutoGPT runner is currently reachable.",
+		status: 503,
+		retryable: true,
+		submissionOutcomeUnknown: false,
+	});
+}
+
 export async function executeAutoGptGraph(
 	config: AutoGptConfig,
 	objective: string,
+	clientRequestId: string,
 ): Promise<string> {
+	const target = await selectSubmissionTarget(config);
 	const body = {
 		node_input: {
 			[config.inputNodeId]: {
@@ -171,12 +251,18 @@ export async function executeAutoGptGraph(
 		},
 	};
 	const data = await requestJson(
-		config,
+		target,
 		endpoint(
-			config,
+			target,
 			`/graphs/${encodeURIComponent(config.graphId)}/execute/${config.graphVersion}`,
 		),
-		{ method: "POST", body: JSON.stringify(body) },
+		{
+			method: "POST",
+			body: JSON.stringify(body),
+			headers: { "X-AIRA-Request-ID": clientRequestId },
+		},
+		config.requestTimeoutMs,
+		true,
 	);
 	const id =
 		typeof data === "object" && data !== null && typeof (data as { id?: unknown }).id === "string"
@@ -191,7 +277,7 @@ export async function executeAutoGptGraph(
 			submissionOutcomeUnknown: true,
 		});
 	}
-	return id;
+	return encodeExecutionReference(target, id);
 }
 
 export async function getAutoGptExecution(
@@ -199,13 +285,15 @@ export async function getAutoGptExecution(
 	graphId: string,
 	remoteExecutionId: string,
 ): Promise<AutoGptExecutionResult> {
+	const reference = decodeExecutionReference(config, remoteExecutionId);
 	const data = await requestJson(
-		config,
+		reference.target,
 		endpoint(
-			config,
-			`/graphs/${encodeURIComponent(graphId)}/executions/${encodeURIComponent(remoteExecutionId)}/results`,
+			reference.target,
+			`/graphs/${encodeURIComponent(graphId)}/executions/${encodeURIComponent(reference.executionId)}/results`,
 		),
 		{ method: "GET" },
+		config.requestTimeoutMs,
 	);
 	if (typeof data !== "object" || data === null) {
 		throw new AutoGptRequestError({
@@ -228,7 +316,7 @@ export async function getAutoGptExecution(
 		executionId:
 			typeof payload.execution_id === "string"
 				? payload.execution_id
-				: remoteExecutionId,
+				: reference.executionId,
 		status: payload.status,
 		output: payload.output ?? null,
 	};

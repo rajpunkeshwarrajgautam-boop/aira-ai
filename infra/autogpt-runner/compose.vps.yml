@@ -1,0 +1,33 @@
+services:
+  adapter:
+    environment:
+      RUNNER_HOST_ROLE: primary-vps
+
+  caddy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    depends_on:
+      adapter:
+        condition: service_healthy
+    environment:
+      RUNNER_DOMAIN: ${RUNNER_DOMAIN:?RUNNER_DOMAIN is required}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caddy-data:
+  caddy-config:
