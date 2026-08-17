@@ -5,13 +5,51 @@ import type {
 } from "openai/resources/chat/completions";
 import type { AIProvider, ProviderOptions } from "./provider-router";
 
+const DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
+const DEFAULT_NVIDIA_FALLBACK_MODELS = [
+	"meta/llama-3.3-70b-instruct",
+	"minimaxai/minimax-m3",
+] as const;
+
+function getErrorStatus(error: unknown): number | undefined {
+	if (typeof error !== "object" || error === null || !("status" in error)) {
+		return undefined;
+	}
+
+	const status = (error as { readonly status?: unknown }).status;
+	return typeof status === "number" ? status : undefined;
+}
+
+function isModelAccessError(error: unknown): boolean {
+	const status = getErrorStatus(error);
+	if (status === 403 || status === 404) return true;
+
+	const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+	return (
+		message.includes("forbidden") ||
+		message.includes("permission") ||
+		message.includes("model_not_found") ||
+		message.includes("unknown model") ||
+		message.includes("model does not exist")
+	);
+}
+
+function configuredFallbackModels(): readonly string[] {
+	const configured = process.env.NVIDIA_CHAT_MODEL_FALLBACKS
+		?.split(",")
+		.map((model) => model.trim())
+		.filter(Boolean);
+
+	return configured?.length ? configured : DEFAULT_NVIDIA_FALLBACK_MODELS;
+}
+
 export class NVIDIAProvider implements AIProvider {
 	readonly providerId = "nvidia";
 	private readonly client: OpenAI;
 
 	constructor(
 		apiKey: string,
-		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? "minimaxai/minimax-m3",
+		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
 	) {
 		this.client = new OpenAI({
 			apiKey,
@@ -23,27 +61,57 @@ export class NVIDIAProvider implements AIProvider {
 		messages: ChatCompletionMessageParam[],
 		options: ProviderOptions,
 	): AsyncGenerator<string, void, undefined> {
-		const params: ChatCompletionCreateParamsStreaming = {
-			model: options.model ?? this.defaultModel,
-			messages,
-			stream: true,
-			temperature: options.temperature,
-			max_tokens: options.maxCompletionTokens,
-			top_p: options.topP,
-			frequency_penalty: options.frequencyPenalty,
-			presence_penalty: options.presencePenalty,
-		};
+		const requestedModel = options.model ?? this.defaultModel;
+		const models = [requestedModel, ...configuredFallbackModels()].filter(
+			(model, index, all) => all.indexOf(model) === index,
+		);
 
-		const stream = await this.client.chat.completions.create(params, {
-			signal: options.abortSignal,
-		});
+		for (const [index, model] of models.entries()) {
+			let emittedText = false;
 
-		for await (const chunk of stream) {
-			const delta = chunk.choices[0]?.delta;
-			const text = delta?.content;
-			if (text) yield text;
-			const refusal = delta?.refusal;
-			if (refusal) yield refusal;
+			try {
+				const params: ChatCompletionCreateParamsStreaming = {
+					model,
+					messages,
+					stream: true,
+					temperature: options.temperature,
+					max_tokens: options.maxCompletionTokens,
+					top_p: options.topP,
+					frequency_penalty: options.frequencyPenalty,
+					presence_penalty: options.presencePenalty,
+				};
+
+				const stream = await this.client.chat.completions.create(params, {
+					signal: options.abortSignal,
+				});
+
+				for await (const chunk of stream) {
+					const delta = chunk.choices[0]?.delta;
+					const text = delta?.content;
+					if (text) {
+						emittedText = true;
+						yield text;
+					}
+					const refusal = delta?.refusal;
+					if (refusal) {
+						emittedText = true;
+						yield refusal;
+					}
+				}
+
+				return;
+			} catch (error) {
+				const hasAnotherModel = index < models.length - 1;
+				if (emittedText || !hasAnotherModel || !isModelAccessError(error)) {
+					throw error;
+				}
+
+				console.warn(
+					`[NVIDIAProvider] Model ${model} is unavailable (status ${getErrorStatus(error) ?? "unknown"}). Trying the next configured model.`,
+				);
+			}
 		}
+
+		throw new Error("No accessible NVIDIA chat model is available.");
 	}
 }
