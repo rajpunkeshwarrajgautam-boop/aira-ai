@@ -8,6 +8,7 @@ on:
       - ".github/workflows/aira-desktop-windows.yml"
   push:
     branches:
+      - main
       - agent/aira-desktop-agent
     tags:
       - "aira-desktop-v*"
@@ -68,3 +69,42 @@ jobs:
           path: desktop-agent/dist/**
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish AIRA Desktop 1.0
+        if: ${{ github.ref == 'refs/heads/main' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "aira-desktop-v1.0.0"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; leaving it unchanged."
+            exit 0
+          }
+
+          $notesPath = Join-Path $env:RUNNER_TEMP "aira-desktop-1.0-release-notes.md"
+          @"
+          AIRA Desktop 1.0 is the first Windows release of AIRA's local-first agentic operating layer.
+
+          Highlights:
+          - local Ollama reasoning, vision, embeddings, memory, and workspace RAG
+          - approval-gated computer, browser, PowerShell, file, and Android tools
+          - voice control, scheduled read-only automations, encrypted remote-provider keys
+          - sandboxed Electron renderer, audit logs, and automatic update support
+
+          Requirements: Windows 10/11. Ollama is required for local inference.
+          "@ | Set-Content -Path $notesPath -Encoding utf8
+
+          $assets = Get-ChildItem -Path dist -File | Where-Object {
+            $_.Name -eq "latest.yml" -or $_.Extension -in ".exe", ".blockmap"
+          } | Select-Object -ExpandProperty FullName
+          if (-not $assets) {
+            throw "No Windows release assets were produced."
+          }
+
+          gh release create $tag `
+            --target $env:GITHUB_SHA `
+            --title "AIRA Desktop 1.0.0" `
+            --notes-file $notesPath `
+            $assets
