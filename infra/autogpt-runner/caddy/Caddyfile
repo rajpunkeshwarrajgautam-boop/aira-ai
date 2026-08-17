@@ -1,0 +1,15 @@
+{$RUNNER_DOMAIN} {
+	encode zstd gzip
+
+	@external path /external-api/*
+	reverse_proxy @external adapter:8080
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+
+	respond 404
+}

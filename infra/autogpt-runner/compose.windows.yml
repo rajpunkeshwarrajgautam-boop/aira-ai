@@ -1,0 +1,24 @@
+services:
+  adapter:
+    environment:
+      RUNNER_HOST_ROLE: secondary-windows
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.8.2
+    restart: unless-stopped
+    depends_on:
+      adapter:
+        condition: service_healthy
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+    networks:
+      - edge
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

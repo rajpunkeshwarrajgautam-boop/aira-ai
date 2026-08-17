@@ -37,3 +37,7 @@ prisma-generate.js
 prisma-migrate-dev.js
 
 .playwright-mcp/
+
+# Python test/build output
+__pycache__/
+*.py[cod]

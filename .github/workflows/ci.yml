@@ -35,3 +35,39 @@ jobs:
 
       - name: Run quality gates
         run: pnpm run ci
+
+  autogpt-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: infra/autogpt-runner/adapter/requirements.txt
+
+      - name: Install adapter dependencies
+        run: pip install -r infra/autogpt-runner/adapter/requirements.txt
+
+      - name: Run adapter contract tests
+        run: python -m unittest infra/autogpt-runner/tests/test_adapter.py
+
+      - name: Validate deployment profiles
+        working-directory: infra/autogpt-runner
+        env:
+          RUNNER_API_KEY: contract-runner-key-contract-runner-key
+          AUTOGPT_INTERNAL_TOKEN: sk-contract-internal-token-contract-internal
+          NVIDIA_API_KEY: contract-nvidia-key-contract-nvidia-key
+          RUNNER_DOMAIN: autogpt-primary.example.com
+          CLOUDFLARE_TUNNEL_TOKEN: contract-cloudflare-tunnel-token
+        run: |
+          docker compose -f compose.yml -f compose.vps.yml config --quiet
+          docker compose -f compose.yml -f compose.windows.yml config --quiet
+
+      - name: Build authenticated adapter image
+        run: docker build -t aira-autogpt-adapter:ci infra/autogpt-runner/adapter

@@ -1,0 +1,39 @@
+FROM python:3.12.11-slim
+
+ARG AUTOGPT_COMMIT=601093ddfe23a3d58a9c8f4a208bd49b203ee612
+ARG POETRY_VERSION=2.1.4
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl gcc git \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install "poetry==${POETRY_VERSION}"
+
+RUN git clone --filter=blob:none --no-checkout https://github.com/Significant-Gravitas/AutoGPT.git /opt/autogpt \
+    && git -C /opt/autogpt fetch --depth 1 origin "${AUTOGPT_COMMIT}" \
+    && git -C /opt/autogpt sparse-checkout init --cone \
+    && git -C /opt/autogpt sparse-checkout set classic \
+    && git -C /opt/autogpt checkout --detach "${AUTOGPT_COMMIT}" \
+    && rm -rf /opt/autogpt/.git
+
+WORKDIR /opt/autogpt/classic
+RUN poetry install --no-cache --no-root --without dev \
+    && poetry install --only-root \
+    && useradd --create-home --uid 10002 autogpt \
+    && mkdir -p /workspace \
+    && chown -R autogpt:autogpt /workspace
+
+USER autogpt
+WORKDIR /workspace
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
+  CMD curl --fail --silent http://127.0.0.1:8000/ap/v1/heartbeat >/dev/null || exit 1
+
+CMD ["/opt/autogpt/classic/.venv/bin/serve", "--debug"]
