@@ -28,6 +28,7 @@
     "NEXT_PUBLIC_FEEDBACK_EMAIL",
     "NVIDIA_API_KEY",
     "NVIDIA_CHAT_MODEL",
+    "NVIDIA_CHAT_MODEL_FALLBACKS",
     "OPENAI_API_KEY",
     "OPENAI_CHAT_MODEL",
     "npm_lifecycle_event",
