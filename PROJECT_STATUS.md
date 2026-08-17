@@ -22,7 +22,7 @@ Desktop 1.0 release: https://github.com/rajpunkeshwarrajgautam-boop/aira-ai/rele
 1. **Rotate the NVIDIA credential:** replace the credential that was shared outside the deployment secret store before installing either runner. Store the replacement only in Vercel and each host's local ignored `.env`; never commit or paste it into project documentation.
 2. **Ubuntu VPS primary:** provide a VPS with a public IPv4 address, a DNS hostname pointing to it, and TCP ports 80/443 reachable. Run `infra/autogpt-runner/scripts/provision-vps.sh`, then retain the printed primary base URL and runner key.
 3. **Windows standby:** create a Cloudflare Tunnel hostname targeting `http://adapter:8080`. Run `infra/autogpt-runner/scripts/setup-windows.ps1`, then retain the printed secondary base URL and runner key.
-4. **Preview activation:** add both hosts' `AUTOGPT_* ` values to Vercel Preview while keeping `AUTOGPT_AGENT_ENABLED=false`. Verify authenticated health for both hosts, enable Preview, complete one Pro/Team task, stop the primary briefly, and confirm a new task fails over to Windows without duplicate submission.
+4. **Preview activation:** add both hosts' `AUTOGPT_*` values to Vercel Preview while keeping `AUTOGPT_AGENT_ENABLED=false`. Verify authenticated health for both hosts, enable Preview, complete one Pro/Team task, stop the primary briefly, and confirm a new task fails over to Windows without duplicate submission.
 5. **Production activation:** copy the verified host values to Production, set `AUTOGPT_AGENT_ENABLED=true`, deploy, and complete one production execution through persistence and quota accounting.
 6. **Cashfree:** commercial activation remains intentionally deferred by the project owner.
 
