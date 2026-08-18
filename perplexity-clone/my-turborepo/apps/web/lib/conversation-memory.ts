@@ -1,5 +1,8 @@
 import { ConversationMessageRole } from "@/generated/prisma/enums";
-import { getRelevantPersistentMemories } from "@/lib/persistent-memory";
+import {
+	getRelevantPersistentMemories,
+	refreshPersistentMemory,
+} from "@/lib/persistent-memory";
 import { prisma } from "@/lib/prisma";
 import { generatePublicShareToken } from "@/lib/research-share";
 
@@ -28,9 +31,7 @@ function normalizeQuery(input: string): string {
 
 function inferTitleFromQuery(query: string): string {
 	const compact = query.trim().replace(/\s+/g, " ");
-	if (!compact) {
-		return "Untitled conversation";
-	}
+	if (!compact) return "Untitled conversation";
 	return compact.length <= 80 ? compact : compact.slice(0, 77) + "...";
 }
 
@@ -38,19 +39,10 @@ export async function createConversation(
 	userId: string,
 	initialQuery?: string,
 ): Promise<ConversationSummary> {
-	const created = await prisma.conversation.create({
-		data: {
-			userId,
-			title: inferTitleFromQuery(initialQuery ?? ""),
-		},
-		select: {
-			id: true,
-			title: true,
-			lastMessageAt: true,
-			createdAt: true,
-		},
+	return prisma.conversation.create({
+		data: { userId, title: inferTitleFromQuery(initialQuery ?? "") },
+		select: { id: true, title: true, lastMessageAt: true, createdAt: true },
 	});
-	return created;
 }
 
 export async function listConversations(
@@ -61,12 +53,7 @@ export async function listConversations(
 		where: { userId, archivedAt: null },
 		orderBy: { lastMessageAt: "desc" },
 		take: Math.min(Math.max(limit, 1), 100),
-		select: {
-			id: true,
-			title: true,
-			lastMessageAt: true,
-			createdAt: true,
-		},
+		select: { id: true, title: true, lastMessageAt: true, createdAt: true },
 	});
 }
 
@@ -78,9 +65,7 @@ export async function getConversationOrThrow(
 		where: { id: conversationId, userId, archivedAt: null },
 		select: { id: true, title: true },
 	});
-	if (!row) {
-		throw new Error("Conversation not found.");
-	}
+	if (!row) throw new Error("Conversation not found.");
 	return row;
 }
 
@@ -173,11 +158,9 @@ export async function getFollowUpContext(args: {
 
 	const durableMemories = await getRelevantPersistentMemories(userId, query, memoryLimit);
 
-	// Research history remains a useful secondary recall source for past factual work,
-	// while UserMemory carries stable cross-conversation facts/preferences/goals.
 	const normalized = normalizeQuery(query);
 	const queryTokens = normalized.split(" ").filter((t) => t.length > 2).slice(0, 5);
-	const memoryCandidates = queryTokens.length
+	const researchCandidates = queryTokens.length
 		? await prisma.researchHistory.findMany({
 				where: {
 					userId,
@@ -190,10 +173,7 @@ export async function getFollowUpContext(args: {
 				},
 				orderBy: { createdAt: "desc" },
 				take: Math.min(Math.max(Math.ceil(memoryLimit / 2), 1), 4),
-				select: {
-					query: true,
-					assistantAnswer: true,
-				},
+				select: { query: true, assistantAnswer: true },
 			})
 		: [];
 
@@ -208,17 +188,13 @@ export async function getFollowUpContext(args: {
 				.join("\n")}`,
 		);
 	}
-	for (const item of memoryCandidates) {
+	for (const item of researchCandidates) {
 		contextualMemory.push(
 			`PRIOR RESEARCH CONTEXT:\nQuery: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
 		);
 	}
 
-	return {
-		chatHistory,
-		contextualMemory,
-		resolvedConversationId,
-	};
+	return { chatHistory, contextualMemory, resolvedConversationId };
 }
 
 export async function persistConversationTurn(args: {
@@ -303,11 +279,25 @@ export async function persistConversationTurn(args: {
 			},
 		});
 
-		return {
-			userMessageId: userMessage.id,
-			assistantMessageId: assistantMessage.id,
-		};
+		return { userMessageId: userMessage.id, assistantMessageId: assistantMessage.id };
 	});
+
+	// Memory curation is best-effort: a provider or parsing failure must never make
+	// an otherwise successful chat turn fail or disappear from conversation history.
+	try {
+		await refreshPersistentMemory({
+			userId: args.userId,
+			conversationId: conversation.id,
+			userMessageId: result.userMessageId,
+			query: args.query,
+			answer: args.answer,
+		});
+	} catch (error) {
+		console.warn(
+			"[AIRA memory] Could not refresh persistent memory:",
+			error instanceof Error ? error.message : String(error),
+		);
+	}
 
 	return {
 		conversationId: conversation.id,
