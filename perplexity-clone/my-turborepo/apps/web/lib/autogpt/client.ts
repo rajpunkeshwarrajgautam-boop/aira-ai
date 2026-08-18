@@ -1,3 +1,5 @@
+import { buildDisciplinedAgentObjective } from "@/lib/agents/execution-discipline";
+
 import type { AutoGptConfig, AutoGptTarget } from "./config";
 
 const MAX_RESPONSE_BYTES = 1_000_000;
@@ -243,10 +245,11 @@ export async function executeAutoGptGraph(
 	clientRequestId: string,
 ): Promise<string> {
 	const target = await selectSubmissionTarget(config);
+	const disciplinedObjective = buildDisciplinedAgentObjective(objective);
 	const body = {
 		node_input: {
 			[config.inputNodeId]: {
-				[config.inputField]: objective,
+				[config.inputField]: disciplinedObjective,
 			},
 		},
 	};
