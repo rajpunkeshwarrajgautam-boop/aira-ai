@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
+import { AiraLogo } from "../../components/AiraLogo";
 import { SignInPanel } from "../../components/SignInPanel";
 import {
 	githubClientId,
@@ -28,8 +30,8 @@ function canonicalOrigin(): string | undefined {
 }
 
 export const metadata: Metadata = {
-	title: "Sign in — Research",
-	description: "Sign in with Google or GitHub",
+	title: "Sign in — AiraAI",
+	description: "Sign in to AiraAI with Google or GitHub",
 };
 
 export default function SignInPage() {
@@ -37,35 +39,30 @@ export default function SignInPage() {
 	const authOrigin = canonicalOrigin();
 
 	return (
-		<div className="relative flex min-h-dvh flex-col items-center justify-center bg-surface px-4 py-16">
-			<div
-				className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--accent)/0.18),transparent)]"
-				aria-hidden
-			/>
+		<div className="aira-shell relative flex min-h-dvh flex-col items-center justify-center px-4 py-12 sm:py-16">
 			<div className="relative z-10 w-full max-w-md">
-				<p className="mb-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-content-tertiary">
-					Research
-				</p>
-				<h1 className="mb-2 text-center text-2xl font-semibold tracking-tight text-content-primary">
-					Sign in to continue
-				</h1>
-				<p className="mb-8 text-center text-sm leading-relaxed text-content-secondary">
-					Signing in unlocks saved conversations, Deep Research, and shareable result pages. Use Google or GitHub;
-					sessions use secure cookies and your profile is stored only for sign-in.
-				</p>
-				<Suspense
-					fallback={
-						<div className="h-[118px] animate-pulse rounded-2xl bg-surface-inset ring-1 ring-border-subtle" />
-					}
-				>
-					<SignInPanel
-						showGoogle={showGoogle}
-						showGitHub={showGitHub}
-						canonicalOrigin={authOrigin}
-					/>
-				</Suspense>
-				<p className="mt-8 text-center text-xs leading-relaxed text-content-tertiary">
-					By continuing, your provider shares basic profile data used only for authentication and account linking.
+				<div className="mb-7 flex justify-center"><Link href="/" aria-label="Back to AiraAI"><AiraLogo /></Link></div>
+				<div className="aira-gradient-frame rounded-[30px]">
+					<div className="aira-glass rounded-[29px] p-6 sm:p-7">
+						<div className="text-center">
+							<span className="inline-flex items-center gap-2 rounded-full bg-accent/[0.07] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-accent ring-1 ring-accent/10">
+								<span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" aria-hidden />
+								Your Aira workspace
+							</span>
+							<h1 className="aira-display mt-4 text-3xl text-content-primary sm:text-4xl">Welcome back.</h1>
+							<p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-content-secondary">
+								Sign in to keep conversations, persistent memory, Deep Research, and your private agent workspace together.
+							</p>
+						</div>
+						<div className="mt-7">
+							<Suspense fallback={<div className="flex h-[118px] items-center justify-center rounded-2xl bg-surface-inset/70"><span className="aira-orbit-loader" aria-hidden /></div>}>
+								<SignInPanel showGoogle={showGoogle} showGitHub={showGitHub} canonicalOrigin={authOrigin} />
+							</Suspense>
+						</div>
+					</div>
+				</div>
+				<p className="mt-6 text-center text-xs leading-relaxed text-content-tertiary">
+					Your provider shares only basic profile data used for authentication and account linking.
 				</p>
 			</div>
 		</div>
