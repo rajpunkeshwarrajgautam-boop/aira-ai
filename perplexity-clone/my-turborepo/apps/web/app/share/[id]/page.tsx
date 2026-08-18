@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AiraLogo } from "@/components/AiraLogo";
@@ -80,7 +79,7 @@ export default async function SharePage({
 		<div className="aira-shell min-h-dvh w-full overflow-hidden">
 			<div className="relative z-10 flex min-h-dvh flex-col">
 				<header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 md:px-6">
-					<Link href="/" aria-label="Open AiraAI"><AiraLogo /></Link>
+					<AiraLogo />
 					<div className="flex items-center gap-2"><CopyShareLinkButton url={url} /></div>
 				</header>
 
