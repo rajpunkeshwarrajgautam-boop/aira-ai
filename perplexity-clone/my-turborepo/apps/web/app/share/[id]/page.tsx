@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { AiraLogo } from "@/components/AiraLogo";
 import { CitationCards } from "@/components/CitationCards";
 import { CopyShareLinkButton } from "@/components/share/CopyShareLinkButton";
 import { ShareAnswerMarkdown } from "@/components/share/ShareAnswerMarkdown";
 import { ShareFollowUpCta } from "@/components/share/ShareFollowUpCta";
-import { cn } from "@/lib/cn";
 import { getPublicResearchShareByToken, buildShareUrl } from "@/lib/research-share";
 import { parseCitationIndicesFromAnswer } from "@/src/services/citations";
 
@@ -76,49 +76,29 @@ export default async function SharePage({
 	const citedIndices = parseCitationIndicesFromAnswer(share.assistantAnswer);
 
 	return (
-		<div className="relative min-h-dvh w-full overflow-hidden bg-surface">
-			<div
-				className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--accent)/0.18),transparent)]"
-				aria-hidden
-			/>
-
+		<div className="aira-shell min-h-dvh w-full overflow-hidden">
 			<div className="relative z-10 flex min-h-dvh flex-col">
-				<header className="flex items-center justify-between gap-4 px-4 py-6 md:px-6">
-					<div className="flex min-w-0 flex-col">
-						<h1 className="truncate text-lg font-semibold tracking-tight text-content-primary sm:text-xl">
-							{share.query}
-						</h1>
-						<p className="mt-0.5 text-xs text-content-secondary">
-							Shared research with live web citations.
-						</p>
-					</div>
-
-					<div className="flex items-center gap-2">
-						<CopyShareLinkButton url={url} />
-					</div>
+				<header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 md:px-6">
+					<AiraLogo />
+					<div className="flex items-center gap-2"><CopyShareLinkButton url={url} /></div>
 				</header>
 
-				<main className="flex flex-1 flex-col gap-6 px-4 pb-10 md:px-6">
-					<section
-						className={cn(
-							"rounded-2xl border border-border-subtle bg-surface-elevated/30 p-5 backdrop-blur-md",
-						)}
-						aria-label="Research answer"
-					>
+				<main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-12 pt-3 md:px-6 md:pt-6">
+					<div className="aira-enter text-center">
+						<span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-accent ring-1 ring-accent/10 backdrop-blur"><span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" aria-hidden />Shared Aira research</span>
+						<h1 className="aira-display mx-auto mt-4 max-w-4xl text-3xl leading-tight text-content-primary sm:text-4xl md:text-5xl">{share.query}</h1>
+						<p className="mt-3 text-sm text-content-tertiary">A read-only research result with the evidence preserved.</p>
+					</div>
+
+					<section className="aira-glass rounded-3xl p-5 sm:p-7" aria-label="Research answer">
 						<ShareAnswerMarkdown markdown={share.assistantAnswer} citations={share.citations} maxValid={share.citations.length} />
 					</section>
 
-					{share.citations.length > 0 ? (
-						<CitationCards citations={share.citations} className="p-0" citedIndices={citedIndices} />
-					) : null}
+					{share.citations.length > 0 ? <CitationCards citations={share.citations} className="p-0" citedIndices={citedIndices} /> : null}
 
-					<section className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-elevated/30 p-5 backdrop-blur-md">
-						<h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-content-tertiary">
-							Follow-up
-						</h2>
-						<p className="text-sm text-content-secondary">
-							Ask a follow-up question based on this shared research. You will start a new private thread.
-						</p>
+					<section className="aira-card aira-fun-card flex flex-col gap-3 rounded-3xl p-5 sm:p-6">
+						<h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Continue in your own workspace</h2>
+						<p className="text-sm leading-6 text-content-secondary">Ask a follow-up based on this research. Aira will open a new private thread for you.</p>
 						<ShareFollowUpCta initialQuery={share.query} />
 					</section>
 				</main>
@@ -126,4 +106,3 @@ export default async function SharePage({
 		</div>
 	);
 }
-

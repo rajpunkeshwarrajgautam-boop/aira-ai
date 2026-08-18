@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Brain, Loader2, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { Bot, Brain, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -52,18 +52,18 @@ function MarkdownContent({ markdown, citations }: { readonly markdown: string; r
 
 function AssistantSkeleton({ statusText, sourceCount }: { readonly statusText?: string; readonly sourceCount: number }) {
 	return (
-		<div className="aira-enter py-4" aria-busy="true" aria-label="Researching">
+		<div className="aira-enter rounded-3xl border border-border-subtle/70 bg-white/45 px-4 py-5 backdrop-blur-sm" aria-busy="true" aria-label="Researching">
 			<div className="flex items-center gap-3 text-sm text-content-secondary">
-				<span className="flex size-8 items-center justify-center rounded-xl bg-accent/10 text-accent"><Loader2 className="size-4 animate-spin" aria-hidden /></span>
+				<span className="aira-orbit-loader shrink-0" aria-hidden />
 				<div>
 					<p className="font-semibold text-content-primary">{statusText || "Researching…"}</p>
-					<p className="mt-0.5 text-xs text-content-tertiary">{sourceCount > 0 ? `${sourceCount} sources found · preparing a grounded answer` : "Searching and checking relevant sources"}</p>
+					<p className="mt-0.5 text-xs text-content-tertiary">{sourceCount > 0 ? `${sourceCount} sources found · preparing a grounded answer` : "Searching, checking, and comparing relevant sources"}</p>
 				</div>
 			</div>
-			<div className="mt-5 space-y-3 pl-11">
-				<div className="h-2.5 w-[92%] animate-pulse rounded-full bg-surface-inset" />
-				<div className="h-2.5 w-[78%] animate-pulse rounded-full bg-surface-inset" />
-				<div className="h-2.5 w-[64%] animate-pulse rounded-full bg-surface-inset" />
+			<div className="mt-5 space-y-3 pl-[46px]">
+				<div className="h-2.5 w-[92%] overflow-hidden rounded-full bg-surface-inset"><div className="h-full w-2/5 animate-pulse rounded-full bg-gradient-to-r from-accent/20 via-violet-400/25 to-cyan-400/20" /></div>
+				<div className="h-2.5 w-[78%] overflow-hidden rounded-full bg-surface-inset"><div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-accent/15 via-violet-400/20 to-cyan-400/15" /></div>
+				<div className="h-2.5 w-[64%] overflow-hidden rounded-full bg-surface-inset"><div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-accent/10 via-violet-400/20 to-cyan-400/15" /></div>
 			</div>
 		</div>
 	);
@@ -95,7 +95,7 @@ export function ConversationMessageList({
 		return (
 			<div className="aira-enter py-3">
 				<div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-content-tertiary">
-					<span className="flex size-7 items-center justify-center rounded-xl bg-accent/10 text-accent"><Sparkles className="size-3.5" aria-hidden /></span>
+					<span className="flex size-7 items-center justify-center rounded-xl bg-gradient-to-br from-accent/15 to-violet-500/10 text-accent ring-1 ring-accent/10"><Sparkles className="size-3.5" aria-hidden /></span>
 					Aira
 				</div>
 				<div className="pl-0 sm:pl-9">
@@ -117,7 +117,7 @@ export function ConversationMessageList({
 							<p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.13em] text-content-tertiary">Start with a capability</p>
 							<div className="flex flex-wrap justify-center gap-2.5">
 								{exampleQueries.map((query) => (
-									<button key={query} type="button" onClick={() => onPickExample(query)} className="aira-card-hover rounded-full border border-border-subtle bg-white px-4 py-2 text-sm font-medium text-content-secondary hover:text-content-primary">
+									<button key={query} type="button" onClick={() => onPickExample(query)} className="aira-provider-button rounded-full border border-border-subtle bg-white/85 px-4 py-2 text-sm font-medium text-content-secondary shadow-sm backdrop-blur hover:text-content-primary">
 										{query}
 									</button>
 								))}
@@ -130,8 +130,8 @@ export function ConversationMessageList({
 							{CAPABILITIES.map((item) => {
 								const Icon = item.icon;
 								return (
-									<div key={item.title} className="aira-card aira-card-hover rounded-2xl p-4 text-left">
-										<span className="flex size-9 items-center justify-center rounded-xl bg-accent/[0.08] text-accent"><Icon className="size-4.5" aria-hidden /></span>
+									<div key={item.title} className="aira-card aira-fun-card rounded-2xl p-4 text-left">
+										<span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent/[0.12] to-violet-500/[0.08] text-accent ring-1 ring-accent/10"><Icon className="size-4.5" aria-hidden /></span>
 										<h2 className="mt-4 text-sm font-semibold text-content-primary">{item.title}</h2>
 										<p className="mt-1.5 text-xs leading-5 text-content-tertiary">{item.body}</p>
 									</div>
@@ -139,20 +139,20 @@ export function ConversationMessageList({
 							})}
 						</section>
 					) : (
-						<div className="flex justify-center text-center"><div className="max-w-md rounded-2xl border border-border-subtle bg-white p-5"><MessageCircle className="mx-auto size-6 text-accent" /><p className="mt-3 text-sm font-medium text-content-primary">Search without an account</p><p className="mt-1 text-xs leading-5 text-content-tertiary">Sign in when you want saved threads, memory, Deep Research, and sharing.</p></div></div>
+						<div className="flex justify-center text-center"><div className="aira-glass max-w-md rounded-2xl p-5"><MessageCircle className="mx-auto size-6 text-accent" /><p className="mt-3 text-sm font-medium text-content-primary">Search without an account</p><p className="mt-1 text-xs leading-5 text-content-tertiary">Sign in when you want saved threads, memory, Deep Research, and sharing.</p></div></div>
 					)}
 				</div>
 			) : null}
 
 			{messages.map((message) => message.role === "USER" ? (
 				<div key={message.id} className="aira-enter flex w-full justify-end py-2">
-					<div className="max-w-[88%] rounded-[20px] bg-surface-inset px-4 py-3 text-[15px] leading-7 text-content-primary sm:max-w-[78%]">{message.content}</div>
+					<div className="max-w-[88%] rounded-[20px] bg-gradient-to-br from-surface-inset to-white px-4 py-3 text-[15px] leading-7 text-content-primary shadow-sm ring-1 ring-border-subtle/70 sm:max-w-[78%]">{message.content}</div>
 				</div>
 			) : (
 				<div key={message.id} className="w-full">{renderAssistant({ content: message.content, citations: message.citations, streaming: false })}</div>
 			))}
 
-			{streamingUserQuery ? <div className="flex w-full justify-end py-2" aria-label="Streaming user message"><div className="max-w-[88%] rounded-[20px] bg-surface-inset px-4 py-3 text-[15px] leading-7 text-content-primary sm:max-w-[78%]">{streamingUserQuery}</div></div> : null}
+			{streamingUserQuery ? <div className="flex w-full justify-end py-2" aria-label="Streaming user message"><div className="max-w-[88%] rounded-[20px] bg-gradient-to-br from-surface-inset to-white px-4 py-3 text-[15px] leading-7 text-content-primary shadow-sm ring-1 ring-border-subtle/70 sm:max-w-[78%]">{streamingUserQuery}</div></div> : null}
 			{streamingAssistantMarkdown ? <div className="w-full" aria-label="Streaming assistant message">{renderAssistant({ content: streamingAssistantMarkdown, citations: [], streaming: true })}</div> : null}
 			{showAssistantSkeleton ? <AssistantSkeleton statusText={statusText} sourceCount={streamingCitations.length} /> : null}
 		</div>

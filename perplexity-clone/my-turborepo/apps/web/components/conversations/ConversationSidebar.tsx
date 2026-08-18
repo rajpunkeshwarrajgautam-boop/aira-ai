@@ -39,10 +39,10 @@ export function ConversationSidebar({ conversations, selectedConversationId, onS
 	const sorted = useMemo(() => [...conversations].sort((a, b) => a.lastMessageAt < b.lastMessageAt ? 1 : -1), [conversations]);
 
 	return (
-		<aside className={cn("flex h-full w-full flex-col border-r border-border-subtle bg-white/90", className)} aria-label="Conversation sidebar">
-			<div className="flex h-[68px] items-center justify-between border-b border-border-subtle px-5">
+		<aside className={cn("flex h-full w-full flex-col border-r border-border-subtle bg-white/88 backdrop-blur-xl", className)} aria-label="Conversation sidebar">
+			<div className="flex h-[68px] items-center justify-between border-b border-border-subtle/80 px-5">
 				<AiraLogo />
-				<PanelLeftClose className="size-4 text-content-tertiary" aria-hidden />
+				<span className="flex size-8 items-center justify-center rounded-xl text-content-tertiary transition hover:bg-surface-inset hover:text-content-primary"><PanelLeftClose className="size-4" aria-hidden /></span>
 			</div>
 
 			<div className="px-4 pt-4">
@@ -50,9 +50,9 @@ export function ConversationSidebar({ conversations, selectedConversationId, onS
 					type="button"
 					onClick={onCreateConversation}
 					disabled={disabled}
-					className="flex h-11 w-full items-center gap-2 rounded-2xl border border-accent/20 bg-accent/[0.055] px-3.5 text-sm font-semibold text-accent transition hover:bg-accent/[0.09] disabled:opacity-50"
+					className="aira-shine-button flex h-11 w-full items-center gap-2 rounded-2xl border border-accent/20 bg-gradient-to-r from-accent/[0.09] to-violet-500/[0.06] px-3.5 text-sm font-semibold text-accent shadow-sm transition hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_10px_24px_hsl(var(--accent)/0.10)] disabled:opacity-50"
 				>
-					<Plus className="size-4" aria-hidden /> New chat
+					<span className="flex size-6 items-center justify-center rounded-lg bg-white/75 ring-1 ring-accent/10"><Plus className="size-3.5" aria-hidden /></span> New chat
 				</button>
 			</div>
 
@@ -70,9 +70,9 @@ export function ConversationSidebar({ conversations, selectedConversationId, onS
 										type="button"
 										onClick={() => onSelectConversation(conversation.id)}
 										disabled={disabled}
-										className={cn("group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition", selected ? "bg-surface-inset text-content-primary" : "text-content-secondary hover:bg-surface-inset/60 hover:text-content-primary")}
+										className={cn("group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-all duration-200", selected ? "bg-gradient-to-r from-accent/[0.08] to-violet-500/[0.035] text-content-primary shadow-sm ring-1 ring-accent/10" : "text-content-secondary hover:translate-x-0.5 hover:bg-surface-inset/60 hover:text-content-primary")}
 									>
-										<MessageCircle className={cn("size-4 shrink-0", selected ? "text-accent" : "text-content-tertiary")} aria-hidden />
+										<span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg transition", selected ? "bg-white text-accent shadow-sm ring-1 ring-accent/10" : "text-content-tertiary group-hover:bg-white/70")}><MessageCircle className="size-3.5" aria-hidden /></span>
 										<span className="min-w-0 flex-1 truncate text-[13px] font-medium">{conversation.title}</span>
 										<span className="shrink-0 text-[10px] text-content-tertiary">{formatRelative(conversation.lastMessageAt)}</span>
 									</button>
@@ -83,10 +83,10 @@ export function ConversationSidebar({ conversations, selectedConversationId, onS
 				)}
 			</div>
 
-			<div className="space-y-3 border-t border-border-subtle p-4">
+			<div className="space-y-3 border-t border-border-subtle/80 p-4">
 				<UsageIndicator />
-				<Link href="/pricing" className="aira-card-hover block rounded-2xl border border-border-subtle bg-surface-inset/45 p-3.5">
-					<div className="flex items-center gap-2 text-sm font-semibold text-content-primary"><Sparkles className="size-4 text-accent" /> AiraAI Pro</div>
+				<Link href="/pricing" className="aira-fun-card block rounded-2xl border border-border-subtle bg-gradient-to-br from-white to-accent/[0.035] p-3.5 shadow-sm">
+					<div className="flex items-center gap-2 text-sm font-semibold text-content-primary"><span className="flex size-7 items-center justify-center rounded-lg bg-accent/10 text-accent"><Sparkles className="size-3.5" /></span> AiraAI Pro</div>
 					<p className="mt-1.5 text-xs leading-5 text-content-tertiary">More research, Deep Research, and agent runs.</p>
 					<p className="mt-2 text-xs font-semibold text-accent">View plans →</p>
 				</Link>

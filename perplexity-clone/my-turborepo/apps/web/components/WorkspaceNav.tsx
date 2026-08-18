@@ -16,7 +16,7 @@ const LINKS = [
 export function WorkspaceNav({ className }: { readonly className?: string }) {
 	const pathname = usePathname();
 	return (
-		<nav className={cn("flex items-center gap-1", className)} aria-label="AiraAI workspace navigation">
+		<nav className={cn("aira-nav-rail flex items-center gap-1", className)} aria-label="AiraAI workspace navigation">
 			{LINKS.map((item) => {
 				const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 				const Icon = item.icon;
@@ -24,11 +24,10 @@ export function WorkspaceNav({ className }: { readonly className?: string }) {
 					<Link
 						key={item.href}
 						href={item.href}
+						data-active={active ? "true" : "false"}
 						className={cn(
-							"inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors",
-							active
-								? "bg-content-primary text-white"
-								: "text-content-secondary hover:bg-surface-inset hover:text-content-primary",
+							"aira-nav-pill inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium",
+							active ? "text-white" : "text-content-secondary hover:bg-white/80 hover:text-content-primary",
 						)}
 					>
 						<Icon className="size-4" aria-hidden />
