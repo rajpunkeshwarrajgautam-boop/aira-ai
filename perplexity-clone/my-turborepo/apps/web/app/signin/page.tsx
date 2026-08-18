@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { AiraLogo } from "../../components/AiraLogo";
@@ -41,7 +40,7 @@ export default function SignInPage() {
 	return (
 		<div className="aira-shell relative flex min-h-dvh flex-col items-center justify-center px-4 py-12 sm:py-16">
 			<div className="relative z-10 w-full max-w-md">
-				<div className="mb-7 flex justify-center"><Link href="/" aria-label="Back to AiraAI"><AiraLogo /></Link></div>
+				<div className="mb-7 flex justify-center"><AiraLogo /></div>
 				<div className="aira-gradient-frame rounded-[30px]">
 					<div className="aira-glass rounded-[29px] p-6 sm:p-7">
 						<div className="text-center">
