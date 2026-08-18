@@ -38,7 +38,6 @@ if (
 	);
 }
 
-
 const authDiagnostics = {
 	googleClientIdExists: !!googleClientId(),
 	googleClientIdLength: googleClientId()?.length ?? 0,
@@ -59,17 +58,48 @@ if (process.env.NODE_ENV !== "production" || process.env.AUTH_DEBUG === "true") 
 	console.info("[auth:diagnostics]", authDiagnostics);
 }
 
-function redact(details: unknown): unknown {
-	if (details == null) return details;
-	if (typeof details !== "object") return details;
+const SAFE_AUTH_ERROR_KEYS = [
+	"name",
+	"type",
+	"kind",
+	"code",
+	"message",
+	"status",
+	"error",
+	"err",
+	"cause",
+] as const;
 
-	const clone = { ...(details as Record<string, unknown>) };
-	for (const key of Object.keys(clone)) {
-		if (/secret|token|password|client/i.test(key)) {
-			clone[key] = "[REDACTED]";
+function safeAuthErrorDetails(details: unknown, depth = 0): unknown {
+	if (details == null) return details;
+	if (depth > 3) return "[TRUNCATED]";
+	if (typeof details === "string" || typeof details === "number" || typeof details === "boolean") {
+		return details;
+	}
+	if (details instanceof Error) {
+		const extended = details as Error & Record<string, unknown>;
+		const result: Record<string, unknown> = {
+			name: details.name,
+			message: details.message,
+		};
+		for (const key of SAFE_AUTH_ERROR_KEYS) {
+			if (key === "name" || key === "message") continue;
+			if (extended[key] !== undefined) {
+				result[key] = safeAuthErrorDetails(extended[key], depth + 1);
+			}
+		}
+		return result;
+	}
+	if (typeof details !== "object") return String(details);
+
+	const record = details as Record<string, unknown>;
+	const result: Record<string, unknown> = {};
+	for (const key of SAFE_AUTH_ERROR_KEYS) {
+		if (record[key] !== undefined) {
+			result[key] = safeAuthErrorDetails(record[key], depth + 1);
 		}
 	}
-	return clone;
+	return result;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -79,7 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 	debug: process.env.NODE_ENV !== "production" && process.env.AUTH_DEBUG === "true",
 	logger: {
 		error(error) {
-			console.error("[auth:error]", redact(error));
+			console.error("[auth:error]", safeAuthErrorDetails(error));
 		},
 		warn(code) {
 			console.warn("[auth:warn]", code);
