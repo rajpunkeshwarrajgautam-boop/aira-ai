@@ -26,8 +26,8 @@ WORKDIR /opt/autogpt/classic
 RUN poetry install --no-cache --no-root --without dev \
     && poetry install --only-root \
     && useradd --create-home --uid 10002 autogpt \
-    && mkdir -p /workspace \
-    && chown -R autogpt:autogpt /workspace
+    && mkdir -p /workspace /opt/autogpt/classic/forge/logs \
+    && chown -R autogpt:autogpt /workspace /opt/autogpt/classic/forge/logs
 
 USER autogpt
 WORKDIR /workspace
