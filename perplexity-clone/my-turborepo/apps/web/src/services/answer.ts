@@ -5,6 +5,12 @@ import {
 	type AgenticSearchSpec,
 } from "./agentic-answer-policy";
 import {
+	buildAgenticDecisionBrief,
+	decisionBriefSearchSpecs,
+	renderDecisionBrief,
+	type AgenticDecisionBrief,
+} from "./agentic-decision-planner";
+import {
 	buildCitationContextBlocks,
 	rankFilterAndNumberSources,
 	type RankedSource,
@@ -89,6 +95,12 @@ function isAuthoritativeQuality(quality: SourceQualityLabel): boolean {
 	return quality === "Official" || quality === "Peer-reviewed";
 }
 
+function authoritativeSourceCount(sources: readonly RankedSource[]): number {
+	return sources.filter((source) =>
+		isAuthoritativeQuality(inferSourceQualityLabel(source.url, source.title)),
+	).length;
+}
+
 function buildMessages(
 	query: string,
 	sources: RankedSource[],
@@ -97,6 +109,7 @@ function buildMessages(
 		readonly searchDisabled: boolean;
 		readonly agenticAdvisorInstruction: string;
 		readonly minimumAuthoritativeSources: number;
+		readonly decisionBriefText?: string;
 		readonly chatHistory?: readonly {
 			readonly role: "user" | "assistant";
 			readonly content: string;
@@ -116,14 +129,19 @@ function buildMessages(
 		userParts.push("## Retrieved evidence\n\n" + sourcesMarkdown);
 		userParts.push("\n## Citation instructions\n\n" + inlineCitationReminder);
 
-		const authoritativeCount = sources.filter((source) =>
-			isAuthoritativeQuality(inferSourceQualityLabel(source.url, source.title)),
-		).length;
+		const authoritativeCount = authoritativeSourceCount(sources);
 		if (options.minimumAuthoritativeSources > authoritativeCount) {
 			userParts.push(
 				"\n## Evidence sufficiency warning\n\n" +
 					`This query called for at least ${options.minimumAuthoritativeSources} authoritative source(s), but only ${authoritativeCount} survived retrieval/ranking. ` +
 					"Do not fill that gap with confident claims from blogs or unknown-quality pages. Any current legal, tax, regulatory, official-policy, safety, or precise decision-critical claim that should have authoritative support must be omitted, made conditional, or clearly labeled unverified. Do not invent an official rule from secondary commentary.",
+			);
+		}
+		if (options.decisionBriefText?.trim()) {
+			userParts.push(
+				"\n## Competing decision hypotheses generated before retrieval\n\n" +
+					options.decisionBriefText.trim() +
+					"\n\nMANDATORY: test these alternatives against the evidence and show a compact comparison before choosing a winner. Do not collapse them into variants of one idea. The final recommendation may differ from every initial hypothesis if the evidence warrants it.",
 			);
 		}
 		if (options.multiEntityPrompt?.trim()) {
@@ -280,12 +298,73 @@ function prioritizeEvidence(
 	}));
 }
 
+async function collectChatText(
+	router: ProviderRouter,
+	messages: ChatCompletionMessageParam[],
+	input: GroundedAnswerInput,
+	overrides: { readonly temperature?: number; readonly maxCompletionTokens?: number } = {},
+): Promise<string> {
+	let text = "";
+	for await (const delta of router.streamChat(messages, {
+		model: input.model,
+		temperature: overrides.temperature ?? input.temperature,
+		maxCompletionTokens: overrides.maxCompletionTokens ?? input.maxCompletionTokens,
+		abortSignal: input.abortSignal,
+	})) {
+		text += delta;
+	}
+	return text;
+}
+
+function buildVerificationMessages(args: {
+	readonly query: string;
+	readonly draft: string;
+	readonly sources: RankedSource[];
+	readonly contextualMemory?: readonly string[];
+	readonly decisionBrief?: AgenticDecisionBrief | null;
+	readonly minimumAuthoritativeSources: number;
+}): ChatCompletionMessageParam[] {
+	const { sourcesMarkdown } = buildCitationContextBlocks(args.sources);
+	const authoritativeCount = authoritativeSourceCount(args.sources);
+	const memory = args.contextualMemory?.length
+		? args.contextualMemory.map((m, i) => `${i + 1}. ${m}`).join("\n")
+		: "(no durable memory was available for this request)";
+	const decisionBriefText = args.decisionBrief ? renderDecisionBrief(args.decisionBrief) : "(none)";
+
+	return [
+		{
+			role: "system",
+			content: `You are AIRA's final answer verifier and senior editor. Return ONLY the corrected final answer for the user. Do not discuss this audit, do not output JSON, and do not expose hidden reasoning.
+
+You are allowed to rewrite, shorten, reorder, downgrade, or remove claims from the draft. You are required to correct it when necessary.
+
+Hard verification contract:
+1. Evidence: every externally checkable current factual claim should be supported by an appropriate supplied source when evidence is available. Never invent citations or cite a source for a claim its excerpt does not support.
+2. Source quality: official/primary evidence outranks blogs. If authoritative evidence that should exist is missing, remove the specific legal/tax/regulatory claim or make it explicitly conditional/unverified. Never use a blog to state a statutory threshold, registration requirement, official fee, deadline, or legal obligation as fact.
+3. Numerical integrity: recompute every derived number, percentage, revenue figure, customer count, conversion result, unit-economics figure, budget total, and timeline relationship. If the arithmetic does not follow from the stated inputs, correct or remove it. Do not present a market-size/TAM percentage as a plausible company outcome without bottom-up assumptions.
+4. Estimates: precise MRR/ARR, CAC, churn, valuations, conversion rates, token/API costs, timelines, market sizes, and pricing from weak/unknown sources must be labeled as estimates/benchmarks or omitted unless corroborated.
+5. Decision quality: when a decision brief is supplied, visibly compare at least three materially different options in a compact table or similarly scannable format before selecting a winner. The winner must follow from the evidence and user fit, not from whichever option had the most search results.
+6. Adversarial check: state the strongest case against the winner and identify what evidence or condition would make you switch recommendations.
+7. User state: treat durable memory as state when present. Do not recommend re-registering, rebuying, reinstalling, or rebuilding something memory says already exists. If state is unknown, phrase setup steps conditionally (for example, "if you have not already...").
+8. Practicality: for plans, reconcile the full budget and identify reserve/runway instead of silently leaving money unallocated. Prefer validation milestones and kill criteria over speculative vanity targets.
+9. Style: answer like a decisive senior advisor. Lead with the recommendation after the option comparison, keep caveats decision-relevant, and end with at most two concrete next actions.
+10. Citation preservation: use only citation numbers present in the supplied evidence. If you remove a claim, remove its citation too.
+
+Authoritative-source requirement for this request: ${args.minimumAuthoritativeSources}; authoritative sources actually available: ${authoritativeCount}.`,
+		},
+		{
+			role: "user",
+			content: `## User question\n${args.query}\n\n## Durable user state\n${memory}\n\n## Pre-retrieval decision brief\n${decisionBriefText}\n\n## Supplied evidence\n${sourcesMarkdown}\n\n## Draft to verify and repair\n${args.draft}`,
+		},
+	];
+}
+
 /**
- * Standard AIRA answer engine V3.
+ * Standard AIRA answer engine V4.
  *
- * It is intentionally lighter than Deep Research: deterministic intent/domain routing,
- * parallel primary/counterargument/implementation retrieval, authority-aware evidence
- * prioritization, an explicit evidence-sufficiency guard, and one streamed expert synthesis.
+ * Simple/focused questions still stream directly. Substantive agentic questions use a
+ * pre-retrieval hypothesis planner, independent evidence searches, a draft synthesis,
+ * and a private verification pass before the corrected answer is streamed to the user.
  */
 export async function streamGroundedAnswer(
 	input: GroundedAnswerInput,
@@ -295,6 +374,16 @@ export async function streamGroundedAnswer(
 	const router = input.router ?? (await ProviderRouter.createDefault());
 	const agenticPlan = buildAgenticAnswerPlan(input.query);
 	const searchDisabled = input.disableSearch === true || agenticPlan.retrievalMode === "reasoning";
+	const useDecisionPlanner = agenticPlan.retrievalMode === "agentic" && agenticPlan.domain === "business";
+	const decisionBrief = useDecisionPlanner
+		? await buildAgenticDecisionBrief({
+			router,
+			query: input.query,
+			contextualMemory: input.contextualMemory,
+			chatHistory: input.chatHistory,
+			abortSignal: input.abortSignal,
+		})
+		: null;
 
 	let sources: RankedSource[] = [];
 	let exaRequestId: string | undefined;
@@ -322,7 +411,13 @@ export async function streamGroundedAnswer(
 		let candidates: SourceCandidate[] = [...retrieved.candidates];
 
 		if (agenticPlan.retrievalMode === "agentic") {
-			await appendSearchSpecs(exa, agenticPlan.supplementarySearches, input, candidates);
+			const plannerSpecs = decisionBrief ? decisionBriefSearchSpecs(decisionBrief) : [];
+			await appendSearchSpecs(
+				exa,
+				[...agenticPlan.supplementarySearches, ...plannerSpecs],
+				input,
+				candidates,
+			);
 		}
 
 		if (detectMultiEntityQuery(input.query)) {
@@ -369,6 +464,7 @@ export async function streamGroundedAnswer(
 		searchDisabled,
 		agenticAdvisorInstruction: agenticPlan.advisorInstruction,
 		minimumAuthoritativeSources: agenticPlan.minimumAuthoritativeSources,
+		decisionBriefText: decisionBrief ? renderDecisionBrief(decisionBrief) : undefined,
 		chatHistory: input.chatHistory,
 		contextualMemory: input.contextualMemory,
 		presetId: input.presetId,
@@ -380,12 +476,42 @@ export async function streamGroundedAnswer(
 	});
 
 	async function* stream(): AsyncGenerator<string, void, undefined> {
-		yield* router.streamChat(messages, {
-			model: input.model,
-			temperature: input.temperature,
-			maxCompletionTokens: input.maxCompletionTokens,
-			abortSignal: input.abortSignal,
+		if (agenticPlan.retrievalMode !== "agentic") {
+			yield* router.streamChat(messages, {
+				model: input.model,
+				temperature: input.temperature,
+				maxCompletionTokens: input.maxCompletionTokens,
+				abortSignal: input.abortSignal,
+			});
+			return;
+		}
+
+		const draft = await collectChatText(router, messages, input);
+		const verificationMessages = buildVerificationMessages({
+			query: input.query,
+			draft,
+			sources,
+			contextualMemory: input.contextualMemory,
+			decisionBrief,
+			minimumAuthoritativeSources: agenticPlan.minimumAuthoritativeSources,
 		});
+
+		try {
+			const verified = await collectChatText(router, verificationMessages, input, {
+				temperature: 0.1,
+				maxCompletionTokens: input.maxCompletionTokens ?? 3600,
+			});
+			if (verified.trim()) {
+				for (let offset = 0; offset < verified.length; offset += 180) {
+					yield verified.slice(offset, offset + 180);
+				}
+				return;
+			}
+		} catch (error) {
+			console.warn("[AIRA agentic verifier] Verification pass failed; returning draft:", error instanceof Error ? error.message : String(error));
+		}
+
+		yield draft;
 	}
 
 	return {
