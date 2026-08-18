@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Brain, ChevronDown, LogOut, User } from "lucide-react";
+import { Bot, Brain, ChevronDown, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
