@@ -6,7 +6,6 @@ import remarkGfm from "remark-gfm";
 
 import { CitationCards, type CitationItem } from "../CitationCards";
 import { getMarkdownComponents } from "../markdownComponents";
-import { cn } from "../../lib/cn";
 import { linkifyCitations, parseCitationIndicesFromAnswer } from "../../src/services/citations";
 import { type ConversationSummary } from "./ConversationSidebar";
 
