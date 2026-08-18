@@ -252,6 +252,8 @@ model UserMemory {
   @@index([userId, updatedAt(sort: Desc)])
   @@index([userId, kind])
   @@index([userId, pinned(sort: Desc), updatedAt(sort: Desc)])
+  @@index([sourceConversationId])
+  @@index([sourceMessageId])
 }
 
 model ResearchHistory {
