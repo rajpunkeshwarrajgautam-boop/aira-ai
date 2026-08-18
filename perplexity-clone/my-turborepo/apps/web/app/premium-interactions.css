@@ -1,0 +1,173 @@
+/* Premium tactile interactions shared by high-value AiraAI moments.
+ * Deliberately restrained: these enhance sign-in, agents and primary actions
+ * without turning the whole product into an effects showcase.
+ */
+
+.aira-gradient-frame {
+	position: relative;
+	isolation: isolate;
+	border-radius: 30px;
+	padding: 1px;
+	background: linear-gradient(
+		135deg,
+		hsl(var(--border-subtle)),
+		hsl(var(--accent) / 0.34),
+		hsl(var(--accent-violet) / 0.30),
+		hsl(var(--accent-cyan) / 0.22),
+		hsl(var(--border-subtle))
+	);
+	box-shadow: 0 22px 70px hsl(226 43% 11% / 0.08);
+}
+
+.aira-provider-button {
+	position: relative;
+	overflow: hidden;
+	transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.aira-provider-button::after {
+	content: "";
+	position: absolute;
+	top: -45%;
+	bottom: -45%;
+	left: -48%;
+	width: 26%;
+	transform: skewX(-18deg);
+	background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.58), transparent);
+	opacity: 0;
+	transition: left 520ms ease, opacity 180ms ease;
+}
+
+.aira-provider-button:hover {
+	transform: translateY(-2px);
+	border-color: hsl(var(--accent) / 0.24);
+	box-shadow: 0 14px 34px hsl(226 43% 11% / 0.085);
+}
+
+.aira-provider-button:hover::after {
+	left: 120%;
+	opacity: 0.72;
+}
+
+.aira-provider-button:active {
+	transform: translateY(0) scale(0.985);
+}
+
+.aira-orbit-loader {
+	position: relative;
+	display: inline-block;
+	width: 34px;
+	height: 34px;
+}
+
+.aira-orbit-loader::before,
+.aira-orbit-loader::after {
+	content: "";
+	position: absolute;
+	inset: 3px;
+	border-radius: 999px;
+	border: 2px solid hsl(var(--accent) / 0.16);
+}
+
+.aira-orbit-loader::after {
+	inset: 0;
+	border-color: transparent hsl(var(--accent)) transparent transparent;
+	box-shadow: 0 0 18px hsl(var(--accent) / 0.15);
+	animation: aira-orbit 1.05s linear infinite;
+}
+
+.aira-shine-button {
+	position: relative;
+	overflow: hidden;
+	isolation: isolate;
+}
+
+.aira-shine-button::after {
+	content: "";
+	position: absolute;
+	inset: -45% auto -45% -58%;
+	width: 34%;
+	transform: skewX(-18deg);
+	background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.62), transparent);
+	transition: left 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.aira-shine-button:hover::after { left: 125%; }
+.aira-shine-button:active { transform: translateY(1px) scale(0.98); }
+
+/* Agent workspace: enhance state communication without touching runtime logic. */
+section[aria-labelledby="new-agent-task-heading"] > .aira-card:first-child {
+	position: relative;
+	overflow: hidden;
+	background:
+		radial-gradient(circle at 96% 0%, hsl(var(--accent-violet) / 0.07), transparent 28%),
+		radial-gradient(circle at 0% 100%, hsl(var(--accent-cyan) / 0.05), transparent 30%),
+		hsl(var(--surface-elevated) / 0.94);
+}
+
+section[aria-labelledby="new-agent-task-heading"] > .aira-card:first-child > div:first-child > span {
+	position: relative;
+	padding-left: 1.3rem;
+}
+
+section[aria-labelledby="new-agent-task-heading"] > .aira-card:first-child > div:first-child > span::before {
+	content: "";
+	position: absolute;
+	left: 0.55rem;
+	top: 50%;
+	width: 5px;
+	height: 5px;
+	border-radius: 999px;
+	background: currentColor;
+	transform: translateY(-50%);
+	box-shadow: 0 0 0 4px currentColor;
+	opacity: 0.15;
+	animation: aira-status-pulse 1.9s ease-in-out infinite;
+}
+
+#agent-objective {
+	transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+#agent-objective:focus {
+	background: rgb(255 255 255 / 0.9);
+	border-color: hsl(var(--accent) / 0.35);
+	box-shadow: 0 0 0 5px hsl(var(--accent) / 0.055), 0 12px 34px hsl(var(--accent) / 0.065);
+}
+
+section[aria-labelledby="new-agent-task-heading"] > .aira-card:first-child button:first-of-type:not(:disabled) {
+	position: relative;
+	overflow: hidden;
+	box-shadow: 0 9px 24px hsl(var(--accent) / 0.16);
+}
+
+section[aria-labelledby="agent-runs-heading"] {
+	box-shadow: 0 16px 48px hsl(226 43% 11% / 0.055);
+}
+
+@keyframes aira-orbit {
+	to { transform: rotate(360deg); }
+}
+
+@keyframes aira-status-pulse {
+	0%, 100% { transform: translateY(-50%) scale(0.7); opacity: 0.10; }
+	50% { transform: translateY(-50%) scale(1.1); opacity: 0.24; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.aira-provider-button,
+	.aira-shine-button,
+	#agent-objective {
+		transition: none !important;
+	}
+
+	.aira-provider-button::after,
+	.aira-shine-button::after {
+		display: none;
+	}
+
+	.aira-orbit-loader::after,
+	section[aria-labelledby="new-agent-task-heading"] > .aira-card:first-child > div:first-child > span::before {
+		animation: none !important;
+	}
+}
