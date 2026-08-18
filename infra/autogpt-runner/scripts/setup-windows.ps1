@@ -42,8 +42,12 @@ function ConvertFrom-SecureValue {
 function New-HexSecret {
     param([int]$Bytes = 32)
     $buffer = New-Object byte[] $Bytes
-    [Security.Cryptography.RandomNumberGenerator]::Fill($buffer)
-    return [Convert]::ToHexString($buffer).ToLowerInvariant()
+    # RandomNumberGenerator::Fill and Convert::ToHexString are .NET Core only.
+    # Windows PowerShell 5.1 is the default shell that "Run as Administrator"
+    # opens, so use APIs that exist on both 5.1 and PowerShell 7+.
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($buffer) } finally { $rng.Dispose() }
+    return (($buffer | ForEach-Object { $_.ToString("x2") }) -join "")
 }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
