@@ -1,9 +1,6 @@
 {$RUNNER_DOMAIN} {
 	encode zstd gzip
 
-	@external path /external-api/*
-	reverse_proxy @external adapter:8080
-
 	header {
 		-Server
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -11,5 +8,15 @@
 		Referrer-Policy "no-referrer"
 	}
 
-	respond 404
+	# handle blocks are mutually exclusive and are evaluated in written order.
+	# A bare `respond 404` must not sit alongside `reverse_proxy`: Caddy's
+	# standard directive order places `respond` before `reverse_proxy`, so the
+	# unmatched 404 short-circuits every request, including /external-api/*.
+	handle /external-api/* {
+		reverse_proxy adapter:8080
+	}
+
+	handle {
+		respond 404
+	}
 }
