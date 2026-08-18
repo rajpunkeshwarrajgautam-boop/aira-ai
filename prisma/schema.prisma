@@ -50,6 +50,23 @@ enum AgentRunStatus {
   REVIEW
 }
 
+enum ConversationMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum UserMemoryKind {
+  PROFILE
+  PREFERENCE
+  GOAL
+  PROJECT
+  DECISION
+  CONSTRAINT
+  RELATIONSHIP
+  OTHER
+}
+
 model User {
   id                  String                 @id @default(cuid())
   name                String?
@@ -66,12 +83,7 @@ model User {
   agentRuns           AgentRun[]
   conversations       Conversation[]
   researchHistory     ResearchHistory[]
-}
-
-enum ConversationMessageRole {
-  USER
-  ASSISTANT
-  SYSTEM
+  memories            UserMemory[]
 }
 
 model Account {
@@ -176,16 +188,20 @@ model ProcessedCashfreeWebhook {
 }
 
 model Conversation {
-  id            String                @id @default(cuid())
-  userId        String
-  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title         String
-  archivedAt    DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  lastMessageAt DateTime              @default(now())
-  messages      ConversationMessage[]
-  researchLogs  ResearchHistory[]
+  id                  String                @id @default(cuid())
+  userId              String
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  archivedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  lastMessageAt       DateTime              @default(now())
+  summary             String?               @db.Text
+  summaryUpdatedAt    DateTime?
+  summaryMessageCount Int                   @default(0)
+  messages            ConversationMessage[]
+  researchLogs        ResearchHistory[]
+  sourcedMemories     UserMemory[]           @relation("MemorySourceConversation")
 
   @@index([userId, lastMessageAt(sort: Desc)])
 }
@@ -205,10 +221,37 @@ model ConversationMessage {
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
   researchLogs     ResearchHistory[]
+  sourcedMemories  UserMemory[]            @relation("MemorySourceMessage")
 
   @@index([conversationId, createdAt])
   @@index([conversationId, parentMessageId])
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model UserMemory {
+  id                   String               @id @default(cuid())
+  userId               String
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memoryKey            String
+  kind                 UserMemoryKind       @default(OTHER)
+  content              String               @db.Text
+  keywords             String[]             @default([])
+  importance           Int                  @default(3)
+  confidence           Float                @default(1)
+  pinned               Boolean              @default(false)
+  sourceConversationId String?
+  sourceConversation   Conversation?        @relation("MemorySourceConversation", fields: [sourceConversationId], references: [id], onDelete: SetNull)
+  sourceMessageId      String?
+  sourceMessage        ConversationMessage? @relation("MemorySourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  lastRecalledAt       DateTime?
+  recallCount          Int                  @default(0)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@unique([userId, memoryKey])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, kind])
+  @@index([userId, pinned(sort: Desc), updatedAt(sort: Desc)])
 }
 
 model ResearchHistory {
