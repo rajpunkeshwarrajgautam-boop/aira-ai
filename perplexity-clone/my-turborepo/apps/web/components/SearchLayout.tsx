@@ -281,8 +281,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			{ method: "GET" },
 		);
 		setConversations(rows.conversations);
-		setSelectedConversationId((prev) => prev ?? (rows.conversations[0]?.id ?? null));
-		setSelectedConversationTitle(rows.conversations[0]?.title ?? null);
+		setSelectedConversationId((prev) =>
+			prev && rows.conversations.some((conversation) => conversation.id === prev)
+				? prev
+				: null,
+		);
 	}, [apiFetchJson]);
 
 	const fetchMessagesForConversation = useCallback(
@@ -431,13 +434,24 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
 			return;
 		}
+		abortRef.current?.abort();
+		setSelectedConversationId(null);
+		setSelectedConversationTitle(null);
+		setMessages([]);
+		setParentMessageId(undefined);
+		setResearchHistory([]);
+		setShareContext(null);
 		setStreamingUserQuery(null);
 		setStreamingAssistantMarkdown(null);
 		setStreamingCitations([]);
+		setQuery("");
 		setErrorMessage(null);
+		setErrorCode(null);
+		setLimitErrorAction(null);
+		setResearchMode("standard");
 		setPhase("idle");
-		await createConversation();
-	}, [busy, createConversation, router, sessionStatus]);
+		requestAnimationFrame(() => searchBoxRef.current?.focus());
+	}, [busy, router, sessionStatus]);
 
 	const runSearch = useCallback(async () => {
 		let q = query.trim();
@@ -1049,7 +1063,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										)}
 									>
 										{showConversationEmpty
-											? "AiraAI"
+											? "Welcome to AiraAI"
 											: (selectedConversationTitle ?? "Research")}
 									</h1>
 									<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
@@ -1057,7 +1071,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											? statusText
 											: showConversationEmpty
 												? isAuthed
-													? "Persistent research threads with live web citations. Switch to Deep Research for comprehensive reports."
+													? "Start a fresh conversation. Saved memory can still help when relevant, while previous chats stay in the sidebar."
 													: "Get answers grounded with live web citations. No account required."
 												: "Persistent threads with live web citations."}
 									</p>
