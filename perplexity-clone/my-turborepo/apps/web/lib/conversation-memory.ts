@@ -1,9 +1,13 @@
-import { prisma } from "@/lib/prisma";
 import { ConversationMessageRole } from "@/generated/prisma/enums";
+import {
+	getRelevantPersistentMemories,
+	refreshPersistentMemory,
+} from "@/lib/persistent-memory";
+import { prisma } from "@/lib/prisma";
 import { generatePublicShareToken } from "@/lib/research-share";
 
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
-const DEFAULT_MEMORY_LIMIT = 5;
+const DEFAULT_MEMORY_LIMIT = 8;
 
 export interface ConversationSummary {
 	readonly id: string;
@@ -27,9 +31,7 @@ function normalizeQuery(input: string): string {
 
 function inferTitleFromQuery(query: string): string {
 	const compact = query.trim().replace(/\s+/g, " ");
-	if (!compact) {
-		return "Untitled conversation";
-	}
+	if (!compact) return "Untitled conversation";
 	return compact.length <= 80 ? compact : compact.slice(0, 77) + "...";
 }
 
@@ -37,19 +39,10 @@ export async function createConversation(
 	userId: string,
 	initialQuery?: string,
 ): Promise<ConversationSummary> {
-	const created = await prisma.conversation.create({
-		data: {
-			userId,
-			title: inferTitleFromQuery(initialQuery ?? ""),
-		},
-		select: {
-			id: true,
-			title: true,
-			lastMessageAt: true,
-			createdAt: true,
-		},
+	return prisma.conversation.create({
+		data: { userId, title: inferTitleFromQuery(initialQuery ?? "") },
+		select: { id: true, title: true, lastMessageAt: true, createdAt: true },
 	});
-	return created;
 }
 
 export async function listConversations(
@@ -60,12 +53,7 @@ export async function listConversations(
 		where: { userId, archivedAt: null },
 		orderBy: { lastMessageAt: "desc" },
 		take: Math.min(Math.max(limit, 1), 100),
-		select: {
-			id: true,
-			title: true,
-			lastMessageAt: true,
-			createdAt: true,
-		},
+		select: { id: true, title: true, lastMessageAt: true, createdAt: true },
 	});
 }
 
@@ -77,9 +65,7 @@ export async function getConversationOrThrow(
 		where: { id: conversationId, userId, archivedAt: null },
 		select: { id: true, title: true },
 	});
-	if (!row) {
-		throw new Error("Conversation not found.");
-	}
+	if (!row) throw new Error("Conversation not found.");
 	return row;
 }
 
@@ -135,9 +121,15 @@ export async function getFollowUpContext(args: {
 	} = args;
 
 	let resolvedConversationId: string | undefined;
+	let conversationSummary: string | null = null;
 	if (conversationId) {
-		const row = await getConversationOrThrow(userId, conversationId);
+		const row = await prisma.conversation.findFirst({
+			where: { id: conversationId, userId, archivedAt: null },
+			select: { id: true, summary: true },
+		});
+		if (!row) throw new Error("Conversation not found.");
 		resolvedConversationId = row.id;
+		conversationSummary = row.summary;
 	}
 
 	const chatHistoryRaw = resolvedConversationId
@@ -164,35 +156,45 @@ export async function getFollowUpContext(args: {
 			content: m.content,
 		}));
 
+	const durableMemories = await getRelevantPersistentMemories(userId, query, memoryLimit);
+
 	const normalized = normalizeQuery(query);
 	const queryTokens = normalized.split(" ").filter((t) => t.length > 2).slice(0, 5);
-	const memoryCandidates = await prisma.researchHistory.findMany({
-		where: {
-			userId,
-			OR: [
-				{ normalizedQuery: { contains: normalized, mode: "insensitive" } },
-				...queryTokens.map((token) => ({
-					normalizedQuery: { contains: token, mode: "insensitive" as const },
-				})),
-			],
-		},
-		orderBy: { createdAt: "desc" },
-		take: Math.min(Math.max(memoryLimit, 1), 10),
-		select: {
-			query: true,
-			assistantAnswer: true,
-		},
-	});
+	const researchCandidates = queryTokens.length
+		? await prisma.researchHistory.findMany({
+				where: {
+					userId,
+					OR: [
+						{ normalizedQuery: { contains: normalized, mode: "insensitive" } },
+						...queryTokens.map((token) => ({
+							normalizedQuery: { contains: token, mode: "insensitive" as const },
+						})),
+					],
+				},
+				orderBy: { createdAt: "desc" },
+				take: Math.min(Math.max(Math.ceil(memoryLimit / 2), 1), 4),
+				select: { query: true, assistantAnswer: true },
+			})
+		: [];
 
-	const contextualMemory = memoryCandidates.map(
-		(item) => `Query: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
-	);
+	const contextualMemory: string[] = [];
+	if (conversationSummary?.trim()) {
+		contextualMemory.push(`CURRENT CONVERSATION SUMMARY:\n${conversationSummary.trim()}`);
+	}
+	if (durableMemories.length > 0) {
+		contextualMemory.push(
+			`DURABLE USER MEMORIES (relevant, may be corrected by the user's current message):\n${durableMemories
+				.map((memory, index) => `${index + 1}. ${memory}`)
+				.join("\n")}`,
+		);
+	}
+	for (const item of researchCandidates) {
+		contextualMemory.push(
+			`PRIOR RESEARCH CONTEXT:\nQuery: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
+		);
+	}
 
-	return {
-		chatHistory,
-		contextualMemory,
-		resolvedConversationId,
-	};
+	return { chatHistory, contextualMemory, resolvedConversationId };
 }
 
 export async function persistConversationTurn(args: {
@@ -277,11 +279,25 @@ export async function persistConversationTurn(args: {
 			},
 		});
 
-		return {
-			userMessageId: userMessage.id,
-			assistantMessageId: assistantMessage.id,
-		};
+		return { userMessageId: userMessage.id, assistantMessageId: assistantMessage.id };
 	});
+
+	// Memory curation is best-effort: a provider or parsing failure must never make
+	// an otherwise successful chat turn fail or disappear from conversation history.
+	try {
+		await refreshPersistentMemory({
+			userId: args.userId,
+			conversationId: conversation.id,
+			userMessageId: result.userMessageId,
+			query: args.query,
+			answer: args.answer,
+		});
+	} catch (error) {
+		console.warn(
+			"[AIRA memory] Could not refresh persistent memory:",
+			error instanceof Error ? error.message : String(error),
+		);
+	}
 
 	return {
 		conversationId: conversation.id,
