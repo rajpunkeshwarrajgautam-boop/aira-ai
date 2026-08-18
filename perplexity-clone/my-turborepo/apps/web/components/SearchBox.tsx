@@ -19,7 +19,7 @@ export interface SearchBoxProps {
 export type SearchBoxHandle = { focus: () => void; submit: () => void };
 
 export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
-	{ value, onChange, onSubmit, disabled, isBusy, placeholder = "Ask anything…", className },
+	{ value, onChange, onSubmit, disabled, isBusy, placeholder = "Ask Aira to solve, compare, decide, or research…", className },
 	ref,
 ) {
 	const taRef = useRef<HTMLTextAreaElement>(null);
@@ -71,7 +71,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							<span className="aira-icon-pop flex size-7 shrink-0 items-center justify-center rounded-full">
 								<Sparkles className="size-3" strokeWidth={1.8} aria-hidden />
 							</span>
-							<span className="hidden tracking-[0.01em] sm:inline">Research · reason · cite</span>
+							<span className="hidden tracking-[0.01em] sm:inline">Reason · verify · advise</span>
 							<span className="sm:hidden">Ask Aira</span>
 						</div>
 						<Button
