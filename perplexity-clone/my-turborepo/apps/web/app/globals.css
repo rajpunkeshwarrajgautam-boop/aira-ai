@@ -4,18 +4,21 @@
 
 :root {
 	color-scheme: light;
-	--surface: 216 33% 98%;
+	--surface: 220 30% 98%;
 	--surface-elevated: 0 0% 100%;
-	--surface-inset: 216 28% 96%;
-	--border-subtle: 216 24% 91%;
-	--border: 216 18% 84%;
-	--accent: 220 92% 56%;
-	--accent-muted: 220 76% 48%;
-	--content-primary: 224 43% 12%;
-	--content-secondary: 219 14% 39%;
-	--content-tertiary: 218 11% 56%;
-	--page-glow: 220 100% 97%;
-	--page-mid: 216 55% 98%;
+	--surface-inset: 220 24% 96%;
+	--border-subtle: 220 22% 91%;
+	--border: 220 17% 83%;
+	--accent: 222 92% 57%;
+	--accent-muted: 224 74% 50%;
+	--accent-violet: 263 82% 64%;
+	--accent-cyan: 190 84% 48%;
+	--accent-pink: 331 83% 64%;
+	--content-primary: 226 43% 11%;
+	--content-secondary: 222 15% 36%;
+	--content-tertiary: 220 11% 55%;
+	--page-glow: 224 100% 97%;
+	--page-mid: 218 48% 98%;
 }
 
 html,
@@ -33,8 +36,9 @@ body {
 	color: hsl(var(--content-primary));
 	background-color: hsl(var(--surface));
 	background-image:
-		radial-gradient(80% 55% at 50% -10%, hsl(var(--page-glow) / 0.95) 0%, transparent 72%),
-		linear-gradient(180deg, hsl(var(--page-mid)) 0%, hsl(var(--surface)) 42%, hsl(216 28% 98%) 100%);
+		radial-gradient(58rem 34rem at 50% -12rem, hsl(var(--accent) / 0.10), transparent 70%),
+		radial-gradient(42rem 28rem at 92% 4rem, hsl(var(--accent-violet) / 0.055), transparent 72%),
+		linear-gradient(180deg, hsl(var(--page-mid)) 0%, hsl(var(--surface)) 44%, hsl(220 26% 98%) 100%);
 	background-attachment: fixed;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
@@ -43,24 +47,48 @@ body {
 * { box-sizing: border-box; }
 a { color: inherit; }
 button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
-::selection { background: hsl(var(--accent) / 0.16); }
+::selection { background: hsl(var(--accent) / 0.17); }
 
 .aira-display {
 	font-family: Georgia, "Times New Roman", serif;
 	font-weight: 400;
-	letter-spacing: -0.035em;
+	letter-spacing: -0.04em;
 }
 
 .aira-shell {
+	position: relative;
+	isolation: isolate;
 	background:
-		linear-gradient(180deg, hsl(0 0% 100% / 0.72), hsl(216 33% 98% / 0.9)),
+		radial-gradient(36rem 24rem at 15% 0%, hsl(var(--accent-cyan) / 0.035), transparent 70%),
+		radial-gradient(42rem 28rem at 88% 8%, hsl(var(--accent-violet) / 0.045), transparent 70%),
+		linear-gradient(180deg, hsl(0 0% 100% / 0.78), hsl(220 30% 98% / 0.92)),
 		hsl(var(--surface));
 }
 
 .aira-card {
-	background: hsl(var(--surface-elevated) / 0.92);
-	border: 1px solid hsl(var(--border-subtle) / 0.92);
-	box-shadow: 0 1px 2px hsl(224 43% 12% / 0.025), 0 10px 30px hsl(224 43% 12% / 0.045);
+	background: hsl(var(--surface-elevated) / 0.91);
+	border: 1px solid hsl(var(--border-subtle) / 0.94);
+	box-shadow:
+		0 1px 2px hsl(226 43% 11% / 0.022),
+		0 10px 30px hsl(226 43% 11% / 0.042);
+	backdrop-filter: blur(12px);
+}
+
+.aira-premium-card {
+	position: relative;
+	background:
+		linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(220 35% 99% / 0.94));
+	border: 1px solid hsl(var(--border-subtle) / 0.96);
+	box-shadow:
+		0 1px 2px hsl(226 43% 11% / 0.025),
+		0 18px 55px hsl(226 43% 11% / 0.065);
+}
+
+.aira-glass {
+	background: hsl(0 0% 100% / 0.74);
+	border: 1px solid hsl(0 0% 100% / 0.8);
+	box-shadow: 0 10px 35px hsl(226 43% 11% / 0.055);
+	backdrop-filter: blur(18px) saturate(130%);
 }
 
 .aira-card-hover {
@@ -68,14 +96,95 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 
 .aira-card-hover:hover {
+	transform: translateY(-2px);
+	border-color: hsl(var(--accent) / 0.22);
+	box-shadow:
+		0 2px 5px hsl(226 43% 11% / 0.035),
+		0 18px 44px hsl(226 43% 11% / 0.072);
+}
+
+.aira-gradient-text {
+	background: linear-gradient(110deg, hsl(var(--accent)) 0%, hsl(var(--accent-violet)) 54%, hsl(var(--accent-cyan)) 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.aira-icon-pop {
+	background:
+		linear-gradient(145deg, hsl(var(--accent) / 0.13), hsl(var(--accent-violet) / 0.10));
+	color: hsl(var(--accent));
+	box-shadow: inset 0 0 0 1px hsl(var(--accent) / 0.10), 0 8px 24px hsl(var(--accent) / 0.09);
+}
+
+.aira-orb {
+	position: absolute;
+	pointer-events: none;
+	border-radius: 9999px;
+	filter: blur(2px);
+	opacity: 0.8;
+	animation: aira-float 8s ease-in-out infinite;
+}
+
+.aira-orb-blue {
+	background: radial-gradient(circle at 32% 32%, hsl(0 0% 100% / 0.98), hsl(var(--accent) / 0.22) 42%, hsl(var(--accent) / 0.03) 72%, transparent 74%);
+}
+
+.aira-orb-violet {
+	background: radial-gradient(circle at 32% 32%, hsl(0 0% 100% / 0.96), hsl(var(--accent-violet) / 0.20) 44%, hsl(var(--accent-violet) / 0.03) 72%, transparent 74%);
+	animation-delay: -3.2s;
+}
+
+.aira-composer-shell {
+	position: relative;
+	border-radius: 25px;
+	padding: 1px;
+	background: linear-gradient(125deg, hsl(var(--border-subtle)), hsl(var(--accent) / 0.28), hsl(var(--accent-violet) / 0.20), hsl(var(--border-subtle)));
+	box-shadow:
+		0 2px 7px hsl(226 43% 11% / 0.035),
+		0 20px 58px hsl(226 43% 11% / 0.085),
+		0 0 0 6px hsl(var(--accent) / 0.018);
+	transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.aira-composer-shell:focus-within {
 	transform: translateY(-1px);
-	border-color: hsl(var(--accent) / 0.2);
-	box-shadow: 0 2px 4px hsl(224 43% 12% / 0.035), 0 14px 36px hsl(224 43% 12% / 0.065);
+	box-shadow:
+		0 3px 10px hsl(226 43% 11% / 0.04),
+		0 26px 72px hsl(var(--accent) / 0.13),
+		0 0 0 7px hsl(var(--accent) / 0.035);
+}
+
+.aira-chip {
+	background: hsl(0 0% 100% / 0.82);
+	border: 1px solid hsl(var(--border-subtle) / 0.95);
+	box-shadow: 0 4px 16px hsl(226 43% 11% / 0.035);
+	backdrop-filter: blur(8px);
+	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+.aira-chip:hover {
+	transform: translateY(-1px);
+	border-color: hsl(var(--accent) / 0.24);
+	box-shadow: 0 10px 24px hsl(var(--accent) / 0.075);
+	color: hsl(var(--content-primary));
+}
+
+.aira-pro-glow::before {
+	content: "";
+	position: absolute;
+	inset: -1px;
+	z-index: -1;
+	border-radius: inherit;
+	background: linear-gradient(135deg, hsl(var(--accent) / 0.34), hsl(var(--accent-violet) / 0.28), hsl(var(--accent-cyan) / 0.22));
+	filter: blur(14px);
+	opacity: 0.36;
 }
 
 .aira-enter { animation: aira-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both; }
 .aira-fade { animation: aira-fade 260ms ease both; }
 .aira-soft-pulse { animation: aira-soft-pulse 2.2s ease-in-out infinite; }
+.aira-sparkle { animation: aira-sparkle 2.8s ease-in-out infinite; }
 
 @keyframes aira-enter {
 	from { opacity: 0; transform: translateY(8px) scale(0.995); }
@@ -83,19 +192,18 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 @keyframes aira-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes aira-soft-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+@keyframes aira-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -9px, 0); } }
+@keyframes aira-sparkle { 0%, 100% { transform: rotate(-5deg) scale(0.96); opacity: 0.82; } 50% { transform: rotate(7deg) scale(1.06); opacity: 1; } }
 
-/* Home-only presentation layer: reshapes the legacy controller without touching its behavior. */
+/* Home-only presentation layer: reshapes the existing controller without changing behavior. */
 .aira-home main {
-	background: linear-gradient(180deg, hsl(0 0% 100% / 0.6), hsl(var(--surface) / 0.7));
+	background:
+		radial-gradient(48rem 28rem at 50% 4rem, hsl(var(--accent) / 0.055), transparent 72%),
+		linear-gradient(180deg, hsl(0 0% 100% / 0.68), hsl(var(--surface) / 0.72));
 }
 
-.aira-home main > div:first-child {
-	display: none;
-}
-
-.aira-home [aria-label="Plan and usage"] {
-	display: none !important;
-}
+.aira-home main > div:first-child { display: none; }
+.aira-home [aria-label="Plan and usage"] { display: none !important; }
 
 .aira-home main > header {
 	width: 100%;
@@ -104,8 +212,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 
 .aira-home main > header:has(h1[class*="font-extrabold"]) {
-	padding-top: 4.75rem !important;
-	padding-bottom: 1.35rem !important;
+	padding-top: 5.2rem !important;
+	padding-bottom: 1.55rem !important;
 	text-align: center;
 }
 
@@ -114,9 +222,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 	justify-content: center;
 }
 
-.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child {
-	justify-content: center;
-}
+.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child { justify-content: center; }
 
 .aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child {
 	position: absolute;
@@ -126,23 +232,21 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 
 .aira-home main > header h1[class*="font-extrabold"] {
 	font-family: Georgia, "Times New Roman", serif;
-	font-size: clamp(2.65rem, 6vw, 4.2rem) !important;
+	font-size: clamp(2.8rem, 6.4vw, 4.55rem) !important;
 	font-weight: 400 !important;
-	line-height: 1.04 !important;
-	letter-spacing: -0.04em !important;
+	line-height: 1.02 !important;
+	letter-spacing: -0.045em !important;
 }
 
 .aira-home main > header h1[class*="font-extrabold"] + p {
-	max-width: 620px;
-	margin: 0.9rem auto 0;
-	font-size: 0.95rem !important;
-	line-height: 1.7;
+	max-width: 640px;
+	margin: 1rem auto 0;
+	font-size: 0.96rem !important;
+	line-height: 1.72;
 	color: hsl(var(--content-tertiary));
 }
 
-.aira-home form[aria-label="Ask AiraAI"] + div {
-	display: none;
-}
+.aira-home form[aria-label="Ask AiraAI"] + div { display: none; }
 
 .aira-home main footer {
 	border-top-color: hsl(var(--border-subtle) / 0.7);
@@ -161,7 +265,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 
 .answer-markdown > :first-child { margin-top: 0; }
 .answer-markdown > :last-child { margin-bottom: 0; }
-.answer-markdown h1, .answer-markdown h2, .answer-markdown h3 { letter-spacing: -0.02em; }
+.answer-markdown h1, .answer-markdown h2, .answer-markdown h3 { letter-spacing: -0.025em; }
 .answer-markdown a { @apply underline decoration-accent/25 underline-offset-[3px] transition-colors hover:decoration-accent; }
 .answer-markdown code { @apply rounded-md bg-surface-inset px-1.5 py-0.5 font-mono text-[0.9em] text-content-secondary ring-1 ring-border-subtle; }
 .answer-markdown pre { @apply rounded-2xl border border-border-subtle bg-surface-inset shadow-sm; }
@@ -169,25 +273,17 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 
 @media (max-width: 767px) {
 	.aira-home main > header:has(h1[class*="font-extrabold"]) {
-		padding-top: 2.25rem !important;
+		padding-top: 2.45rem !important;
 		text-align: left;
 	}
-	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child {
-		justify-content: space-between;
-	}
-	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child {
-		justify-content: flex-start;
-	}
-	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child {
-		position: static;
-	}
-	.aira-home main > header h1[class*="font-extrabold"] {
-		font-size: clamp(2.2rem, 11vw, 3rem) !important;
-	}
+	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child { justify-content: space-between; }
+	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child { justify-content: flex-start; }
+	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child { position: static; }
+	.aira-home main > header h1[class*="font-extrabold"] { font-size: clamp(2.25rem, 11vw, 3.1rem) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
 	html { scroll-behavior: auto; }
-	.aira-enter, .aira-fade, .aira-soft-pulse { animation: none !important; }
-	.aira-card-hover { transition: none !important; }
+	.aira-enter, .aira-fade, .aira-soft-pulse, .aira-orb, .aira-sparkle { animation: none !important; }
+	.aira-card-hover, .aira-chip, .aira-composer-shell { transition: none !important; }
 }
