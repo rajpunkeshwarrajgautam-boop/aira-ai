@@ -4,21 +4,18 @@
 
 :root {
 	color-scheme: light;
-	/* Soft cool-white / pale blue workspace */
-	--surface: 210 40% 98%;
+	--surface: 216 33% 98%;
 	--surface-elevated: 0 0% 100%;
-	--surface-inset: 214 32% 96%;
-	--border-subtle: 214 24% 90%;
-	--border: 214 20% 84%;
-	/* Calmer dashboard blue (readable on white) */
-	--accent: 217 91% 52%;
-	--accent-muted: 217 75% 45%;
-	--content-primary: 222 47% 11%;
-	--content-secondary: 215 16% 38%;
-	--content-tertiary: 215 12% 52%;
-	/* Page gradient stops (space-separated HSL triples) */
-	--page-glow: 214 90% 96%;
-	--page-mid: 210 60% 97%;
+	--surface-inset: 216 28% 96%;
+	--border-subtle: 216 24% 91%;
+	--border: 216 18% 84%;
+	--accent: 220 92% 56%;
+	--accent-muted: 220 76% 48%;
+	--content-primary: 224 43% 12%;
+	--content-secondary: 219 14% 39%;
+	--content-tertiary: 218 11% 56%;
+	--page-glow: 220 100% 97%;
+	--page-mid: 216 55% 98%;
 }
 
 html,
@@ -27,17 +24,22 @@ body {
 	overflow-x: hidden;
 }
 
+html {
+	scroll-behavior: smooth;
+}
+
 body {
 	margin: 0;
 	min-height: 100dvh;
-	font-family: var(--font-geist-sans), system-ui, sans-serif;
+	font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	color: hsl(var(--content-primary));
 	background-color: hsl(var(--surface));
 	background-image:
-		radial-gradient(120% 80% at 10% -10%, hsl(var(--page-glow) / 0.9) 0%, transparent 55%),
-		radial-gradient(90% 60% at 100% 0%, hsl(214 85% 94% / 0.65) 0%, transparent 50%),
-		linear-gradient(180deg, hsl(var(--page-mid)) 0%, hsl(var(--surface)) 45%, hsl(210 35% 97%) 100%);
+		radial-gradient(80% 55% at 50% -10%, hsl(var(--page-glow) / 0.95) 0%, transparent 72%),
+		linear-gradient(180deg, hsl(var(--page-mid)) 0%, hsl(var(--surface)) 42%, hsl(216 28% 98%) 100%);
 	background-attachment: fixed;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -48,11 +50,86 @@ a {
 	color: inherit;
 }
 
-::selection {
-	background: hsl(var(--accent) / 0.2);
+button,
+a,
+input,
+textarea,
+select {
+	-webkit-tap-highlight-color: transparent;
 }
 
-/* Lighter glass on small screens — applied via responsive Tailwind on components */
+::selection {
+	background: hsl(var(--accent) / 0.16);
+}
+
+.aira-display {
+	font-family: Georgia, "Times New Roman", serif;
+	font-weight: 400;
+	letter-spacing: -0.035em;
+}
+
+.aira-shell {
+	background:
+		linear-gradient(180deg, hsl(0 0% 100% / 0.72), hsl(216 33% 98% / 0.9)),
+		hsl(var(--surface));
+}
+
+.aira-card {
+	background: hsl(var(--surface-elevated) / 0.92);
+	border: 1px solid hsl(var(--border-subtle) / 0.92);
+	box-shadow:
+		0 1px 2px hsl(224 43% 12% / 0.025),
+		0 10px 30px hsl(224 43% 12% / 0.045);
+}
+
+.aira-card-hover {
+	transition:
+		transform 180ms ease,
+		box-shadow 180ms ease,
+		border-color 180ms ease,
+		background-color 180ms ease;
+}
+
+.aira-card-hover:hover {
+	transform: translateY(-1px);
+	border-color: hsl(var(--accent) / 0.2);
+	box-shadow:
+		0 2px 4px hsl(224 43% 12% / 0.035),
+		0 14px 36px hsl(224 43% 12% / 0.065);
+}
+
+.aira-enter {
+	animation: aira-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.aira-fade {
+	animation: aira-fade 260ms ease both;
+}
+
+.aira-soft-pulse {
+	animation: aira-soft-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes aira-enter {
+	from {
+		opacity: 0;
+		transform: translateY(8px) scale(0.995);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes aira-fade {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes aira-soft-pulse {
+	0%, 100% { opacity: 0.65; }
+	50% { opacity: 1; }
+}
 
 .answer-markdown {
 	@apply prose prose-zinc max-w-none;
@@ -61,7 +138,21 @@ a {
 	--tw-prose-links: hsl(var(--accent));
 	--tw-prose-bold: hsl(var(--content-primary));
 	--tw-prose-quotes: hsl(var(--content-tertiary));
-	line-height: 1.8;
+	line-height: 1.78;
+}
+
+.answer-markdown > :first-child {
+	margin-top: 0;
+}
+
+.answer-markdown > :last-child {
+	margin-bottom: 0;
+}
+
+.answer-markdown h1,
+.answer-markdown h2,
+.answer-markdown h3 {
+	letter-spacing: -0.02em;
 }
 
 .answer-markdown a {
@@ -73,9 +164,21 @@ a {
 }
 
 .answer-markdown pre {
-	@apply rounded-xl border border-border-subtle bg-surface-inset shadow-float;
+	@apply rounded-2xl border border-border-subtle bg-surface-inset shadow-sm;
 }
 
 .answer-markdown pre code {
 	@apply bg-transparent p-0 ring-0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html { scroll-behavior: auto; }
+	.aira-enter,
+	.aira-fade,
+	.aira-soft-pulse {
+		animation: none !important;
+	}
+	.aira-card-hover {
+		transition: none !important;
+	}
 }
