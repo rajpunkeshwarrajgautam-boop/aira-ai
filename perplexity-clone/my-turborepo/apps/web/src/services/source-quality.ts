@@ -1,5 +1,5 @@
 /**
- * Trust/readability helpers: excerpt sanitization and domain-only source typing.
+ * Trust/readability helpers: excerpt sanitization and domain-aware source typing.
  */
 
 export type SourceQualityLabel =
@@ -20,8 +20,6 @@ const CONTROL_OR_FORMAT = /\p{Cc}|\p{Cf}/gu;
  */
 export function sanitizeSourceExcerpt(text: string): string {
 	if (!text) return "";
-	// Soft hyphen (U+00AD) is Cf; turning it into a real hyphen before stripping
-	// other format chars avoids glued words like "thirdparty".
 	const withVisibleHyphens = text.replace(/\u00AD/g, "-");
 	const stripped = withVisibleHyphens.replace(CONTROL_OR_FORMAT, "");
 	return stripped
@@ -59,12 +57,42 @@ const PEER_REVIEW_DOMAINS = [
 	"acm.org",
 ] as const;
 
+const OFFICIAL_DOMAINS = [
+	"clinicaltrials.gov",
+	"fda.gov",
+	"who.int",
+	"europa.eu",
+	"sec.gov",
+	"rbi.org.in",
+	"sebi.gov.in",
+	"cbic-gst.gov.in",
+	"gst.gov.in",
+	"incometax.gov.in",
+	"mca.gov.in",
+	"meity.gov.in",
+	"indiacode.nic.in",
+	"egazette.nic.in",
+	"msme.gov.in",
+	"startupindia.gov.in",
+	"mohfw.gov.in",
+	"icmr.gov.in",
+	"dgft.gov.in",
+	"niti.gov.in",
+] as const;
+
 const AGGREGATOR_HOSTS = ["emergentmind.com", "news.google.com"] as const;
 
-const BLOG_SUBSTRINGS = ["medium.com", "substack.com", "dev.to", "hashnode.com"] as const;
+const BLOG_HOST_SUBSTRINGS = ["medium.com", "substack.com", "dev.to", "hashnode.com"] as const;
+const BLOG_PATH_MARKERS = ["/blog/", "/blogs/", "/guide/", "/guides/", "/insights/", "/opinion/"] as const;
+
+function looksOfficial(host: string): boolean {
+	if (host.endsWith(".gov") || host.endsWith(".gov.in") || host.endsWith(".nic.in")) return true;
+	return OFFICIAL_DOMAINS.some((domain) => hostIsOrUnder(host, domain));
+}
 
 /**
- * Domain/path heuristics only; first matching rule wins.
+ * Domain/path heuristics only. Official and peer-reviewed sources are detected before
+ * blog-like paths so regulator knowledge-base pages are not accidentally downgraded.
  */
 export function inferSourceQualityLabel(url: string, _title?: string): SourceQualityLabel {
 	void _title;
@@ -79,16 +107,23 @@ export function inferSourceQualityLabel(url: string, _title?: string): SourceQua
 		if (hostIsOrUnder(host, d)) return "Peer-reviewed";
 	}
 
+	if (looksOfficial(host)) return "Official";
+
 	if (
 		host.startsWith("ir.") ||
 		host.startsWith("investors.") ||
 		path.includes("/investors") ||
-		path.includes("/news-releases")
+		path.includes("/news-releases") ||
+		path.includes("/press-releases")
 	) {
 		return "Company";
 	}
 
-	if (host.startsWith("blog.") || BLOG_SUBSTRINGS.some((s) => host.includes(s))) {
+	if (
+		host.startsWith("blog.") ||
+		BLOG_HOST_SUBSTRINGS.some((s) => host.includes(s)) ||
+		BLOG_PATH_MARKERS.some((marker) => path.includes(marker))
+	) {
 		return "Blog";
 	}
 
@@ -97,16 +132,6 @@ export function inferSourceQualityLabel(url: string, _title?: string): SourceQua
 	}
 
 	if (hostIsOrUnder(host, "yahoo.com") && path.startsWith("/news")) return "Aggregator";
-
-	if (
-		hostIsOrUnder(host, "clinicaltrials.gov") ||
-		hostIsOrUnder(host, "fda.gov") ||
-		hostIsOrUnder(host, "who.int") ||
-		hostIsOrUnder(host, "europa.eu") ||
-		host.endsWith(".gov")
-	) {
-		return "Official";
-	}
 
 	return "Unknown";
 }
