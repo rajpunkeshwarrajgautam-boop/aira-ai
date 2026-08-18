@@ -27,7 +27,7 @@ export function UserMenu({ className }: { readonly className?: string }) {
 
 	if (!session?.user) {
 		return (
-			<Button variant="default" size="sm" asChild className={cn("h-10 rounded-2xl px-4 text-sm font-semibold shadow-sm", className)}>
+			<Button variant="default" size="sm" asChild className={cn("h-10 rounded-2xl bg-content-primary px-4 text-sm font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5", className)}>
 				<Link
 					href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
 					onClick={() => {
@@ -45,32 +45,33 @@ export function UserMenu({ className }: { readonly className?: string }) {
 
 	return (
 		<details className={cn("group relative", className)}>
-			<summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-2xl border border-border-subtle bg-white px-2.5 pr-3 text-sm shadow-sm transition hover:border-border hover:bg-surface-inset/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
-				<span className="flex size-7 items-center justify-center rounded-xl bg-accent/10 text-[11px] font-bold text-accent ring-1 ring-accent/10">
-					{initials(label)}
+			<summary className="aira-glass flex h-10 cursor-pointer list-none items-center gap-2 rounded-2xl px-2.5 pr-3 text-sm transition hover:-translate-y-0.5 hover:border-accent/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+				<span className="relative flex size-7 items-center justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] text-[10px] font-bold text-white shadow-sm">
+					<span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.5),transparent_40%)]" aria-hidden />
+					<span className="relative">{initials(label)}</span>
 				</span>
 				<span className="hidden max-w-[120px] truncate font-medium text-content-primary sm:inline">{shortLabel}</span>
 				<ChevronDown className="size-3.5 text-content-tertiary transition-transform group-open:rotate-180" aria-hidden />
 			</summary>
 
-			<div className="aira-enter absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-border-subtle bg-white p-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.14)]">
-				<div className="border-b border-border-subtle px-3 py-2.5">
+			<div className="aira-enter aira-glass absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-3xl p-2 shadow-[0_22px_65px_rgba(15,23,42,0.15)]">
+				<div className="rounded-2xl bg-white/70 px-3 py-3">
 					<p className="truncate text-sm font-semibold text-content-primary">{label}</p>
 					{session.user.email && session.user.name ? <p className="mt-0.5 truncate text-xs text-content-tertiary">{session.user.email}</p> : null}
 				</div>
-				<Link href="/memory" className="mt-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-content-secondary transition hover:bg-surface-inset hover:text-content-primary">
-					<Brain className="size-4" aria-hidden /> Memory
+				<Link href="/memory" className="mt-1 flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm text-content-secondary transition hover:bg-white hover:text-content-primary">
+					<span className="aira-icon-pop flex size-8 items-center justify-center rounded-xl"><Brain className="size-4" aria-hidden /></span> Memory
 				</Link>
-				<Link href="/agents" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-content-secondary transition hover:bg-surface-inset hover:text-content-primary">
-					<Bot className="size-4" aria-hidden /> Agents
+				<Link href="/agents" className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm text-content-secondary transition hover:bg-white hover:text-content-primary">
+					<span className="aira-icon-pop flex size-8 items-center justify-center rounded-xl"><Bot className="size-4" aria-hidden /></span> Agents
 				</Link>
 				<div className="my-1 h-px bg-border-subtle" />
 				<button
 					type="button"
 					onClick={() => void signOut({ callbackUrl: "/" })}
-					className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-content-secondary transition hover:bg-surface-inset hover:text-content-primary"
+					className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-sm text-content-secondary transition hover:bg-white hover:text-content-primary"
 				>
-					<LogOut className="size-4" aria-hidden /> Sign out
+					<span className="flex size-8 items-center justify-center rounded-xl bg-surface-inset text-content-tertiary"><LogOut className="size-4" aria-hidden /></span> Sign out
 				</button>
 			</div>
 		</details>
