@@ -1,3 +1,5 @@
+import { CORE_ASSISTANT_BEHAVIOR } from "./chat-prompt-policy";
+
 export type ResearchPresetId = "general" | "academic" | "startup" | "coding" | "shopping";
 
 export interface ResearchPreset {
@@ -63,6 +65,12 @@ export const RESEARCH_PRESETS: Record<ResearchPresetId, ResearchPreset> = {
 };
 
 export function getResearchPreset(id?: string): ResearchPreset {
-	if (!id) return RESEARCH_PRESETS.general;
-	return RESEARCH_PRESETS[id as ResearchPresetId] ?? RESEARCH_PRESETS.general;
+	const preset = id
+		? RESEARCH_PRESETS[id as ResearchPresetId] ?? RESEARCH_PRESETS.general
+		: RESEARCH_PRESETS.general;
+
+	return {
+		...preset,
+		systemPromptModifier: `${CORE_ASSISTANT_BEHAVIOR}\n\n## Preset guidance: ${preset.label}\n${preset.systemPromptModifier}`,
+	};
 }
