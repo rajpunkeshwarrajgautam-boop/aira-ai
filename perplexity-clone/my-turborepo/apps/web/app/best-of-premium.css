@@ -1,74 +1,250 @@
 :root {
-	--accent-violet: 263 82% 64%;
-	--accent-cyan: 190 84% 48%;
-	--accent-pink: 331 83% 64%;
+	--accent: 223 86% 58%;
+	--accent-muted: 223 72% 50%;
+	--accent-violet: 262 68% 60%;
+	--accent-cyan: 190 72% 44%;
+	--accent-pink: 331 72% 61%;
+	--luxury-ink: 226 42% 11%;
+	--luxury-hairline: 220 26% 90%;
+	--luxury-shadow: 226 44% 10%;
 }
 
-.aira-premium-card {
-	position: relative;
-	background: linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(220 35% 99% / 0.94));
-	border: 1px solid hsl(var(--border-subtle) / 0.96);
-	box-shadow: 0 1px 2px hsl(226 43% 11% / 0.025), 0 18px 55px hsl(226 43% 11% / 0.065);
+body {
+	background-color: hsl(220 30% 98%);
+	background-image:
+		radial-gradient(62% 42% at 50% -8%, hsl(223 100% 99%) 0%, hsl(223 82% 97% / 0.72) 46%, transparent 78%),
+		radial-gradient(34% 28% at 95% 3%, hsl(var(--accent-violet) / 0.045), transparent 76%),
+		linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 30% 98.7%) 34%, hsl(220 26% 98.2%) 100%);
+}
+
+::selection {
+	background: hsl(var(--accent) / 0.13);
+}
+
+/* Calm the ambient layer. Premium depth should feel present, not animated at you. */
+.aira-shell {
+	background: transparent !important;
+}
+
+.aira-shell::before,
+.aira-shell::after {
+	animation: none !important;
+	filter: blur(96px) !important;
+	opacity: 0.07 !important;
+}
+
+.aira-shell::before {
+	background: radial-gradient(circle, hsl(var(--accent-violet) / 0.5), transparent 68%) !important;
+}
+
+.aira-shell::after {
+	background: radial-gradient(circle, hsl(var(--accent-cyan) / 0.34), transparent 70%) !important;
+}
+
+.aira-display {
+	font-family: Georgia, "Times New Roman", serif;
+	font-weight: 400;
+	letter-spacing: -0.043em;
+	text-wrap: balance;
 }
 
 .aira-gradient-text {
-	background: linear-gradient(110deg, hsl(var(--accent)) 0%, hsl(var(--accent-violet)) 54%, hsl(var(--accent-cyan)) 100%);
+	background: linear-gradient(108deg, hsl(var(--accent)) 4%, hsl(var(--accent-violet)) 58%, hsl(var(--accent-cyan)) 108%);
 	-webkit-background-clip: text;
 	background-clip: text;
 	color: transparent;
 }
 
+/* Surfaces: fewer visible borders, better shadow hierarchy. */
+.aira-card,
+.aira-premium-card {
+	position: relative;
+	background: linear-gradient(180deg, rgb(255 255 255 / 0.955), rgb(252 253 255 / 0.91));
+	border: 1px solid rgb(15 23 42 / 0.055);
+	box-shadow:
+		0 1px 1px rgb(15 23 42 / 0.025),
+		0 10px 26px rgb(15 23 42 / 0.035),
+		0 34px 72px rgb(15 23 42 / 0.025);
+	backdrop-filter: blur(18px) saturate(1.03);
+}
+
+.aira-glass {
+	background: linear-gradient(150deg, rgb(255 255 255 / 0.82), rgb(250 252 255 / 0.70)) !important;
+	border: 1px solid rgb(255 255 255 / 0.84) !important;
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.92),
+		0 1px 1px rgb(15 23 42 / 0.025),
+		0 22px 58px rgb(15 23 42 / 0.055) !important;
+	backdrop-filter: blur(24px) saturate(1.04) !important;
+}
+
+.aira-card-hover,
+.aira-fun-card {
+	transition: transform 190ms cubic-bezier(.2,.75,.25,1), box-shadow 190ms ease, border-color 190ms ease, background-color 190ms ease;
+}
+
+.aira-card-hover:hover,
+.aira-fun-card:hover {
+	transform: translateY(-1px) !important;
+	border-color: rgb(15 23 42 / 0.085) !important;
+	box-shadow:
+		0 1px 2px rgb(15 23 42 / 0.03),
+		0 18px 46px rgb(15 23 42 / 0.065) !important;
+}
+
+.aira-fun-card::before {
+	opacity: 0.2 !important;
+	filter: blur(10px);
+}
+
+.aira-fun-card:hover::before {
+	transform: none !important;
+	opacity: 0.28 !important;
+}
+
 .aira-icon-pop {
-	background: linear-gradient(145deg, hsl(var(--accent) / 0.13), hsl(var(--accent-violet) / 0.10));
+	background: linear-gradient(145deg, hsl(var(--accent) / 0.105), hsl(var(--accent-violet) / 0.075));
 	color: hsl(var(--accent));
-	box-shadow: inset 0 0 0 1px hsl(var(--accent) / 0.10), 0 8px 24px hsl(var(--accent) / 0.09);
+	box-shadow: inset 0 0 0 1px hsl(var(--accent) / 0.09), 0 9px 24px hsl(var(--accent) / 0.065);
 }
 
-.aira-orb {
-	position: absolute;
-	pointer-events: none;
-	border-radius: 9999px;
-	filter: blur(2px);
-	opacity: 0.8;
-	animation: best-of-float 8s ease-in-out infinite;
+/* Static luminous frame instead of an animated conic border. */
+.aira-gradient-frame {
+	position: relative;
+	isolation: isolate;
 }
 
-.aira-orb-blue {
-	background: radial-gradient(circle at 32% 32%, hsl(0 0% 100% / 0.98), hsl(var(--accent) / 0.22) 42%, hsl(var(--accent) / 0.03) 72%, transparent 74%);
+.aira-gradient-frame::before {
+	animation: none !important;
+	inset: -1px !important;
+	background: linear-gradient(132deg,
+		rgb(15 23 42 / 0.075) 0%,
+		hsl(var(--accent) / 0.23) 35%,
+		hsl(var(--accent-violet) / 0.18) 68%,
+		rgb(15 23 42 / 0.06) 100%) !important;
+	opacity: 0.78 !important;
 }
 
-.aira-orb-violet {
-	background: radial-gradient(circle at 32% 32%, hsl(0 0% 100% / 0.96), hsl(var(--accent-violet) / 0.20) 44%, hsl(var(--accent-violet) / 0.03) 72%, transparent 74%);
-	animation-delay: -3.2s;
+.aira-gradient-frame::after {
+	background: rgb(255 255 255 / 0.965) !important;
 }
 
+.aira-composer,
 .aira-composer-shell {
 	position: relative;
-	border-radius: 25px;
-	padding: 1px;
-	background: linear-gradient(125deg, hsl(var(--border-subtle)), hsl(var(--accent) / 0.28), hsl(var(--accent-violet) / 0.20), hsl(var(--border-subtle)));
-	box-shadow: 0 2px 7px hsl(226 43% 11% / 0.035), 0 20px 58px hsl(226 43% 11% / 0.085), 0 0 0 6px hsl(var(--accent) / 0.018);
-	transition: transform 220ms ease, box-shadow 220ms ease;
+	border-radius: 26px;
+	box-shadow:
+		0 1px 1px rgb(15 23 42 / 0.035),
+		0 10px 30px rgb(15 23 42 / 0.055),
+		0 32px 76px rgb(15 23 42 / 0.055),
+		0 0 0 5px hsl(var(--accent) / 0.012) !important;
+	transition: transform 200ms cubic-bezier(.2,.8,.2,1), box-shadow 200ms ease;
 }
 
+.aira-composer:focus-within,
 .aira-composer-shell:focus-within {
-	transform: translateY(-1px);
-	box-shadow: 0 3px 10px hsl(226 43% 11% / 0.04), 0 26px 72px hsl(var(--accent) / 0.13), 0 0 0 7px hsl(var(--accent) / 0.035);
+	transform: translateY(-1px) !important;
+	box-shadow:
+		0 1px 2px rgb(15 23 42 / 0.035),
+		0 16px 42px rgb(15 23 42 / 0.065),
+		0 38px 88px hsl(var(--accent) / 0.085),
+		0 0 0 5px hsl(var(--accent) / 0.025) !important;
 }
 
 .aira-chip {
-	background: hsl(0 0% 100% / 0.82);
-	border: 1px solid hsl(var(--border-subtle) / 0.95);
-	box-shadow: 0 4px 16px hsl(226 43% 11% / 0.035);
-	backdrop-filter: blur(8px);
-	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+	background: rgb(255 255 255 / 0.72);
+	border: 1px solid rgb(15 23 42 / 0.06);
+	box-shadow: 0 3px 12px rgb(15 23 42 / 0.025);
+	backdrop-filter: blur(12px);
+	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, background-color 160ms ease;
 }
 
 .aira-chip:hover {
 	transform: translateY(-1px);
-	border-color: hsl(var(--accent) / 0.24);
-	box-shadow: 0 10px 24px hsl(var(--accent) / 0.075);
+	background: rgb(255 255 255 / 0.92);
+	border-color: hsl(var(--accent) / 0.18);
+	box-shadow: 0 8px 22px rgb(15 23 42 / 0.05);
 	color: hsl(var(--content-primary));
+}
+
+/* Remove novelty shine. Premium CTA feedback comes from depth and motion. */
+.aira-shine-button::after {
+	display: none !important;
+}
+
+.aira-shine-button {
+	transition: transform 170ms ease, box-shadow 170ms ease, filter 170ms ease;
+}
+
+.aira-shine-button:hover {
+	transform: translateY(-1px);
+	filter: saturate(1.03);
+}
+
+.aira-shine-button:active {
+	transform: translateY(0) scale(0.985) !important;
+}
+
+/* Navigation should read like product chrome, not a segmented demo control. */
+.aira-nav-rail {
+	padding: 4px !important;
+	border-radius: 14px !important;
+	background: rgb(248 250 252 / 0.68) !important;
+	border: 1px solid rgb(15 23 42 / 0.05) !important;
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.86), 0 5px 18px rgb(15 23 42 / 0.025) !important;
+	backdrop-filter: blur(18px);
+}
+
+.aira-nav-pill {
+	border-radius: 10px !important;
+	transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease !important;
+}
+
+.aira-nav-pill:hover {
+	transform: none !important;
+	background: rgb(255 255 255 / 0.72) !important;
+}
+
+.aira-nav-pill[data-active="true"] {
+	background: rgb(255 255 255 / 0.96) !important;
+	color: hsl(var(--content-primary)) !important;
+	box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 6px 18px rgb(15 23 42 / 0.055) !important;
+}
+
+.aira-nav-pill[data-active="true"]::after {
+	display: none !important;
+}
+
+.aira-profile-pill {
+	background: rgb(255 255 255 / 0.78) !important;
+	border-color: rgb(15 23 42 / 0.055) !important;
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 6px 18px rgb(15 23 42 / 0.035) !important;
+	backdrop-filter: blur(18px);
+}
+
+.aira-profile-avatar {
+	background: linear-gradient(145deg, hsl(var(--accent) / 0.10), hsl(var(--accent-violet) / 0.08)) !important;
+	box-shadow: inset 0 0 0 1px hsl(var(--accent) / 0.08) !important;
+}
+
+.aira-popover {
+	background: rgb(255 255 255 / 0.94) !important;
+	border-color: rgb(15 23 42 / 0.055) !important;
+	box-shadow: 0 24px 60px rgb(15 23 42 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.92) !important;
+	backdrop-filter: blur(26px) saturate(1.03) !important;
+}
+
+/* Pricing: static halo, no spinning border or lifted card. */
+.aira-featured-plan {
+	transform: none !important;
+	border-color: hsl(var(--accent) / 0.13) !important;
+	box-shadow: 0 16px 44px rgb(15 23 42 / 0.055), 0 30px 80px hsl(var(--accent) / 0.06) !important;
+}
+
+.aira-featured-plan::before {
+	animation: none !important;
+	background: linear-gradient(135deg, hsl(var(--accent) / 0.24), hsl(var(--accent-violet) / 0.18), hsl(var(--accent-cyan) / 0.12)) !important;
+	opacity: 0.65;
 }
 
 .aira-pro-glow::before {
@@ -77,17 +253,136 @@
 	inset: -1px;
 	z-index: -1;
 	border-radius: inherit;
-	background: linear-gradient(135deg, hsl(var(--accent) / 0.34), hsl(var(--accent-violet) / 0.28), hsl(var(--accent-cyan) / 0.22));
-	filter: blur(14px);
-	opacity: 0.36;
+	background: linear-gradient(135deg, hsl(var(--accent) / 0.22), hsl(var(--accent-violet) / 0.16), hsl(var(--accent-cyan) / 0.11));
+	filter: blur(18px);
+	opacity: 0.26;
 }
 
-@keyframes best-of-float {
-	0%, 100% { transform: translate3d(0, 0, 0); }
-	50% { transform: translate3d(0, -9px, 0); }
+/* Memory and agents: stateful, restrained motion. */
+.aira-memory-card {
+	border-radius: 20px;
+	transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.aira-memory-card:hover {
+	transform: translateY(-1px) !important;
+	background: rgb(255 255 255 / 0.93) !important;
+	box-shadow: 0 12px 28px rgb(15 23 42 / 0.05) !important;
+}
+
+.aira-agent-objective::after {
+	background:
+		radial-gradient(circle at 94% 0%, hsl(var(--accent-violet) / 0.045), transparent 28%),
+		radial-gradient(circle at 0% 100%, hsl(var(--accent-cyan) / 0.035), transparent 30%) !important;
+}
+
+.aira-status-pill::before {
+	animation-duration: 2.4s !important;
+}
+
+.aira-progress-track > *::after {
+	opacity: 0.42;
+}
+
+/* Source cards should emphasize trust, not shine. */
+[aria-label="Sources"] li > a::after {
+	display: none !important;
+}
+
+[aria-label="Sources"] li > a {
+	transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease, background-color 170ms ease;
+}
+
+[aria-label="Sources"] li > a:hover {
+	transform: translateY(-1px);
+}
+
+.aira-orb {
+	position: absolute;
+	pointer-events: none;
+	border-radius: 9999px;
+	filter: blur(10px);
+	opacity: 0.42;
+	animation: none !important;
+}
+
+.aira-orb-blue {
+	background: radial-gradient(circle at 34% 34%, hsl(0 0% 100% / 0.9), hsl(var(--accent) / 0.12) 43%, transparent 73%);
+}
+
+.aira-orb-violet {
+	background: radial-gradient(circle at 34% 34%, hsl(0 0% 100% / 0.9), hsl(var(--accent-violet) / 0.11) 44%, transparent 74%);
+}
+
+/* Typography and document polish. */
+.answer-markdown {
+	font-size: 0.995rem;
+	line-height: 1.82;
+}
+
+.answer-markdown h1,
+.answer-markdown h2,
+.answer-markdown h3 {
+	letter-spacing: -0.028em;
+	font-weight: 650;
+}
+
+.answer-markdown p {
+	text-wrap: pretty;
+}
+
+.answer-markdown pre {
+	border-color: rgb(15 23 42 / 0.065) !important;
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72), 0 10px 30px rgb(15 23 42 / 0.035) !important;
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgb(148 163 184 / 0.46) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: rgb(148 163 184 / 0.38);
+	border-radius: 999px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+@media (max-width: 767px) {
+	.aira-shell::before,
+	.aira-shell::after {
+		opacity: 0.045 !important;
+	}
+
+	.aira-card-hover:hover,
+	.aira-fun-card:hover,
+	.aira-memory-card:hover,
+	[aria-label="Sources"] li > a:hover {
+		transform: none !important;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.aira-orb { animation: none !important; }
-	.aira-chip, .aira-composer-shell { transition: none !important; }
+	.aira-chip,
+	.aira-composer,
+	.aira-composer-shell,
+	.aira-card-hover,
+	.aira-fun-card,
+	.aira-memory-card,
+	.aira-nav-pill,
+	.aira-profile-pill,
+	.aira-shine-button,
+	[aria-label="Sources"] li > a {
+		transition: none !important;
+		transform: none !important;
+	}
 }
