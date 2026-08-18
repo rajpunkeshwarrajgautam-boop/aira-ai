@@ -172,8 +172,8 @@ export function ConversationMessageList({
 							<div className="flex items-center gap-3">
 								<History className="size-5 text-accent" aria-hidden />
 								<div>
-									<h2 className="text-base font-semibold text-content-primary">Continue your research</h2>
-									<p className="text-xs text-content-tertiary">Pick up where you left off.</p>
+									<h2 className="text-base font-semibold text-content-primary">Previous conversations</h2>
+									<p className="text-xs text-content-tertiary">Open one only when you want to continue it.</p>
 								</div>
 							</div>
 
@@ -225,7 +225,7 @@ export function ConversationMessageList({
 						{!isAuthed && <MessageCircle className="size-10 text-accent/50" aria-hidden />}
 						<div className="max-w-lg space-y-2">
 							<p className={cn("text-sm font-semibold text-content-primary", isAuthed && "text-left")}>
-								{isAuthed ? "Or start with an example" : "Try an example"}
+								{isAuthed ? "Start a new chat with an example" : "Try an example"}
 							</p>
 							{!isAuthed && (
 								<p className="text-sm leading-relaxed text-content-secondary">
