@@ -1,8 +1,18 @@
 export type AgenticRetrievalMode = "reasoning" | "focused" | "agentic";
+export type AgenticDomain = "general" | "business" | "legal-tax" | "medical" | "finance" | "security" | "technical" | "product";
+
+export interface AgenticSearchSpec {
+	readonly query: string;
+	readonly includeDomains?: readonly string[];
+	readonly numResults?: number;
+}
 
 export interface AgenticAnswerPlan {
 	readonly retrievalMode: AgenticRetrievalMode;
-	readonly supplementaryQueries: readonly string[];
+	readonly domain: AgenticDomain;
+	readonly supplementarySearches: readonly AgenticSearchSpec[];
+	readonly preferAuthoritative: boolean;
+	readonly minimumAuthoritativeSources: number;
 	readonly advisorInstruction: string;
 }
 
@@ -13,67 +23,198 @@ const HIGH_STAKES_RE = /\b(medical|medicine|medication|health|doctor|legal|lawye
 const ARGUMENT_RE = /\b(argue|argument|counterargument|debate|case for|case against|why not|downsides?|risks?|limitations?|critique|challenge)\b/i;
 const PURE_GENERATION_RE = /\b(write|rewrite|draft|rephrase|translate|translation|poem|story|caption|email|letter|tagline|bio)\b/i;
 const EXPLICIT_RESEARCH_RE = /\b(search|research|sources?|evidence|verify|fact-?check|look up|find out)\b/i;
+const BUSINESS_RE = /\b(business|startup|saas|market|customer|revenue|mrr|arr|pricing|go-to-market|gtm|sales|distribution|founder|venture|company|product idea|unit economics)\b/i;
+const LEGAL_TAX_RE = /\b(gst|tax|taxation|legal|law|compliance|contract|mca|company registration|dpdp|privacy law|sebi|rbi|cbic|income tax|trademark|copyright)\b/i;
+const MEDICAL_RE = /\b(health|medical|medicine|medication|drug|treatment|disease|clinical|patient|doctor|symptom|side effect|dosage|dose)\b/i;
+const FINANCE_RE = /\b(investment|invest|stock|share|mutual fund|etf|loan|interest rate|insurance|bank|finance|financial|securities|portfolio|returns?)\b/i;
+const SECURITY_RE = /\b(security|cybersecurity|malware|phishing|vulnerability|exploit|breach|ransomware|zero-day|cve)\b/i;
+const TECH_RE = /\b(code|coding|software|api|sdk|framework|library|database|server|deployment|vercel|github|supabase|docker|windows|linux|driver|gpu|cpu|bug|error)\b/i;
+const PRODUCT_RE = /\b(buy|purchase|phone|laptop|monitor|gpu|cpu|camera|headphone|television|tv|product|specification|specs|model)\b/i;
+const INDIA_RE = /\b(india|indian|₹|rs\.?|rupees?|gst|mca|dpdp|cbic|sebi|rbi|udyam|msme|startup india)\b/i;
 
-function uniqueQueries(queries: readonly string[], original: string): string[] {
+const INDIA_LEGAL_PRIMARY = [
+	"cbic-gst.gov.in",
+	"gst.gov.in",
+	"incometax.gov.in",
+	"mca.gov.in",
+	"meity.gov.in",
+	"indiacode.nic.in",
+	"egazette.nic.in",
+	"sebi.gov.in",
+	"rbi.org.in",
+	"msme.gov.in",
+	"startupindia.gov.in",
+	"dgft.gov.in",
+] as const;
+
+const MEDICAL_PRIMARY = [
+	"mohfw.gov.in",
+	"icmr.gov.in",
+	"who.int",
+	"fda.gov",
+	"nih.gov",
+	"pubmed.ncbi.nlm.nih.gov",
+	"pmc.ncbi.nlm.nih.gov",
+	"clinicaltrials.gov",
+] as const;
+
+const INDIA_FINANCE_PRIMARY = [
+	"rbi.org.in",
+	"sebi.gov.in",
+	"nseindia.com",
+	"bseindia.com",
+	"incometax.gov.in",
+] as const;
+
+function classifyDomain(query: string): AgenticDomain {
+	if (MEDICAL_RE.test(query)) return "medical";
+	if (LEGAL_TAX_RE.test(query)) return "legal-tax";
+	if (FINANCE_RE.test(query)) return "finance";
+	if (SECURITY_RE.test(query)) return "security";
+	if (TECH_RE.test(query)) return "technical";
+	if (PRODUCT_RE.test(query)) return "product";
+	if (BUSINESS_RE.test(query)) return "business";
+	return "general";
+}
+
+function uniqueSearches(searches: readonly AgenticSearchSpec[], original: string): AgenticSearchSpec[] {
 	const seen = new Set<string>([original.trim().toLowerCase()]);
-	const out: string[] = [];
-	for (const candidate of queries) {
-		const q = candidate.trim().replace(/\s+/g, " ");
-		if (q.length < 3) continue;
-		const key = q.toLowerCase();
+	const out: AgenticSearchSpec[] = [];
+	for (const candidate of searches) {
+		const query = candidate.query.trim().replace(/\s+/g, " ");
+		if (query.length < 3) continue;
+		const domainKey = candidate.includeDomains?.join(",").toLowerCase() ?? "";
+		const key = `${query.toLowerCase()}|${domainKey}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
-		out.push(q);
+		out.push({ ...candidate, query });
 	}
-	return out.slice(0, 3);
+	return out.slice(0, 5);
 }
 
-function buildSupplementaryQueries(query: string): string[] {
+function primarySourceSearch(query: string, domain: AgenticDomain): AgenticSearchSpec | null {
 	const year = new Date().getUTCFullYear();
-	const queries: string[] = [];
-
-	if (CURRENT_RE.test(query) || HIGH_STAKES_RE.test(query)) {
-		queries.push(`${query} official primary source ${year}`);
+	if (domain === "medical") {
+		return {
+			query: `${query} official guideline primary evidence ${year}`,
+			includeDomains: MEDICAL_PRIMARY,
+			numResults: 8,
+		};
 	}
-	if (DECISION_RE.test(query) || ARGUMENT_RE.test(query)) {
-		queries.push(`${query} risks limitations counterarguments alternatives`);
+	if (domain === "legal-tax" && INDIA_RE.test(query)) {
+		return {
+			query: `${query} official rule notification circular ${year}`,
+			includeDomains: INDIA_LEGAL_PRIMARY,
+			numResults: 8,
+		};
+	}
+	if (domain === "finance" && INDIA_RE.test(query)) {
+		return {
+			query: `${query} official regulation filing data ${year}`,
+			includeDomains: INDIA_FINANCE_PRIMARY,
+			numResults: 8,
+		};
+	}
+	return {
+		query: `${query} official primary source authoritative evidence ${year}`,
+		numResults: 6,
+	};
+}
+
+function buildSupplementarySearches(query: string, domain: AgenticDomain): AgenticSearchSpec[] {
+	const searches: AgenticSearchSpec[] = [];
+	const primary = primarySourceSearch(query, domain);
+	if (primary) searches.push(primary);
+
+	if (domain === "business") {
+		searches.push({
+			query: `${query} customer demand competitors alternatives pricing distribution unit economics`,
+			numResults: 6,
+		});
+	}
+	if (DECISION_RE.test(query) || ARGUMENT_RE.test(query) || domain === "business") {
+		searches.push({
+			query: `${query} strongest counterargument failure modes risks alternatives`,
+			numResults: 6,
+		});
 	}
 	if (PROBLEM_SOLVING_RE.test(query) || DECISION_RE.test(query)) {
-		queries.push(`${query} practical solution implementation steps best practice`);
+		searches.push({
+			query: `${query} practical implementation solution verification best practice`,
+			numResults: 6,
+		});
 	}
-	if (queries.length === 0) {
-		queries.push(`${query} authoritative source evidence`);
+	if (CURRENT_RE.test(query)) {
+		searches.push({ query: `${query} latest update ${new Date().getUTCFullYear()}`, numResults: 6 });
 	}
-	return uniqueQueries(queries, query);
+	return uniqueSearches(searches, query);
 }
 
-export const AIRA_AGENTIC_ADVISOR_BEHAVIOR = `## AIRA agentic answer behavior
-Use the web as evidence, not as the product. Your job is to solve the user's real problem like an excellent senior human advisor who can research in real time.
-- Lead with the answer, recommendation, diagnosis, or decision that is most useful to the user. Do not begin by narrating the search process.
-- Synthesize across evidence instead of producing a source-by-source summary. Explain what the evidence means for this user's question.
-- When the user is choosing or asking for advice, make a recommendation when the evidence supports one. State the assumptions that would change it.
-- Give the strongest material argument or counterargument when it could change the decision. Do not manufacture a debate when the answer is straightforward.
-- For problems and troubleshooting, move from likely cause -> best fix -> verification. Prefer concrete steps over generic advice.
-- For business, strategy, product, buying, coding, or planning questions, identify the practical consequence: what to do, what to avoid, and what to watch next.
-- Distinguish verified facts from inference and professional judgment. Be decisive where justified, but do not hide meaningful uncertainty.
-- Use the user's conversation history and relevant memory to personalize the recommendation when applicable, without repeating known context back unnecessarily.
-- Do not overwhelm the user with every caveat, every source, or a giant checklist. Include only decision-relevant detail.
-- Ask a clarifying question only when proceeding would likely produce the wrong recommendation. Otherwise make a reasonable assumption and continue.
-- When useful, end with at most two concrete next-step suggestions. Do not end every response with generic offers such as "let me know if you want more".
-- Never confuse popularity, SEO ranking, or repeated claims across websites with truth. Weight primary and authoritative evidence more heavily.
-- If live evidence changes or contradicts common knowledge, use the current evidence and make the conflict explicit.
-- For high-stakes health, legal, financial, security, or safety questions, keep the answer practical while making material limitations and uncertainty clear.`;
+function buildAdvisorInstruction(domain: AgenticDomain): string {
+	const decisionInstructions = `
+When the user asks for a decision, strategy, business idea, purchase, or plan:
+- Consider at least three materially different viable options before choosing. You may do this silently when listing all three would add clutter.
+- Compare the options on the factors that actually drive the decision (for example: pain, demand, cost, time-to-value, distribution, risk, reversibility, and fit with the user's existing assets).
+- Run an adversarial check against the leading option. Identify the strongest reason it could fail. If the counter-evidence is stronger, change the recommendation rather than defending the first idea.
+- Make the final recommendation explicit and explain why it beats the alternatives for this user, not just in the abstract.`;
+
+	const evidenceInstructions = `
+Evidence discipline:
+- Primary and authoritative sources outrank blogs, aggregators, SEO pages, and repeated secondary claims.
+- For legal, tax, regulatory, medical, financial, security, and safety claims, do not make a definitive current-rule statement unless supported by a suitable primary/official or strong peer-reviewed source when one should exist. If it is missing, say the point is not verified.
+- Treat precise forecasts, prices, valuations, MRR/ARR targets, conversion rates, timelines, percentages, and market-size numbers from blogs or unknown-quality sources as estimates unless independently corroborated.
+- Separate verified facts from estimates, assumptions, inference, and professional judgment. Do not make an estimate sound like a measured fact.
+- Corroborate decision-critical numerical claims when practical. One weak source is not enough merely because it contains a precise number.
+- Do not infer that a source is authoritative just because it ranks highly in search results.`;
+
+	const memoryInstructions = `
+Context discipline:
+- Treat relevant durable memory and conversation history as the user's current operating state unless the current message corrects it.
+- Before recommending setup work, registration, purchases, integrations, or infrastructure, check whether context says the user already has it. Build from existing assets instead of recommending duplicate work.
+- Use memory to improve fit, not to force personalization where it is irrelevant.`;
+
+	const domainSpecific =
+		domain === "business"
+			? `\nFor business strategy, prioritize evidence of painful demand, willingness to pay, reachable distribution, competitive substitutes, gross-margin economics, implementation cost, and time to first revenue. Do not choose an idea merely because "vertical AI" or "micro-SaaS" is fashionable.`
+			: domain === "legal-tax"
+				? `\nFor legal/tax/compliance questions, distinguish statutory rules, notifications/circulars, thresholds, exceptions, effective dates, and jurisdiction. Avoid turning a general threshold into a universal rule.`
+				: domain === "medical"
+					? `\nFor medical questions, distinguish regulatory approval, guidelines, randomized evidence, observational evidence, and anecdote. Do not diagnose or prescribe.`
+					: domain === "technical"
+						? `\nFor technical questions, prefer official documentation, release notes, source repositories, standards, and reproducible verification over generic tutorials when the exact behavior matters.`
+						: domain === "product"
+							? `\nFor product decisions, verify current model specifications and support status from manufacturer/official material when possible; use reviews for experience and tradeoffs, not as the source of hard specifications.`
+							: "";
+
+	return `## AIRA agentic advisor behavior
+Use the web as evidence, not as the product. Solve the user's actual problem like an excellent senior human advisor with real-time research capability.
+- Lead with the answer, recommendation, diagnosis, or decision. Do not narrate the search process.
+- Synthesize across evidence instead of summarizing sources one by one.
+- Be decisive where justified and explicit about what would change the recommendation.
+- For troubleshooting: likely cause -> best fix -> verification.
+- For strategy/planning: what to do -> what to avoid -> what to watch next.
+- Ask a clarifying question only when proceeding would likely produce the wrong answer; otherwise make a reasonable assumption and continue.
+- Do not overwhelm the user with every caveat or a giant checklist. Keep only decision-relevant detail.
+- End with no more than two concrete next actions when useful. Avoid generic "let me know" endings.
+${decisionInstructions}
+${evidenceInstructions}
+${memoryInstructions}${domainSpecific}`;
+}
 
 export function buildAgenticAnswerPlan(query: string): AgenticAnswerPlan {
 	const q = query.trim();
+	const domain = classifyDomain(q);
 	const wordCount = q.split(/\s+/).filter(Boolean).length;
 	const pureGeneration = PURE_GENERATION_RE.test(q) && !EXPLICIT_RESEARCH_RE.test(q) && !CURRENT_RE.test(q);
 
 	if (pureGeneration) {
 		return {
 			retrievalMode: "reasoning",
-			supplementaryQueries: [],
-			advisorInstruction: AIRA_AGENTIC_ADVISOR_BEHAVIOR,
+			domain,
+			supplementarySearches: [],
+			preferAuthoritative: false,
+			minimumAuthoritativeSources: 0,
+			advisorInstruction: buildAdvisorInstruction(domain),
 		};
 	}
 
@@ -85,10 +226,14 @@ export function buildAgenticAnswerPlan(query: string): AgenticAnswerPlan {
 		ARGUMENT_RE.test(q) ||
 		EXPLICIT_RESEARCH_RE.test(q) ||
 		wordCount >= 14;
+	const highStakes = domain === "legal-tax" || domain === "medical" || domain === "finance" || domain === "security";
 
 	return {
 		retrievalMode: substantive ? "agentic" : "focused",
-		supplementaryQueries: substantive ? buildSupplementaryQueries(q) : [],
-		advisorInstruction: AIRA_AGENTIC_ADVISOR_BEHAVIOR,
+		domain,
+		supplementarySearches: substantive ? buildSupplementarySearches(q, domain) : [],
+		preferAuthoritative: substantive || highStakes,
+		minimumAuthoritativeSources: highStakes ? 2 : substantive ? 1 : 0,
+		advisorInstruction: buildAdvisorInstruction(domain),
 	};
 }
