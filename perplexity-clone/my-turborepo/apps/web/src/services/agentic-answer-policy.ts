@@ -47,6 +47,19 @@ const INDIA_LEGAL_PRIMARY = [
 	"dgft.gov.in",
 ] as const;
 
+const INDIA_BUSINESS_PRIMARY = [
+	"indiaai.gov.in",
+	"meity.gov.in",
+	"startupindia.gov.in",
+	"msme.gov.in",
+	"mca.gov.in",
+	"cbic-gst.gov.in",
+	"gst.gov.in",
+	"rbi.org.in",
+	"sebi.gov.in",
+	"pib.gov.in",
+] as const;
+
 const MEDICAL_PRIMARY = [
 	"mohfw.gov.in",
 	"icmr.gov.in",
@@ -89,7 +102,7 @@ function uniqueSearches(searches: readonly AgenticSearchSpec[], original: string
 		seen.add(key);
 		out.push({ ...candidate, query });
 	}
-	return out.slice(0, 5);
+	return out.slice(0, 6);
 }
 
 function primarySourceSearch(query: string, domain: AgenticDomain): AgenticSearchSpec | null {
@@ -115,6 +128,13 @@ function primarySourceSearch(query: string, domain: AgenticDomain): AgenticSearc
 			numResults: 8,
 		};
 	}
+	if (domain === "business" && INDIA_RE.test(query)) {
+		return {
+			query: `${query} official India AI startup MSME policy adoption market data ${year}`,
+			includeDomains: INDIA_BUSINESS_PRIMARY,
+			numResults: 10,
+		};
+	}
 	return {
 		query: `${query} official primary source authoritative evidence ${year}`,
 		numResults: 6,
@@ -131,6 +151,13 @@ function buildSupplementarySearches(query: string, domain: AgenticDomain): Agent
 			query: `${query} customer demand competitors alternatives pricing distribution unit economics`,
 			numResults: 6,
 		});
+		if (INDIA_RE.test(query)) {
+			searches.push({
+				query: `${query} official India business compliance DPDP GST company requirements ${new Date().getUTCFullYear()}`,
+				includeDomains: INDIA_BUSINESS_PRIMARY,
+				numResults: 8,
+			});
+		}
 	}
 	if (DECISION_RE.test(query) || ARGUMENT_RE.test(query) || domain === "business") {
 		searches.push({
@@ -153,7 +180,8 @@ function buildSupplementarySearches(query: string, domain: AgenticDomain): Agent
 function buildAdvisorInstruction(domain: AgenticDomain): string {
 	const decisionInstructions = `
 When the user asks for a decision, strategy, business idea, purchase, or plan:
-- Consider at least three materially different viable options before choosing. You may do this silently when listing all three would add clutter.
+- Consider at least three materially different viable options before choosing.
+- For a substantial business/strategy decision, visibly compare at least three options in a compact table or compact scored comparison before the final recommendation, unless the user explicitly asks for a very short answer.
 - Compare the options on the factors that actually drive the decision (for example: pain, demand, cost, time-to-value, distribution, risk, reversibility, and fit with the user's existing assets).
 - Run an adversarial check against the leading option. Identify the strongest reason it could fail. If the counter-evidence is stronger, change the recommendation rather than defending the first idea.
 - Make the final recommendation explicit and explain why it beats the alternatives for this user, not just in the abstract.`;
@@ -162,20 +190,24 @@ When the user asks for a decision, strategy, business idea, purchase, or plan:
 Evidence discipline:
 - Primary and authoritative sources outrank blogs, aggregators, SEO pages, and repeated secondary claims.
 - For legal, tax, regulatory, medical, financial, security, and safety claims, do not make a definitive current-rule statement unless supported by a suitable primary/official or strong peer-reviewed source when one should exist. If it is missing, say the point is not verified.
-- Treat precise forecasts, prices, valuations, MRR/ARR targets, conversion rates, timelines, percentages, and market-size numbers from blogs or unknown-quality sources as estimates unless independently corroborated.
+- If your recommendation introduces a regulated topic that the user did not explicitly ask about (for example GST, company registration, DPDP, licensing, tax, or financial regulation), do not state specific thresholds, deadlines, costs, or legal requirements unless the retrieved evidence includes a suitable official source. Otherwise make the point conditional and tell the user it needs current official verification.
+- Treat precise forecasts, prices, valuations, MRR/ARR targets, conversion rates, CAC, churn, timelines, percentages, token prices, and market-size numbers from blogs or unknown-quality sources as estimates unless independently corroborated.
 - Separate verified facts from estimates, assumptions, inference, and professional judgment. Do not make an estimate sound like a measured fact.
 - Corroborate decision-critical numerical claims when practical. One weak source is not enough merely because it contains a precise number.
+- Recompute derived arithmetic before presenting it. Never convert a TAM figure into expected company revenue, valuation, or outcome without explicit assumptions and correct arithmetic.
+- Avoid words such as "guarantees", "forces payment", "routinely", "always", or "will" unless the evidence genuinely supports that strength of claim.
 - Do not infer that a source is authoritative just because it ranks highly in search results.`;
 
 	const memoryInstructions = `
 Context discipline:
 - Treat relevant durable memory and conversation history as the user's current operating state unless the current message corrects it.
 - Before recommending setup work, registration, purchases, integrations, or infrastructure, check whether context says the user already has it. Build from existing assets instead of recommending duplicate work.
+- If entity/setup status is unknown, do not assume the user is starting from zero. Phrase setup steps conditionally (for example, "if not already incorporated") rather than as mandatory first actions.
 - Use memory to improve fit, not to force personalization where it is irrelevant.`;
 
 	const domainSpecific =
 		domain === "business"
-			? `\nFor business strategy, prioritize evidence of painful demand, willingness to pay, reachable distribution, competitive substitutes, gross-margin economics, implementation cost, and time to first revenue. Do not choose an idea merely because "vertical AI" or "micro-SaaS" is fashionable.`
+			? `\nFor business strategy, prioritize evidence of painful demand, willingness to pay, reachable distribution, competitive substitutes, gross-margin economics, implementation cost, time to first revenue, and founder fit. Distinguish evidence from founder assumptions. Do not choose an idea merely because "vertical AI" or "micro-SaaS" is fashionable. Prefer a smaller, testable wedge with a credible route to first revenue over a large TAM story with weak distribution evidence.`
 			: domain === "legal-tax"
 				? `\nFor legal/tax/compliance questions, distinguish statutory rules, notifications/circulars, thresholds, exceptions, effective dates, and jurisdiction. Avoid turning a general threshold into a universal rule.`
 				: domain === "medical"
@@ -227,13 +259,14 @@ export function buildAgenticAnswerPlan(query: string): AgenticAnswerPlan {
 		EXPLICIT_RESEARCH_RE.test(q) ||
 		wordCount >= 14;
 	const highStakes = domain === "legal-tax" || domain === "medical" || domain === "finance" || domain === "security";
+	const indiaBusinessDecision = domain === "business" && INDIA_RE.test(q) && substantive;
 
 	return {
 		retrievalMode: substantive ? "agentic" : "focused",
 		domain,
 		supplementarySearches: substantive ? buildSupplementarySearches(q, domain) : [],
 		preferAuthoritative: substantive || highStakes,
-		minimumAuthoritativeSources: highStakes ? 2 : substantive ? 1 : 0,
+		minimumAuthoritativeSources: highStakes || indiaBusinessDecision ? 2 : substantive ? 1 : 0,
 		advisorInstruction: buildAdvisorInstruction(domain),
 	};
 }
