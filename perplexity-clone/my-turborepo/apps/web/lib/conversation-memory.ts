@@ -1,9 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import { ConversationMessageRole } from "@/generated/prisma/enums";
+import { getRelevantPersistentMemories } from "@/lib/persistent-memory";
+import { prisma } from "@/lib/prisma";
 import { generatePublicShareToken } from "@/lib/research-share";
 
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
-const DEFAULT_MEMORY_LIMIT = 5;
+const DEFAULT_MEMORY_LIMIT = 8;
 
 export interface ConversationSummary {
 	readonly id: string;
@@ -135,9 +136,15 @@ export async function getFollowUpContext(args: {
 	} = args;
 
 	let resolvedConversationId: string | undefined;
+	let conversationSummary: string | null = null;
 	if (conversationId) {
-		const row = await getConversationOrThrow(userId, conversationId);
+		const row = await prisma.conversation.findFirst({
+			where: { id: conversationId, userId, archivedAt: null },
+			select: { id: true, summary: true },
+		});
+		if (!row) throw new Error("Conversation not found.");
 		resolvedConversationId = row.id;
+		conversationSummary = row.summary;
 	}
 
 	const chatHistoryRaw = resolvedConversationId
@@ -164,29 +171,48 @@ export async function getFollowUpContext(args: {
 			content: m.content,
 		}));
 
+	const durableMemories = await getRelevantPersistentMemories(userId, query, memoryLimit);
+
+	// Research history remains a useful secondary recall source for past factual work,
+	// while UserMemory carries stable cross-conversation facts/preferences/goals.
 	const normalized = normalizeQuery(query);
 	const queryTokens = normalized.split(" ").filter((t) => t.length > 2).slice(0, 5);
-	const memoryCandidates = await prisma.researchHistory.findMany({
-		where: {
-			userId,
-			OR: [
-				{ normalizedQuery: { contains: normalized, mode: "insensitive" } },
-				...queryTokens.map((token) => ({
-					normalizedQuery: { contains: token, mode: "insensitive" as const },
-				})),
-			],
-		},
-		orderBy: { createdAt: "desc" },
-		take: Math.min(Math.max(memoryLimit, 1), 10),
-		select: {
-			query: true,
-			assistantAnswer: true,
-		},
-	});
+	const memoryCandidates = queryTokens.length
+		? await prisma.researchHistory.findMany({
+				where: {
+					userId,
+					OR: [
+						{ normalizedQuery: { contains: normalized, mode: "insensitive" } },
+						...queryTokens.map((token) => ({
+							normalizedQuery: { contains: token, mode: "insensitive" as const },
+						})),
+					],
+				},
+				orderBy: { createdAt: "desc" },
+				take: Math.min(Math.max(Math.ceil(memoryLimit / 2), 1), 4),
+				select: {
+					query: true,
+					assistantAnswer: true,
+				},
+			})
+		: [];
 
-	const contextualMemory = memoryCandidates.map(
-		(item) => `Query: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
-	);
+	const contextualMemory: string[] = [];
+	if (conversationSummary?.trim()) {
+		contextualMemory.push(`CURRENT CONVERSATION SUMMARY:\n${conversationSummary.trim()}`);
+	}
+	if (durableMemories.length > 0) {
+		contextualMemory.push(
+			`DURABLE USER MEMORIES (relevant, may be corrected by the user's current message):\n${durableMemories
+				.map((memory, index) => `${index + 1}. ${memory}`)
+				.join("\n")}`,
+		);
+	}
+	for (const item of memoryCandidates) {
+		contextualMemory.push(
+			`PRIOR RESEARCH CONTEXT:\nQuery: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
+		);
+	}
 
 	return {
 		chatHistory,
