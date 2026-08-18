@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import os
 import tempfile
@@ -30,6 +31,9 @@ class RunnerContractTest(unittest.TestCase):
         assert spec and spec.loader
         cls.module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.module)
+
+        # Wrapped in a tuple so attribute access does not bind it as a method.
+        cls.real_run_execution = (cls.module._run_execution,)
 
         async def fake_run(execution_id: str) -> None:
             cls.module._update_execution(
@@ -102,6 +106,62 @@ class RunnerContractTest(unittest.TestCase):
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(conflict.status_code, 409)
+
+    def _run_with_stub(self, fake_request, objective: str) -> str:
+        module = self.module
+        module._initialize_database()
+        execution_id, _ = module._create_execution(
+            f"stub-{time.time_ns()}", objective
+        )
+        original = module._autogpt_request
+        module._autogpt_request = fake_request
+        try:
+            asyncio.run(self.real_run_execution[0](execution_id))
+        finally:
+            module._autogpt_request = original
+        return execution_id
+
+    def test_multi_step_task_runs_until_is_last(self) -> None:
+        """A step marked "completed" is a finished step, not a finished task."""
+        steps = [
+            {"status": "completed", "is_last": False, "output": "Researching."},
+            {"status": "completed", "is_last": False, "output": "Drafting."},
+            {"status": "completed", "is_last": True, "output": "Final answer."},
+        ]
+        step_calls = 0
+
+        async def fake_request(method, path, payload=None):
+            nonlocal step_calls
+            if path == "/agent/tasks":
+                return {"task_id": "task-multi"}
+            step_calls += 1
+            return steps[step_calls - 1]
+
+        execution_id = self._run_with_stub(fake_request, "Write a launch plan.")
+        row = self.module._execution(execution_id)
+        self.assertEqual(row["status"], "COMPLETED")
+        self.assertEqual(row["output"], "Final answer.")
+        self.assertEqual(step_calls, 3)
+
+    def test_provider_error_in_step_output_fails_the_run(self) -> None:
+        """An upstream outage must not be stored as a successful run."""
+
+        async def fake_request(method, path, payload=None):
+            if path == "/agent/tasks":
+                return {"task_id": "task-error"}
+            return {
+                "status": "completed",
+                "is_last": False,
+                "output": (
+                    "An error occurred while proposing the next action: "
+                    "Error code: 401 - Unauthorized"
+                ),
+            }
+
+        execution_id = self._run_with_stub(fake_request, "Summarize the market.")
+        row = self.module._execution(execution_id)
+        self.assertEqual(row["status"], "FAILED")
+        self.assertIn("401", row["error"])
 
     def test_stored_output_is_bounded(self) -> None:
         original_limit = self.module.MAX_STORED_OUTPUT_BYTES

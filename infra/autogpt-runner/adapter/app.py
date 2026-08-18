@@ -49,6 +49,10 @@ UPSTREAM_TIMEOUT_SECONDS = float(os.getenv("AUTOGPT_UPSTREAM_TIMEOUT_SECONDS", "
 MAX_PROVIDER_BODY_BYTES = int(os.getenv("MAX_PROVIDER_BODY_BYTES", "1000000"))
 MAX_STORED_OUTPUT_BYTES = int(os.getenv("MAX_STORED_OUTPUT_BYTES", "128000"))
 HOST_ROLE = os.getenv("RUNNER_HOST_ROLE", "unknown")
+SWALLOWED_STEP_ERROR_PREFIXES = (
+    "an error occurred while proposing the next action:",
+    "an error occurred while executing the command:",
+)
 
 QUEUE: asyncio.Queue[str] = asyncio.Queue()
 WORKERS: list[asyncio.Task[None]] = []
@@ -221,6 +225,17 @@ async def _autogpt_request(
     return data
 
 
+def _is_swallowed_step_error(output: Any) -> bool:
+    """AutoGPT Classic returns provider failures as a normal step output.
+
+    Without this check an upstream outage is stored as a successful run, so the
+    caller's agent-run quota is consumed for work that never happened.
+    """
+    if not isinstance(output, str):
+        return False
+    return output.strip().lower().startswith(SWALLOWED_STEP_ERROR_PREFIXES)
+
+
 async def _run_execution(execution_id: str) -> None:
     row = _execution(execution_id)
     if not row:
@@ -256,9 +271,13 @@ async def _run_execution(execution_id: str) -> None:
                 final_output = output.strip()
                 transcript.append(final_output[:8000])
             status = str(step.get("status") or "").lower()
-            if bool(step.get("is_last")) or status in {"completed", "failed"}:
-                if status == "failed":
-                    raise RuntimeError(final_output or "AutoGPT reported a failed step.")
+            if status == "failed":
+                raise RuntimeError(final_output or "AutoGPT reported a failed step.")
+            if _is_swallowed_step_error(output):
+                raise RuntimeError(final_output or "AutoGPT could not complete a step.")
+            # Agent Protocol reports per-step status. A step that finished is
+            # "completed"; only is_last marks the end of the task.
+            if bool(step.get("is_last")):
                 _update_execution(
                     execution_id,
                     status="COMPLETED",
