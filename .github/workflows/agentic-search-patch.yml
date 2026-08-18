@@ -1,0 +1,122 @@
+name: Apply agentic search patch
+
+on:
+  push:
+    branches:
+      - feat/aira-agentic-search
+    paths:
+      - .github/workflows/agentic-search-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/aira-agentic-search
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch agentic search pipeline
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          answer = Path('perplexity-clone/my-turborepo/apps/web/src/services/answer.ts')
+          text = answer.read_text()
+
+          needle = 'import { buildAdaptiveResponseInstruction } from "./chat-prompt-policy";\n'
+          repl = needle + 'import { buildAgenticAnswerPlan } from "./agentic-answer-policy";\n'
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          needle = '\t\treadonly medicalPrompt?: string;\n\t},\n): ChatCompletionMessageParam[] {'
+          repl = '\t\treadonly medicalPrompt?: string;\n\t\treadonly agenticAdvisorInstruction?: string;\n\t},\n): ChatCompletionMessageParam[] {'
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          needle = '\tconst systemPrompt = `${SYSTEM_PROMPT}\\n\\n${adaptiveInstruction}\\n\\nStyle/Preset: ${preset.label}\\n${preset.systemPromptModifier}`;'
+          repl = '\tconst systemPrompt = `${SYSTEM_PROMPT}\\n\\n${options.agenticAdvisorInstruction ?? ""}\\n\\n${adaptiveInstruction}\\n\\nStyle/Preset: ${preset.label}\\n${preset.systemPromptModifier}`;'
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          needle = '\tconst isMedicalQuery = MEDICAL_KEYWORDS.test(input.query);\n\n\tif (!input.disableSearch) {'
+          repl = '\tconst isMedicalQuery = MEDICAL_KEYWORDS.test(input.query);\n\tconst agenticPlan = buildAgenticAnswerPlan(input.query);\n\tconst searchDisabled = input.disableSearch === true || agenticPlan.retrievalMode === "reasoning";\n\n\tif (!searchDisabled) {'
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          needle = '\t\tlet candidates: SourceCandidate[] = [...retrieved.candidates];\n\n\t\tif (detectMultiEntityQuery(input.query)) {'
+          repl = '''\t\tlet candidates: SourceCandidate[] = [...retrieved.candidates];
+
+\t\tif (agenticPlan.retrievalMode === "agentic" && agenticPlan.supplementaryQueries.length > 0) {
+\t\t\tconst agenticSettled = await Promise.allSettled(
+\t\t\t\tagenticPlan.supplementaryQueries.map((sq) => {
+\t\t\t\t\tconst supOpts: Partial<ExaSearchOptions> = {
+\t\t\t\t\t\t...DEFAULT_EXA_SEARCH_OPTIONS,
+\t\t\t\t\t\t...input.search,
+\t\t\t\t\t\tnumResults: 5,
+\t\t\t\t\t\tcontents: {
+\t\t\t\t\t\t\t...DEFAULT_EXA_SEARCH_OPTIONS.contents,
+\t\t\t\t\t\t\t...input.search?.contents,
+\t\t\t\t\t\t\thighlightQuery: sq,
+\t\t\t\t\t\t},
+\t\t\t\t\t};
+\t\t\t\t\treturn exa.search(sq, supOpts);
+\t\t\t\t}),
+\t\t\t);
+\t\t\tfor (const r of agenticSettled) {
+\t\t\t\tif (r.status === "fulfilled") candidates.push(...r.value.candidates);
+\t\t\t}
+\t\t}
+
+\t\tif (detectMultiEntityQuery(input.query)) {'''
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          needle = '\t\tsearchDisabled: input.disableSearch === true,\n'
+          repl = '\t\tsearchDisabled,\n'
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          needle = '\t\tmedicalPrompt: isMedicalQuery ? buildMedicalPromptInstruction() : undefined,\n\t});'
+          repl = '\t\tmedicalPrompt: isMedicalQuery ? buildMedicalPromptInstruction() : undefined,\n\t\tagenticAdvisorInstruction: agenticPlan.advisorInstruction,\n\t});'
+          assert needle in text
+          text = text.replace(needle, repl, 1)
+
+          answer.write_text(text)
+
+          layout = Path('perplexity-clone/my-turborepo/apps/web/components/SearchLayout.tsx')
+          ui = layout.read_text()
+          ui = ui.replace('useState("Searching the web...")', 'useState("Understanding your question...")', 1)
+          ui = ui.replace('setStatusText("Searching the web...")', 'setStatusText("Understanding your question...")', 1)
+          old = '''\t\tconst texts = hasCitations
+\t\t\t? ["Reading sources...", "Preparing answer...", "Writing answer..."]
+\t\t\t: ["Searching the web...", "Reading sources...", "Writing answer..."];'''
+          new = '''\t\tconst texts = hasCitations
+\t\t\t? ["Weighing the evidence...", "Checking the strongest sources...", "Writing the answer..."]
+\t\t\t: ["Understanding your question...", "Checking live evidence...", "Reasoning through the options...", "Writing the answer..."];'''
+          assert old in ui
+          ui = ui.replace(old, new, 1)
+          ui = ui.replace('if (hasCitations && current === "Searching the web...") {\n\t\t\t\treturn "Reading sources...";', 'if (hasCitations && current === "Understanding your question...") {\n\t\t\t\treturn "Weighing the evidence...";', 1)
+          layout.write_text(ui)
+
+          box = Path('perplexity-clone/my-turborepo/apps/web/components/SearchBox.tsx')
+          b = box.read_text()
+          assert 'Research · reason · cite' in b
+          b = b.replace('Research · reason · cite', 'Reason · verify · advise', 1)
+          box.write_text(b)
+          PY
+      - name: Commit patch and remove one-time workflow
+        run: |
+          git config user.name "aira-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/agentic-search-patch.yml
+          git add perplexity-clone/my-turborepo/apps/web/src/services/answer.ts \
+                  perplexity-clone/my-turborepo/apps/web/components/SearchLayout.tsx \
+                  perplexity-clone/my-turborepo/apps/web/components/SearchBox.tsx
+          git commit -m "Upgrade standard search to agentic advisor synthesis"
+          git push origin HEAD:feat/aira-agentic-search
