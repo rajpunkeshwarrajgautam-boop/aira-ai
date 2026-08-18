@@ -1,3 +1,4 @@
+import { AIRA_RESEARCH_VERIFICATION_DISCIPLINE } from "../../lib/agents/execution-discipline";
 import { CORE_ASSISTANT_BEHAVIOR } from "./chat-prompt-policy";
 
 export type ResearchPresetId = "general" | "academic" | "startup" | "coding" | "shopping";
@@ -71,6 +72,6 @@ export function getResearchPreset(id?: string): ResearchPreset {
 
 	return {
 		...preset,
-		systemPromptModifier: `${CORE_ASSISTANT_BEHAVIOR}\n\n## Preset guidance: ${preset.label}\n${preset.systemPromptModifier}`,
+		systemPromptModifier: `${CORE_ASSISTANT_BEHAVIOR}\n\n${AIRA_RESEARCH_VERIFICATION_DISCIPLINE}\n\n## Preset guidance: ${preset.label}\n${preset.systemPromptModifier}`,
 	};
 }
