@@ -66,6 +66,11 @@ catch {
     throw "Docker Desktop is not ready. Wait for it to show 'Engine running', then rerun this script."
 }
 
+Write-Host "Before continuing, confirm the tunnel's public hostname is configured with"
+Write-Host "service URL http://adapter:8080 AND path external-api/*."
+Write-Host "A rule without that path publishes the internal NVIDIA proxy to the internet."
+Write-Host ""
+
 $nvidiaSecure = Read-Host "NVIDIA API key" -AsSecureString
 $cloudflareSecure = Read-Host "Cloudflare Tunnel token" -AsSecureString
 $publicHostname = Read-Host "Tunnel hostname (for example autogpt-secondary.example.com)"
@@ -114,3 +119,7 @@ Write-Host "AUTOGPT_SECONDARY_API_KEY=$runnerApiKey"
 Write-Host ""
 Write-Host "Health check:"
 Write-Host "curl.exe -H `"X-API-Key: $runnerApiKey`" https://$publicHostname/external-api/v1/health"
+Write-Host ""
+Write-Host "Confirm the internal routes are NOT published. Both must return 404:"
+Write-Host "curl.exe -o NUL -s -w `"%{http_code}``n`" https://$publicHostname/internal-ready"
+Write-Host "curl.exe -o NUL -s -w `"%{http_code}``n`" https://$publicHostname/internal/v1/models"

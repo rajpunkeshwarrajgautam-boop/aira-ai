@@ -16,6 +16,9 @@ as the standby target for new submissions.
   container.
 - Caddy terminates HTTPS on the VPS. Cloudflare Tunnel publishes the Windows
   standby without opening an inbound router port.
+- Only `/external-api/*` is published on either host. Caddy enforces this with
+  mutually exclusive `handle` blocks; the tunnel enforces it with the public
+  hostname's path. The `/internal/v1/*` NVIDIA proxy stays private on both.
 
 The self-hosted visual AutoGPT Platform is intentionally not included. Its
 PolyForm Shield license prohibits using it to provide a competing product.
@@ -47,9 +50,20 @@ starts the stack, and prints the two Vercel values for the primary.
 
 ## Windows standby
 
-Create a Cloudflare Tunnel and configure one public hostname with the service
-URL `http://adapter:8080`. Copy the tunnel token, then run PowerShell as
-Administrator from this directory:
+Create a Cloudflare Tunnel and add one public hostname:
+
+- **Service URL:** `http://adapter:8080`
+- **Path:** `external-api/*`
+
+Setting the path is required, not optional. A Cloudflare ingress rule that
+omits the path matches every path, which would publish the adapter's
+`/internal/v1/*` NVIDIA proxy and `/internal-ready` to the internet. Those
+routes are meant to be reachable only from the private Docker network, and the
+VPS profile blocks them at Caddy. Setting the path keeps both hosts on the same
+footing.
+
+Copy the tunnel token, then run PowerShell as Administrator from this
+directory:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
