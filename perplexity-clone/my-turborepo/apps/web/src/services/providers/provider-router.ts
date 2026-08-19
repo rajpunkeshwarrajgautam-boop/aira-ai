@@ -100,6 +100,51 @@ async function collectProviderText(
 	return text;
 }
 
+async function generatePublicationSafeVerifierText(
+	provider: AIProvider,
+	messages: ChatCompletionMessageParam[],
+	candidate: string,
+	options: ProviderOptions,
+): Promise<string> {
+	const publicationMessages: ChatCompletionMessageParam[] = [
+		...messages,
+		{
+			role: "assistant",
+			content: candidate,
+		},
+		{
+			role: "user",
+			content: `Run one final PRIVATE publication-quality pass on the candidate answer above. Do not explain the audit. Return exactly <aira_final> followed by the complete corrected user-facing answer and then </aira_final>, with absolutely no text outside that wrapper.
+
+Publication gate — repair the answer if ANY item fails:
+- Existing-state use: read the durable user state in the original verifier task. If it names an existing company, product, platform, infrastructure, or prior build directly relevant to the decision, explicitly use that asset in the recommendation or explicitly explain why not. Never silently answer as if the user starts from zero.
+- Evidence hierarchy: respect the authoritative-source requirement and the actual authoritative-source count stated in the original verifier task. If authoritative evidence is short, do not let blogs/unknown pages carry precise decision-critical market, regulatory, or adoption claims. Downgrade, remove, or visibly qualify them.
+- Arithmetic: recompute every budget total, subtotal, reserve, MRR/ARR example, customer-count multiplication, percentage, unit conversion, and timeline relationship. A fixed-budget plan must reconcile allocated spend + reserve to the stated budget. If exact arithmetic cannot be justified, use a range or remove the number.
+- No TAM leap: never multiply a large market-size/TAM figure by an arbitrary market-share percentage and present that as a plausible company outcome. Use bottom-up price × customers × retention assumptions instead, or omit the revenue projection.
+- Currency consistency: do not claim a USD cost range fits an INR budget unless a conversion assumption is shown and the converted range actually fits. Otherwise remove that comparison.
+- Decision rigor: the winner must follow from evidence plus user fit. Do not award a winner merely because it has more retrieved pages.
+- Adversarial rigor: if the user asked to argue against the recommendation, include a distinct strongest case against it AND a concrete condition/evidence threshold that would make the recommendation change.
+- Avoid-list: if the user asked what to avoid, explicitly state the most important things to avoid.
+- Source precision: precise customer-base counts, adoption percentages, market sizes, build costs, timelines, and willingness-to-pay claims from weak/unknown sources must be labeled estimates or removed unless corroborated.
+- Citation integrity: preserve only citation numbers that exist in the supplied evidence and keep each citation attached to the exact claim it supports.
+- Practicality: prefer a validation-first plan with milestones and kill criteria over speculative vanity targets. Do not spend most of a constrained budget before proving willingness to pay.
+
+Do not output audit notes, hidden reasoning, checklists, or commentary outside the final answer wrapper.`,
+		},
+	];
+
+	const text = await collectProviderText(provider, publicationMessages, {
+		...options,
+		temperature: 0,
+		maxCompletionTokens: Math.max(options.maxCompletionTokens ?? 0, 6400),
+	});
+	const recovered = extractVerifierFinalEnvelope(text);
+	if (!recovered) {
+		throw new Error("Private publication verifier failed to produce a safe final-answer envelope.");
+	}
+	return recovered;
+}
+
 async function generateSafeVerifierText(
 	provider: AIProvider,
 	messages: ChatCompletionMessageParam[],
@@ -112,31 +157,49 @@ async function generateSafeVerifierText(
 	};
 	const first = await collectProviderText(provider, messages, verifierOptions);
 	const firstEnvelope = extractVerifierFinalEnvelope(first);
-	if (firstEnvelope) return firstEnvelope;
+	let safeCandidate: string | null = firstEnvelope;
 
-	const firstTrimmed = first.trim();
-	if (firstTrimmed.length >= 120 && !looksLikePrivateAuditLeak(firstTrimmed)) {
-		return firstTrimmed;
+	if (!safeCandidate) {
+		const firstTrimmed = first.trim();
+		if (firstTrimmed.length >= 120 && !looksLikePrivateAuditLeak(firstTrimmed)) {
+			safeCandidate = firstTrimmed;
+		}
 	}
 
-	console.warn("[ProviderRouter] Private verifier emitted audit-style or incomplete output; retrying with a final-answer envelope.");
-	const retryMessages: ChatCompletionMessageParam[] = [
-		...messages,
-		{
-			role: "user",
-			content:
-				"Your previous verifier response was rejected because it contained audit/reasoning text or did not provide a complete user-facing answer. Retry the SAME verification task now. Return exactly one wrapper <aira_final> followed by the complete corrected answer for the user and then </aira_final>. Put absolutely no text, analysis, audit notes, preface, or explanation outside that wrapper. Preserve only valid citation markers from the supplied evidence.",
-		},
-	];
-	const retry = await collectProviderText(provider, retryMessages, {
-		...verifierOptions,
-		maxCompletionTokens: Math.max(verifierOptions.maxCompletionTokens ?? 0, 5600),
-	});
-	const recovered = extractVerifierFinalEnvelope(retry);
-	if (!recovered) {
-		throw new Error("Private verifier failed to produce a safe final-answer envelope.");
+	if (!safeCandidate) {
+		console.warn("[ProviderRouter] Private verifier emitted audit-style or incomplete output; retrying with a final-answer envelope.");
+		const retryMessages: ChatCompletionMessageParam[] = [
+			...messages,
+			{
+				role: "user",
+				content:
+					"Your previous verifier response was rejected because it contained audit/reasoning text or did not provide a complete user-facing answer. Retry the SAME verification task now. Return exactly one wrapper <aira_final> followed by the complete corrected answer for the user and then </aira_final>. Put absolutely no text, analysis, audit notes, preface, or explanation outside that wrapper. Preserve only valid citation markers from the supplied evidence.",
+			},
+		];
+		const retry = await collectProviderText(provider, retryMessages, {
+			...verifierOptions,
+			maxCompletionTokens: Math.max(verifierOptions.maxCompletionTokens ?? 0, 5600),
+		});
+		safeCandidate = extractVerifierFinalEnvelope(retry);
+		if (!safeCandidate) {
+			throw new Error("Private verifier failed to produce a safe final-answer envelope.");
+		}
 	}
-	return recovered;
+
+	try {
+		return await generatePublicationSafeVerifierText(
+			provider,
+			messages,
+			safeCandidate,
+			verifierOptions,
+		);
+	} catch (error) {
+		console.warn(
+			"[ProviderRouter] Final private publication pass failed safely; using the already-sanitized verifier answer:",
+			errorMessage(error),
+		);
+		return safeCandidate;
+	}
 }
 
 export class ProviderRouter {
