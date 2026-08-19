@@ -71,3 +71,45 @@ jobs:
 
       - name: Build authenticated adapter image
         run: docker build -t aira-autogpt-adapter:ci infra/autogpt-runner/adapter
+
+  foundation-services:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python and shell contracts
+        run: |
+          python -m py_compile \
+            infra/foundation/control-plane/app.py \
+            infra/foundation/knowledge-worker/worker.py \
+            infra/foundation/sandbox/server.py \
+            infra/foundation/scripts/autogpt_preflight.py \
+            infra/foundation/training/validate_dataset.py \
+            infra/foundation/training/pipeline.py
+          python infra/foundation/training/validate_dataset.py --self-test
+          bash -n infra/foundation/gpu/validate_fabric.sh
+
+      - name: Validate foundation Compose profile
+        working-directory: infra/foundation
+        env:
+          AIRA_CONTROL_PLANE_TOKEN: contract-control-plane-token-contract
+          AIRA_KNOWLEDGE_WORKER_TOKEN: contract-worker-token-contract
+          AIRA_SANDBOX_TOKEN: contract-sandbox-token-contract
+          AIRA_INFERENCE_IMAGE: example.invalid/aira-inference:ci
+          AIRA_INFERENCE_MODEL: ci-model
+          AIRA_INFERENCE_API_KEY: contract-inference-key-contract
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Build foundation service images
+        run: |
+          docker build -t aira-foundation-control:ci infra/foundation/control-plane
+          docker build -t aira-foundation-ingestion:ci infra/foundation/knowledge-worker
+          docker build -t aira-foundation-sandbox:ci infra/foundation/sandbox
