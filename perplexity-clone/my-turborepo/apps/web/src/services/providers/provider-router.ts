@@ -7,12 +7,19 @@ import {
 	validatePublicationCandidate,
 } from "../publication-guard";
 import {
+	assertSafetyAllowed,
+	postInferenceSafetyEnabled,
+	SafetyBlockedError,
+	SafetyGatewayError,
+} from "../safety/safety-gateway";
+import {
 	getProviderHealthSnapshot,
 	providerCircuitAllowsRequest,
 	recordProviderFailure,
 	recordProviderSuccess,
 	shouldFailOverProviderError,
 } from "./provider-health";
+import { providerAllowedByResidency } from "./residency-policy";
 import {
 	ProviderRouter as CoreProviderRouter,
 	type AIProvider,
@@ -67,6 +74,10 @@ function enforceFinalPublicationBoundary(
 	return candidate;
 }
 
+function isSafetyBoundaryError(error: unknown): boolean {
+	return error instanceof SafetyBlockedError || error instanceof SafetyGatewayError;
+}
+
 export class ProviderRouter {
 	private readonly primaryCore: CoreProviderRouter;
 	private readonly fallbackCore?: CoreProviderRouter;
@@ -119,7 +130,7 @@ export class ProviderRouter {
 	}
 
 	private providerConfigured(providerId: string): boolean {
-		return this.registeredProviderIds.has(providerId);
+		return this.registeredProviderIds.has(providerId) && providerAllowedByResidency(providerId);
 	}
 
 	private fallbackOptions(options: ProviderOptions): ProviderOptions {
@@ -137,6 +148,7 @@ export class ProviderRouter {
 		const verifierCall = isPrivateVerifierCall(messages);
 		const structuredJsonCall = isPrivateStructuredJsonCall(messages);
 		const privateBufferedCall = verifierCall || structuredJsonCall;
+		const safetyBufferedPublication = postInferenceSafetyEnabled() && !privateBufferedCall;
 
 		const primaryConfigured = this.providerConfigured(this.primaryProviderId);
 		const fallbackConfigured =
@@ -159,6 +171,15 @@ export class ProviderRouter {
 					return;
 				}
 
+				if (safetyBufferedPublication) {
+					let candidate = "";
+					for await (const delta of this.primaryCore.streamChat(messages, options)) candidate += delta;
+					await assertSafetyAllowed("output", candidate);
+					recordProviderSuccess(this.primaryProviderId);
+					yield candidate;
+					return;
+				}
+
 				for await (const delta of this.primaryCore.streamChat(messages, options)) {
 					yieldedAny = true;
 					yield delta;
@@ -166,6 +187,7 @@ export class ProviderRouter {
 				recordProviderSuccess(this.primaryProviderId);
 				return;
 			} catch (error) {
+				if (isSafetyBoundaryError(error)) throw error;
 				primaryError = error;
 				recordProviderFailure(this.primaryProviderId, error);
 
@@ -199,8 +221,10 @@ export class ProviderRouter {
 
 		if (!fallbackConfigured || !this.fallbackCore) {
 			if (primaryError) throw primaryError;
-			if (!primaryConfigured) throw new Error("No AI providers configured in ProviderRouter.");
-			throw new Error("Primary provider is temporarily unavailable and no fallback is configured.");
+			if (!primaryConfigured) {
+				throw new Error("No AI providers configured or allowed by the active residency policy in ProviderRouter.");
+			}
+			throw new Error("Primary provider is temporarily unavailable and no permitted fallback is configured.");
 		}
 
 		if (!providerCircuitAllowsRequest(this.fallbackProviderId)) {
@@ -223,11 +247,21 @@ export class ProviderRouter {
 				return;
 			}
 
+			if (safetyBufferedPublication) {
+				let candidate = "";
+				for await (const delta of this.fallbackCore.streamChat(messages, fallbackOptions)) candidate += delta;
+				await assertSafetyAllowed("output", candidate);
+				recordProviderSuccess(this.fallbackProviderId);
+				yield candidate;
+				return;
+			}
+
 			for await (const delta of this.fallbackCore.streamChat(messages, fallbackOptions)) {
 				yield delta;
 			}
 			recordProviderSuccess(this.fallbackProviderId);
 		} catch (error) {
+			if (isSafetyBoundaryError(error)) throw error;
 			recordProviderFailure(this.fallbackProviderId, error);
 			throw error;
 		}

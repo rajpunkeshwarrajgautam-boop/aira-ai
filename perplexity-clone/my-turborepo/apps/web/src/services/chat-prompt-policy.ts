@@ -1,3 +1,5 @@
+import { getReasoningBudget } from "./reasoning-budget";
+
 export type AdaptiveResponseMode =
 	| "direct"
 	| "comparison"
@@ -88,10 +90,16 @@ export function buildAdaptiveResponseInstruction(
 			: options.searchRan
 				? "Search ran but no usable source passages are available. Do not invent citations; distinguish general knowledge or reasoning from verified web evidence."
 				: "No web evidence is available. Do not invent citations or imply web verification.";
+	const reasoningBudget = getReasoningBudget(
+		query,
+		mode === "research" ? "agentic" : mode,
+	);
 
 	return `## Adaptive response mode
 Detected mode: ${mode}
+Reasoning budget: ${reasoningBudget.tier}
 - ${modeGuidance(mode)}
 - ${sourceGuidance}
+- ${reasoningBudget.instruction}
 - If the user's explicit requested structure conflicts with this mode default, follow the user's structure.`;
 }

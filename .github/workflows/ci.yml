@@ -108,13 +108,23 @@ jobs:
             infra/foundation/scripts/autogpt_preflight.py \
             infra/foundation/training/validate_dataset.py \
             infra/foundation/training/pipeline.py \
+            infra/foundation/training/validate_synthetic_provenance.py \
+            infra/foundation/gpu/health_agent.py \
+            infra/foundation/autonomy/task_policy.py \
+            infra/foundation/crypto/pqc_readiness.py \
             infra/foundation/tests/smoke.py
           python infra/foundation/training/validate_dataset.py --self-test
+          python infra/foundation/training/validate_synthetic_provenance.py --self-test
+          python infra/foundation/gpu/health_agent.py --fixture infra/foundation/gpu/health-fixture.json
+          python infra/foundation/autonomy/task_policy.py infra/foundation/autonomy/request-ci.json --policy infra/foundation/autonomy/policy.example.json
+          python infra/foundation/crypto/pqc_readiness.py
           bash -n infra/foundation/gpu/validate_fabric.sh
 
-      - name: Validate foundation Compose profile
+      - name: Validate foundation Compose profiles
         working-directory: infra/foundation
-        run: docker compose -f compose.yml config --quiet
+        run: |
+          docker compose -f compose.yml config --quiet
+          docker compose -f compose.yml -f compose.gvisor.yml config --quiet
 
       - name: Build foundation service images
         run: |

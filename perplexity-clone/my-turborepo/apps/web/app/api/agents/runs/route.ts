@@ -16,6 +16,11 @@ import {
 	admitFoundationRequest,
 	releaseFoundationLease,
 } from "@/lib/foundation-control-plane";
+import {
+	assertSafetyAllowed,
+	SafetyBlockedError,
+	SafetyGatewayError,
+} from "@services/safety/safety-gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,6 +95,24 @@ export async function POST(req: Request): Promise<Response> {
 			},
 			{ status: 400 },
 		);
+	}
+
+	try {
+		await assertSafetyAllowed("agent-objective", parsed.data.objective);
+	} catch (error) {
+		if (error instanceof SafetyBlockedError) {
+			return noStoreJson(
+				{ error: { code: "SAFETY_BLOCKED", message: "This autonomous objective cannot be processed by the configured safety policy." } },
+				{ status: 403 },
+			);
+		}
+		if (error instanceof SafetyGatewayError) {
+			return noStoreJson(
+				{ error: { code: "SAFETY_GATEWAY_UNAVAILABLE", message: "The required safety service is temporarily unavailable." } },
+				{ status: 503 },
+			);
+		}
+		throw error;
 	}
 
 	let leaseId: string | undefined;
