@@ -52,6 +52,9 @@ function looksLikePrivateAuditLeak(text: string): boolean {
 		"we need to produce a corrected final answer",
 		"the instruction says",
 		"draft to verify and repair",
+		"the draft includes citations",
+		"we need to ensure every claim",
+		"we must also ensure",
 	];
 	if (hardLeakPhrases.some((phrase) => normalized.includes(phrase))) return true;
 
@@ -64,9 +67,25 @@ function looksLikePrivateAuditLeak(text: string): boolean {
 		"must not",
 		"need to ensure",
 		"let's draft",
+		"let's craft",
+		"we should remove",
+		"we should correct",
 	];
 	const markerHits = auditMarkers.filter((marker) => normalized.includes(marker)).length;
 	return markerHits >= 3;
+}
+
+function extractVerifierFinalEnvelope(text: string): string | null {
+	const open = "<aira_final>";
+	const close = "</aira_final>";
+	const start = text.lastIndexOf(open);
+	if (start < 0) return null;
+	const contentStart = start + open.length;
+	const end = text.indexOf(close, contentStart);
+	if (end < 0) return null;
+	const finalText = text.slice(contentStart, end).trim();
+	if (finalText.length < 80 || looksLikePrivateAuditLeak(finalText)) return null;
+	return finalText;
 }
 
 async function collectProviderText(
@@ -79,6 +98,45 @@ async function collectProviderText(
 		text += delta;
 	}
 	return text;
+}
+
+async function generateSafeVerifierText(
+	provider: AIProvider,
+	messages: ChatCompletionMessageParam[],
+	options: ProviderOptions,
+): Promise<string> {
+	const verifierOptions: ProviderOptions = {
+		...options,
+		temperature: 0,
+		maxCompletionTokens: Math.max(options.maxCompletionTokens ?? 0, 4800),
+	};
+	const first = await collectProviderText(provider, messages, verifierOptions);
+	const firstEnvelope = extractVerifierFinalEnvelope(first);
+	if (firstEnvelope) return firstEnvelope;
+
+	const firstTrimmed = first.trim();
+	if (firstTrimmed.length >= 120 && !looksLikePrivateAuditLeak(firstTrimmed)) {
+		return firstTrimmed;
+	}
+
+	console.warn("[ProviderRouter] Private verifier emitted audit-style or incomplete output; retrying with a final-answer envelope.");
+	const retryMessages: ChatCompletionMessageParam[] = [
+		...messages,
+		{
+			role: "user",
+			content:
+				"Your previous verifier response was rejected because it contained audit/reasoning text or did not provide a complete user-facing answer. Retry the SAME verification task now. Return exactly one wrapper <aira_final> followed by the complete corrected answer for the user and then </aira_final>. Put absolutely no text, analysis, audit notes, preface, or explanation outside that wrapper. Preserve only valid citation markers from the supplied evidence.",
+		},
+	];
+	const retry = await collectProviderText(provider, retryMessages, {
+		...verifierOptions,
+		maxCompletionTokens: Math.max(verifierOptions.maxCompletionTokens ?? 0, 5600),
+	});
+	const recovered = extractVerifierFinalEnvelope(retry);
+	if (!recovered) {
+		throw new Error("Private verifier failed to produce a safe final-answer envelope.");
+	}
+	return recovered;
 }
 
 export class ProviderRouter {
@@ -132,10 +190,7 @@ export class ProviderRouter {
 		if (primary) {
 			try {
 				if (verifierCall) {
-					const verifiedText = await collectProviderText(primary, messages, options);
-					if (looksLikePrivateAuditLeak(verifiedText)) {
-						throw new Error("Private verifier output failed the audit-leak safety check.");
-					}
+					const verifiedText = await generateSafeVerifierText(primary, messages, options);
 					if (verifiedText) yield verifiedText;
 				} else {
 					yield* primary.generateTextStream(messages, options);
@@ -149,9 +204,11 @@ export class ProviderRouter {
 					errorStatus(error) === 429 ||
 					errorStr.includes("limit_reached");
 
-				if (isQuotaError && fallback) {
+				if ((verifierCall || isQuotaError) && fallback) {
 					console.warn(
-						`[ProviderRouter] Primary provider (${this.primaryProviderId}) quota exceeded. Falling back to ${this.fallbackProviderId}.`,
+						verifierCall
+							? `[ProviderRouter] Primary verifier (${this.primaryProviderId}) failed safely. Falling back to ${this.fallbackProviderId}.`
+							: `[ProviderRouter] Primary provider (${this.primaryProviderId}) quota exceeded. Falling back to ${this.fallbackProviderId}.`,
 					);
 					useFallback = true;
 				} else {
@@ -168,10 +225,7 @@ export class ProviderRouter {
 				model: fallback.defaultModel,
 			};
 			if (verifierCall) {
-				const verifiedText = await collectProviderText(fallback, messages, fallbackOptions);
-				if (looksLikePrivateAuditLeak(verifiedText)) {
-					throw new Error("Private verifier output failed the audit-leak safety check.");
-				}
+				const verifiedText = await generateSafeVerifierText(fallback, messages, fallbackOptions);
 				if (verifiedText) yield verifiedText;
 			} else {
 				yield* fallback.generateTextStream(messages, fallbackOptions);
