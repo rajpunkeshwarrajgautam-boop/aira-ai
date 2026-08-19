@@ -15,6 +15,17 @@ export interface KnowledgeChunkInput {
 	readonly metadata?: Record<string, unknown>;
 }
 
+type KnowledgeAssetRow = {
+	readonly id: string;
+	readonly filename: string;
+	readonly mimeType: string;
+	readonly sizeBytes: bigint;
+	readonly status: string;
+	readonly errorMessage: string | null;
+	readonly createdAt: Date;
+	readonly updatedAt: Date;
+};
+
 export async function createKnowledgeAsset(args: {
 	readonly id?: string;
 	readonly userId: string;
@@ -36,20 +47,12 @@ export async function createKnowledgeAsset(args: {
 	return id;
 }
 
-export async function listKnowledgeAssets(userId: string, limit = 50): Promise<
-	readonly {
-		readonly id: string;
-		readonly filename: string;
-		readonly mimeType: string;
-		readonly sizeBytes: bigint;
-		readonly status: string;
-		readonly errorMessage: string | null;
-		readonly createdAt: Date;
-		readonly updatedAt: Date;
-	}[]
-> {
+export async function listKnowledgeAssets(
+	userId: string,
+	limit = 50,
+): Promise<readonly KnowledgeAssetRow[]> {
 	const take = Math.min(Math.max(limit, 1), 100);
-	return prisma.$queryRaw`
+	return prisma.$queryRaw<KnowledgeAssetRow[]>`
 		select id, filename, "mimeType", "sizeBytes", status, "errorMessage", "createdAt", "updatedAt"
 		from public."KnowledgeAsset"
 		where "userId" = ${userId}
