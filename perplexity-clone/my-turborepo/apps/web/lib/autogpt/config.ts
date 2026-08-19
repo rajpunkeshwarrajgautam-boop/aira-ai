@@ -29,6 +29,10 @@ function env(name: string): string {
 	return process.env[name]?.trim() ?? "";
 }
 
+function envTrue(name: string): boolean {
+	return env(name).toLowerCase() === "true";
+}
+
 function parsePositiveInteger(raw: string, name: string): number {
 	const value = Number(raw);
 	if (!Number.isInteger(value) || value < 1) {
@@ -38,7 +42,7 @@ function parsePositiveInteger(raw: string, name: string): number {
 }
 
 export function isAutoGptEnabled(): boolean {
-	return env("AUTOGPT_AGENT_ENABLED").toLowerCase() === "true";
+	return envTrue("AUTOGPT_AGENT_ENABLED");
 }
 
 export function isAutoGptConfigured(): boolean {
@@ -82,10 +86,27 @@ function parseTarget(
 	return { id, baseUrl, apiKey };
 }
 
+function assertFoundationStackForAutoGpt(): void {
+	if (!envTrue("AUTOGPT_REQUIRE_FOUNDATION_STACK")) return;
+	const missing: string[] = [];
+	if (!envTrue("FOUNDATION_CONTROL_PLANE_ENABLED")) missing.push("FOUNDATION_CONTROL_PLANE_ENABLED=true");
+	if (!env("AIRA_CONTROL_PLANE_URL")) missing.push("AIRA_CONTROL_PLANE_URL");
+	if (!env("AIRA_CONTROL_PLANE_TOKEN")) missing.push("AIRA_CONTROL_PLANE_TOKEN");
+	if (!envTrue("PYTHON_SANDBOX_ENABLED")) missing.push("PYTHON_SANDBOX_ENABLED=true");
+	if (!env("AIRA_SANDBOX_URL")) missing.push("AIRA_SANDBOX_URL");
+	if (!env("AIRA_SANDBOX_TOKEN")) missing.push("AIRA_SANDBOX_TOKEN");
+	if (missing.length > 0) {
+		throw new AutoGptConfigError(
+			`AutoGPT requires the AIRA foundation stack but these settings are missing: ${missing.join(", ")}.`,
+		);
+	}
+}
+
 export function getAutoGptConfig(): AutoGptConfig {
 	if (!isAutoGptEnabled()) {
 		throw new AutoGptConfigError("AutoGPT agent tasks are not enabled.");
 	}
+	assertFoundationStackForAutoGpt();
 
 	const primaryBaseUrlRaw =
 		env("AUTOGPT_PRIMARY_API_BASE_URL") || env("AUTOGPT_API_BASE_URL");
@@ -124,6 +145,11 @@ export function getAutoGptConfig(): AutoGptConfig {
 		targets[0]?.baseUrl.toString() === targets[1]?.baseUrl.toString()
 	) {
 		throw new AutoGptConfigError("AutoGPT primary and secondary API URLs must be different.");
+	}
+	if (process.env.NODE_ENV === "production" && targets.length !== 2) {
+		throw new AutoGptConfigError(
+			"Production AutoGPT requires two distinct configured runner targets so failover remains available.",
+		);
 	}
 
 	const timeoutRaw = env("AUTOGPT_REQUEST_TIMEOUT_MS");
