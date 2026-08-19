@@ -32,6 +32,8 @@ client = redis.Redis.from_url(
     health_check_interval=30,
 )
 
+# Admission is a distributed semaphore. Expired leases are removed and capacity is
+# checked in the same Lua script so concurrent control-plane replicas cannot over-admit.
 ADMIT_SCRIPT = """
 local key = KEYS[1]
 local now = tonumber(ARGV[1])
@@ -46,6 +48,53 @@ end
 redis.call('ZADD', key, expires, lease)
 redis.call('PEXPIRE', key, math.max(expires - now + 60000, 60000))
 return {1, count + 1}
+"""
+
+# Queue depth must represent outstanding stream entries, not lifetime processed jobs.
+# XACK alone does not remove a stream entry, so enqueue and ack/delete are both atomic.
+ENQUEUE_SCRIPT = """
+local key = KEYS[1]
+local max_depth = tonumber(ARGV[1])
+local depth = redis.call('XLEN', key)
+if depth >= max_depth then
+  return {0, tostring(depth)}
+end
+local id = redis.call(
+  'XADD', key, '*',
+  'payload', ARGV[2],
+  'attempts', ARGV[3],
+  'enqueuedAt', ARGV[4]
+)
+return {1, id, tostring(depth + 1)}
+"""
+
+ACK_DELETE_SCRIPT = """
+local key = KEYS[1]
+local group = ARGV[1]
+local id = ARGV[2]
+local acked = redis.call('XACK', key, group, id)
+if acked > 0 then
+  redis.call('XDEL', key, id)
+end
+return acked
+"""
+
+# Provider failure increments, circuit-open calculation and expiry are one operation.
+# This prevents lost updates when multiple app/control-plane replicas observe failures.
+PROVIDER_FAILURE_SCRIPT = """
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local threshold = tonumber(ARGV[2])
+local cooldown = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+local failures = redis.call('HINCRBY', key, 'failures', 1)
+local opened_until = 0
+if failures >= threshold then
+  opened_until = now + cooldown
+end
+redis.call('HSET', key, 'opened_until', opened_until, 'last_failure', now)
+redis.call('PEXPIRE', key, ttl)
+return {failures, opened_until}
 """
 
 
@@ -71,7 +120,7 @@ def group_name(job_type):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "AIRAControlPlane/1.0"
+    server_version = "AIRAControlPlane/1.1"
 
     def log_message(self, fmt, *args):
         print(json.dumps({"component": "control-plane", "message": fmt % args}), flush=True)
@@ -192,12 +241,21 @@ class Handler(BaseHTTPRequestHandler):
                     client.delete(key)
                 elif outcome == "failure":
                     if failure_class in {"transient", "quota", "configuration"}:
-                        failures = int(client.hincrby(key, "failures", 1))
                         now_ms = int(time.time() * 1000)
-                        cooldown = PROVIDER_CONFIG_COOLDOWN_MS if failure_class == "configuration" else PROVIDER_COOLDOWN_MS
-                        opened_until = now_ms + cooldown if failures >= FAILURE_THRESHOLD else 0
-                        client.hset(key, mapping={"opened_until": opened_until, "last_failure": now_ms})
-                        client.pexpire(key, max(cooldown * 4, 120000))
+                        cooldown = (
+                            PROVIDER_CONFIG_COOLDOWN_MS
+                            if failure_class == "configuration"
+                            else PROVIDER_COOLDOWN_MS
+                        )
+                        client.eval(
+                            PROVIDER_FAILURE_SCRIPT,
+                            1,
+                            key,
+                            now_ms,
+                            FAILURE_THRESHOLD,
+                            cooldown,
+                            max(cooldown * 4, 120000),
+                        )
                 else:
                     raise ValueError("invalid provider outcome")
                 self._json(200, payload(True, {"recorded": True}))
@@ -209,21 +267,25 @@ class Handler(BaseHTTPRequestHandler):
                 attempts = int(body.get("attempts", 0) or 0)
                 if not JOB_TYPE_RE.fullmatch(job_type) or not isinstance(job_payload, dict):
                     raise ValueError("invalid job")
-                key = stream_key(job_type)
-                if client.xlen(key) >= QUEUE_MAX_DEPTH:
-                    self._json(429, payload(False, error="queue saturated"))
-                    return
-                job_id = client.xadd(
-                    key,
-                    {
-                        "payload": json.dumps(job_payload, separators=(",", ":")),
-                        "attempts": str(max(0, attempts)),
-                        "enqueuedAt": str(int(time.time() * 1000)),
-                    },
-                    maxlen=QUEUE_MAX_DEPTH,
-                    approximate=False,
+                result = client.eval(
+                    ENQUEUE_SCRIPT,
+                    1,
+                    stream_key(job_type),
+                    QUEUE_MAX_DEPTH,
+                    json.dumps(job_payload, separators=(",", ":")),
+                    max(0, attempts),
+                    int(time.time() * 1000),
                 )
-                self._json(200, payload(True, {"jobId": job_id}))
+                if int(result[0]) != 1:
+                    self._json(
+                        429,
+                        payload(False, error=f"queue saturated at depth {result[1]}"),
+                    )
+                    return
+                self._json(
+                    200,
+                    payload(True, {"jobId": result[1], "depth": int(result[2])}),
+                )
                 return
 
             if parsed.path == "/v1/jobs/claim":
@@ -241,13 +303,26 @@ class Handler(BaseHTTPRequestHandler):
 
                 entries = []
                 try:
-                    reclaimed = client.xautoclaim(key, group, worker_id, min_idle_time=60000, start_id="0-0", count=1)
+                    reclaimed = client.xautoclaim(
+                        key,
+                        group,
+                        worker_id,
+                        min_idle_time=60000,
+                        start_id="0-0",
+                        count=1,
+                    )
                     if reclaimed and len(reclaimed) >= 2 and reclaimed[1]:
                         entries = [(key, reclaimed[1])]
                 except (AttributeError, redis.ResponseError):
                     entries = []
                 if not entries:
-                    entries = client.xreadgroup(group, worker_id, {key: ">"}, count=1, block=1000)
+                    entries = client.xreadgroup(
+                        group,
+                        worker_id,
+                        {key: ">"},
+                        count=1,
+                        block=1000,
+                    )
                 if not entries:
                     self._json(200, payload(True, {"job": None}))
                     return
@@ -271,7 +346,13 @@ class Handler(BaseHTTPRequestHandler):
                 job_id = str(body.get("jobId", ""))[:120]
                 if not JOB_TYPE_RE.fullmatch(job_type) or not job_id:
                     raise ValueError("invalid ack")
-                acked = client.xack(stream_key(job_type), group_name(job_type), job_id)
+                acked = client.eval(
+                    ACK_DELETE_SCRIPT,
+                    1,
+                    stream_key(job_type),
+                    group_name(job_type),
+                    job_id,
+                )
                 self._json(200, payload(True, {"acked": int(acked)}))
                 return
 
