@@ -1,0 +1,262 @@
+.aira-home {
+	color-scheme: dark;
+	--surface: 0 0% 4%;
+	--surface-elevated: 0 0% 10%;
+	--surface-inset: 0 0% 8%;
+	--border-subtle: 0 0% 14%;
+	--border: 0 0% 20%;
+	--accent: 46 65% 52%;
+	--accent-muted: 46 58% 43%;
+	--accent-violet: 46 65% 52%;
+	--accent-cyan: 46 65% 52%;
+	--content-primary: 0 0% 91%;
+	--content-secondary: 0 0% 70%;
+	--content-tertiary: 0 0% 43%;
+	min-height: 100dvh;
+	background: #0a0a0a;
+	color: #e8e8e8;
+}
+
+.aira-home *::-webkit-scrollbar { width: 6px; height: 6px; }
+.aira-home *::-webkit-scrollbar-track { background: transparent; }
+.aira-home *::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 999px; }
+.aira-home *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); }
+
+.aira-home > div:not(.aira-preloader) {
+	height: 100dvh;
+	min-height: 100dvh;
+	background: #0a0a0a !important;
+	overflow: hidden;
+}
+
+.aira-home > div:not(.aira-preloader) > div {
+	height: 100dvh;
+	min-height: 100dvh;
+	width: 100% !important;
+	max-width: none !important;
+	margin: 0 !important;
+}
+
+/* Exact reference shell: 260px sidebar + full-height main area. */
+.aira-home div:has(> aside[aria-label="Conversation sidebar"]) {
+	width: 260px !important;
+	flex: 0 0 260px !important;
+	padding: 0 !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] {
+	width: 260px !important;
+	height: 100dvh !important;
+	border-right: 1px solid rgba(255,255,255,.07) !important;
+	border-radius: 0 !important;
+	background: #0d0d0d !important;
+	box-shadow: none !important;
+}
+
+.aira-home main {
+	height: 100dvh;
+	min-height: 0 !important;
+	padding: 0 !important;
+	background: #0a0a0a !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	overflow: hidden;
+}
+
+.aira-home main > div:first-child,
+.aira-home [aria-label="Plan and usage"],
+.aira-home [aria-label="Research history"],
+.aira-home main footer,
+.aira-home form[aria-label="Ask AiraAI"] + div {
+	display: none !important;
+}
+
+/* 56px top bar from the uploaded HTML. */
+.aira-home main > header {
+	height: 56px !important;
+	min-height: 56px !important;
+	max-width: none !important;
+	margin: 0 !important;
+	padding: 0 22px !important;
+	flex-direction: row !important;
+	align-items: center !important;
+	gap: 0 !important;
+	border-bottom: 1px solid rgba(255,255,255,.07);
+	background: #0a0a0a;
+}
+
+.aira-home main > header > div {
+	width: 100%;
+	align-items: center;
+}
+
+.aira-home main > header p { display: none !important; }
+.aira-home main > header h1 {
+	font-family: var(--font-geist-sans), Inter, system-ui, sans-serif !important;
+	font-size: 13px !important;
+	font-weight: 500 !important;
+	line-height: 1 !important;
+	letter-spacing: 0 !important;
+	color: #e8e8e8 !important;
+}
+
+.aira-home main > header > div > div:first-child > div[class*="bg-accent"] {
+	width: 8px !important;
+	height: 8px !important;
+	min-width: 8px !important;
+	border-radius: 999px !important;
+	background: #22c55e !important;
+	box-shadow: none !important;
+	ring: 0 !important;
+}
+.aira-home main > header > div > div:first-child > div[class*="bg-accent"] svg { display: none !important; }
+
+/* Main body becomes chat thread + bottom composer, with no floating card shell. */
+.aira-home main > div[class*="max-w-4xl"] {
+	width: 100% !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	flex: 1 1 auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	gap: 0 !important;
+	overflow: hidden;
+}
+
+.aira-home main > div[class*="max-w-4xl"] > div[aria-busy] {
+	order: 0 !important;
+	min-height: 0 !important;
+	flex: 1 1 auto !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	backdrop-filter: none !important;
+}
+
+.aira-home main > div[class*="max-w-4xl"] > div[aria-busy] > div:first-child {
+	background: #0a0a0a;
+}
+
+.aira-home [class*="max-w-[820px]"] { max-width: 768px !important; }
+
+/* Empty state stays quiet and centered instead of looking like a marketing landing page. */
+.aira-home [aria-label="Suggested tasks"],
+.aira-home [aria-label="AiraAI capabilities"] { display: none !important; }
+
+/* Bottom interaction zone mirrors the reference input area. */
+.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+	order: 1 !important;
+	position: relative !important;
+	bottom: auto !important;
+	z-index: 5 !important;
+	width: 100% !important;
+	max-width: 768px !important;
+	flex: 0 0 auto !important;
+	margin: 0 auto !important;
+	padding: 10px 0 14px !important;
+	border: 0 !important;
+	background: #0a0a0a !important;
+	backdrop-filter: none !important;
+}
+
+.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) > div:first-child {
+	padding: 0 16px;
+}
+
+.aira-home form[aria-label="Ask AiraAI"] {
+	width: 100%;
+	max-width: 768px !important;
+	padding: 0 16px;
+}
+
+.aira-enterprise-composer {
+	background: #161616 !important;
+	border-color: rgba(255,255,255,.07) !important;
+	box-shadow: none !important;
+	transition: border-color .16s ease, background-color .16s ease;
+}
+.aira-enterprise-composer:focus-within {
+	background: #171717 !important;
+	border-color: rgba(255,255,255,.16) !important;
+}
+
+.aira-home select {
+	background: #111 !important;
+	color: #d8d8d8 !important;
+	border-color: rgba(255,255,255,.07) !important;
+}
+.aira-home select option { background: #111; color: #d8d8d8; }
+
+.aira-home [class*="shadow-panel"],
+.aira-home [class*="shadow-glass"] { box-shadow: none !important; }
+
+.aira-home .answer-markdown {
+	--tw-prose-body: #b7b7b7;
+	--tw-prose-headings: #ededed;
+	--tw-prose-links: #d4af37;
+	--tw-prose-bold: #ededed;
+	--tw-prose-quotes: #8b8b8b;
+	--tw-prose-counters: #777;
+	--tw-prose-bullets: #555;
+	--tw-prose-hr: rgba(255,255,255,.08);
+	--tw-prose-th-borders: rgba(255,255,255,.10);
+	--tw-prose-td-borders: rgba(255,255,255,.06);
+}
+.aira-home .answer-markdown code {
+	border: 1px solid rgba(255,255,255,.07);
+	background: #1c1c1c;
+	color: #d8d8d8;
+}
+.aira-home .answer-markdown pre {
+	border-color: rgba(255,255,255,.07);
+	background: #151515;
+	box-shadow: none;
+}
+
+/* Preloader copied from the uploaded reference behavior. */
+.aira-preloader {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: #000;
+	transition: opacity .8s ease, visibility .8s ease;
+}
+.aira-preloader[data-hidden="true"] { opacity: 0; visibility: hidden; pointer-events: none; }
+.aira-preloader-path {
+	fill: none;
+	stroke: #fff;
+	stroke-width: 1.5;
+	stroke-dasharray: 500;
+	stroke-dashoffset: 500;
+	animation: aira-draw-logo 2s ease forwards;
+}
+.aira-preloader-label {
+	margin-top: 24px;
+	font-size: 14px;
+	letter-spacing: .4em;
+	color: #fff;
+	opacity: 0;
+	animation: aira-preloader-label 1s ease 1.5s forwards;
+}
+@keyframes aira-draw-logo { to { stroke-dashoffset: 0; } }
+@keyframes aira-preloader-label { to { opacity: 1; } }
+
+@media (max-width: 767px) {
+	.aira-home > div:not(.aira-preloader),
+	.aira-home > div:not(.aira-preloader) > div,
+	.aira-home main { height: 100dvh; }
+	.aira-home div:has(> aside[aria-label="Conversation sidebar"]) { width: auto !important; flex-basis: auto !important; }
+	.aira-home main > header { padding: 0 14px !important; }
+	.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) { padding-bottom: max(12px, env(safe-area-inset-bottom)) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.aira-preloader-path,
+	.aira-preloader-label { animation: none !important; }
+}
