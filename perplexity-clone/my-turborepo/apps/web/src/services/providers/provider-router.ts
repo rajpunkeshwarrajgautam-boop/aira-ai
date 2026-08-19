@@ -48,12 +48,6 @@ function isPrivateStructuredJsonCall(messages: readonly ChatCompletionMessagePar
 	);
 }
 
-/**
- * Independent publication boundary outside the legacy/core verifier implementation.
- * If deterministic issues survive the core verifier and its repair pass, sanitize the
- * machine-detectable failures and validate once more. Anything still failing is rejected
- * rather than published.
- */
 function enforceFinalPublicationBoundary(
 	candidateInput: string,
 	messages: readonly ChatCompletionMessageParam[],
@@ -73,13 +67,6 @@ function enforceFinalPublicationBoundary(
 	return candidate;
 }
 
-/**
- * Resilience facade around the proven ProviderRouter core.
- *
- * The core remains responsible for model-specific streaming, private verifier recovery,
- * and structured-output recovery. This facade owns provider health, circuit breaking,
- * safe cross-provider failover, and a second fail-closed publication boundary.
- */
 export class ProviderRouter {
 	private readonly primaryCore: CoreProviderRouter;
 	private readonly fallbackCore?: CoreProviderRouter;
@@ -90,8 +77,6 @@ export class ProviderRouter {
 		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "openai",
 		private readonly fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
 	) {
-		// Each core is deliberately single-provider. The facade owns cross-provider failover,
-		// which prevents partial streams from being concatenated across providers.
 		this.primaryCore = new CoreProviderRouter(primaryProviderId, primaryProviderId);
 		if (fallbackProviderId !== primaryProviderId) {
 			this.fallbackCore = new CoreProviderRouter(fallbackProviderId, fallbackProviderId);
@@ -108,6 +93,7 @@ export class ProviderRouter {
 	static async createDefault(): Promise<ProviderRouter> {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
+		const { SelfHostedProvider } = await import("./self-hosted-provider");
 		const router = new ProviderRouter();
 
 		const openAiKey = process.env.OPENAI_API_KEY;
@@ -115,6 +101,19 @@ export class ProviderRouter {
 
 		const nvidiaKey = process.env.NVIDIA_API_KEY;
 		if (nvidiaKey) router.registerProvider(new NVIDIAProvider(nvidiaKey));
+
+		const selfHostedBaseURL = process.env.SELF_HOSTED_LLM_BASE_URL?.trim();
+		const selfHostedApiKey = process.env.SELF_HOSTED_LLM_API_KEY?.trim();
+		const selfHostedModel = process.env.SELF_HOSTED_LLM_MODEL?.trim();
+		if (selfHostedBaseURL && selfHostedApiKey && selfHostedModel) {
+			router.registerProvider(
+				new SelfHostedProvider({
+					baseURL: selfHostedBaseURL,
+					apiKey: selfHostedApiKey,
+					model: selfHostedModel,
+				}),
+			);
+		}
 
 		return router;
 	}
@@ -170,8 +169,6 @@ export class ProviderRouter {
 				primaryError = error;
 				recordProviderFailure(this.primaryProviderId, error);
 
-				// Once user-visible streaming has begun, switching providers would concatenate
-				// unrelated answers. Fail the stream instead of corrupting it.
 				if (yieldedAny) throw error;
 
 				const canFailOver =

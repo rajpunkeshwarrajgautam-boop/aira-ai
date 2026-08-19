@@ -1,0 +1,27 @@
+{
+  "cluster": "aira-foundation-gpu",
+  "fabricMode": "multi-node",
+  "nodes": [
+    {
+      "name": "gpu-01",
+      "managementAddress": "10.20.0.11",
+      "rdmaAddress": "10.30.0.11",
+      "gpuCount": 8,
+      "gpuClass": "replace-with-actual-hardware",
+      "role": ["inference", "training"]
+    },
+    {
+      "name": "gpu-02",
+      "managementAddress": "10.20.0.12",
+      "rdmaAddress": "10.30.0.12",
+      "gpuCount": 8,
+      "gpuClass": "replace-with-actual-hardware",
+      "role": ["inference", "training"]
+    }
+  ],
+  "networkZones": {
+    "management": "10.20.0.0/24",
+    "rdma": "10.30.0.0/24",
+    "storage": "10.40.0.0/24"
+  }
+}

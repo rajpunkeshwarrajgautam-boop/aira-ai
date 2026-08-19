@@ -1,0 +1,139 @@
+name: aira-foundation
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    volumes:
+      - foundation-redis:/data
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  control-plane:
+    build: ./control-plane
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      AIRA_CONTROL_PLANE_TOKEN: ${AIRA_CONTROL_PLANE_TOKEN:?set AIRA_CONTROL_PLANE_TOKEN}
+      ADMISSION_SEARCH_LIMIT: ${ADMISSION_SEARCH_LIMIT:-120}
+      ADMISSION_DEEP_LIMIT: ${ADMISSION_DEEP_LIMIT:-24}
+      ADMISSION_AGENT_LIMIT: ${ADMISSION_AGENT_LIMIT:-16}
+      QUEUE_MAX_DEPTH: ${QUEUE_MAX_DEPTH:-2000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AIRA_CONTROL_PLANE_PORT:-8090}:8080"
+    networks: [control]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  knowledge-worker:
+    build: ./knowledge-worker
+    restart: unless-stopped
+    environment:
+      AIRA_CONTROL_PLANE_URL: http://control-plane:8080
+      AIRA_CONTROL_PLANE_TOKEN: ${AIRA_CONTROL_PLANE_TOKEN:?set AIRA_CONTROL_PLANE_TOKEN}
+      AIRA_KNOWLEDGE_WORKER_TOKEN: ${AIRA_KNOWLEDGE_WORKER_TOKEN:?set AIRA_KNOWLEDGE_WORKER_TOKEN}
+      AIRA_VISION_BASE_URL: ${AIRA_VISION_BASE_URL:-}
+      AIRA_VISION_API_KEY: ${AIRA_VISION_API_KEY:-}
+      AIRA_VISION_MODEL: ${AIRA_VISION_MODEL:-}
+    depends_on:
+      control-plane:
+        condition: service_started
+    networks: [control]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+
+  sandbox:
+    build: ./sandbox
+    restart: unless-stopped
+    environment:
+      AIRA_SANDBOX_TOKEN: ${AIRA_SANDBOX_TOKEN:?set AIRA_SANDBOX_TOKEN}
+      AIRA_SANDBOX_MAX_WALL_SECONDS: ${AIRA_SANDBOX_MAX_WALL_SECONDS:-8}
+      AIRA_SANDBOX_MAX_MEMORY_BYTES: ${AIRA_SANDBOX_MAX_MEMORY_BYTES:-268435456}
+    networks: [sandbox]
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 32
+    mem_limit: 384m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  sandbox-gateway:
+    build: ./sandbox-gateway
+    restart: unless-stopped
+    environment:
+      AIRA_SANDBOX_TOKEN: ${AIRA_SANDBOX_TOKEN:?set AIRA_SANDBOX_TOKEN}
+      AIRA_SANDBOX_UPSTREAM: http://sandbox:8080
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AIRA_SANDBOX_PORT:-8091}:8080"
+    networks: [control, sandbox]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 32
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  inference:
+    profiles: ["gpu"]
+    image: ${AIRA_INFERENCE_IMAGE:?set AIRA_INFERENCE_IMAGE for gpu profile}
+    restart: unless-stopped
+    environment:
+      HF_HOME: /models/cache
+    command:
+      - --model
+      - ${AIRA_INFERENCE_MODEL:?set AIRA_INFERENCE_MODEL}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --api-key
+      - ${AIRA_INFERENCE_API_KEY:?set AIRA_INFERENCE_API_KEY}
+      - --max-model-len
+      - ${AIRA_INFERENCE_MAX_MODEL_LEN:-32768}
+    ports:
+      - "127.0.0.1:${AIRA_INFERENCE_PORT:-8000}:8000"
+    volumes:
+      - foundation-model-cache:/models/cache
+    networks: [control]
+    gpus: all
+    shm_size: 16gb
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  control:
+    driver: bridge
+  sandbox:
+    driver: bridge
+    internal: true
+
+volumes:
+  foundation-redis:
+  foundation-model-cache:

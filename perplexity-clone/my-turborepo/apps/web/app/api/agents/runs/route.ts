@@ -12,6 +12,10 @@ import {
 	getEffectiveEntitlements,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
+import {
+	admitFoundationRequest,
+	releaseFoundationLease,
+} from "@/lib/foundation-control-plane";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,10 +26,9 @@ const SubmitRunSchema = z.object({
 });
 
 function noStoreJson(body: unknown, init?: ResponseInit): Response {
-	return Response.json(body, {
-		...init,
-		headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) },
-	});
+	const headers = new Headers(init?.headers);
+	headers.set("Cache-Control", "no-store");
+	return Response.json(body, { ...init, headers });
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -89,7 +92,28 @@ export async function POST(req: Request): Promise<Response> {
 		);
 	}
 
+	let leaseId: string | undefined;
 	try {
+		const lease = await admitFoundationRequest({
+			requestId: parsed.data.clientRequestId,
+			kind: "agent",
+		});
+		if (!lease.allowed) {
+			return noStoreJson(
+				{
+					error: {
+						code: "AGENT_CAPACITY_BUSY",
+						message: "AIRA's agent workers are at their current safe capacity. Please retry shortly.",
+					},
+				},
+				{
+					status: 503,
+					headers: { "Retry-After": String(Math.max(1, Math.ceil((lease.retryAfterMs ?? 1000) / 1000))) },
+				},
+			);
+		}
+		leaseId = lease.leaseId;
+
 		const submitted = await submitAgentRun({
 			userId: session.user.id,
 			clientRequestId: parsed.data.clientRequestId,
@@ -125,5 +149,7 @@ export async function POST(req: Request): Promise<Response> {
 			{ error: { code: "AGENT_SUBMISSION_FAILED", message: "The agent task could not be started." } },
 			{ status: 500 },
 		);
+	} finally {
+		await releaseFoundationLease(leaseId);
 	}
 }

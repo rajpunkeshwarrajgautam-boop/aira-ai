@@ -1,0 +1,24 @@
+{
+  "baseModel": "/models/base",
+  "trainingImage": "registry.example.invalid/aira-training-engine:approved-digest",
+  "parentArtifact": null,
+  "resources": {
+    "gpus": 8,
+    "nodes": 1,
+    "precision": "bf16",
+    "distributedStrategy": "zero3"
+  },
+  "hyperparameters": {
+    "learningRate": 0.0002,
+    "epochs": 1,
+    "perDeviceBatchSize": 1,
+    "gradientAccumulationSteps": 16,
+    "usePeft": true,
+    "loraRank": 32
+  },
+  "evaluation": {
+    "required": true,
+    "suite": "aira-foundation-eval-v1",
+    "promotionRequiresRegressionFree": true
+  }
+}

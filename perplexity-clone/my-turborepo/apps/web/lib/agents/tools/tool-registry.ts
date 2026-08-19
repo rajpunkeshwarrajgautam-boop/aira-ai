@@ -43,13 +43,11 @@ export class ToolRegistry {
 			throw new Error(`Tool ${name} not found in registry.`);
 		}
 
-		// Validation step
 		const parsedInput = tool.inputSchema.safeParse(input);
 		if (!parsedInput.success) {
 			throw new Error(`Invalid input for tool ${name}: ${parsedInput.error.message}`);
 		}
 
-		// Security step wrapper (auth/permissions would be checked here in higher layers)
 		try {
 			const result = await tool.execute(parsedInput.data, context);
 			return result as TOutput;
@@ -62,7 +60,6 @@ export class ToolRegistry {
 
 export const globalToolRegistry = new ToolRegistry();
 
-// Lazy registration to avoid circular dependencies
 export async function registerBuiltInTools() {
 	const { webSearchTool } = await import("./webSearchTool");
 	const { citationFormatTool } = await import("./citationFormatTool");
@@ -73,4 +70,9 @@ export async function registerBuiltInTools() {
 	globalToolRegistry.registerTool(citationFormatTool);
 	globalToolRegistry.registerTool(memoryLookupTool);
 	globalToolRegistry.registerTool(calculatorTool);
+
+	if (process.env.PYTHON_SANDBOX_ENABLED === "true") {
+		const { pythonSandboxTool } = await import("./pythonSandboxTool");
+		globalToolRegistry.registerTool(pythonSandboxTool);
+	}
 }
