@@ -9,7 +9,7 @@ This extension deliberately separates **code present**, **schema present**, **se
 - Graph-relational long-term memory beside existing lexical + pgvector memory.
 - Optional offline consolidation candidates; no automatic fact promotion without provenance/confidence gates.
 - Optional pre-inference and post-inference safety gateway with observe/enforce modes and configurable fail-closed behavior.
-- Deterministic adaptive-compute budgeting that changes completion/verification budgets without exposing private chain-of-thought.
+- Deterministic adaptive-compute classification and reasoning-depth instructions without exposing private chain-of-thought. Token-ceiling fields are defined for a later canary but are not yet wired to provider limits.
 - Provider placement policy for declared inference regions. Enforced mode fails closed when a provider has no declared allowed region.
 - GPU health agent for temperature, memory pressure and uncorrected ECC telemetry; unhealthy nodes can open the distributed provider circuit.
 - Autonomous-task capability policy separating read/sandbox actions from actions requiring explicit human approval (write/deploy/send/purchase/delete/credential use).
@@ -27,7 +27,7 @@ The safety gateway is server-only and disabled by default. In observe mode it ca
 
 ## Adaptive compute
 
-A deterministic complexity scorer assigns default/balanced/deep budgets using query size, task markers, code markers and the existing retrieval mode. It never stores or publishes private reasoning traces. Deep mode increases answer/verifier token ceilings and asks the existing verifier to spend more compute on constraints, arithmetic, evidence and counterexamples.
+A deterministic complexity scorer assigns default/balanced/deep tiers using query size, task markers, code markers and the existing response mode. It never stores or publishes private reasoning traces. The tier currently changes the model-facing reasoning-depth instruction only. The scorer also emits answer/verifier token-ceiling fields for a later controlled canary; current provider token ceilings do not change until those fields are explicitly wired and tested.
 
 ## Multimodal expansion
 
@@ -54,7 +54,7 @@ The following are **not production capabilities** merely because they appear in 
 1. Apply and verify additive graph schema; keep `GRAPH_MEMORY_ENABLED=false` initially.
 2. Populate graph only from reviewed durable memories; compare recall quality against lexical+vector baseline.
 3. Deploy safety gateway in observe mode, measure false positives/negatives, then canary enforce mode.
-4. Enable adaptive compute for a small cohort and measure latency/cost/quality.
+4. Enable adaptive reasoning instructions for a small cohort and measure latency/cost/quality before wiring any token-ceiling changes.
 5. Deploy GPU health agent on the real inference host and prove circuit removal/recovery with injected unhealthy fixtures plus real telemetry.
 6. Enforce provider-region placement only after every active/fallback provider has declared, verified regions.
 7. Add gVisor on the real sandbox host and rerun isolation/resource tests under `runsc`.
