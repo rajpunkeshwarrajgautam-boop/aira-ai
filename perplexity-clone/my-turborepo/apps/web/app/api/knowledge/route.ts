@@ -19,7 +19,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set([
+const MAX_ADVANCED_MEDIA_BYTES = 12 * 1024 * 1024;
+const BASE_ALLOWED_MIME_TYPES = new Set([
 	"text/plain",
 	"text/markdown",
 	"text/csv",
@@ -29,6 +30,14 @@ const ALLOWED_MIME_TYPES = new Set([
 	"image/png",
 	"image/jpeg",
 	"image/webp",
+]);
+const ADVANCED_MEDIA_MIME_TYPES = new Set([
+	"audio/mpeg",
+	"audio/wav",
+	"audio/x-wav",
+	"audio/webm",
+	"video/mp4",
+	"video/webm",
 ]);
 
 function unauthenticated(): Response {
@@ -76,6 +85,15 @@ function knowledgeCallbackUrl(): string | null {
 	}
 }
 
+function advancedMediaConfigured(): boolean {
+	return Boolean(
+		process.env.ADVANCED_MULTIMODAL_ENABLED === "true" &&
+			process.env.AIRA_MEDIA_BASE_URL?.trim() &&
+			process.env.AIRA_MEDIA_API_KEY?.trim() &&
+			process.env.AIRA_MEDIA_MODEL?.trim(),
+	);
+}
+
 export async function GET(): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return unauthenticated();
@@ -106,16 +124,25 @@ export async function POST(req: Request): Promise<Response> {
 	if (!(file instanceof File)) {
 		return Response.json({ error: { code: "FILE_REQUIRED", message: "A file is required." } }, { status: 400 });
 	}
-	if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+	const advancedMedia = ADVANCED_MEDIA_MIME_TYPES.has(file.type);
+	const allowed = BASE_ALLOWED_MIME_TYPES.has(file.type) || (advancedMedia && process.env.ADVANCED_MULTIMODAL_ENABLED === "true");
+	if (!allowed) {
 		return Response.json(
-			{ error: { code: "FILE_SIZE_REJECTED", message: "File must be between 1 byte and 20 MB." } },
+			{ error: { code: "MIME_TYPE_REJECTED", message: "This file type is not supported on the current deployment." } },
+			{ status: 415 },
+		);
+	}
+	const sizeLimit = advancedMedia ? MAX_ADVANCED_MEDIA_BYTES : MAX_UPLOAD_BYTES;
+	if (file.size <= 0 || file.size > sizeLimit) {
+		return Response.json(
+			{ error: { code: "FILE_SIZE_REJECTED", message: `File must be between 1 byte and ${Math.floor(sizeLimit / 1024 / 1024)} MB.` } },
 			{ status: 413 },
 		);
 	}
-	if (!ALLOWED_MIME_TYPES.has(file.type)) {
+	if (advancedMedia && !advancedMediaConfigured()) {
 		return Response.json(
-			{ error: { code: "MIME_TYPE_REJECTED", message: "This file type is not supported." } },
-			{ status: 415 },
+			{ error: { code: "ADVANCED_MEDIA_UNCONFIGURED", message: "Audio/video ingestion is not fully configured." } },
+			{ status: 503 },
 		);
 	}
 
@@ -133,7 +160,7 @@ export async function POST(req: Request): Promise<Response> {
 		sizeBytes: file.size,
 		sha256,
 		storageKey,
-		metadata: { source: "user-upload" },
+		metadata: { source: "user-upload", mediaClass: advancedMedia ? "advanced" : "standard" },
 	});
 
 	try {
