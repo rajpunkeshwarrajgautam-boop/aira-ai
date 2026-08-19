@@ -60,6 +60,22 @@ function safeFilename(name: string): string {
 	return cleaned || "upload";
 }
 
+function knowledgeCallbackUrl(): string | null {
+	const raw = process.env.AUTH_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
+	if (!raw) return null;
+	try {
+		const base = new URL(raw);
+		if (process.env.NODE_ENV === "production" && base.protocol !== "https:") return null;
+		if (!["https:", "http:"].includes(base.protocol)) return null;
+		base.pathname = "/api/knowledge/callback";
+		base.search = "";
+		base.hash = "";
+		return base.toString();
+	} catch {
+		return null;
+	}
+}
+
 export async function GET(): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return unauthenticated();
@@ -72,9 +88,10 @@ export async function POST(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return unauthenticated();
 	if (process.env.MULTIMODAL_INGESTION_ENABLED !== "true") return disabled();
-	if (!knowledgeStorageConfigured()) {
+	const callbackUrl = knowledgeCallbackUrl();
+	if (!knowledgeStorageConfigured() || !callbackUrl || !process.env.AIRA_KNOWLEDGE_WORKER_TOKEN?.trim()) {
 		return Response.json(
-			{ error: { code: "KNOWLEDGE_STORAGE_UNCONFIGURED", message: "Knowledge storage is not configured." } },
+			{ error: { code: "KNOWLEDGE_PIPELINE_UNCONFIGURED", message: "Knowledge ingestion is not fully configured." } },
 			{ status: 503 },
 		);
 	}
@@ -135,7 +152,7 @@ export async function POST(req: Request): Promise<Response> {
 				filename,
 				mimeType: file.type,
 				signedUrl,
-				callbackUrl: `${(process.env.AUTH_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "")}/api/knowledge/callback`,
+				callbackUrl,
 			},
 		});
 		return Response.json({ assetId, jobId, status: "QUEUED" }, { status: 202 });
