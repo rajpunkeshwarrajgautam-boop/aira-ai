@@ -1,9 +1,8 @@
 services:
   sandbox:
     runtime: runsc
-    security_opt:
-      - no-new-privileges:true
 
 # Requires gVisor/runsc to be installed and registered on the execution host.
-# This override is intentionally not used by CI or default Compose deployment because
-# availability must be verified on the real sandbox host before activation.
+# The base compose file already applies no-new-privileges, dropped capabilities,
+# resource limits, read-only filesystem, tmpfs, and the internal-only sandbox network.
+# This override changes only the container runtime and is never activated merely by merge.
