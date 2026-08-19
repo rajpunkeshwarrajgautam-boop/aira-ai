@@ -25,6 +25,12 @@ function authHeaders(serviceKey: string): Record<string, string> {
 	};
 }
 
+function arrayBufferBody(bytes: Uint8Array): ArrayBuffer {
+	const copy = new Uint8Array(bytes.byteLength);
+	copy.set(bytes);
+	return copy.buffer;
+}
+
 export function knowledgeStorageConfigured(): boolean {
 	return Boolean(
 		(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
@@ -47,7 +53,7 @@ export async function uploadKnowledgeObject(args: {
 				"Content-Type": args.mimeType,
 				"x-upsert": "false",
 			},
-			body: args.bytes,
+			body: arrayBufferBody(args.bytes),
 			cache: "no-store",
 		},
 	);
