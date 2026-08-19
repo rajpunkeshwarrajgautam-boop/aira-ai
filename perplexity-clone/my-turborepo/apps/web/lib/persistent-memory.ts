@@ -99,14 +99,19 @@ function extractJsonObject(raw: string): string {
 	return trimmed.slice(start, end + 1);
 }
 
+function parseMemoryExtraction(raw: string): z.infer<typeof MemoryExtractionSchema> {
+	return MemoryExtractionSchema.parse(JSON.parse(extractJsonObject(raw)));
+}
+
 async function collectRouterText(
 	router: ProviderRouter,
 	messages: ChatCompletionMessageParam[],
+	maxCompletionTokens = 1600,
 ): Promise<string> {
 	let output = "";
 	for await (const delta of router.streamChat(messages, {
-		temperature: 0.1,
-		maxCompletionTokens: 900,
+		temperature: 0,
+		maxCompletionTokens,
 	})) {
 		output += delta;
 	}
@@ -135,6 +140,11 @@ Conversation summary rules:
 - Preserve active goals, decisions, unresolved tasks, named projects/entities, and context needed to continue the thread after older messages fall out of the prompt window.
 - Remove superseded information when the user corrects it.
 - Keep the summary under 1800 characters and never include credentials or secret values.
+
+Output rules:
+- Return one JSON object and nothing else.
+- Do not include markdown fences, prose, prefaces, explanations, analysis, or visible thinking.
+- The first non-whitespace character must be { and the last non-whitespace character must be }.
 
 Return exactly:
 {
@@ -182,8 +192,25 @@ async function curateLatestTurn(args: {
 	];
 
 	const router = await ProviderRouter.createDefault();
-	const raw = await collectRouterText(router, messages);
-	return MemoryExtractionSchema.parse(JSON.parse(extractJsonObject(raw)));
+	const raw = await collectRouterText(router, messages, 1600);
+	try {
+		return parseMemoryExtraction(raw);
+	} catch (firstError) {
+		console.warn(
+			"[AIRA memory] Curator output was invalid; retrying once:",
+			firstError instanceof Error ? firstError.message : String(firstError),
+		);
+		const retryMessages: ChatCompletionMessageParam[] = [
+			...messages,
+			{
+				role: "user",
+				content:
+					"Your previous response was invalid. Retry the same memory-curation task. Return ONLY the required JSON object, with no markdown, prose, analysis, or thinking. Ensure the JSON parses exactly.",
+			},
+		];
+		const retryRaw = await collectRouterText(router, retryMessages, 2400);
+		return parseMemoryExtraction(retryRaw);
+	}
 }
 
 export async function refreshPersistentMemory(args: {
