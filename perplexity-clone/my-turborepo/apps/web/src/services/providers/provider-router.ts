@@ -1,5 +1,13 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
+import {
+	formatPublicationViolations,
+	normalizeModelCitations,
+	stripStateContradictionLines,
+	validatePublicationCandidate,
+	type PublicationViolation,
+} from "../publication-guard";
+
 export interface ProviderOptions {
 	readonly model?: string;
 	readonly temperature?: number;
@@ -32,11 +40,26 @@ function errorStatus(error: unknown): number | undefined {
 	return typeof status === "number" ? status : undefined;
 }
 
+function systemMessageContains(
+	messages: readonly ChatCompletionMessageParam[],
+	needle: string,
+): boolean {
+	return messages.some((message) =>
+		message.role === "system" &&
+		typeof message.content === "string" &&
+		message.content.includes(needle),
+	);
+}
+
 function isPrivateVerifierCall(messages: readonly ChatCompletionMessageParam[]): boolean {
-	return messages.some((message) => {
-		if (message.role !== "system" || typeof message.content !== "string") return false;
-		return message.content.includes("AIRA's final answer verifier and senior editor");
-	});
+	return systemMessageContains(messages, "AIRA's final answer verifier and senior editor");
+}
+
+function isPrivateStructuredJsonCall(messages: readonly ChatCompletionMessageParam[]): boolean {
+	return (
+		systemMessageContains(messages, "AIRA's private memory curator") ||
+		systemMessageContains(messages, "AIRA's private decision-hypothesis planner")
+	);
 }
 
 function looksLikePrivateAuditLeak(text: string): boolean {
@@ -100,6 +123,69 @@ async function collectProviderText(
 	return text;
 }
 
+function extractLikelyJsonObject(raw: string): string {
+	let text = raw.trim();
+	text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+	const start = text.indexOf("{");
+	const end = text.lastIndexOf("}");
+	if (start < 0 || end <= start) throw new Error("Structured task returned no JSON object.");
+	return text.slice(start, end + 1);
+}
+
+/** Conservative repair for the two malformed-json patterns repeatedly seen in production. */
+function repairJsonSurface(raw: string): string {
+	return extractLikelyJsonObject(raw)
+		.replace(/,\s*([}\]])/g, "$1")
+		.replace(/}\s*(?={)/g, "},")
+		.replace(/]\s*(?={)/g, "],")
+		.replace(/}\s*(?="[^"]+"\s*:)/g, "},")
+		.replace(/]\s*(?="[^"]+"\s*:)/g, "],")
+		.replace(/"\s*(?="[^"]+"\s*:)/g, '",');
+}
+
+function parseAndCanonicalizeJson(raw: string): string {
+	const parsed: unknown = JSON.parse(repairJsonSurface(raw));
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+		throw new Error("Structured task must return one JSON object.");
+	}
+	return JSON.stringify(parsed);
+}
+
+async function generateSafeStructuredJsonText(
+	provider: AIProvider,
+	messages: ChatCompletionMessageParam[],
+	options: ProviderOptions,
+): Promise<string> {
+	const structuredOptions: ProviderOptions = {
+		...options,
+		temperature: 0,
+		maxCompletionTokens: Math.max(options.maxCompletionTokens ?? 0, 2600),
+	};
+	const first = await collectProviderText(provider, messages, structuredOptions);
+	try {
+		return parseAndCanonicalizeJson(first);
+	} catch (firstError) {
+		console.warn(
+			"[ProviderRouter] Private structured output needed JSON repair/retry:",
+			errorMessage(firstError),
+		);
+	}
+
+	const retryMessages: ChatCompletionMessageParam[] = [
+		...messages,
+		{
+			role: "user",
+			content:
+				"Your previous private structured response was invalid JSON. Retry the SAME task now. Return exactly one syntactically valid JSON object and nothing else. Check every comma between properties and array elements before responding. Do not use markdown fences or analysis.",
+		},
+	];
+	const retry = await collectProviderText(provider, retryMessages, {
+		...structuredOptions,
+		maxCompletionTokens: Math.max(structuredOptions.maxCompletionTokens ?? 0, 3200),
+	});
+	return parseAndCanonicalizeJson(retry);
+}
+
 async function generatePublicationSafeVerifierText(
 	provider: AIProvider,
 	messages: ChatCompletionMessageParam[],
@@ -126,7 +212,7 @@ Publication gate — repair the answer if ANY item fails:
 - Adversarial rigor: if the user asked to argue against the recommendation, include a distinct strongest case against it AND a concrete condition/evidence threshold that would make the recommendation change.
 - Avoid-list: if the user asked what to avoid, explicitly state the most important things to avoid.
 - Source precision: precise customer-base counts, adoption percentages, market sizes, build costs, timelines, and willingness-to-pay claims from weak/unknown sources must be labeled estimates or removed unless corroborated.
-- Citation integrity: preserve only citation numbers that exist in the supplied evidence and keep each citation attached to the exact claim it supports.
+- Citation integrity: use citation markers only in exact [n] form. Preserve only citation numbers that exist in the supplied evidence and keep each citation attached to the exact claim it supports. Never put words such as "est." inside citation brackets.
 - Practicality: prefer a validation-first plan with milestones and kill criteria over speculative vanity targets. Do not spend most of a constrained budget before proving willingness to pay.
 
 Do not output audit notes, hidden reasoning, checklists, or commentary outside the final answer wrapper.`,
@@ -142,6 +228,31 @@ Do not output audit notes, hidden reasoning, checklists, or commentary outside t
 	if (!recovered) {
 		throw new Error("Private publication verifier failed to produce a safe final-answer envelope.");
 	}
+	return recovered;
+}
+
+async function repairDeterministicPublicationFailures(
+	provider: AIProvider,
+	messages: ChatCompletionMessageParam[],
+	candidate: string,
+	violations: readonly PublicationViolation[],
+	options: ProviderOptions,
+): Promise<string> {
+	const repairMessages: ChatCompletionMessageParam[] = [
+		...messages,
+		{ role: "assistant", content: candidate },
+		{
+			role: "user",
+			content: `A deterministic publication validator rejected the candidate above. These are machine-detected failures, not optional style suggestions:\n\n${formatPublicationViolations(violations)}\n\nRepair every listed failure while preserving the useful parts of the answer. For an unsupported cited number, either remove/soften the number or use only supplied evidence that actually contains it; do not invent a replacement statistic. For a state contradiction, build on the already-existing user asset instead of instructing the user to create it again. Use citation syntax [1], [2], etc. only. Return exactly <aira_final> followed by the complete corrected answer and then </aira_final>, with no text outside the wrapper.`,
+		},
+	];
+	const text = await collectProviderText(provider, repairMessages, {
+		...options,
+		temperature: 0,
+		maxCompletionTokens: Math.max(options.maxCompletionTokens ?? 0, 6800),
+	});
+	const recovered = extractVerifierFinalEnvelope(text);
+	if (!recovered) throw new Error("Deterministic publication repair did not return a final envelope.");
 	return recovered;
 }
 
@@ -186,8 +297,9 @@ async function generateSafeVerifierText(
 		}
 	}
 
+	let publicationCandidate = safeCandidate;
 	try {
-		return await generatePublicationSafeVerifierText(
+		publicationCandidate = await generatePublicationSafeVerifierText(
 			provider,
 			messages,
 			safeCandidate,
@@ -198,7 +310,36 @@ async function generateSafeVerifierText(
 			"[ProviderRouter] Final private publication pass failed safely; using the already-sanitized verifier answer:",
 			errorMessage(error),
 		);
-		return safeCandidate;
+	}
+
+	let normalized = normalizeModelCitations(publicationCandidate);
+	let violations = validatePublicationCandidate(normalized, messages);
+	if (violations.length === 0) return normalized;
+
+	console.warn(
+		`[AIRA publication gate] Deterministic validation found ${violations.length} issue(s); repairing before publication.`,
+	);
+	try {
+		const repaired = await repairDeterministicPublicationFailures(
+			provider,
+			messages,
+			normalized,
+			violations,
+			verifierOptions,
+		);
+		normalized = normalizeModelCitations(repaired);
+		violations = validatePublicationCandidate(normalized, messages);
+		if (violations.length === 0) return normalized;
+		console.warn(
+			`[AIRA publication gate] ${violations.length} deterministic issue(s) remained after repair; stripping duplicate-state instructions and publishing the repaired answer.`,
+		);
+		return stripStateContradictionLines(normalized, violations);
+	} catch (error) {
+		console.warn(
+			"[AIRA publication gate] Deterministic repair failed; stripping duplicate-state instructions from the verified answer:",
+			errorMessage(error),
+		);
+		return stripStateContradictionLines(normalized, violations);
 	}
 }
 
@@ -248,6 +389,7 @@ export class ProviderRouter {
 		}
 
 		const verifierCall = isPrivateVerifierCall(messages);
+		const structuredJsonCall = isPrivateStructuredJsonCall(messages);
 		let useFallback = !primary;
 
 		if (primary) {
@@ -255,10 +397,13 @@ export class ProviderRouter {
 				if (verifierCall) {
 					const verifiedText = await generateSafeVerifierText(primary, messages, options);
 					if (verifiedText) yield verifiedText;
+				} else if (structuredJsonCall) {
+					const jsonText = await generateSafeStructuredJsonText(primary, messages, options);
+					if (jsonText) yield jsonText;
 				} else {
 					yield* primary.generateTextStream(messages, options);
 				}
-				return; // Success, exit
+				return;
 			} catch (error: unknown) {
 				const errorStr = errorMessage(error).toLowerCase();
 				const isQuotaError =
@@ -267,11 +412,13 @@ export class ProviderRouter {
 					errorStatus(error) === 429 ||
 					errorStr.includes("limit_reached");
 
-				if ((verifierCall || isQuotaError) && fallback) {
+				if ((verifierCall || structuredJsonCall || isQuotaError) && fallback) {
 					console.warn(
 						verifierCall
 							? `[ProviderRouter] Primary verifier (${this.primaryProviderId}) failed safely. Falling back to ${this.fallbackProviderId}.`
-							: `[ProviderRouter] Primary provider (${this.primaryProviderId}) quota exceeded. Falling back to ${this.fallbackProviderId}.`,
+							: structuredJsonCall
+								? `[ProviderRouter] Primary structured task (${this.primaryProviderId}) failed safely. Falling back to ${this.fallbackProviderId}.`
+								: `[ProviderRouter] Primary provider (${this.primaryProviderId}) quota exceeded. Falling back to ${this.fallbackProviderId}.`,
 					);
 					useFallback = true;
 				} else {
@@ -281,8 +428,6 @@ export class ProviderRouter {
 		}
 
 		if (useFallback && fallback) {
-			// A fallback provider cannot safely reuse a model identifier from the
-			// primary provider. Always use the fallback provider's configured model.
 			const fallbackOptions: ProviderOptions = {
 				...options,
 				model: fallback.defaultModel,
@@ -290,6 +435,9 @@ export class ProviderRouter {
 			if (verifierCall) {
 				const verifiedText = await generateSafeVerifierText(fallback, messages, fallbackOptions);
 				if (verifiedText) yield verifiedText;
+			} else if (structuredJsonCall) {
+				const jsonText = await generateSafeStructuredJsonText(fallback, messages, fallbackOptions);
+				if (jsonText) yield jsonText;
 			} else {
 				yield* fallback.generateTextStream(messages, fallbackOptions);
 			}

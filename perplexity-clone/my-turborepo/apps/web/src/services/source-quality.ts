@@ -57,6 +57,7 @@ const PEER_REVIEW_DOMAINS = [
 	"acm.org",
 ] as const;
 
+/** Government, regulator, standards, and first-party product/documentation domains. */
 const OFFICIAL_DOMAINS = [
 	"clinicaltrials.gov",
 	"fda.gov",
@@ -85,6 +86,11 @@ const OFFICIAL_DOMAINS = [
 	"icmr.gov.in",
 	"dgft.gov.in",
 	"niti.gov.in",
+	"developers.facebook.com",
+	"about.fb.com",
+	"faq.whatsapp.com",
+	"whatsapp.com",
+	"whatsappbusiness.com",
 ] as const;
 
 const AGGREGATOR_HOSTS = ["emergentmind.com", "news.google.com"] as const;
@@ -99,7 +105,8 @@ function looksOfficial(host: string): boolean {
 
 /**
  * Domain/path heuristics only. Official and peer-reviewed sources are detected before
- * blog-like paths so regulator knowledge-base pages are not accidentally downgraded.
+ * blog-like paths so regulator knowledge-base pages and first-party documentation are
+ * not accidentally downgraded.
  */
 export function inferSourceQualityLabel(url: string, _title?: string): SourceQualityLabel {
 	void _title;

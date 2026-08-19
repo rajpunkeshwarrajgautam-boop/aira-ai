@@ -9,6 +9,7 @@ import { ShareAnswerMarkdown } from "@/components/share/ShareAnswerMarkdown";
 import { ShareFollowUpCta } from "@/components/share/ShareFollowUpCta";
 import { getPublicResearchShareByToken, buildShareUrl } from "@/lib/research-share";
 import { parseCitationIndicesFromAnswer } from "@/src/services/citations";
+import { normalizeModelCitations } from "@/src/services/publication-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,9 +42,10 @@ export async function generateMetadata({
 
 	const baseUrl = await baseUrlFromRequestHeaders();
 	const url = buildShareUrl(share.token, baseUrl);
+	const normalizedAnswer = normalizeModelCitations(share.assistantAnswer);
 
 	const title = `Research: ${sanitizeForTitle(share.query)}`;
-	const description = buildDescription(share.assistantAnswer);
+	const description = buildDescription(normalizedAnswer);
 
 	return {
 		title,
@@ -73,7 +75,8 @@ export default async function SharePage({
 
 	const baseUrl = await baseUrlFromRequestHeaders();
 	const url = buildShareUrl(share.token, baseUrl);
-	const citedIndices = parseCitationIndicesFromAnswer(share.assistantAnswer);
+	const normalizedAnswer = normalizeModelCitations(share.assistantAnswer);
+	const citedIndices = parseCitationIndicesFromAnswer(normalizedAnswer);
 
 	return (
 		<div className="aira-shell min-h-dvh w-full overflow-hidden">
@@ -91,7 +94,7 @@ export default async function SharePage({
 					</div>
 
 					<section className="aira-glass rounded-3xl p-5 sm:p-7" aria-label="Research answer">
-						<ShareAnswerMarkdown markdown={share.assistantAnswer} citations={share.citations} maxValid={share.citations.length} />
+						<ShareAnswerMarkdown markdown={normalizedAnswer} citations={share.citations} maxValid={share.citations.length} />
 					</section>
 
 					{share.citations.length > 0 ? <CitationCards citations={share.citations} className="p-0" citedIndices={citedIndices} /> : null}
