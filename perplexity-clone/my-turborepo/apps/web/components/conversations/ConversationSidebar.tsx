@@ -1,12 +1,12 @@
 "use client";
 
-import { MessageCircle, PanelLeftClose, Plus, Sparkles } from "lucide-react";
-import { useMemo } from "react";
+import { Bot, Brain, MessageSquare, Plus, Search, Settings2 } from "lucide-react";
 import Link from "next/link";
+import { useMemo } from "react";
 
 import { cn } from "../../lib/cn";
-import { UsageIndicator } from "../UsageIndicator";
 import { AiraLogo } from "../AiraLogo";
+import { UsageIndicator } from "../UsageIndicator";
 
 export interface ConversationSummary {
 	readonly id: string;
@@ -39,57 +39,48 @@ export function ConversationSidebar({ conversations, selectedConversationId, onS
 	const sorted = useMemo(() => [...conversations].sort((a, b) => a.lastMessageAt < b.lastMessageAt ? 1 : -1), [conversations]);
 
 	return (
-		<aside className={cn("flex h-full w-full flex-col border-r border-black/[0.045] bg-white/[0.76] backdrop-blur-2xl", className)} aria-label="Conversation sidebar">
-			<div className="flex h-[72px] items-center justify-between border-b border-black/[0.04] px-5">
+		<aside className={cn("flex h-full w-full flex-col border-r border-border-subtle bg-[hsl(var(--sidebar))]", className)} aria-label="Conversation sidebar">
+			<div className="flex h-14 items-center border-b border-border-subtle px-4">
 				<AiraLogo />
-				<span className="flex size-8 items-center justify-center rounded-lg text-content-tertiary transition-colors hover:bg-black/[0.035] hover:text-content-primary"><PanelLeftClose className="size-4" strokeWidth={1.8} aria-hidden /></span>
 			</div>
 
-			<div className="px-4 pt-4">
-				<button
-					type="button"
-					onClick={onCreateConversation}
-					disabled={disabled}
-					className="flex h-11 w-full items-center gap-2 rounded-xl border border-black/[0.055] bg-white/[0.88] px-3.5 text-sm font-semibold text-content-primary shadow-[0_5px_18px_rgba(15,23,42,0.04)] transition hover:border-accent/15 hover:bg-white disabled:opacity-50"
-				>
-					<span className="flex size-6 items-center justify-center rounded-lg bg-accent/[0.075] text-accent"><Plus className="size-3.5" strokeWidth={2} aria-hidden /></span> New chat
+			<div className="space-y-1.5 p-3">
+				<button type="button" onClick={onCreateConversation} disabled={disabled} className="flex h-10 w-full items-center justify-between rounded-lg border border-border-subtle bg-transparent px-3 text-[13px] font-medium text-content-primary transition hover:bg-surface-elevated disabled:opacity-50">
+					<span className="flex items-center gap-2"><Plus className="size-4" strokeWidth={1.8} aria-hidden /> New chat</span>
+					<span className="rounded border border-border-subtle px-1.5 py-0.5 text-[9px] text-content-tertiary">⌘K</span>
 				</button>
+				<Link href="/agents" className="flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] text-content-secondary transition hover:bg-surface-elevated hover:text-content-primary"><Bot className="size-4" strokeWidth={1.7} /> Explore agents</Link>
+				<Link href="/memory" className="flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] text-content-secondary transition hover:bg-surface-elevated hover:text-content-primary"><Brain className="size-4" strokeWidth={1.7} /> Memory</Link>
 			</div>
 
-			<div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
-				<p className="px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-content-tertiary">Recent</p>
-				{sorted.length === 0 ? (
-					<p className="px-2 py-5 text-sm leading-6 text-content-tertiary">Your saved research threads will appear here.</p>
-				) : (
-					<ul className="mt-2 space-y-0.5">
+			<div className="px-4 pb-2">
+				<div className="flex h-8 items-center gap-2 rounded-md border border-transparent px-1 text-content-tertiary"><Search className="size-3.5" strokeWidth={1.7} /><span className="text-[11px]">Search conversations</span></div>
+			</div>
+
+			<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+				<p className="px-2 pb-1 pt-2 text-[10px] font-medium text-content-tertiary">Recent</p>
+				{sorted.length === 0 ? <p className="px-2 py-4 text-xs leading-5 text-content-tertiary">Your saved conversations will appear here.</p> : (
+					<ul className="space-y-0.5">
 						{sorted.map((conversation) => {
 							const selected = conversation.id === selectedConversationId;
-							return (
-								<li key={conversation.id}>
-									<button
-										type="button"
-										onClick={() => onSelectConversation(conversation.id)}
-										disabled={disabled}
-										className={cn("group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-colors", selected ? "bg-white text-content-primary shadow-[0_4px_16px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.045]" : "text-content-secondary hover:bg-black/[0.025] hover:text-content-primary")}
-									>
-										<span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors", selected ? "bg-accent/[0.075] text-accent" : "text-content-tertiary group-hover:bg-white/70")}><MessageCircle className="size-3.5" strokeWidth={1.8} aria-hidden /></span>
-										<span className="min-w-0 flex-1 truncate text-[13px] font-medium">{conversation.title}</span>
-										<span className="shrink-0 text-[10px] text-content-tertiary">{formatRelative(conversation.lastMessageAt)}</span>
-									</button>
-								</li>
-							);
+							return <li key={conversation.id}>
+								<button type="button" onClick={() => onSelectConversation(conversation.id)} disabled={disabled} className={cn("group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition", selected ? "bg-surface-elevated text-content-primary" : "text-content-secondary hover:bg-surface-elevated hover:text-content-primary")}>
+									<span className={cn("size-1 rounded-full", selected ? "bg-accent" : "bg-transparent")} aria-hidden />
+									<MessageSquare className="size-3.5 shrink-0 text-content-tertiary" strokeWidth={1.6} aria-hidden />
+									<span className="min-w-0 flex-1 truncate text-[12px] font-medium">{conversation.title}</span>
+									<span className="text-[9px] text-content-tertiary">{formatRelative(conversation.lastMessageAt)}</span>
+								</button>
+							</li>;
 						})}
 					</ul>
 				)}
 			</div>
 
-			<div className="space-y-3 border-t border-black/[0.04] p-4">
+			<div className="border-t border-border-subtle p-3">
 				<UsageIndicator />
-				<Link href="/pricing" className="aira-card-hover block rounded-2xl border border-black/[0.045] bg-white/[0.66] p-3.5 shadow-[0_6px_20px_rgba(15,23,42,0.025)] backdrop-blur">
-					<div className="flex items-center gap-2 text-sm font-semibold text-content-primary"><span className="flex size-7 items-center justify-center rounded-lg bg-accent/[0.075] text-accent"><Sparkles className="size-3.5" strokeWidth={1.8} /></span> AiraAI Pro</div>
-					<p className="mt-1.5 text-xs leading-5 text-content-tertiary">More research, Deep Research, and agent runs.</p>
-					<p className="mt-2 text-xs font-semibold text-accent">View plans →</p>
-				</Link>
+				<div className="mt-2 flex items-center justify-between rounded-lg px-2 py-2 text-xs text-content-tertiary">
+					<span>Enterprise workspace</span><Settings2 className="size-3.5" strokeWidth={1.7} />
+				</div>
 			</div>
 		</aside>
 	);

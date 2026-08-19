@@ -5,39 +5,32 @@
 @tailwind utilities;
 
 :root {
-	color-scheme: light;
-	--surface: 216 33% 98%;
-	--surface-elevated: 0 0% 100%;
-	--surface-inset: 216 28% 96%;
-	--border-subtle: 216 24% 91%;
-	--border: 216 18% 84%;
-	--accent: 220 92% 56%;
-	--accent-muted: 220 76% 48%;
-	--content-primary: 224 43% 12%;
-	--content-secondary: 219 14% 39%;
-	--content-tertiary: 218 11% 56%;
-	--page-glow: 220 100% 97%;
-	--page-mid: 216 55% 98%;
+	color-scheme: dark;
+	--surface: 0 0% 4%;
+	--sidebar: 0 0% 5%;
+	--surface-elevated: 0 0% 10%;
+	--surface-inset: 0 0% 8%;
+	--border-subtle: 0 0% 14%;
+	--border: 0 0% 20%;
+	--accent: 46 65% 52%;
+	--accent-muted: 46 58% 43%;
+	--accent-violet: 46 65% 52%;
+	--accent-cyan: 46 65% 52%;
+	--content-primary: 0 0% 91%;
+	--content-secondary: 0 0% 70%;
+	--content-tertiary: 0 0% 43%;
+	--page-glow: 0 0% 4%;
+	--page-mid: 0 0% 4%;
 }
 
-html,
-body {
-	max-width: 100vw;
-	overflow-x: hidden;
-}
-
-html { scroll-behavior: smooth; }
-
+html, body { max-width: 100vw; overflow-x: hidden; }
+html { scroll-behavior: smooth; background: #0a0a0a; }
 body {
 	margin: 0;
 	min-height: 100dvh;
-	font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family: var(--font-geist-sans), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	color: hsl(var(--content-primary));
-	background-color: hsl(var(--surface));
-	background-image:
-		radial-gradient(80% 55% at 50% -10%, hsl(var(--page-glow) / 0.95) 0%, transparent 72%),
-		linear-gradient(180deg, hsl(var(--page-mid)) 0%, hsl(var(--surface)) 42%, hsl(216 28% 98%) 100%);
-	background-attachment: fixed;
+	background: #0a0a0a;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
@@ -45,151 +38,113 @@ body {
 * { box-sizing: border-box; }
 a { color: inherit; }
 button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
-::selection { background: hsl(var(--accent) / 0.16); }
+::selection { background: hsl(var(--accent) / 0.22); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); }
 
-.aira-display {
-	font-family: Georgia, "Times New Roman", serif;
-	font-weight: 400;
-	letter-spacing: -0.035em;
-}
+.aira-display { font-family: var(--font-geist-sans), Inter, sans-serif; font-weight: 500; letter-spacing: -0.025em; }
+.aira-gradient-text { color: hsl(var(--content-primary)); -webkit-text-fill-color: currentColor; background: none; }
+.aira-shell { background: #0a0a0a; }
+.aira-card { background: #101010; border: 1px solid rgba(255,255,255,.07); box-shadow: 0 10px 28px rgba(0,0,0,.24); }
+.aira-card-hover { transition: border-color 160ms ease, background-color 160ms ease; }
+.aira-card-hover:hover { transform: none; border-color: rgba(255,255,255,.13); background: #131313; box-shadow: 0 10px 28px rgba(0,0,0,.24); }
+.aira-glass, .aira-popover { background: rgba(13,13,13,.96) !important; border-color: rgba(255,255,255,.08) !important; box-shadow: 0 18px 50px rgba(0,0,0,.38) !important; }
+.aira-nav-rail { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.aira-nav-pill { border-radius: 8px !important; }
+.aira-nav-pill[data-active="true"] { background: #1a1a1a !important; color: #e8e8e8 !important; box-shadow: none !important; }
+.aira-profile-pill { background: #111 !important; border-color: rgba(255,255,255,.07) !important; }
+.aira-profile-avatar { background: #1b1b1b !important; border: 1px solid rgba(255,255,255,.07); color: #d4af37 !important; }
+.aira-provider-button { background: #111 !important; border-color: rgba(255,255,255,.08) !important; box-shadow: none !important; }
 
-.aira-shell {
-	background:
-		linear-gradient(180deg, hsl(0 0% 100% / 0.72), hsl(216 33% 98% / 0.9)),
-		hsl(var(--surface));
-}
-
-.aira-card {
-	background: hsl(var(--surface-elevated) / 0.92);
-	border: 1px solid hsl(var(--border-subtle) / 0.92);
-	box-shadow: 0 1px 2px hsl(224 43% 12% / 0.025), 0 10px 30px hsl(224 43% 12% / 0.045);
-}
-
-.aira-card-hover {
-	transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
-}
-
-.aira-card-hover:hover {
-	transform: translateY(-1px);
-	border-color: hsl(var(--accent) / 0.2);
-	box-shadow: 0 2px 4px hsl(224 43% 12% / 0.035), 0 14px 36px hsl(224 43% 12% / 0.065);
-}
-
-.aira-enter { animation: aira-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both; }
-.aira-fade { animation: aira-fade 260ms ease both; }
+.aira-enter { animation: aira-enter 260ms ease both; }
+.aira-fade { animation: aira-fade 200ms ease both; }
 .aira-soft-pulse { animation: aira-soft-pulse 2.2s ease-in-out infinite; }
-
-@keyframes aira-enter {
-	from { opacity: 0; transform: translateY(8px) scale(0.995); }
-	to { opacity: 1; transform: translateY(0) scale(1); }
-}
+@keyframes aira-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes aira-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes aira-soft-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+@keyframes aira-soft-pulse { 0%,100% { opacity:.58; } 50% { opacity:1; } }
 
-/* Home-only presentation layer: reshapes the legacy controller without touching its behavior. */
-.aira-home main {
-	background: linear-gradient(180deg, hsl(0 0% 100% / 0.6), hsl(var(--surface) / 0.7));
-}
-
-.aira-home main > div:first-child {
-	display: none;
-}
-
-.aira-home [aria-label="Plan and usage"] {
-	display: none !important;
-}
+/* Uploaded AIRA enterprise reference skin. */
+.aira-home { min-height: 100dvh; background: #0a0a0a; }
+.aira-home > div { min-height: 100dvh; background: #0a0a0a !important; }
+.aira-home > div > div { width: 100% !important; max-width: none !important; margin: 0 !important; }
+.aira-home div:has(> aside[aria-label="Conversation sidebar"]) { width: 260px !important; padding: 0 !important; flex-basis: 260px !important; }
+.aira-home aside[aria-label="Conversation sidebar"] { width: 260px !important; border-radius: 0 !important; box-shadow: none !important; }
+.aira-home main { min-height: 100dvh; background: #0a0a0a !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+.aira-home main > div:first-child { display: none; }
+.aira-home [aria-label="Plan and usage"] { display: none !important; }
+.aira-home [class*="bg-white"] { background-color: #111 !important; }
+.aira-home [class*="from-white"] { --tw-gradient-from: #111 var(--tw-gradient-from-position) !important; }
+.aira-home [class*="to-white"] { --tw-gradient-to: #111 var(--tw-gradient-to-position) !important; }
+.aira-home [class*="border-black"] { border-color: rgba(255,255,255,.07) !important; }
+.aira-home [class*="ring-black"] { --tw-ring-color: rgba(255,255,255,.07) !important; }
+.aira-home [class*="shadow-panel"], .aira-home [class*="shadow-glass"] { box-shadow: none !important; }
 
 .aira-home main > header {
 	width: 100%;
-	max-width: 980px !important;
-	margin-inline: auto;
+	max-width: none !important;
+	min-height: 56px;
+	margin: 0 !important;
+	padding: 10px 22px !important;
+	border-bottom: 1px solid rgba(255,255,255,.07);
+	background: #0a0a0a;
 }
+.aira-home main > header:has(h1[class*="font-extrabold"]) { padding: 54px 32px 18px !important; text-align: center; border-bottom: 0; }
+.aira-home main > header h1[class*="font-extrabold"] { font-family: var(--font-geist-sans), Inter, sans-serif; font-size: clamp(2rem,4vw,3.2rem) !important; font-weight: 500 !important; line-height: 1.08 !important; letter-spacing: -.035em !important; color: #e8e8e8 !important; }
+.aira-home main > header h1[class*="font-extrabold"] + p { max-width: 600px; margin: .75rem auto 0; font-size: .9rem !important; line-height: 1.6; color: #6e6e6e !important; }
+.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child { position: relative; justify-content: center; }
+.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child { justify-content: center; }
+.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child { position: absolute; right: 0; top: 0; }
 
-.aira-home main > header:has(h1[class*="font-extrabold"]) {
-	padding-top: 4.75rem !important;
-	padding-bottom: 1.35rem !important;
-	text-align: center;
-}
-
-.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child {
-	position: relative;
-	justify-content: center;
-}
-
-.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child {
-	justify-content: center;
-}
-
-.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child {
-	position: absolute;
-	right: 0;
-	top: 0;
-}
-
-.aira-home main > header h1[class*="font-extrabold"] {
-	font-family: Georgia, "Times New Roman", serif;
-	font-size: clamp(2.65rem, 6vw, 4.2rem) !important;
-	font-weight: 400 !important;
-	line-height: 1.04 !important;
-	letter-spacing: -0.04em !important;
-}
-
-.aira-home main > header h1[class*="font-extrabold"] + p {
-	max-width: 620px;
-	margin: 0.9rem auto 0;
-	font-size: 0.95rem !important;
-	line-height: 1.7;
-	color: hsl(var(--content-tertiary));
-}
-
-.aira-home form[aria-label="Ask AiraAI"] + div {
-	display: none;
-}
-
-.aira-home main footer {
-	border-top-color: hsl(var(--border-subtle) / 0.7);
-	background: transparent;
-}
+.aira-home form[aria-label="Ask AiraAI"] { padding-inline: 20px; }
+.aira-home form[aria-label="Ask AiraAI"] + div { display: none; }
+.aira-enterprise-composer { transition: border-color 160ms ease, background-color 160ms ease; }
+.aira-enterprise-composer:focus-within { border-color: rgba(255,255,255,.17); background: #171717; }
+.aira-home main footer { border-top-color: rgba(255,255,255,.06); background: #0a0a0a; color: #555 !important; }
 
 .answer-markdown {
 	@apply prose prose-zinc max-w-none;
-	--tw-prose-body: hsl(var(--content-secondary));
-	--tw-prose-headings: hsl(var(--content-primary));
-	--tw-prose-links: hsl(var(--accent));
-	--tw-prose-bold: hsl(var(--content-primary));
-	--tw-prose-quotes: hsl(var(--content-tertiary));
+	--tw-prose-body: #b7b7b7;
+	--tw-prose-headings: #ededed;
+	--tw-prose-links: #d4af37;
+	--tw-prose-bold: #ededed;
+	--tw-prose-quotes: #8b8b8b;
+	--tw-prose-counters: #777;
+	--tw-prose-bullets: #555;
+	--tw-prose-hr: rgba(255,255,255,.08);
+	--tw-prose-th-borders: rgba(255,255,255,.10);
+	--tw-prose-td-borders: rgba(255,255,255,.06);
 	line-height: 1.78;
 }
-
 .answer-markdown > :first-child { margin-top: 0; }
 .answer-markdown > :last-child { margin-bottom: 0; }
-.answer-markdown h1, .answer-markdown h2, .answer-markdown h3 { letter-spacing: -0.02em; }
-.answer-markdown a { @apply underline decoration-accent/25 underline-offset-[3px] transition-colors hover:decoration-accent; }
-.answer-markdown code { @apply rounded-md bg-surface-inset px-1.5 py-0.5 font-mono text-[0.9em] text-content-secondary ring-1 ring-border-subtle; }
-.answer-markdown pre { @apply rounded-2xl border border-border-subtle bg-surface-inset shadow-sm; }
-.answer-markdown pre code { @apply bg-transparent p-0 ring-0; }
+.answer-markdown h1,.answer-markdown h2,.answer-markdown h3 { letter-spacing: -.02em; }
+.answer-markdown a { @apply underline underline-offset-[3px] transition-colors; text-decoration-color: rgba(212,175,55,.32); }
+.answer-markdown code { border: 1px solid rgba(255,255,255,.07); border-radius: 6px; background: #1c1c1c; padding: .12rem .35rem; color: #d8d8d8; }
+.answer-markdown pre { border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: #151515; box-shadow: none; }
+.answer-markdown pre code { border: 0; background: transparent; padding: 0; }
+.answer-markdown table { border-color: rgba(255,255,255,.08); }
+
+/* Reference preloader */
+.aira-preloader { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; transition: opacity .7s ease, visibility .7s ease; }
+.aira-preloader[data-hidden="true"] { opacity: 0; visibility: hidden; pointer-events: none; }
+.aira-preloader-path { fill: none; stroke: #fff; stroke-width: 1.5; stroke-dasharray: 500; stroke-dashoffset: 500; animation: aira-draw-logo 1.8s ease forwards; }
+.aira-preloader-label { margin-top: 22px; font-size: 12px; letter-spacing: .42em; color: #fff; opacity: 0; animation: aira-preloader-label .8s ease 1.2s forwards; }
+@keyframes aira-draw-logo { to { stroke-dashoffset: 0; } }
+@keyframes aira-preloader-label { to { opacity: 1; } }
 
 @media (max-width: 767px) {
-	.aira-home main > header:has(h1[class*="font-extrabold"]) {
-		padding-top: 2.25rem !important;
-		text-align: left;
-	}
-	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child {
-		justify-content: space-between;
-	}
-	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child {
-		justify-content: flex-start;
-	}
-	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child {
-		position: static;
-	}
-	.aira-home main > header h1[class*="font-extrabold"] {
-		font-size: clamp(2.2rem, 11vw, 3rem) !important;
-	}
+	.aira-home div:has(> aside[aria-label="Conversation sidebar"]) { width: auto !important; flex-basis: auto !important; }
+	.aira-home main > header:has(h1[class*="font-extrabold"]) { padding: 32px 18px 14px !important; text-align: left; }
+	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child { justify-content: space-between; }
+	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:first-child { justify-content: flex-start; }
+	.aira-home main > header:has(h1[class*="font-extrabold"]) > div:last-child > div:last-child { position: static; }
+	.aira-home main > header h1[class*="font-extrabold"] { font-size: clamp(1.9rem,10vw,2.7rem) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
 	html { scroll-behavior: auto; }
-	.aira-enter, .aira-fade, .aira-soft-pulse { animation: none !important; }
+	.aira-enter,.aira-fade,.aira-soft-pulse,.aira-preloader-path,.aira-preloader-label { animation: none !important; }
 	.aira-card-hover { transition: none !important; }
 }
