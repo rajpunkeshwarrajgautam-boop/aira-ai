@@ -22,7 +22,7 @@ const STANDARD_CITATION = /\[(\d{1,4})\]/g;
  */
 export function normalizeModelCitations(input: string): string {
 	return input
-		.replace(/[【\[]\s*(\d{1,4})\s*,\s*(?:est\.?|estimate)\s*[】\]]/gi, "[$1] (estimate)")
+		.replace(/[【[]\s*(\d{1,4})\s*,\s*(?:est\.?|estimate)\s*[】\]]/gi, "[$1] (estimate)")
 		.replace(/【\s*(\d{1,4})\s*】/g, "[$1]")
 		.replace(/【\s*(\d{1,4})\s*\]/g, "[$1]")
 		.replace(/\[\s*(\d{1,4})\s*】/g, "[$1]")
@@ -111,9 +111,9 @@ function extractExistingEntities(context: string): string[] {
 	if (!durable) return [];
 	const entities = new Set<string>();
 	const patterns = [
-		/\bUser\s+(?:runs|owns|operates|has|uses)\s+([^\.\n]+?)(?=\s+and\s+(?:builds|built|runs|owns|operates|uses|has)\b|[\.\n]|$)/gi,
-		/\bUser\s+(?:builds|built|created)\s+([^\.\n]+?)(?=[\.\n]|$)/gi,
-		/\band\s+(?:builds|built|created)\s+([^\.\n]+?)(?=[\.\n]|$)/gi,
+		/\bUser\s+(?:runs|owns|operates|has|uses)\s+([^ .\n]+(?:\s+[^.\n]+?)*)(?=\s+and\s+(?:builds|built|runs|owns|operates|uses|has)\b|[.\n]|$)/gi,
+		/\bUser\s+(?:builds|built|created)\s+([^.\n]+?)(?=[.\n]|$)/gi,
+		/\band\s+(?:builds|built|created)\s+([^.\n]+?)(?=[.\n]|$)/gi,
 	];
 	for (const pattern of patterns) {
 		let match: RegExpExecArray | null;
