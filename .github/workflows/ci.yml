@@ -104,6 +104,7 @@ jobs:
             infra/foundation/control-plane/app.py \
             infra/foundation/knowledge-worker/worker.py \
             infra/foundation/sandbox/server.py \
+            infra/foundation/sandbox-gateway/server.py \
             infra/foundation/scripts/autogpt_preflight.py \
             infra/foundation/training/validate_dataset.py \
             infra/foundation/training/pipeline.py \
@@ -120,10 +121,11 @@ jobs:
           docker build -t aira-foundation-control:ci infra/foundation/control-plane
           docker build -t aira-foundation-ingestion:ci infra/foundation/knowledge-worker
           docker build -t aira-foundation-sandbox:ci infra/foundation/sandbox
+          docker build -t aira-foundation-sandbox-gateway:ci infra/foundation/sandbox-gateway
 
-      - name: Start control plane and sandbox
+      - name: Start control plane and sandbox gateway
         working-directory: infra/foundation
-        run: docker compose -f compose.yml up -d --build redis control-plane sandbox
+        run: docker compose -f compose.yml up -d --build redis control-plane sandbox sandbox-gateway
 
       - name: Verify distributed control and sandbox isolation
         run: python infra/foundation/tests/smoke.py
