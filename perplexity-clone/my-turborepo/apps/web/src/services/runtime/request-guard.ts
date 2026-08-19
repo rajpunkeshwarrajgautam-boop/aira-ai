@@ -1,7 +1,21 @@
 const MAX_QUERY_LENGTH = 16_000;
 
-/** C0 controls except tab/newline/carriage return, plus DEL. */
-const DISALLOWED_CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u;
+function containsDisallowedControl(value: string): boolean {
+	for (let index = 0; index < value.length; index += 1) {
+		const code = value.charCodeAt(index);
+		// C0 controls except tab/newline/carriage return, plus DEL.
+		if (
+			(code >= 0x00 && code <= 0x08) ||
+			code === 0x0b ||
+			code === 0x0c ||
+			(code >= 0x0e && code <= 0x1f) ||
+			code === 0x7f
+		) {
+			return true;
+		}
+	}
+	return false;
+}
 
 export class RequestGuardError extends Error {
 	readonly code: "EMPTY_QUERY" | "QUERY_TOO_LONG" | "DISALLOWED_CONTROL_CHARACTER";
@@ -38,7 +52,7 @@ export function normalizeAndGuardUserQuery(raw: string): string {
 	if (normalized.length > MAX_QUERY_LENGTH) {
 		throw new RequestGuardError("QUERY_TOO_LONG", "query exceeds maximum length");
 	}
-	if (DISALLOWED_CONTROL.test(normalized)) {
+	if (containsDisallowedControl(normalized)) {
 		throw new RequestGuardError(
 			"DISALLOWED_CONTROL_CHARACTER",
 			"query contains unsupported control characters",
