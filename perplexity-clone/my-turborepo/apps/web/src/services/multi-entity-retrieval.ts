@@ -78,13 +78,18 @@ export function buildMultiEntityPromptInstruction(): string {
 }
 
 /**
- * Re-assign originalRank sequentially so merged batches get a consistent order prior in ranking.
+ * Preserve each search batch's native rank instead of flattening independent batches into
+ * one sequential list. Supplementary primary-source searches otherwise receive an artificial
+ * relevance penalty simply because they were appended after the initial broad search.
  */
 export function normalizeMergedCandidateRanks(
 	candidates: readonly SourceCandidate[],
 ): SourceCandidate[] {
-	return candidates.map((c, i) => ({
+	return candidates.map((c) => ({
 		...c,
-		originalRank: i,
+		originalRank:
+			Number.isFinite(c.originalRank) && c.originalRank >= 0
+				? c.originalRank
+				: 0,
 	}));
 }

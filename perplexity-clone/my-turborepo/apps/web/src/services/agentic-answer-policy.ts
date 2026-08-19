@@ -50,14 +50,33 @@ const INDIA_LEGAL_PRIMARY = [
 const INDIA_BUSINESS_PRIMARY = [
 	"indiaai.gov.in",
 	"meity.gov.in",
+	"pib.gov.in",
 	"startupindia.gov.in",
 	"msme.gov.in",
+	"dashboard.msme.gov.in",
+	"udyamregistration.gov.in",
+	"data.gov.in",
+	"niti.gov.in",
+	"dpiit.gov.in",
 	"mca.gov.in",
 	"cbic-gst.gov.in",
 	"gst.gov.in",
 	"rbi.org.in",
 	"sebi.gov.in",
+] as const;
+
+const INDIA_MSME_PRIMARY = [
+	"dashboard.msme.gov.in",
+	"msme.gov.in",
+	"udyamregistration.gov.in",
 	"pib.gov.in",
+	"data.gov.in",
+] as const;
+
+const INDIA_AI_PRIMARY = [
+	"pib.gov.in",
+	"indiaai.gov.in",
+	"meity.gov.in",
 ] as const;
 
 const MEDICAL_PRIMARY = [
@@ -102,7 +121,7 @@ function uniqueSearches(searches: readonly AgenticSearchSpec[], original: string
 		seen.add(key);
 		out.push({ ...candidate, query });
 	}
-	return out.slice(0, 6);
+	return out.slice(0, 8);
 }
 
 function primarySourceSearch(query: string, domain: AgenticDomain): AgenticSearchSpec | null {
@@ -130,7 +149,7 @@ function primarySourceSearch(query: string, domain: AgenticDomain): AgenticSearc
 	}
 	if (domain === "business" && INDIA_RE.test(query)) {
 		return {
-			query: `${query} official India AI startup MSME policy adoption market data ${year}`,
+			query: `${query} official India AI startup MSME adoption evidence ${year}`,
 			includeDomains: INDIA_BUSINESS_PRIMARY,
 			numResults: 10,
 		};
@@ -144,16 +163,29 @@ function primarySourceSearch(query: string, domain: AgenticDomain): AgenticSearc
 function buildSupplementarySearches(query: string, domain: AgenticDomain): AgenticSearchSpec[] {
 	const searches: AgenticSearchSpec[] = [];
 	const primary = primarySourceSearch(query, domain);
+	const year = new Date().getUTCFullYear();
 	if (primary) searches.push(primary);
 
 	if (domain === "business") {
+		if (INDIA_RE.test(query)) {
+			searches.push({
+				query: `India MSME service businesses registrations digital adoption official dashboard ${year}`,
+				includeDomains: INDIA_MSME_PRIMARY,
+				numResults: 8,
+			});
+			searches.push({
+				query: `IndiaAI Mission startups compute MSME AI adoption official ${year}`,
+				includeDomains: INDIA_AI_PRIMARY,
+				numResults: 8,
+			});
+		}
 		searches.push({
 			query: `${query} customer demand competitors alternatives pricing distribution unit economics`,
 			numResults: 6,
 		});
 		if (INDIA_RE.test(query)) {
 			searches.push({
-				query: `${query} official India business compliance DPDP GST company requirements ${new Date().getUTCFullYear()}`,
+				query: `${query} official India business compliance DPDP GST company requirements ${year}`,
 				includeDomains: INDIA_BUSINESS_PRIMARY,
 				numResults: 8,
 			});
@@ -172,7 +204,7 @@ function buildSupplementarySearches(query: string, domain: AgenticDomain): Agent
 		});
 	}
 	if (CURRENT_RE.test(query)) {
-		searches.push({ query: `${query} latest update ${new Date().getUTCFullYear()}`, numResults: 6 });
+		searches.push({ query: `${query} latest update ${year}`, numResults: 6 });
 	}
 	return uniqueSearches(searches, query);
 }
@@ -183,7 +215,8 @@ When the user asks for a decision, strategy, business idea, purchase, or plan:
 - Consider at least three materially different viable options before choosing.
 - For a substantial business/strategy decision, visibly compare at least three options in a compact table or compact scored comparison before the final recommendation, unless the user explicitly asks for a very short answer.
 - Compare the options on the factors that actually drive the decision (for example: pain, demand, cost, time-to-value, distribution, risk, reversibility, and fit with the user's existing assets).
-- Run an adversarial check against the leading option. Identify the strongest reason it could fail. If the counter-evidence is stronger, change the recommendation rather than defending the first idea.
+- Run an adversarial check against the leading option. Identify the strongest reason it could fail. If the user explicitly asks you to argue against your recommendation, include a distinct strongest-case-against section and a separate condition/evidence threshold that would make you switch recommendations.
+- If the user explicitly asks what to avoid, state the most important avoid-list rather than leaving it implicit.
 - Make the final recommendation explicit and explain why it beats the alternatives for this user, not just in the abstract.`;
 
 	const evidenceInstructions = `
@@ -194,7 +227,9 @@ Evidence discipline:
 - Treat precise forecasts, prices, valuations, MRR/ARR targets, conversion rates, CAC, churn, timelines, percentages, token prices, and market-size numbers from blogs or unknown-quality sources as estimates unless independently corroborated.
 - Separate verified facts from estimates, assumptions, inference, and professional judgment. Do not make an estimate sound like a measured fact.
 - Corroborate decision-critical numerical claims when practical. One weak source is not enough merely because it contains a precise number.
-- Recompute derived arithmetic before presenting it. Never convert a TAM figure into expected company revenue, valuation, or outcome without explicit assumptions and correct arithmetic.
+- Recompute derived arithmetic before presenting it. Never convert a TAM figure into expected company revenue, valuation, or outcome without explicit bottom-up assumptions and correct arithmetic.
+- Never claim that a foreign-currency cost range fits a rupee budget unless you show a reasonable conversion assumption or the source itself provides the rupee equivalent.
+- For a fixed-budget plan, reconcile allocated spend and reserve so the arithmetic equals the stated budget. If exact costs are too uncertain, use ranges instead of false precision.
 - Avoid words such as "guarantees", "forces payment", "routinely", "always", or "will" unless the evidence genuinely supports that strength of claim.
 - Do not infer that a source is authoritative just because it ranks highly in search results.`;
 
@@ -202,12 +237,13 @@ Evidence discipline:
 Context discipline:
 - Treat relevant durable memory and conversation history as the user's current operating state unless the current message corrects it.
 - Before recommending setup work, registration, purchases, integrations, or infrastructure, check whether context says the user already has it. Build from existing assets instead of recommending duplicate work.
+- When durable memory names an existing company, product, or platform that is directly relevant to the decision, the recommendation must explicitly explain whether to build on that asset, reposition it, or deliberately avoid using it and why. Do not silently ignore relevant named assets.
 - If entity/setup status is unknown, do not assume the user is starting from zero. Phrase setup steps conditionally (for example, "if not already incorporated") rather than as mandatory first actions.
 - Use memory to improve fit, not to force personalization where it is irrelevant.`;
 
 	const domainSpecific =
 		domain === "business"
-			? `\nFor business strategy, prioritize evidence of painful demand, willingness to pay, reachable distribution, competitive substitutes, gross-margin economics, implementation cost, time to first revenue, and founder fit. Distinguish evidence from founder assumptions. Do not choose an idea merely because "vertical AI" or "micro-SaaS" is fashionable. Prefer a smaller, testable wedge with a credible route to first revenue over a large TAM story with weak distribution evidence.`
+			? `\nFor business strategy, prioritize evidence of painful demand, willingness to pay, reachable distribution, competitive substitutes, gross-margin economics, implementation cost, time to first revenue, and founder fit. Distinguish evidence from founder assumptions. Do not choose an idea merely because "vertical AI" or "micro-SaaS" is fashionable. Prefer a smaller, testable wedge with a credible route to first revenue over a large TAM story with weak distribution evidence. Do not use top-down market-size capture percentages as the primary revenue case; prefer bottom-up customer-count × price × retention assumptions.`
 			: domain === "legal-tax"
 				? `\nFor legal/tax/compliance questions, distinguish statutory rules, notifications/circulars, thresholds, exceptions, effective dates, and jurisdiction. Avoid turning a general threshold into a universal rule.`
 				: domain === "medical"
