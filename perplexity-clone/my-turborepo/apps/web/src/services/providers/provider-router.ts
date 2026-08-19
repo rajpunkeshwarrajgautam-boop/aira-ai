@@ -7,6 +7,12 @@ import {
 	validatePublicationCandidate,
 } from "../publication-guard";
 import {
+	assertSafetyAllowed,
+	postInferenceSafetyEnabled,
+	SafetyBlockedError,
+	SafetyGatewayError,
+} from "../safety/safety-gateway";
+import {
 	getProviderHealthSnapshot,
 	providerCircuitAllowsRequest,
 	recordProviderFailure,
@@ -66,6 +72,10 @@ function enforceFinalPublicationBoundary(
 		);
 	}
 	return candidate;
+}
+
+function isSafetyBoundaryError(error: unknown): boolean {
+	return error instanceof SafetyBlockedError || error instanceof SafetyGatewayError;
 }
 
 export class ProviderRouter {
@@ -138,6 +148,7 @@ export class ProviderRouter {
 		const verifierCall = isPrivateVerifierCall(messages);
 		const structuredJsonCall = isPrivateStructuredJsonCall(messages);
 		const privateBufferedCall = verifierCall || structuredJsonCall;
+		const safetyBufferedPublication = postInferenceSafetyEnabled() && !privateBufferedCall;
 
 		const primaryConfigured = this.providerConfigured(this.primaryProviderId);
 		const fallbackConfigured =
@@ -160,6 +171,15 @@ export class ProviderRouter {
 					return;
 				}
 
+				if (safetyBufferedPublication) {
+					let candidate = "";
+					for await (const delta of this.primaryCore.streamChat(messages, options)) candidate += delta;
+					await assertSafetyAllowed("output", candidate);
+					recordProviderSuccess(this.primaryProviderId);
+					yield candidate;
+					return;
+				}
+
 				for await (const delta of this.primaryCore.streamChat(messages, options)) {
 					yieldedAny = true;
 					yield delta;
@@ -167,6 +187,7 @@ export class ProviderRouter {
 				recordProviderSuccess(this.primaryProviderId);
 				return;
 			} catch (error) {
+				if (isSafetyBoundaryError(error)) throw error;
 				primaryError = error;
 				recordProviderFailure(this.primaryProviderId, error);
 
@@ -226,11 +247,21 @@ export class ProviderRouter {
 				return;
 			}
 
+			if (safetyBufferedPublication) {
+				let candidate = "";
+				for await (const delta of this.fallbackCore.streamChat(messages, fallbackOptions)) candidate += delta;
+				await assertSafetyAllowed("output", candidate);
+				recordProviderSuccess(this.fallbackProviderId);
+				yield candidate;
+				return;
+			}
+
 			for await (const delta of this.fallbackCore.streamChat(messages, fallbackOptions)) {
 				yield delta;
 			}
 			recordProviderSuccess(this.fallbackProviderId);
 		} catch (error) {
+			if (isSafetyBoundaryError(error)) throw error;
 			recordProviderFailure(this.fallbackProviderId, error);
 			throw error;
 		}
