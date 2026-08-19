@@ -36,19 +36,42 @@ export async function createKnowledgeAsset(args: {
 	return id;
 }
 
+export async function listKnowledgeAssets(userId: string, limit = 50): Promise<
+	readonly {
+		readonly id: string;
+		readonly filename: string;
+		readonly mimeType: string;
+		readonly sizeBytes: bigint;
+		readonly status: string;
+		readonly errorMessage: string | null;
+		readonly createdAt: Date;
+		readonly updatedAt: Date;
+	}[]
+> {
+	const take = Math.min(Math.max(limit, 1), 100);
+	return prisma.$queryRaw`
+		select id, filename, "mimeType", "sizeBytes", status, "errorMessage", "createdAt", "updatedAt"
+		from public."KnowledgeAsset"
+		where "userId" = ${userId}
+		order by "createdAt" desc
+		limit ${take}
+	`;
+}
+
 export async function updateKnowledgeAssetStatus(args: {
 	readonly assetId: string;
 	readonly userId: string;
 	readonly status: KnowledgeAssetStatus;
 	readonly errorMessage?: string | null;
 }): Promise<void> {
-	await prisma.$executeRaw`
+	const changed = await prisma.$executeRaw`
 		update public."KnowledgeAsset"
 		set status = ${args.status},
 			"errorMessage" = ${args.errorMessage ?? null},
 			"updatedAt" = now()
 		where id = ${args.assetId} and "userId" = ${args.userId}
 	`;
+	if (changed !== 1) throw new Error("Knowledge asset was not found for this user.");
 }
 
 async function prepareChunkRows(chunks: readonly KnowledgeChunkInput[]): Promise<
@@ -90,7 +113,15 @@ export async function replaceKnowledgeChunks(args: {
 	readonly userId: string;
 	readonly chunks: readonly KnowledgeChunkInput[];
 }): Promise<void> {
+	const owner = await prisma.$queryRaw<Array<{ id: string }>>`
+		select id from public."KnowledgeAsset"
+		where id = ${args.assetId} and "userId" = ${args.userId}
+		limit 1
+	`;
+	if (owner.length !== 1) throw new Error("Knowledge asset ownership check failed.");
 	const rows = await prepareChunkRows(args.chunks);
+	if (rows.length === 0) throw new Error("No usable document chunks were produced.");
+
 	await prisma.$transaction(async (tx) => {
 		await tx.$executeRaw`
 			delete from public."KnowledgeChunk"
@@ -145,6 +176,6 @@ export async function getRelevantKnowledgeContext(
 		.filter((row) => row.similarity >= 0.55)
 		.map(
 			(row) =>
-				`UPLOADED KNOWLEDGE — ${row.filename} chunk ${row.ordinal}:\n${row.content.slice(0, 2600)}`,
+				`<aira_untrusted_user_document source=${JSON.stringify(row.filename)} chunk=${row.ordinal}>\n${row.content.slice(0, 2600)}\n</aira_untrusted_user_document>`,
 		);
 }
