@@ -317,3 +317,60 @@ export function sanitizeRemainingPublicationViolations(
 
 	return candidate.replace(/\n{3,}/g, "\n\n").trim();
 }
+
+/**
+ * Compatibility wrapper used by the current ProviderRouter fallback path. Historically it
+ * removed only duplicate-state lines; V8 deliberately fails closed for every deterministic
+ * violation that can be safely handled without another model call.
+ */
+export function stripStateContradictionLines(
+	candidateInput: string,
+	violations: readonly PublicationViolation[],
+): string {
+	let candidate = normalizeModelCitations(candidateInput);
+
+	const invalidIndices = new Set<number>();
+	for (const violation of violations) {
+		if (violation.code !== "invalid-citation") continue;
+		const match = violation.detail.match(/Citation \[(\d{1,4})\]/);
+		if (match) invalidIndices.add(Number.parseInt(match[1]!, 10));
+	}
+	if (invalidIndices.size > 0) {
+		candidate = candidate.replace(/\[(\d{1,4})\]/g, (marker, rawIndex: string) =>
+			invalidIndices.has(Number.parseInt(rawIndex, 10)) ? "" : marker,
+		);
+	}
+
+	const blockedLines = new Set(
+		violations
+			.filter(
+				(violation) =>
+					(violation.code === "state-contradiction" || violation.code === "unsupported-cited-number") &&
+					violation.line,
+			)
+			.map((violation) => violation.line!.trim()),
+	);
+	if (blockedLines.size > 0) {
+		candidate = candidate
+			.split(/\r?\n/)
+			.filter((line) => !blockedLines.has(line.trim()))
+			.join("\n");
+	}
+
+	const omission = violations.find((violation) => violation.code === "state-omission");
+	if (omission) {
+		const match = omission.detail.match(/existing asset\(s\): (.+?)\. The answer/i);
+		const assets = match?.[1]?.trim();
+		if (assets) {
+			const namedAssets = assets.split(/,\s*/).map((asset) => asset.trim()).filter(Boolean);
+			const mentionsExisting = namedAssets.some((asset) => candidate.toLowerCase().includes(asset.toLowerCase()));
+			if (!mentionsExisting) {
+				candidate =
+					`**Existing assets to build on:** ${namedAssets.slice(0, 2).join(" and ")}. Use these as the operating/product base for this plan rather than starting from zero.\n\n` +
+					candidate;
+			}
+		}
+	}
+
+	return candidate.replace(/\n{3,}/g, "\n\n").trim();
+}
