@@ -139,7 +139,8 @@ export async function POST(req: Request): Promise<Response> {
 		);
 	}
 	if (!lease.allowed) {
-		trace.finish("rejected", { code: "CAPACITY_BUSY", kind: admissionKind });
+		trace.mark("admission_rejected", { code: "CAPACITY_BUSY", kind: admissionKind });
+		trace.finish("error", { code: "CAPACITY_BUSY", kind: admissionKind });
 		return admissionRejected(lease, trace.requestId);
 	}
 	if (lease.degraded) trace.mark("control_plane_degraded");
