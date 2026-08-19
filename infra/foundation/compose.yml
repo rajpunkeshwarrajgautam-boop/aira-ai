@@ -60,8 +60,6 @@ services:
       AIRA_SANDBOX_TOKEN: ${AIRA_SANDBOX_TOKEN:?set AIRA_SANDBOX_TOKEN}
       AIRA_SANDBOX_MAX_WALL_SECONDS: ${AIRA_SANDBOX_MAX_WALL_SECONDS:-8}
       AIRA_SANDBOX_MAX_MEMORY_BYTES: ${AIRA_SANDBOX_MAX_MEMORY_BYTES:-268435456}
-    ports:
-      - "127.0.0.1:${AIRA_SANDBOX_PORT:-8091}:8080"
     networks: [sandbox]
     read_only: true
     tmpfs:
@@ -71,6 +69,37 @@ services:
     pids_limit: 32
     mem_limit: 384m
     cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  sandbox-gateway:
+    build: ./sandbox-gateway
+    restart: unless-stopped
+    environment:
+      AIRA_SANDBOX_TOKEN: ${AIRA_SANDBOX_TOKEN:?set AIRA_SANDBOX_TOKEN}
+      AIRA_SANDBOX_UPSTREAM: http://sandbox:8080
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AIRA_SANDBOX_PORT:-8091}:8080"
+    networks: [control, sandbox]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 32
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
   inference:
     profiles: ["gpu"]
