@@ -10,6 +10,11 @@ import {
 	RequestGuardError,
 } from "@services/runtime/request-guard";
 import { AiraRuntimeTrace } from "@services/runtime/runtime-trace";
+import {
+	assertSafetyAllowed,
+	SafetyBlockedError,
+	SafetyGatewayError,
+} from "@services/safety/safety-gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,6 +106,7 @@ export async function POST(req: Request): Promise<Response> {
 
 	let forwarded = req;
 	let admissionKind: "search" | "deep-research" = "search";
+	let normalizedQueryForSafety: string | undefined;
 	try {
 		const body = (await req.clone().json()) as unknown;
 		if (typeof body === "object" && body !== null && "query" in body) {
@@ -108,6 +114,7 @@ export async function POST(req: Request): Promise<Response> {
 			admissionKind = record.mode === "deep" ? "deep-research" : "search";
 			if (typeof record.query === "string") {
 				const normalizedQuery = normalizeAndGuardUserQuery(record.query);
+				normalizedQueryForSafety = normalizedQuery;
 				const normalizedBody = { ...record, query: normalizedQuery };
 				forwarded = new Request(req.url, {
 					method: req.method,
@@ -126,6 +133,32 @@ export async function POST(req: Request): Promise<Response> {
 			return guardedError(error, trace.requestId);
 		}
 		trace.mark("request_guard_deferred");
+	}
+
+	if (normalizedQueryForSafety) {
+		try {
+			const decision = await assertSafetyAllowed("input", normalizedQueryForSafety);
+			trace.mark("safety_input_checked", {
+				action: decision.action,
+				degraded: decision.degraded,
+			});
+		} catch (error) {
+			if (error instanceof SafetyBlockedError) {
+				trace.finish("error", { code: "SAFETY_BLOCKED" });
+				return Response.json(
+					{ error: { code: "SAFETY_BLOCKED", message: "This request cannot be processed by the configured safety policy." } },
+					{ status: 403, headers: { "Cache-Control": "no-store", "X-AIRA-Request-Id": trace.requestId } },
+				);
+			}
+			if (error instanceof SafetyGatewayError) {
+				trace.finish("error", { code: "SAFETY_GATEWAY_UNAVAILABLE" });
+				return Response.json(
+					{ error: { code: "SAFETY_GATEWAY_UNAVAILABLE", message: "The required safety service is temporarily unavailable." } },
+					{ status: 503, headers: { "Cache-Control": "no-store", "X-AIRA-Request-Id": trace.requestId } },
+				);
+			}
+			throw error;
+		}
 	}
 
 	let lease: AdmissionLease;
