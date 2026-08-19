@@ -13,6 +13,7 @@ import {
 	recordProviderSuccess,
 	shouldFailOverProviderError,
 } from "./provider-health";
+import { providerAllowedByResidency } from "./residency-policy";
 import {
 	ProviderRouter as CoreProviderRouter,
 	type AIProvider,
@@ -119,7 +120,7 @@ export class ProviderRouter {
 	}
 
 	private providerConfigured(providerId: string): boolean {
-		return this.registeredProviderIds.has(providerId);
+		return this.registeredProviderIds.has(providerId) && providerAllowedByResidency(providerId);
 	}
 
 	private fallbackOptions(options: ProviderOptions): ProviderOptions {
@@ -199,8 +200,10 @@ export class ProviderRouter {
 
 		if (!fallbackConfigured || !this.fallbackCore) {
 			if (primaryError) throw primaryError;
-			if (!primaryConfigured) throw new Error("No AI providers configured in ProviderRouter.");
-			throw new Error("Primary provider is temporarily unavailable and no fallback is configured.");
+			if (!primaryConfigured) {
+				throw new Error("No AI providers configured or allowed by the active residency policy in ProviderRouter.");
+			}
+			throw new Error("Primary provider is temporarily unavailable and no permitted fallback is configured.");
 		}
 
 		if (!providerCircuitAllowsRequest(this.fallbackProviderId)) {
