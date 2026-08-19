@@ -1,0 +1,1 @@
+{"max_wall_seconds":900,"max_steps":40,"allowed_capabilities":["web.read","repo.read","code.sandbox"],"require_human_approval":["repo.write","deploy","send","purchase","delete","credential.use"]}
