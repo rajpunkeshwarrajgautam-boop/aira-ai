@@ -131,7 +131,7 @@ export async function POST(req: Request): Promise<Response> {
 	let lease: AdmissionLease;
 	try {
 		lease = await admitFoundationRequest({ requestId: trace.requestId, kind: admissionKind });
-	} catch (error) {
+	} catch {
 		trace.finish("error", { code: "CONTROL_PLANE_UNAVAILABLE" });
 		return Response.json(
 			{ error: { code: "CONTROL_PLANE_UNAVAILABLE", message: "AIRA capacity coordination is temporarily unavailable." } },
