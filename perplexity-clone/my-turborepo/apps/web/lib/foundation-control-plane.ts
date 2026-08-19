@@ -32,14 +32,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 	const timeoutMs = Number.parseInt(process.env.AIRA_CONTROL_PLANE_TIMEOUT_MS ?? "1500", 10);
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) ? timeoutMs : 1500);
+	const headers = new Headers(init.headers);
+	headers.set("Content-Type", "application/json");
+	headers.set("X-AIRA-Control-Token", cfg.token);
 	try {
 		const response = await fetch(`${cfg.baseUrl}${path}`, {
 			...init,
-			headers: {
-				"Content-Type": "application/json",
-				"X-AIRA-Control-Token": cfg.token,
-				...(init.headers ?? {}),
-			},
+			headers,
 			signal: controller.signal,
 			cache: "no-store",
 		});
