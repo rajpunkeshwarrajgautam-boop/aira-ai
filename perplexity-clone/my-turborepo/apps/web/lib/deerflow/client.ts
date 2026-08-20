@@ -97,7 +97,7 @@ async function requestJson<T>(options: {
 			cache: "no-store",
 			signal: controller.signal,
 		});
-	} catch (error) {
+	} catch {
 		const timedOut = controller.signal.aborted;
 		throw new DeerFlowRequestError({
 			code: timedOut ? "DEERFLOW_TIMEOUT" : "DEERFLOW_UNREACHABLE",
