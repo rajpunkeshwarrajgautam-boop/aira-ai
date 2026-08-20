@@ -19,6 +19,7 @@ const ACTIVE_SYNC_INTERVAL_MS = 2_500;
 
 const RUN_SELECT = {
 	id: true,
+	provider: true,
 	objective: true,
 	status: true,
 	result: true,
@@ -32,6 +33,7 @@ type SelectedRun = Prisma.AgentRunGetPayload<{ select: typeof RUN_SELECT }>;
 
 export interface AgentRunDto {
 	readonly id: string;
+	readonly provider: string;
 	readonly objective: string;
 	readonly status: AgentRunStatus;
 	readonly result: unknown | null;
@@ -44,6 +46,7 @@ export interface AgentRunDto {
 export function toAgentRunDto(run: SelectedRun): AgentRunDto {
 	return {
 		id: run.id,
+		provider: run.provider,
 		objective: run.objective,
 		status: run.status,
 		result: run.result,
@@ -131,6 +134,7 @@ export async function submitAgentRun(options: {
 			data: {
 				userId: options.userId,
 				clientRequestId: options.clientRequestId,
+				provider: "AUTOGPT",
 				graphId: config.graphId,
 				graphVersion: config.graphVersion,
 				objective: options.objective,
@@ -211,7 +215,7 @@ export async function refreshAgentRun(
 	runId: string,
 ): Promise<AgentRunDto | null> {
 	const row = await prisma.agentRun.findFirst({
-		where: { id: runId, userId },
+		where: { id: runId, userId, provider: "AUTOGPT" },
 	});
 	if (!row) return null;
 	if (isTerminal(row.status) || !row.remoteExecutionId) {
