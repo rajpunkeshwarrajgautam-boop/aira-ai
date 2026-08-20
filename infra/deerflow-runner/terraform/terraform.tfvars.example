@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored:
+# it names your admin networks, which should not be public.
+#
+# Authenticate separately, out of band:
+#   export DIGITALOCEAN_TOKEN=...      # never put the token in this file
+
+# SSH keys already uploaded to the DigitalOcean account.
+#   doctl compute ssh-key list
+ssh_key_fingerprints = ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff"]
+
+# Networks allowed to reach SSH. Narrow this to your own address or VPN range.
+# 0.0.0.0/0 is rejected by validation.
+admin_ipv4_cidrs = ["203.0.113.4/32"]
+
+region = "blr1"
+
+# Set manage_dns = true only when the domain's DNS is hosted in DigitalOcean.
+manage_dns    = false
+dns_domain    = ""
+dns_subdomain = "agents"

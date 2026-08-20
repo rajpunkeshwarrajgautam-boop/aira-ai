@@ -96,6 +96,25 @@ jobs:
           fi
           echo "Verification gate correctly fails closed."
 
+      - name: Validate the DeerFlow host Terraform module
+        run: |
+          if command -v terraform >/dev/null 2>&1; then
+            terraform -chdir=infra/deerflow-runner/terraform fmt -check -recursive
+            terraform -chdir=infra/deerflow-runner/terraform init -backend=false -input=false
+            terraform -chdir=infra/deerflow-runner/terraform validate
+          else
+            echo "::notice::Terraform not available on this runner; skipping HCL validation."
+          fi
+
+      - name: Confirm the module commits no credential
+        run: |
+          if grep -rniE 'DIGITALOCEAN_TOKEN[[:space:]]*=[[:space:]]*"[^"]|password[[:space:]]*=[[:space:]]*"[a-zA-Z0-9]|api_key[[:space:]]*=[[:space:]]*"[a-zA-Z0-9]' \
+               infra/deerflow-runner/terraform infra/deerflow-runner/config.production.example.yaml; then
+            echo "::error::A literal credential appears in committed DeerFlow infrastructure."
+            exit 1
+          fi
+          echo "No literal credentials in committed DeerFlow infrastructure."
+
       - name: Confirm the upstream pin is consistent across the runner
         run: |
           pin_count="$(grep -rhoE 'a5acc25de6742b2166b3f41c97bd895822277b94' infra/deerflow-runner | wc -l)"

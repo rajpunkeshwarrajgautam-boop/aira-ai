@@ -1,0 +1,58 @@
+# AIRA DeerFlow production configuration template.
+#
+# Copy to /opt/aira/deer-flow/config.yaml on the DeerFlow host and fill in the
+# marked values. Every field below was checked against pinned upstream revision
+# a5acc25de6742b2166b3f41c97bd895822277b94; do not assume it still applies after
+# the pin moves.
+#
+# SECRETS: this file must contain NO literal credential. DeerFlow performs
+# environment substitution on config values, so every secret is written as
+# $VARIABLE and its real value lives only in /opt/aira/deer-flow/.env (mode 600).
+# This template is committed; the rendered config.yaml is not.
+
+# ── Model provider ──────────────────────────────────────────────────────────
+# Any OpenAI-compatible endpoint works through PatchedChatOpenAI. AIRA already
+# holds an NVIDIA credential, so NVIDIA NIM is the lowest-friction choice; the
+# key must still be placed on this host's .env, not read from Vercel.
+#
+# Set DEERFLOW_MODEL_NAME in AIRA to the `name` chosen here, or leave AIRA's
+# variable unset to accept DeerFlow's own default model.
+models:
+  - name: aira-deerflow-primary
+    display_name: AIRA DeerFlow Primary
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: <PROVIDER_MODEL_ID>          # e.g. an NVIDIA NIM model id
+    base_url: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    request_timeout: 600.0
+    max_retries: 2
+    context_window: 128000
+
+# ── Sandbox ─────────────────────────────────────────────────────────────────
+# E2B runs agent code off this host entirely. The upstream Docker-socket (DooD)
+# mode is deliberately not used: it grants the Gateway root-equivalent control of
+# the host, which is not acceptable for untrusted multi-user autonomous work.
+sandbox:
+  use: deerflow.community.e2b_sandbox:E2BSandboxProvider
+  api_key: $E2B_API_KEY
+  template: code-interpreter-v1
+  idle_timeout: 1800                    # seconds, forwarded to E2B set_timeout
+  acquire_timeout: 30
+  replicas: 3                           # hard concurrent-sandbox cap
+  # Redis-backed ownership so the cap holds across workers and orphaned
+  # sandboxes are reconciled rather than leaked.
+  ownership:
+    type: redis
+    redis_url: $DEER_FLOW_STREAM_BRIDGE_REDIS_URL
+  reconciliation_interval_seconds: 60
+  reconciliation_grace_seconds: 120
+  reconciliation_orphan_ttl_seconds: 3600
+
+# ── Database ────────────────────────────────────────────────────────────────
+# Postgres is NOT a service in upstream's production Compose, and the default is
+# SQLite, which upstream warns against for concurrent users. Point this at the
+# managed cluster and build the Gateway image with UV_EXTRAS=postgres so the
+# driver is installed.
+database:
+  backend: postgres
+  connection_string: $DATABASE_URL
