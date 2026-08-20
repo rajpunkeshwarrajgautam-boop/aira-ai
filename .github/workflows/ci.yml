@@ -72,6 +72,39 @@ jobs:
       - name: Build authenticated adapter image
         run: docker build -t aira-autogpt-adapter:ci infra/autogpt-runner/adapter
 
+  deerflow-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate DeerFlow provisioning and verification scripts
+        run: |
+          bash -n infra/deerflow-runner/scripts/provision-vps.sh
+          bash -n infra/deerflow-runner/scripts/verify-deployment.sh
+
+      - name: Self-test the DeerFlow verification gate
+        run: bash infra/deerflow-runner/scripts/verify-deployment.sh --self-test
+
+      - name: Confirm the verification gate fails closed without a host
+        run: |
+          if bash infra/deerflow-runner/scripts/verify-deployment.sh --host; then
+            echo "::error::The verification gate reported success with no DeerFlow host present."
+            exit 1
+          fi
+          echo "Verification gate correctly fails closed."
+
+      - name: Confirm the upstream pin is consistent across the runner
+        run: |
+          pin_count="$(grep -rhoE 'a5acc25de6742b2166b3f41c97bd895822277b94' infra/deerflow-runner | wc -l)"
+          if [ "$pin_count" -lt 2 ]; then
+            echo "::error::The pinned DeerFlow revision is not declared in both the runbook and the scripts."
+            exit 1
+          fi
+          echo "Pinned revision declared in $pin_count place(s)."
+
   foundation-services:
     runs-on: ubuntu-latest
     timeout-minutes: 20

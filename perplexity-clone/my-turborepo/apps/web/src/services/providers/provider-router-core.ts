@@ -333,13 +333,13 @@ async function generateSafeVerifierText(
 		console.warn(
 			`[AIRA publication gate] ${violations.length} deterministic issue(s) remained after repair; stripping duplicate-state instructions and publishing the repaired answer.`,
 		);
-		return stripStateContradictionLines(normalized, violations);
+		return stripStateContradictionLines(normalized, violations, messages);
 	} catch (error) {
 		console.warn(
 			"[AIRA publication gate] Deterministic repair failed; stripping duplicate-state instructions from the verified answer:",
 			errorMessage(error),
 		);
-		return stripStateContradictionLines(normalized, violations);
+		return stripStateContradictionLines(normalized, violations, messages);
 	}
 }
 

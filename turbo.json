@@ -104,23 +104,47 @@
     "AIRA_MEDIA_MODEL",
     "SELF_HOSTED_LLM_BASE_URL",
     "SELF_HOSTED_LLM_API_KEY",
-    "SELF_HOSTED_LLM_MODEL"
+    "SELF_HOSTED_LLM_MODEL",
+    "CASHFREE_PLAN_CURRENCY",
+    "CASHFREE_PLAN_MAX_CYCLES",
+    "CASHFREE_PRO_MONTHLY_AMOUNT",
+    "CASHFREE_TEAM_SEAT_MONTHLY_AMOUNT",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "VERCEL_ENV"
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": [
+        "^lint"
+      ]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": [
+        "^check-types"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test": {
+      "dependsOn": [
+        "^test"
+      ],
+      "outputs": []
     }
   }
 }

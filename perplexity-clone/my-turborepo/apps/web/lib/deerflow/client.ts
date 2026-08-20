@@ -5,6 +5,14 @@ export class DeerFlowRequestError extends Error {
 	readonly status: number;
 	readonly retryable: boolean;
 	readonly submissionOutcomeUnknown: boolean;
+	/**
+	 * Diagnostic text taken from the DeerFlow Gateway response. It is for server
+	 * logs only: upstream `detail` strings can carry host paths, configuration
+	 * fragments or model-provider error text. `message` stays AIRA-owned so a
+	 * route can return it to the browser without leaking any of that, matching how
+	 * the AutoGPT adapter already handles upstream failures.
+	 */
+	readonly upstreamDetail?: string;
 
 	constructor(options: {
 		readonly code: string;
@@ -12,6 +20,7 @@ export class DeerFlowRequestError extends Error {
 		readonly status?: number;
 		readonly retryable?: boolean;
 		readonly submissionOutcomeUnknown?: boolean;
+		readonly upstreamDetail?: string;
 	}) {
 		super(options.message);
 		this.name = "DeerFlowRequestError";
@@ -19,6 +28,7 @@ export class DeerFlowRequestError extends Error {
 		this.status = options.status ?? 502;
 		this.retryable = options.retryable ?? false;
 		this.submissionOutcomeUnknown = options.submissionOutcomeUnknown ?? false;
+		this.upstreamDetail = options.upstreamDetail;
 	}
 }
 
@@ -64,14 +74,31 @@ function internalHeaders(config: DeerFlowConfig, ownerUserId: string): Headers {
 	return headers;
 }
 
-async function responseMessage(response: Response): Promise<string> {
+/** Extracts upstream diagnostic text for server logs. Never returned to a client. */
+async function upstreamDetail(response: Response): Promise<string | undefined> {
 	const payload = (await response.json().catch(() => null)) as
 		| { detail?: unknown; error?: unknown; message?: unknown }
 		| null;
 	for (const candidate of [payload?.detail, payload?.error, payload?.message]) {
 		if (typeof candidate === "string" && candidate.trim()) return candidate.trim().slice(0, 500);
 	}
-	return `DeerFlow request failed (${response.status}).`;
+	return undefined;
+}
+
+/** AIRA-owned, user-safe explanation of an upstream DeerFlow failure. */
+function safeMessageForStatus(status: number): string {
+	if (status === 401 || status === 403) return "AIRA's DeerFlow connection is not authorized.";
+	if (status === 404) return "The DeerFlow task or thread is no longer available.";
+	if (status === 409) return "DeerFlow is already running work on this thread.";
+	if (status === 422) return "DeerFlow rejected this task request.";
+	if (status === 429) return "DeerFlow is rate limiting new requests. Retry shortly.";
+	if (status >= 500) return "The DeerFlow SuperAgent runtime is temporarily unavailable.";
+	return "DeerFlow could not process this request.";
+}
+
+function logUpstreamFailure(operation: string, status: number, detail?: string): void {
+	// Structured, secret-free diagnostics. The detail stays server-side.
+	console.warn("[deerflow:upstream]", JSON.stringify({ operation, status, detail: detail ?? null }));
 }
 
 async function requestJson<T>(options: {
@@ -114,13 +141,16 @@ async function requestJson<T>(options: {
 
 	if (!response.ok) {
 		const retryable = response.status === 408 || response.status === 409 || response.status === 429 || response.status >= 500;
+		const detail = await upstreamDetail(response);
+		logUpstreamFailure(options.path, response.status, detail);
 		throw new DeerFlowRequestError({
 			code: `DEERFLOW_HTTP_${response.status}`,
-			message: await responseMessage(response),
+			message: safeMessageForStatus(response.status),
 			status: response.status,
 			retryable,
 			// A concrete HTTP response proves the Gateway processed the request boundary.
 			submissionOutcomeUnknown: false,
+			upstreamDetail: detail,
 		});
 	}
 	return (await response.json()) as T;
@@ -232,11 +262,14 @@ export async function cancelDeerFlowRun(
 			},
 		);
 		if (!response.ok && response.status !== 409) {
+			const detail = await upstreamDetail(response);
+			logUpstreamFailure("cancel", response.status, detail);
 			throw new DeerFlowRequestError({
 				code: `DEERFLOW_HTTP_${response.status}`,
-				message: await responseMessage(response),
+				message: safeMessageForStatus(response.status),
 				status: response.status,
 				retryable: response.status >= 500,
+				upstreamDetail: detail,
 			});
 		}
 	} finally {
@@ -288,6 +321,13 @@ export function extractDeerFlowResult(state: DeerFlowThreadState, run: DeerFlowR
 	}
 
 	const boundedOutput = output.length > 120_000 ? `${output.slice(0, 120_000)}\n\n[Output truncated by AIRA]` : output;
+	// The artifact list becomes the download allowlist and is persisted on the
+	// AgentRun row, so keep it to a bounded set of plain path strings rather than
+	// storing whatever shape the Gateway happened to return. The route still
+	// re-validates every path before proxying a download.
+	const artifacts = (state.values?.artifacts ?? [])
+		.filter((value): value is string => typeof value === "string" && value.length <= 1_024)
+		.slice(0, 200);
 	return {
 		output: boundedOutput || null,
 		threadId: run.thread_id,
@@ -302,7 +342,7 @@ export function extractDeerFlowResult(state: DeerFlowThreadState, run: DeerFlowR
 			subagents: run.subagent_tokens ?? 0,
 			middleware: run.middleware_tokens ?? 0,
 		},
-		artifacts: state.values?.artifacts ?? [],
+		artifacts,
 		title: state.values?.title ?? null,
 	};
 }

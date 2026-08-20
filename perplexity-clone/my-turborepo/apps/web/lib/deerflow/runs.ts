@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { AgentRunStatus } from "@/generated/prisma/enums";
+import { classifyStaleRun } from "@/lib/agents/run-reconciliation";
 import type { AgentRunDto } from "@/lib/autogpt/runs";
 import {
 	consumeAgentRunQuota,
@@ -190,6 +191,19 @@ export async function submitDeerFlowAgentRun(options: {
 	}
 }
 
+/** Moves a run that outlived its reconciliation bound into a terminal state. */
+async function closeStaleRun(runId: string, errorMessage: string): Promise<SelectedRun> {
+	return prisma.agentRun.update({
+		where: { id: runId },
+		data: {
+			status: AgentRunStatus.FAILED,
+			errorMessage,
+			completedAt: new Date(),
+		},
+		select: RUN_SELECT,
+	});
+}
+
 export async function refreshDeerFlowAgentRun(
 	userId: string,
 	runId: string,
@@ -198,12 +212,36 @@ export async function refreshDeerFlowAgentRun(
 		where: { id: runId, userId, provider: PROVIDER },
 	});
 	if (!row) return null;
-	if (isTerminal(row.status) || !row.remoteExecutionId) return toDto(row);
+	if (isTerminal(row.status)) return toDto(row);
+
+	const stale = classifyStaleRun({
+		remoteExecutionId: row.remoteExecutionId,
+		createdAt: row.createdAt,
+	});
+	if (stale) return toDto(await closeStaleRun(row.id, stale.errorMessage));
+
+	if (!row.remoteExecutionId) return toDto(row);
 	if (Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) return toDto(row);
 
 	const { threadId, runId: remoteRunId } = decodeRemoteExecution(row.remoteExecutionId);
 	const config = getDeerFlowConfig();
-	const remote = await getDeerFlowRun(config, userId, threadId, remoteRunId);
+	let remote: Awaited<ReturnType<typeof getDeerFlowRun>>;
+	try {
+		remote = await getDeerFlowRun(config, userId, threadId, remoteRunId);
+	} catch (error) {
+		// A 404 is durable: DeerFlow no longer knows this run, so polling it again
+		// can only keep the workspace spinning. Every other failure is transient and
+		// must surface as a sync warning against the cached row instead.
+		if (error instanceof DeerFlowRequestError && error.status === 404) {
+			return toDto(
+				await closeStaleRun(
+					row.id,
+					"The agent runtime no longer has a record of this task, so AIRA closed it.",
+				),
+			);
+		}
+		throw error;
+	}
 	const status = statusFromDeerFlow(remote.status);
 	const terminal = isTerminal(status);
 	let result: Prisma.InputJsonValue | undefined;
