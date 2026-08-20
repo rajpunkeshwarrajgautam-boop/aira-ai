@@ -169,11 +169,16 @@ export async function createDeerFlowRun(
 	objective: string,
 	localRunId: string,
 ): Promise<DeerFlowRun> {
-	const configurable: Record<string, unknown> = {
+	const context: Record<string, unknown> = {
 		thinking_enabled: config.thinkingEnabled,
 		is_plan_mode: config.planMode,
+		// AIRA submits detached background objectives and has no live
+		// clarification loop. DeerFlow explicitly permits these flags only for
+		// internally authenticated callers, which this adapter is.
+		non_interactive: true,
+		disable_clarification: true,
 	};
-	if (config.modelName) configurable.model_name = config.modelName;
+	if (config.modelName) context.model_name = config.modelName;
 
 	return requestJson<DeerFlowRun>({
 		config,
@@ -184,7 +189,8 @@ export async function createDeerFlowRun(
 		body: {
 			input: { messages: [{ role: "user", content: objective }] },
 			metadata: { source: "aira-ai", aira_run_id: localRunId },
-			config: { recursion_limit: 100, configurable },
+			config: { recursion_limit: 100 },
+			context,
 			multitask_strategy: "reject",
 			if_not_exists: "create",
 		},
