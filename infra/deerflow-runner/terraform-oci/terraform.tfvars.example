@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+#
+# Authenticate out of band, never in this file:
+#   ~/.oci/config  (oci setup config), or the OCI_* environment variables.
+
+# Tenancy root OCID is fine for a personal account: Console → Profile → Tenancy.
+compartment_ocid = "ocid1.tenancy.oc1..aaaa..."
+
+# Contents of your PUBLIC key. On Windows:
+#   Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub
+ssh_public_key = "ssh-ed25519 AAAA... you@host"
+
+# Your current public IPv4. 0.0.0.0/0 is rejected by validation.
+admin_ipv4_cidrs = ["203.0.113.4/32"]
+
+# Optional: pin an AD when the first one has no A1 capacity.
+# availability_domain = "xxxx:AP-MUMBAI-1-AD-1"

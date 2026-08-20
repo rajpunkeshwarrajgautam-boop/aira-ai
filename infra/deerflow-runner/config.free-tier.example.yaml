@@ -1,0 +1,56 @@
+# AIRA DeerFlow configuration for the Oracle Always Free host.
+#
+# Differs from config.production.example.yaml in three ways, each forced by the
+# $0 constraint: the sandbox is the self-hosted AIO provider on k3s instead of
+# paid E2B, PostgreSQL is a container on the same box instead of a managed
+# service, and concurrency is pinned to 1 because the host has 2 OCPUs.
+#
+# Every field was checked against pinned revision a5acc25de6742b2166b3f41c97bd895822277b94.
+#
+# SECRETS: no literal credential belongs here. DeerFlow substitutes $VARIABLE
+# from the environment; real values live only in /opt/aira/deer-flow/.env (0600).
+
+# ── Model provider ──────────────────────────────────────────────────────────
+# Must be a free-quota or already-paid-for credential. Do not enable a provider
+# that starts billing on first call.
+models:
+  - name: aira-deerflow-primary
+    display_name: AIRA DeerFlow Primary
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: <PROVIDER_MODEL_ID>
+    base_url: https://integrate.api.nvidia.com/v1
+    api_key: $NVIDIA_API_KEY
+    request_timeout: 600.0
+    max_retries: 2
+    context_window: 128000
+
+# ── Sandbox: AIO on k3s ─────────────────────────────────────────────────────
+# Not E2B (paid) and not LocalSandboxProvider (no isolation — unacceptable for
+# multi-user autonomous execution). The provisioner schedules one sandbox Pod
+# per acquisition into the local single-node k3s cluster.
+#
+# The image tag is pinned deliberately. Upstream warns that the mirror's :latest
+# is frozen on a pre-1.9.3 digest missing the /v1/bash/* routes, and the
+# provisioner service in upstream's Compose still defaults SANDBOX_IMAGE to
+# :latest. Override it — see the compose override in this directory.
+sandbox:
+  use: deerflow.community.aio_sandbox:AioSandboxProvider
+  provisioner_url: http://provisioner:8002
+  image: enterprise-public-cn-beijing.cr.volces.com/vefaas-public/all-in-one-sandbox:1.11.0
+  # 2 OCPUs total. More than one concurrent sandbox starves the Gateway,
+  # PostgreSQL and Redis. AIRA's admission control queues or rejects the rest.
+  replicas: 1
+
+# ── Database: self-hosted PostgreSQL ────────────────────────────────────────
+database:
+  backend: postgres
+  connection_string: $DATABASE_URL
+
+# ── Run events ──────────────────────────────────────────────────────────────
+# The upstream default is `memory`, which loses execution traces and token
+# counts on every restart. AIRA persists token accounting onto its AgentRun
+# rows, so this must be `db` for the numbers to survive a container restart.
+run_events:
+  backend: db
+  max_trace_content: 10240
+  track_token_usage: true

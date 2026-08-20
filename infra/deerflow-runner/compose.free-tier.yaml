@@ -1,0 +1,79 @@
+# Compose override for the Oracle Always Free host.
+#
+# Adds the self-hosted PostgreSQL that upstream's production Compose does not
+# provide, and corrects two upstream defaults that are wrong for this topology.
+#
+# Apply it alongside upstream's file, from the DeerFlow checkout:
+#
+#   docker compose -p deer-flow \
+#     -f docker/docker-compose.yaml \
+#     -f /path/to/aira/infra/deerflow-runner/compose.free-tier.yaml \
+#     up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine          # official image, multi-arch, arm64 ready
+    container_name: deer-flow-postgres
+    # No ports: mapping. PostgreSQL is reachable only on the deer-flow network;
+    # 5432 must never be published on an Internet-facing host.
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-deerflow}
+      POSTGRES_USER: ${POSTGRES_USER:-deerflow_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      # Reduce write amplification on the free tier's shared block storage.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - ${DEER_FLOW_HOME}/postgres:/var/lib/postgresql/data
+    command:
+      # Sized for a 2 OCPU / 12 GB host that is also running the Gateway, Redis,
+      # nginx, the frontend, k3s and one sandbox Pod.
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=768MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deerflow_app} -d ${POSTGRES_DB:-deerflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - deer-flow
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  gateway:
+    build:
+      args:
+        # Without this the Postgres driver is not installed and the Gateway
+        # fails at startup once database.backend is postgres.
+        UV_EXTRAS: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Single worker: run state lives in this worker's memory, and 2 OCPUs cannot
+    # usefully serve more.
+    environment:
+      - GATEWAY_WORKERS=1
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  provisioner:
+    environment:
+      # Upstream's Compose hardcodes SANDBOX_IMAGE to :latest, which the project
+      # itself documents as a frozen pre-1.9.3 digest missing the /v1/bash/*
+      # routes. Pin the multi-arch 1.11.0 tag that works on arm64.
+      - SANDBOX_IMAGE=enterprise-public-cn-beijing.cr.volces.com/vefaas-public/all-in-one-sandbox:1.11.0
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  redis:
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
