@@ -5,6 +5,7 @@ import {
 	getEffectiveEntitlements,
 	refundAgentRunQuota,
 } from "@/lib/billing/plan-enforcement";
+import { classifyStaleRun } from "@/lib/agents/run-reconciliation";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -218,7 +219,28 @@ export async function refreshAgentRun(
 		where: { id: runId, userId, provider: "AUTOGPT" },
 	});
 	if (!row) return null;
-	if (isTerminal(row.status) || !row.remoteExecutionId) {
+	if (isTerminal(row.status)) {
+		return toAgentRunDto(row);
+	}
+
+	const stale = classifyStaleRun({
+		remoteExecutionId: row.remoteExecutionId,
+		createdAt: row.createdAt,
+	});
+	if (stale) {
+		const closed = await prisma.agentRun.update({
+			where: { id: row.id },
+			data: {
+				status: AgentRunStatus.FAILED,
+				errorMessage: stale.errorMessage,
+				completedAt: new Date(),
+			},
+			select: RUN_SELECT,
+		});
+		return toAgentRunDto(closed);
+	}
+
+	if (!row.remoteExecutionId) {
 		return toAgentRunDto(row);
 	}
 	if (Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) {
