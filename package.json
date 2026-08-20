@@ -5,7 +5,8 @@
 		"lint": "turbo run lint --filter=web",
 		"check-types": "turbo run check-types --filter=web",
 		"audit:prod": "pnpm audit --prod",
-		"ci": "pnpm run audit:prod && pnpm run lint && pnpm run check-types && pnpm run build"
+		"test": "turbo run test --filter=web",
+		"ci": "pnpm run audit:prod && pnpm run lint && pnpm run check-types && pnpm run test && pnpm run build"
 	},
 	"devDependencies": {
 		"dotenv": "^17.4.2",

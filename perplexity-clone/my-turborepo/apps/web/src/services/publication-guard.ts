@@ -129,9 +129,16 @@ function extractExistingEntities(context: string): string[] {
 	if (!durable) return [];
 	const entities = new Set<string>();
 	const patterns = [
-		/\bUser\s+(?:runs|owns|operates|has|uses)\s+([^ .\n]+(?:\s+[^.\n]+?)*)(?=\s+and\s+(?:builds|built|runs|owns|operates|uses|has)\b|[.\n]|$)/gi,
+		// The trailing quantifier must be lazy. A greedy one lets the `[.\n]`
+		// lookahead alternative win at the end of the sentence, swallowing the
+		// `and <verb>` clause boundary that separates two distinct assets. That
+		// produced entities such as "logistics company and builds an invoicing
+		// product", which never match real prose and therefore silently disabled
+		// the state-contradiction check.
+		/\bUser\s+(?:runs|owns|operates|has|uses)\s+([^ .\n]+(?:\s+[^.\n]+?)*?)(?=\s+and\s+(?:builds|built|runs|owns|operates|uses|has)\b|[.\n]|$)/gi,
 		/\bUser\s+(?:builds|built|created)\s+([^.\n]+?)(?=[.\n]|$)/gi,
 		/\band\s+(?:builds|built|created)\s+([^.\n]+?)(?=[.\n]|$)/gi,
+		/\band\s+(?:runs|owns|operates|uses|has)\s+([^.\n]+?)(?=[.\n]|$)/gi,
 	];
 	for (const pattern of patterns) {
 		let match: RegExpExecArray | null;
@@ -306,13 +313,20 @@ export function sanitizeRemainingPublicationViolations(
 			.join("\n");
 	}
 
-	if (violations.some((violation) => violation.code === "state-omission")) {
-		const entities = extractExistingEntities(context);
-		if (entities.length > 0 && !candidateMentionsAnyEntity(candidate, entities)) {
-			candidate =
-				`**Existing assets to build on:** ${entities.slice(0, 2).join(" and ")}. Use these as the operating/product base for this plan rather than starting from zero.\n\n` +
-				candidate;
-		}
+	// Line removal above can delete the only sentence that referenced an existing
+	// asset, which introduces a fresh state-omission that was absent from the
+	// incoming violation list. Re-evaluate the omission condition against the
+	// sanitized text using the same predicate `validatePublicationCandidate` applies,
+	// so this fail-closed path cannot hand back output that still fails validation.
+	const entities = extractExistingEntities(context);
+	if (
+		entities.length > 0 &&
+		isBusinessDecisionContext(context) &&
+		!candidateMentionsAnyEntity(candidate, entities)
+	) {
+		candidate =
+			`**Existing assets to build on:** ${entities.slice(0, 2).join(" and ")}. Use these as the operating/product base for this plan rather than starting from zero.\n\n` +
+			candidate;
 	}
 
 	return candidate.replace(/\n{3,}/g, "\n\n").trim();
@@ -326,6 +340,7 @@ export function sanitizeRemainingPublicationViolations(
 export function stripStateContradictionLines(
 	candidateInput: string,
 	violations: readonly PublicationViolation[],
+	messages: readonly PublicationMessageLike[] = [],
 ): string {
 	let candidate = normalizeModelCitations(candidateInput);
 
@@ -355,6 +370,20 @@ export function stripStateContradictionLines(
 			.split(/\r?\n/)
 			.filter((line) => !blockedLines.has(line.trim()))
 			.join("\n");
+	}
+
+	// Prefer the verifier context when the caller supplies it: like the sanitizer
+	// above, removing blocked lines can strip the only mention of an existing asset
+	// and create an omission that is not in the incoming violation list.
+	const context = combinedVerifierContext(messages);
+	const contextEntities = context ? extractExistingEntities(context) : [];
+	if (contextEntities.length > 0) {
+		if (isBusinessDecisionContext(context) && !candidateMentionsAnyEntity(candidate, contextEntities)) {
+			candidate =
+				`**Existing assets to build on:** ${contextEntities.slice(0, 2).join(" and ")}. Use these as the operating/product base for this plan rather than starting from zero.\n\n` +
+				candidate;
+		}
+		return candidate.replace(/\n{3,}/g, "\n\n").trim();
 	}
 
 	const omission = violations.find((violation) => violation.code === "state-omission");
