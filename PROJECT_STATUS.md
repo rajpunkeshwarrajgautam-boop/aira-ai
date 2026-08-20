@@ -3,7 +3,8 @@
 Last reconciled against the repository and the deployed application on 20 August 2026.
 
 - Production: https://aira-ai-live.vercel.app
-- Production commit: `878893300463a68569d13887300eaf56a61a22d6` ("Integrate DeerFlow 2.0 as AIRA SuperAgent runtime"), Vercel state READY
+- Production commit: `82881013c05feff81792ed47ebce4d6a0364448a` (PR #68, "Production completion pass"), Vercel deployment `dpl_4YRrLc9wcyHjPqk4RpvF35L1XpyZ`, state READY
+- Release record: [`docs/PRODUCTION_RELEASE_2026-08-20.md`](docs/PRODUCTION_RELEASE_2026-08-20.md)
 - Repository: https://github.com/rajpunkeshwarrajgautam-boop/aira-ai
 - Desktop 1.0 release: https://github.com/rajpunkeshwarrajgautam-boop/aira-ai/releases/tag/aira-desktop-v1.0.0
 
