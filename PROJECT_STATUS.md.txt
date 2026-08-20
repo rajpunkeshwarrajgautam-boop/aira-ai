@@ -1,3 +1,0 @@
-# AiraAI project status
-
-Canonical status document: PROJECT_STATUS.md
