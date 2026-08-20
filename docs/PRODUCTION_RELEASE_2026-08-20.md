@@ -13,6 +13,8 @@ blocked. Anything not evidenced here was not verified.
 | Production URL | https://aira-ai-live.vercel.app |
 | Vercel project | `aira-ai-live` (`prj_fXrnG5khmADI8znZfJZBylUsnvKU`) |
 | Production deployment at start of pass | `dpl_6aH4WwMq24ftcW86xuZW63YLuAty`, READY, commit `8788933` |
+| Merged as | PR #68, merge commit `82881013c05feff81792ed47ebce4d6a0364448a` |
+| **Released production deployment** | **`dpl_4YRrLc9wcyHjPqk4RpvF35L1XpyZ`, READY, commit `8288101`** |
 
 ## What changed
 
@@ -133,17 +135,31 @@ defects in the publication gate were found that way rather than by inspection.
 | Environment | State | Commit |
 | --- | --- | --- |
 | Preview (`dpl_7KA3yYv74S3m9SUDtje3YUf5D9ni`) | READY | `71ebb40` |
-| Production (`dpl_6aH4WwMq24ftcW86xuZW63YLuAty`) | READY | `8788933` |
+| Production before release (`dpl_6aH4WwMq24ftcW86xuZW63YLuAty`) | READY | `8788933` |
+| Production after release (`dpl_4YRrLc9wcyHjPqk4RpvF35L1XpyZ`) | READY | `8288101` |
+
+CI run `32339461076` was green across all four jobs (`quality`, `autogpt-runner`,
+`deerflow-runner`, `foundation-services`) before the merge.
 
 Preview smoke test: homepage 200; `/api/agents/runs` returns `401 UNAUTHENTICATED`
-with `Cache-Control: no-store` and no CORS grant. Vercel reported **zero runtime
-errors** across the preceding 24 hours.
+with `Cache-Control: no-store` and no CORS grant.
 
-Production headers verified: HSTS `max-age=31536000; includeSubDomains`,
-`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
-`Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` denying
-camera/microphone/geolocation, and a `__Secure-`prefixed `HttpOnly` `SameSite=Lax`
-session cookie scoped to the canonical production origin.
+Production smoke test after release, against `https://aira-ai-live.vercel.app`:
+
+- `/` returns 200 and the alias resolves to the new deployment.
+- `/signin` returns 200 with **both** OAuth providers enabled and
+  `canonicalOrigin: "https://aira-ai-live.vercel.app"`, confirming the
+  callback-domain fix is live in production.
+- `/api/agents/runs` returns `401 UNAUTHENTICATED`, `Cache-Control: no-store`,
+  no CORS grant.
+- Headers: HSTS `max-age=31536000; includeSubDomains`, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` denying
+  camera/microphone/geolocation, and a `__Secure-`prefixed `HttpOnly` `SameSite=Lax`
+  session cookie scoped to the canonical production origin.
+- Vercel reported **zero runtime errors** before and after the release.
+
+No P0 was observed after release, so no rollback was triggered.
 
 ## Database
 
@@ -217,7 +233,7 @@ change, no configuration change, no dependency change. Reverting the merge commi
 restores the previous behaviour exactly.
 
 ```bash
-git revert -m 1 <merge-commit-sha>
+git revert -m 1 82881013c05feff81792ed47ebce4d6a0364448a
 git push origin main
 ```
 
