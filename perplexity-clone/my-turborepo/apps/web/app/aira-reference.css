@@ -1,35 +1,58 @@
 .aira-home {
-	color-scheme: dark;
-	--surface: 0 0% 4%;
-	--surface-elevated: 0 0% 10%;
-	--surface-inset: 0 0% 8%;
-	--border-subtle: 0 0% 14%;
-	--border: 0 0% 20%;
-	--accent: 46 65% 52%;
-	--accent-muted: 46 58% 43%;
-	--accent-violet: 46 65% 52%;
-	--accent-cyan: 46 65% 52%;
-	--content-primary: 0 0% 91%;
-	--content-secondary: 0 0% 70%;
-	--content-tertiary: 0 0% 43%;
+	color-scheme: light dark;
+	--surface: 60 14% 99%;
+	--surface-elevated: 0 0% 100%;
+	--surface-inset: 60 11% 97%;
+	--border-subtle: 52 14% 87%;
+	--border: 45 7% 76%;
+	--accent: 15 63% 60%;
+	--accent-muted: 15 50% 52%;
+	--accent-violet: 15 63% 60%;
+	--accent-cyan: 15 63% 60%;
+	--content-primary: 30 2% 13%;
+	--content-secondary: 30 3% 42%;
+	--content-tertiary: 40 4% 53%;
+	--sidebar: 60 14% 97%;
 	min-height: 100dvh;
-	background: #0a0a0a;
-	color: #e8e8e8;
+	background: #fcfcfb;
+	color: #20201f;
 }
 
-.aira-home *::-webkit-scrollbar { width: 6px; height: 6px; }
-.aira-home *::-webkit-scrollbar-track { background: transparent; }
-.aira-home *::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 999px; }
-.aira-home *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); }
+.aira-home *,
+.aira-home *::before,
+.aira-home *::after {
+	box-sizing: border-box;
+}
 
-.aira-home > div:not(.aira-preloader) {
+.aira-home *::-webkit-scrollbar {
+	width: 7px;
+	height: 7px;
+}
+
+.aira-home *::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.aira-home *::-webkit-scrollbar-thumb {
+	border: 2px solid transparent;
+	border-radius: 999px;
+	background: rgba(32, 32, 31, 0.18);
+	background-clip: padding-box;
+}
+
+.aira-home *::-webkit-scrollbar-thumb:hover {
+	background: rgba(32, 32, 31, 0.3);
+	background-clip: padding-box;
+}
+
+.aira-home > div {
 	height: 100dvh;
 	min-height: 100dvh;
-	background: #0a0a0a !important;
+	background: hsl(var(--surface));
 	overflow: hidden;
 }
 
-.aira-home > div:not(.aira-preloader) > div {
+.aira-home > div > div {
 	height: 100dvh;
 	min-height: 100dvh;
 	width: 100% !important;
@@ -37,53 +60,96 @@
 	margin: 0 !important;
 }
 
-/* Exact reference shell: 260px sidebar + full-height main area. */
+/* Claude reference: 18rem navigation rail, quiet surface, no floating shell. */
 .aira-home div:has(> aside[aria-label="Conversation sidebar"]) {
-	width: 260px !important;
-	flex: 0 0 260px !important;
+	width: 18rem !important;
+	flex: 0 0 18rem !important;
 	padding: 0 !important;
 }
 
 .aira-home aside[aria-label="Conversation sidebar"] {
-	width: 260px !important;
+	width: 18rem !important;
 	height: 100dvh !important;
-	border-right: 1px solid rgba(255,255,255,.07) !important;
+	border: 0 !important;
+	border-right: 0.5px solid rgba(32, 32, 31, 0.12) !important;
 	border-radius: 0 !important;
-	background: #0d0d0d !important;
+	background: #f9f9f7 !important;
 	box-shadow: none !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] > div:first-child {
+	height: 52px !important;
+	border-bottom: 0 !important;
+	padding: 0 16px !important;
+}
+
+.aira-home aside a[aria-label="AIRA AI home"] {
+	gap: 0 !important;
+}
+
+.aira-home aside a[aria-label="AIRA AI home"] .aira-mark {
+	display: none !important;
+}
+
+.aira-home aside a[aria-label="AIRA AI home"] > span:last-child {
+	font-family: Georgia, "Times New Roman", serif !important;
+	font-size: 18px !important;
+	font-weight: 500 !important;
+	letter-spacing: -0.025em !important;
+	color: #2f2f2e !important;
+}
+
+.aira-home aside a[aria-label="AIRA AI home"] > span:last-child span {
+	font-weight: 400 !important;
+	color: #6d6b67 !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] button,
+.aira-home aside[aria-label="Conversation sidebar"] a:not([aria-label="AIRA AI home"]) {
+	border-color: transparent !important;
+	box-shadow: none !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] button:hover,
+.aira-home aside[aria-label="Conversation sidebar"] a:not([aria-label="AIRA AI home"]):hover {
+	background: rgba(32, 32, 31, 0.055) !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] > div:last-child {
+	border-top-color: rgba(32, 32, 31, 0.08) !important;
 }
 
 .aira-home main {
 	height: 100dvh;
+	min-width: 0;
 	min-height: 0 !important;
 	padding: 0 !important;
-	background: #0a0a0a !important;
 	border: 0 !important;
 	border-radius: 0 !important;
+	background: #fcfcfb !important;
 	box-shadow: none !important;
 	overflow: hidden;
 }
 
+/* Product logic remains mounted; secondary marketing chrome is simply quieted. */
 .aira-home main > div:first-child,
 .aira-home [aria-label="Plan and usage"],
 .aira-home [aria-label="Research history"],
-.aira-home main footer,
-.aira-home form[aria-label="Ask AiraAI"] + div {
+.aira-home main footer {
 	display: none !important;
 }
 
-/* 56px top bar from the uploaded HTML. */
 .aira-home main > header {
-	height: 56px !important;
-	min-height: 56px !important;
+	height: 52px !important;
+	min-height: 52px !important;
 	max-width: none !important;
 	margin: 0 !important;
-	padding: 0 22px !important;
+	padding: 0 18px !important;
 	flex-direction: row !important;
 	align-items: center !important;
 	gap: 0 !important;
-	border-bottom: 1px solid rgba(255,255,255,.07);
-	background: #0a0a0a;
+	border: 0 !important;
+	background: #fcfcfb !important;
 }
 
 .aira-home main > header > div {
@@ -91,28 +157,32 @@
 	align-items: center;
 }
 
-.aira-home main > header p { display: none !important; }
+.aira-home main > header p {
+	display: none !important;
+}
+
 .aira-home main > header h1 {
-	font-family: var(--font-geist-sans), Inter, system-ui, sans-serif !important;
+	font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 	font-size: 13px !important;
 	font-weight: 500 !important;
-	line-height: 1 !important;
-	letter-spacing: 0 !important;
-	color: #e8e8e8 !important;
+	line-height: 1.2 !important;
+	letter-spacing: -0.01em !important;
+	color: #6d6b67 !important;
 }
 
-.aira-home main > header > div > div:first-child > div[class*="bg-accent"] {
-	width: 8px !important;
-	height: 8px !important;
-	min-width: 8px !important;
-	border-radius: 999px !important;
-	background: #22c55e !important;
+.aira-home main:has(.aira-empty-state) > header h1 {
+	opacity: 0 !important;
+}
+
+.aira-home main > header div[class*="bg-accent"]:has(svg) {
+	display: none !important;
+}
+
+.aira-home main > header button {
 	box-shadow: none !important;
-	ring: 0 !important;
 }
-.aira-home main > header > div > div:first-child > div[class*="bg-accent"] svg { display: none !important; }
 
-/* Main body becomes chat thread + bottom composer, with no floating card shell. */
+/* Main thread is a continuous page rather than a card inside a page. */
 .aira-home main > div[class*="max-w-4xl"] {
 	width: 100% !important;
 	max-width: none !important;
@@ -125,7 +195,7 @@
 }
 
 .aira-home main > div[class*="max-w-4xl"] > div[aria-busy] {
-	order: 0 !important;
+	order: 1 !important;
 	min-height: 0 !important;
 	flex: 1 1 auto !important;
 	border: 0 !important;
@@ -136,127 +206,490 @@
 }
 
 .aira-home main > div[class*="max-w-4xl"] > div[aria-busy] > div:first-child {
-	background: #0a0a0a;
+	background: transparent !important;
 }
 
-.aira-home [class*="max-w-[820px]"] { max-width: 768px !important; }
+.aira-home .aira-conversation-list {
+	max-width: 48rem !important;
+	padding: 20px 24px 48px !important;
+}
 
-/* Empty state stays quiet and centered instead of looking like a marketing landing page. */
-.aira-home [aria-label="Suggested tasks"],
-.aira-home [aria-label="AiraAI capabilities"] { display: none !important; }
+/* Empty state mirrors Claude's static composer placement. */
+.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) {
+	justify-content: flex-start !important;
+	padding-top: clamp(72px, 17vh, 180px) !important;
+	overflow-y: auto !important;
+}
 
-/* Bottom interaction zone mirrors the reference input area. */
-.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) > div[aria-busy] {
 	order: 1 !important;
-	position: relative !important;
-	bottom: auto !important;
-	z-index: 5 !important;
+	flex: 0 0 auto !important;
+	min-height: 0 !important;
+	overflow: visible !important;
+}
+
+.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) .aira-conversation-list {
+	max-width: 42rem !important;
+	padding: 0 16px 28px !important;
+}
+
+.aira-empty-state {
+	padding: 0 !important;
+}
+
+.aira-reference-greeting {
+	font-family: Georgia, "Times New Roman", serif !important;
+	font-size: clamp(30px, 2.4vw, 38px) !important;
+	font-weight: 400 !important;
+	line-height: 1.2 !important;
+	letter-spacing: -0.04em !important;
+	color: #2f2f2e !important;
+}
+
+.aira-reference-spark {
+	display: inline-flex;
+	width: 0.72em;
+	height: 0.72em;
+	color: #d97757;
+	transform: translateY(-0.04em);
+}
+
+.aira-reference-empty-caption,
+.aira-reference-examples {
+	display: none !important;
+}
+
+/* Claude-style message rhythm: user bubble, assistant as clean document text. */
+.aira-user-message {
+	padding-top: 8px !important;
+	padding-bottom: 14px !important;
+}
+
+.aira-user-bubble {
+	max-width: min(82%, 36rem) !important;
+	border: 0 !important;
+	border-radius: 15px !important;
+	background: #f0efec !important;
+	color: #2f2f2e !important;
+	box-shadow: none !important;
+}
+
+.aira-assistant-message {
+	gap: 0 !important;
+	padding-top: 16px !important;
+	padding-bottom: 20px !important;
+}
+
+.aira-assistant-avatar,
+.aira-assistant-label {
+	display: none !important;
+}
+
+.aira-assistant-message .answer-markdown {
+	font-size: 15px !important;
+	line-height: 1.72 !important;
+}
+
+.aira-home .answer-markdown {
+	--tw-prose-body: #3b3b39;
+	--tw-prose-headings: #20201f;
+	--tw-prose-links: #9b4b32;
+	--tw-prose-bold: #20201f;
+	--tw-prose-quotes: #6d6b67;
+	--tw-prose-counters: #898781;
+	--tw-prose-bullets: #898781;
+	--tw-prose-hr: rgba(32, 32, 31, 0.1);
+	--tw-prose-th-borders: rgba(32, 32, 31, 0.13);
+	--tw-prose-td-borders: rgba(32, 32, 31, 0.08);
+	color: #3b3b39;
+}
+
+.aira-home .answer-markdown code {
+	border: 0 !important;
+	background: #f0efec !important;
+	color: #353533 !important;
+	box-shadow: inset 0 0 0 0.5px rgba(32, 32, 31, 0.08) !important;
+}
+
+.aira-home .answer-markdown pre {
+	border-color: rgba(32, 32, 31, 0.1) !important;
+	background: #f5f4f1 !important;
+	box-shadow: none !important;
+}
+
+/* Composer wrapper stays in the exact same component/state machine. */
+.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+	order: 2 !important;
+	position: sticky !important;
+	bottom: 0 !important;
+	z-index: 20 !important;
 	width: 100% !important;
-	max-width: 768px !important;
+	max-width: 44rem !important;
 	flex: 0 0 auto !important;
 	margin: 0 auto !important;
-	padding: 10px 0 14px !important;
+	padding: 10px 16px max(16px, env(safe-area-inset-bottom)) !important;
 	border: 0 !important;
-	background: #0a0a0a !important;
+	background: linear-gradient(180deg, rgba(252, 252, 251, 0), #fcfcfb 24px) !important;
 	backdrop-filter: none !important;
 }
 
-.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) > div:first-child {
-	padding: 0 16px;
+.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) > div:has(form[aria-label="Ask AiraAI"]) {
+	order: 2 !important;
+	position: relative !important;
+	bottom: auto !important;
+	z-index: 5 !important;
+	padding-top: 0 !important;
+	padding-bottom: 24px !important;
+	background: transparent !important;
+}
+
+.aira-home div:has(> form[aria-label="Ask AiraAI"]) > div:first-child {
+	max-width: 42rem !important;
+	margin: 0 auto 8px !important;
+}
+
+.aira-home div:has(> form[aria-label="Ask AiraAI"]) > div:first-child button {
+	min-height: 31px;
+	border-radius: 999px !important;
+	font-size: 12px !important;
+	box-shadow: none !important;
+}
+
+.aira-home div:has(> form[aria-label="Ask AiraAI"]) > p {
+	display: none !important;
+}
+
+.aira-home form[aria-label="Ask AiraAI"] + div[class*="text-xs"] {
+	display: none !important;
 }
 
 .aira-home form[aria-label="Ask AiraAI"] {
 	width: 100%;
-	max-width: 768px !important;
-	padding: 0 16px;
+	max-width: 42rem !important;
 }
 
 .aira-enterprise-composer {
-	background: #161616 !important;
-	border-color: rgba(255,255,255,.07) !important;
-	box-shadow: none !important;
-	transition: border-color .16s ease, background-color .16s ease;
+	border: 1px solid rgba(32, 32, 31, 0.08) !important;
+	border-radius: 20px !important;
+	background: #ffffff !important;
+	box-shadow:
+		0 4px 20px rgba(0, 0, 0, 0.035),
+		0 0 0 0.5px rgba(0, 0, 0, 0.055) !important;
+	transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
+
 .aira-enterprise-composer:focus-within {
-	background: #171717 !important;
-	border-color: rgba(255,255,255,.16) !important;
+	border-color: rgba(32, 32, 31, 0.14) !important;
+	box-shadow:
+		0 6px 24px rgba(0, 0, 0, 0.05),
+		0 0 0 1px rgba(32, 32, 31, 0.065) !important;
+}
+
+.aira-reference-textarea {
+	font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+	font-size: 15px !important;
+	font-weight: 400 !important;
+	color: #2f2f2e !important;
+	caret-color: #2f2f2e;
+}
+
+.aira-reference-textarea::placeholder {
+	color: #898781 !important;
+	opacity: 1;
+}
+
+.aira-reference-context-button:hover {
+	background: #f0efec !important;
+	color: #2f2f2e !important;
+}
+
+.aira-reference-context-label {
+	color: #898781 !important;
+}
+
+.aira-reference-send-button {
+	background: #2f2f2e !important;
+	color: #ffffff !important;
+}
+
+.aira-reference-send-button:hover:not(:disabled) {
+	background: #20201f !important;
+}
+
+.aira-reference-send-button:disabled {
+	background: #e1e0d9 !important;
+	color: #a6a49d !important;
+}
+
+.aira-reference-input-hint {
+	display: none !important;
 }
 
 .aira-home select {
-	background: #111 !important;
-	color: #d8d8d8 !important;
-	border-color: rgba(255,255,255,.07) !important;
+	border-color: rgba(32, 32, 31, 0.1) !important;
+	border-radius: 10px !important;
+	background: #ffffff !important;
+	color: #3b3b39 !important;
+	box-shadow: none !important;
 }
-.aira-home select option { background: #111; color: #d8d8d8; }
 
 .aira-home [class*="shadow-panel"],
-.aira-home [class*="shadow-glass"] { box-shadow: none !important; }
-
-.aira-home .answer-markdown {
-	--tw-prose-body: #b7b7b7;
-	--tw-prose-headings: #ededed;
-	--tw-prose-links: #d4af37;
-	--tw-prose-bold: #ededed;
-	--tw-prose-quotes: #8b8b8b;
-	--tw-prose-counters: #777;
-	--tw-prose-bullets: #555;
-	--tw-prose-hr: rgba(255,255,255,.08);
-	--tw-prose-th-borders: rgba(255,255,255,.10);
-	--tw-prose-td-borders: rgba(255,255,255,.06);
-}
-.aira-home .answer-markdown code {
-	border: 1px solid rgba(255,255,255,.07);
-	background: #1c1c1c;
-	color: #d8d8d8;
-}
-.aira-home .answer-markdown pre {
-	border-color: rgba(255,255,255,.07);
-	background: #151515;
-	box-shadow: none;
+.aira-home [class*="shadow-glass"] {
+	box-shadow: none !important;
 }
 
-/* Preloader copied from the uploaded reference behavior. */
-.aira-preloader {
-	position: fixed;
-	inset: 0;
-	z-index: 9999;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	background: #000;
-	transition: opacity .8s ease, visibility .8s ease;
+/* Suspense shell uses the same palette so there is no dark flash or preloader. */
+.aira-reference-skeleton {
+	background: #fcfcfb;
+	color: #20201f;
 }
-.aira-preloader[data-hidden="true"] { opacity: 0; visibility: hidden; pointer-events: none; }
-.aira-preloader-path {
-	fill: none;
-	stroke: #fff;
-	stroke-width: 1.5;
-	stroke-dasharray: 500;
-	stroke-dashoffset: 500;
-	animation: aira-draw-logo 2s ease forwards;
+
+.aira-reference-sidebar-skeleton {
+	border-right: 0.5px solid rgba(32, 32, 31, 0.12);
+	background: #f9f9f7;
 }
-.aira-preloader-label {
-	margin-top: 24px;
-	font-size: 14px;
-	letter-spacing: .4em;
-	color: #fff;
-	opacity: 0;
-	animation: aira-preloader-label 1s ease 1.5s forwards;
+
+.aira-reference-topbar-skeleton {
+	background: #fcfcfb;
 }
-@keyframes aira-draw-logo { to { stroke-dashoffset: 0; } }
-@keyframes aira-preloader-label { to { opacity: 1; } }
+
+.aira-reference-greeting-skeleton {
+	background: rgba(32, 32, 31, 0.055);
+}
+
+.aira-reference-composer-skeleton {
+	background: #ffffff;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.035), 0 0 0 0.5px rgba(0, 0, 0, 0.055);
+}
 
 @media (max-width: 767px) {
-	.aira-home > div:not(.aira-preloader),
-	.aira-home > div:not(.aira-preloader) > div,
-	.aira-home main { height: 100dvh; }
-	.aira-home div:has(> aside[aria-label="Conversation sidebar"]) { width: auto !important; flex-basis: auto !important; }
-	.aira-home main > header { padding: 0 14px !important; }
-	.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) { padding-bottom: max(12px, env(safe-area-inset-bottom)) !important; }
+	.aira-home > div,
+	.aira-home > div > div,
+	.aira-home main {
+		height: 100dvh;
+	}
+
+	.aira-home div:has(> aside[aria-label="Conversation sidebar"]) {
+		width: auto !important;
+		flex-basis: auto !important;
+	}
+
+	.aira-home aside[aria-label="Conversation sidebar"] {
+		width: min(18rem, 86vw) !important;
+	}
+
+	.aira-home main > header {
+		height: 48px !important;
+		min-height: 48px !important;
+		padding: 0 12px !important;
+	}
+
+	.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) {
+		padding-top: clamp(56px, 12vh, 104px) !important;
+	}
+
+	.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) .aira-conversation-list {
+		padding-bottom: 22px !important;
+	}
+
+	.aira-reference-greeting {
+		font-size: 30px !important;
+	}
+
+	.aira-home .aira-conversation-list {
+		padding: 14px 16px 36px !important;
+	}
+
+	.aira-user-bubble {
+		max-width: 88% !important;
+	}
+
+	.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+		padding-left: 10px !important;
+		padding-right: 10px !important;
+		padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+	}
+
+	.aira-reference-context-label {
+		display: none !important;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	.aira-home {
+		--surface: 0 0% 8%;
+		--surface-elevated: 0 0% 13%;
+		--surface-inset: 0 0% 13%;
+		--border-subtle: 0 0% 22%;
+		--border: 0 0% 28%;
+		--content-primary: 0 0% 92%;
+		--content-secondary: 0 0% 70%;
+		--content-tertiary: 0 0% 54%;
+		--sidebar: 0 0% 6%;
+		background: #151515;
+		color: #ececea;
+	}
+
+	.aira-home *::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.16);
+		background-clip: padding-box;
+	}
+
+	.aira-home *::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 255, 255, 0.26);
+		background-clip: padding-box;
+	}
+
+	.aira-home aside[aria-label="Conversation sidebar"] {
+		border-right-color: rgba(255, 255, 255, 0.08) !important;
+		background: #101010 !important;
+	}
+
+	.aira-home aside a[aria-label="AIRA AI home"] > span:last-child {
+		color: #ececea !important;
+	}
+
+	.aira-home aside a[aria-label="AIRA AI home"] > span:last-child span {
+		color: #9a9995 !important;
+	}
+
+	.aira-home aside[aria-label="Conversation sidebar"] button:hover,
+	.aira-home aside[aria-label="Conversation sidebar"] a:not([aria-label="AIRA AI home"]):hover {
+		background: rgba(255, 255, 255, 0.055) !important;
+	}
+
+	.aira-home aside[aria-label="Conversation sidebar"] > div:last-child {
+		border-top-color: rgba(255, 255, 255, 0.07) !important;
+	}
+
+	.aira-home main,
+	.aira-home main > header {
+		background: #151515 !important;
+	}
+
+	.aira-home main > header h1 {
+		color: #9a9995 !important;
+	}
+
+	.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+		background: linear-gradient(180deg, rgba(21, 21, 21, 0), #151515 24px) !important;
+	}
+
+	.aira-home main > div[class*="max-w-4xl"]:has(.aira-empty-state) > div:has(form[aria-label="Ask AiraAI"]) {
+		background: transparent !important;
+	}
+
+	.aira-reference-greeting {
+		color: #ececea !important;
+	}
+
+	.aira-reference-spark {
+		color: #d97757;
+	}
+
+	.aira-user-bubble {
+		background: #2a2a29 !important;
+		color: #ececea !important;
+	}
+
+	.aira-home .answer-markdown {
+		--tw-prose-body: #d0cfcb;
+		--tw-prose-headings: #f0efec;
+		--tw-prose-links: #e49a7f;
+		--tw-prose-bold: #f0efec;
+		--tw-prose-quotes: #aaa8a2;
+		--tw-prose-counters: #8f8d88;
+		--tw-prose-bullets: #8f8d88;
+		--tw-prose-hr: rgba(255, 255, 255, 0.1);
+		--tw-prose-th-borders: rgba(255, 255, 255, 0.13);
+		--tw-prose-td-borders: rgba(255, 255, 255, 0.08);
+		color: #d0cfcb;
+	}
+
+	.aira-home .answer-markdown code {
+		background: #272726 !important;
+		color: #e5e4e1 !important;
+		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.08) !important;
+	}
+
+	.aira-home .answer-markdown pre {
+		border-color: rgba(255, 255, 255, 0.08) !important;
+		background: #1d1d1c !important;
+	}
+
+	.aira-enterprise-composer {
+		border-color: rgba(255, 255, 255, 0.075) !important;
+		background: #20201f !important;
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(255, 255, 255, 0.055) !important;
+	}
+
+	.aira-enterprise-composer:focus-within {
+		border-color: rgba(255, 255, 255, 0.14) !important;
+		box-shadow: 0 6px 28px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+	}
+
+	.aira-reference-textarea {
+		color: #ececea !important;
+		caret-color: #ececea;
+	}
+
+	.aira-reference-textarea::placeholder,
+	.aira-reference-context-label {
+		color: #898781 !important;
+	}
+
+	.aira-reference-context-button:hover {
+		background: #30302f !important;
+		color: #ececea !important;
+	}
+
+	.aira-reference-send-button {
+		background: #ececea !important;
+		color: #20201f !important;
+	}
+
+	.aira-reference-send-button:hover:not(:disabled) {
+		background: #ffffff !important;
+	}
+
+	.aira-reference-send-button:disabled {
+		background: #353534 !important;
+		color: #77756f !important;
+	}
+
+	.aira-home select {
+		border-color: rgba(255, 255, 255, 0.08) !important;
+		background: #20201f !important;
+		color: #d0cfcb !important;
+	}
+
+	.aira-reference-skeleton,
+	.aira-reference-topbar-skeleton {
+		background: #151515;
+	}
+
+	.aira-reference-sidebar-skeleton {
+		border-right-color: rgba(255, 255, 255, 0.08);
+		background: #101010;
+	}
+
+	.aira-reference-greeting-skeleton {
+		background: rgba(255, 255, 255, 0.07);
+	}
+
+	.aira-reference-composer-skeleton {
+		background: #20201f;
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(255, 255, 255, 0.055);
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.aira-preloader-path,
-	.aira-preloader-label { animation: none !important; }
+	.aira-home *,
+	.aira-home *::before,
+	.aira-home *::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
 }
