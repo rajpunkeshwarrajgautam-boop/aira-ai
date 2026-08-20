@@ -202,6 +202,40 @@ are intact, and the reconciliation fix applies to its runs as well. Remote
 cancellation remains unavailable for AutoGPT and the API reports that honestly
 instead of pretending a stop succeeded.
 
+## Addendum — DeerFlow activation attempt, 20 August 2026
+
+Activation was attempted and is blocked on external infrastructure. The audit produced
+two corrections to the activation tooling, both of which would have caused a failed or
+misleading activation.
+
+**The verification gate had a false negative.** `verify-deployment.sh --host` probed
+`http://127.0.0.1:8001/health`. Upstream's production Compose publishes exactly one host
+port — nginx on `${BIND_HOST:-127.0.0.1}:${PORT:-2026}` — and the Gateway's 8001 is
+reachable only inside the Compose network, where it serves the container healthcheck. The
+probe would therefore have failed on a correctly deployed host, blocking a legitimate
+activation and teaching the operator to distrust the gate. It now probes `/health` through
+nginx on 2026, reads the container healthcheck via `docker inspect`, and additionally
+confirms locally that the API docs are disabled.
+
+**The runbook's Postgres prerequisite was unactionable.** It listed Postgres as required
+without saying how to configure it. Upstream's Compose has no `postgres` service and
+DeerFlow defaults to SQLite, which upstream itself warns against for concurrent users. The
+runbook now specifies the three concrete steps: `DATABASE_URL` in the DeerFlow `.env`,
+`database.backend: postgres` with `connection_string: $DATABASE_URL` in `config.yaml`, and
+the `UV_EXTRAS=postgres` build arg.
+
+Two exposure facts are now documented rather than assumed: `GATEWAY_ENABLE_DOCS` defaults
+to **true** upstream and `/docs`, `/redoc`, `/openapi.json` are both unauthenticated and
+nginx-proxied, so that one variable is the only thing keeping the API schema private; and
+`BIND_HOST` must not be opened until first-run setup has claimed an owner account.
+
+**The adapter is contract-correct against the pin.** `git ls-remote` confirmed
+`a5acc25de6742b2166b3f41c97bd895822277b94` is a real, fetchable commit and currently
+upstream `HEAD`. Reading the Gateway source at that revision confirmed every route, the
+artifact path form, the cancel parameters, all eight run-record fields, all six
+`RunStatus` values and all seven context flags match what AIRA sends. The full table is in
+`infra/deerflow-runner/README.md`. The pin was retained.
+
 ## Remaining blockers
 
 1. **No DeerFlow host.** This is the single external blocker to DeerFlow production

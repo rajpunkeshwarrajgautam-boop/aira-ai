@@ -20,8 +20,15 @@ set -Eeuo pipefail
 DEERFLOW_PIN="a5acc25de6742b2166b3f41c97bd895822277b94"
 INSTALL_ROOT="${DEERFLOW_INSTALL_ROOT:-/opt/aira/deer-flow}"
 STATE_ROOT="${DEERFLOW_STATE_ROOT:-/var/lib/deer-flow}"
-GATEWAY_HEALTH_URL="${DEERFLOW_GATEWAY_HEALTH_URL:-http://127.0.0.1:8001/health}"
+# Upstream's production Compose publishes exactly one host port: nginx on
+# ${BIND_HOST:-127.0.0.1}:${PORT:-2026}. The Gateway listens on 8001 inside the
+# container network and is NOT published, so probing 127.0.0.1:8001 from the host
+# fails even on a correctly deployed stack. Reach the Gateway through nginx, which
+# proxies /health and /api/* to it. The Gateway's own 8001 probe still runs, as
+# the container healthcheck, and is read below via `docker inspect`.
+GATEWAY_HEALTH_URL="${DEERFLOW_GATEWAY_HEALTH_URL:-http://127.0.0.1:2026/health}"
 GATEWAY_MODELS_URL="${DEERFLOW_GATEWAY_MODELS_URL:-http://127.0.0.1:2026/api/models}"
+GATEWAY_DOCS_URL="${DEERFLOW_GATEWAY_DOCS_URL:-http://127.0.0.1:2026/docs}"
 MIN_TOKEN_LENGTH=32
 
 PASS_COUNT=0
@@ -165,13 +172,35 @@ check_host() {
 	fi
 
 	section "Local gateway"
-	local health_status models_status
+	local health_status models_status docs_status
 	health_status="$(http_status "$GATEWAY_HEALTH_URL")"
-	[[ "$health_status" == "200" ]] && pass "Gateway /health returns 200" \
+	[[ "$health_status" == "200" ]] && pass "Gateway /health returns 200 through nginx" \
 		|| fail "Gateway /health returned $health_status"
 	models_status="$(http_status "$GATEWAY_MODELS_URL")"
 	[[ "$models_status" == "200" ]] && pass "At least one model is configured (/api/models returns 200)" \
 		|| fail "/api/models returned $models_status; configure a model provider"
+
+	# GATEWAY_ENABLE_DOCS defaults to "true" upstream, and /docs, /redoc and
+	# /openapi.json are unauthenticated AND proxied by nginx. That single variable
+	# is the only thing keeping the API schema private, so confirm it took effect
+	# here rather than discovering it from the public side.
+	docs_status="$(http_status "$GATEWAY_DOCS_URL")"
+	if docs_are_disabled "$docs_status"; then
+		pass "Gateway docs are disabled locally (HTTP $docs_status)"
+	else
+		fail "Gateway /docs answered $docs_status; set GATEWAY_ENABLE_DOCS=false and restart"
+	fi
+
+	if require_command docker; then
+		local gateway_health
+		gateway_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+			deer-flow-gateway 2>/dev/null || printf 'unknown')"
+		case "$gateway_health" in
+			healthy) pass "Gateway container healthcheck reports healthy" ;;
+			none) skip "Gateway container declares no healthcheck" ;;
+			*) fail "Gateway container healthcheck reports '$gateway_health'" ;;
+		esac
+	fi
 }
 
 # ---------------------------------------------------------------------------

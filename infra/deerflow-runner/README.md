@@ -55,13 +55,52 @@ Use a dedicated Linux host or cluster. DeerFlow's own production guide recommend
 
 - Docker Engine + Docker Compose plugin
 - persistent storage for `DEER_FLOW_HOME`
-- Redis (included in upstream Compose)
-- Postgres for concurrent production workloads
+- Redis — included in upstream Compose as the `redis` service, publishing no host port
+- Postgres for concurrent production workloads — **not** a Compose service; see
+  "Postgres" below, because it must be provisioned and wired up separately
 - TLS hostname dedicated to the Gateway/front door
 - strong `DEER_FLOW_INTERNAL_AUTH_TOKEN`
 - at least one configured LLM
 - container-based sandboxing; prefer the Kubernetes provisioner for strong multi-user isolation
 - firewall rules that do not expose raw Gateway/Redis/Postgres ports to the Internet
+
+Upstream's production Compose publishes exactly one host port: nginx on
+`${BIND_HOST:-127.0.0.1}:${PORT:-2026}`. The Gateway's own port 8001 is reachable only
+inside the Compose network, and `redis` publishes nothing. Keep it that way and put the
+TLS front door in front of nginx. A consequence worth knowing before debugging a
+deployment: `curl http://127.0.0.1:8001/health` on the host fails even when the stack is
+perfectly healthy. Probe `http://127.0.0.1:2026/health` instead, and read the Gateway's
+own 8001 probe with `docker inspect --format '{{.State.Health.Status}}' deer-flow-gateway`.
+
+### Postgres
+
+`docker/docker-compose.yaml` contains `redis`, `nginx`, `frontend`, `gateway` and an
+optional `provisioner` — there is no `postgres` service, and DeerFlow defaults to SQLite,
+which upstream warns against for concurrent users. For multi-user AIRA production,
+provision Postgres yourself (managed instance or a separate container), then:
+
+1. put the connection URL in the DeerFlow `.env` as `DATABASE_URL` (never in `config.yaml`);
+2. in `config.yaml`, set the `database` section to `backend: postgres` and reference the
+   env var rather than a literal: `connection_string: $DATABASE_URL`;
+3. build the Gateway image with the Postgres extra, via the `UV_EXTRAS` build arg the
+   Compose file already forwards (for example `UV_EXTRAS=postgres`).
+
+Restrict the database to the DeerFlow host; it must not be reachable from the Internet.
+
+### API docs are exposed by default
+
+`GATEWAY_ENABLE_DOCS` defaults to **`true`** upstream, `/docs`, `/redoc` and
+`/openapi.json` are in the Gateway's unauthenticated path list, and nginx proxies all
+three. That one variable is the only thing keeping the full API schema private, so
+`GATEWAY_ENABLE_DOCS=false` is load-bearing rather than cosmetic. The bootstrap script
+writes it, and both verification modes now assert it took effect.
+
+### Complete first-run setup before the host is reachable
+
+Upstream binds nginx to loopback precisely because the agent can execute commands. Set
+`BIND_HOST=0.0.0.0`, or open the TLS front door, only after first-run setup has been
+completed and an owner account exists — otherwise the first party to reach the host can
+claim it.
 
 The upstream Docker-socket (DooD/AIO) mode gives the Gateway root-equivalent control of the Docker host. Do not use that mode for untrusted public multi-user traffic without accepting that risk. Prefer the Kubernetes provisioner or another reviewed remote sandbox provider.
 
@@ -204,6 +243,35 @@ and artifacts.
 AIRA environment, then restart the stack and redeploy AIRA. Rotate in that order
 so the window where the two disagree only causes health-check failures, which
 fail closed, rather than unauthenticated acceptance.
+
+## Verified contract conformance
+
+Checked on 20 August 2026 by fetching pinned revision `a5acc25d` and reading the Gateway
+source directly. `git ls-remote` confirmed the pin is a real, fetchable commit and is
+currently upstream `HEAD`. Everything AIRA's adapter depends on is present and matches:
+
+| AIRA adapter expects | Upstream at `a5acc25d` |
+| --- | --- |
+| `POST /api/threads` | `routers/threads.py`, `APIRouter(prefix="/api/threads")` |
+| `POST /api/threads/{id}/runs` | `routers/thread_runs.py`, same prefix, returns `RunResponse` |
+| `GET /api/threads/{id}/runs/{runId}` | present |
+| `POST .../cancel?action=interrupt` | present; `action: Literal["interrupt","rollback"]`, default `interrupt` |
+| `GET /api/threads/{id}/state` | present, returns `ThreadStateResponse` |
+| `GET /api/threads/{id}/artifacts/{path}?download=true` | `routers/artifacts.py`, `APIRouter(prefix="/api")`, `{path:path}`, `download: bool = False` |
+| artifact paths under `mnt/user-data/outputs/` | matches upstream's own `_EDITABLE_OUTPUTS_PREFIX` |
+| `GET /health`, unauthenticated | present, and in the auth middleware's public prefix list |
+| `X-DeerFlow-Internal-Token`, `X-DeerFlow-Owner-User-Id` | both in `gateway/internal_auth.py` |
+| token fields on the run record | `total_input_tokens`, `total_output_tokens`, `total_tokens`, `llm_call_count`, `lead_agent_tokens`, `subagent_tokens`, `middleware_tokens`, `stop_reason` — all present, exactly named |
+| statuses `pending`/`running`/`success`/`interrupted`/`error`/`timeout` | `RunStatus` declares exactly these six; AIRA's mapper covers all of them |
+| context flags `non_interactive`, `disable_clarification`, `is_plan_mode`, `thinking_enabled`, `model_name`, `recursion_limit`, `if_not_exists` | all present in `gateway/services.py` |
+| `multitask_strategy: "reject"` | upstream's own default on `RunResponse` |
+
+Upstream additionally enforces ownership server-side: the artifact and cancel routes carry
+`@require_permission(..., owner_check=True)`. That is defence in depth behind AIRA's own
+ownership check, not a replacement for it.
+
+Re-run this comparison whenever the pin moves; it is the cheapest way to catch a breaking
+API change before it reaches a deployment.
 
 ## Upgrade procedure
 

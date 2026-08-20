@@ -80,6 +80,12 @@ Agent Workspace integration are merged and covered by tests. `DEERFLOW_AGENT_ENA
 defaults to `false`, so AIRA fails closed and no user-visible surface claims DeerFlow
 is ready.
 
+On 20 August 2026 the adapter's contract was checked directly against pinned revision
+`a5acc25d`, fetched from upstream: routes, artifact path form, cancel parameters, every
+token field, all six run statuses and all seven context flags match. The full comparison
+is in `infra/deerflow-runner/README.md`. The integration is therefore contract-correct
+against the pin; what is missing is a host to run it on.
+
 Provisioning is `infra/deerflow-runner/scripts/provision-vps.sh`; the activation gate
 is `infra/deerflow-runner/scripts/verify-deployment.sh`, which must exit zero in both
 `--host` and `--public` modes before `DEERFLOW_AGENT_ENABLED=true` is set anywhere.
@@ -117,12 +123,17 @@ state these tables exist to prevent.
 These are the only genuine blockers. Each needs infrastructure that does not exist
 yet; none of them can be resolved from inside the repository.
 
-1. **DeerFlow host.** A persistent Linux host with Docker Engine, the Compose plugin,
-   Redis, Postgres, a dedicated TLS hostname, and a reviewed sandbox provider. Prefer
-   the Kubernetes provisioner or another reviewed remote sandbox over the upstream
+1. **DeerFlow host.** A persistent Linux host, reachable from Vercel over TLS, with
+   Docker Engine, the Compose plugin, a Postgres instance (not part of upstream's
+   Compose), a dedicated DNS hostname, and a reviewed sandbox provider. Prefer the
+   Kubernetes provisioner or another reviewed remote sandbox over the upstream
    Docker-socket mode, which gives the Gateway root-equivalent control of the host.
    Then run the provisioning script, pass both verification modes, complete the
    end-to-end tests in Preview, and only then configure Production.
+
+   This cannot be satisfied from a Claude Code session container: those are ephemeral,
+   have no public address, and reach the network only through an egress-filtered proxy
+   that accepts no inbound connections. Activation needs a host the operator controls.
 2. **AutoGPT hosts.** An Ubuntu VPS primary with a public IPv4 address and a DNS
    hostname, plus a Windows standby behind a Cloudflare Tunnel restricted to
    `external-api/*`. Verify authenticated health for both, then run a real
