@@ -95,6 +95,19 @@ three. That one variable is the only thing keeping the full API schema private, 
 `GATEWAY_ENABLE_DOCS=false` is load-bearing rather than cosmetic. The bootstrap script
 writes it, and both verification modes now assert it took effect.
 
+### Sandbox: E2B, not the Docker socket
+
+Upstream ships several sandbox providers. Use
+`deerflow.community.e2b_sandbox:E2BSandboxProvider`, which exists at the pinned
+revision and runs agent code off the host entirely. Do **not** use the
+Docker-socket (DooD/aio) mode for public multi-user AIRA: it gives the Gateway
+root-equivalent control of the host.
+
+`config.production.example.yaml` in this directory carries the verified E2B block,
+including Redis-backed ownership so the `replicas` concurrency cap holds across
+workers and orphaned sandboxes are reconciled rather than leaked. The provider
+reads `sandbox.api_key`, falling back to the `E2B_API_KEY` environment variable.
+
 ### Complete first-run setup before the host is reachable
 
 Upstream binds nginx to loopback precisely because the agent can execute commands. Set
@@ -133,6 +146,34 @@ GATEWAY_ENABLE_DOCS=false
 ```
 
 Model credentials depend on `config.yaml`. Keep them only on the DeerFlow host. DeerFlow supports environment-variable substitution in `config.yaml`, so use `$VARIABLE_NAME` references instead of literal secrets.
+
+## Provisioning the host
+
+`terraform/` provisions the droplet, its firewall, and a managed PostgreSQL
+cluster restricted to that droplet. See `terraform/README.md`. It has not been
+applied against a live account — no DigitalOcean authorization has been granted —
+so read `terraform plan` before the first apply.
+
+### Expected monthly baseline
+
+List prices for the default module variables, to confirm against DigitalOcean's
+current pricing page before applying:
+
+| Item | Spec | Approx. USD/month |
+| --- | --- | --- |
+| Droplet | `s-4vcpu-8gb`, blr1 | ~48 |
+| Managed PostgreSQL | `db-s-1vcpu-1gb`, 1 node, blr1 | ~15 |
+| Droplet backups (optional) | 20% of droplet | ~10 |
+| **DigitalOcean subtotal** | | **~63–73** |
+
+Usage-based, billed separately and not created by Terraform:
+
+- **E2B sandboxes** — per sandbox-second. `replicas: 3` caps concurrency; the
+  dominant cost driver is how long agent tasks run, not how many start.
+- **Model provider** — per token, on whatever account supplies the credential.
+
+There is no GPU, load balancer, or Kubernetes cluster in this design: the model
+provider and the sandbox are both external services.
 
 ## Bootstrap
 
