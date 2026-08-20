@@ -12,6 +12,13 @@ import {
 	getEffectiveEntitlements,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
+import { DeerFlowRequestError } from "@/lib/deerflow/client";
+import {
+	DeerFlowConfigError,
+	isDeerFlowConfigured,
+	isDeerFlowEnabled,
+} from "@/lib/deerflow/config";
+import { submitDeerFlowAgentRun } from "@/lib/deerflow/runs";
 import {
 	admitFoundationRequest,
 	releaseFoundationLease,
@@ -25,15 +32,50 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type AgentProvider = "DEERFLOW" | "AUTOGPT";
+
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(4_000),
+	provider: z.enum(["DEERFLOW", "AUTOGPT"]).optional(),
 });
 
 function noStoreJson(body: unknown, init?: ResponseInit): Response {
 	const headers = new Headers(init?.headers);
 	headers.set("Cache-Control", "no-store");
 	return Response.json(body, { ...init, headers });
+}
+
+function providerState() {
+	const deerFlow = {
+		enabled: isDeerFlowEnabled(),
+		configured: isDeerFlowConfigured(),
+	};
+	const autoGpt = {
+		enabled: isAutoGptEnabled(),
+		configured: isAutoGptConfigured(),
+	};
+	const preferred: AgentProvider | null = deerFlow.configured
+		? "DEERFLOW"
+		: autoGpt.configured
+			? "AUTOGPT"
+			: null;
+	return { deerFlow, autoGpt, preferred };
+}
+
+function selectProvider(requested?: AgentProvider): AgentProvider {
+	const state = providerState();
+	const selected = requested ?? state.preferred;
+	if (!selected) {
+		throw new DeerFlowConfigError("No autonomous agent runtime is configured.");
+	}
+	if (selected === "DEERFLOW" && !state.deerFlow.configured) {
+		throw new DeerFlowConfigError("DeerFlow is not configured for this AIRA deployment.");
+	}
+	if (selected === "AUTOGPT" && !state.autoGpt.configured) {
+		throw new AutoGptConfigError("AutoGPT is not configured for this AIRA deployment.");
+	}
+	return selected;
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -50,11 +92,17 @@ export async function GET(req: Request): Promise<Response> {
 		listAgentRuns(session.user.id, limit),
 		getEffectiveEntitlements(session.user.id),
 	]);
+	const providers = providerState();
 	return noStoreJson({
 		runs,
 		feature: {
-			enabled: isAutoGptEnabled(),
-			configured: isAutoGptConfigured(),
+			enabled: providers.deerFlow.enabled || providers.autoGpt.enabled,
+			configured: providers.deerFlow.configured || providers.autoGpt.configured,
+			preferredProvider: providers.preferred,
+			providers: {
+				DEERFLOW: providers.deerFlow,
+				AUTOGPT: providers.autoGpt,
+			},
 		},
 		usage: {
 			billingPlan: entitlements.billingPlan,
@@ -117,6 +165,7 @@ export async function POST(req: Request): Promise<Response> {
 
 	let leaseId: string | undefined;
 	try {
+		const provider = selectProvider(parsed.data.provider);
 		const lease = await admitFoundationRequest({
 			requestId: parsed.data.clientRequestId,
 			kind: "agent",
@@ -137,11 +186,17 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		leaseId = lease.leaseId;
 
-		const submitted = await submitAgentRun({
-			userId: session.user.id,
-			clientRequestId: parsed.data.clientRequestId,
-			objective: parsed.data.objective,
-		});
+		const submitted = provider === "DEERFLOW"
+			? await submitDeerFlowAgentRun({
+				userId: session.user.id,
+				clientRequestId: parsed.data.clientRequestId,
+				objective: parsed.data.objective,
+			})
+			: await submitAgentRun({
+				userId: session.user.id,
+				clientRequestId: parsed.data.clientRequestId,
+				objective: parsed.data.objective,
+			});
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
 		if (error instanceof PlanEnforcementError) {
@@ -150,18 +205,18 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: error.status },
 			);
 		}
-		if (error instanceof AutoGptConfigError) {
+		if (error instanceof DeerFlowConfigError || error instanceof AutoGptConfigError) {
 			return noStoreJson(
 				{
 					error: {
 						code: error.code,
-						message: "Agent tasks are not configured for this Aira deployment.",
+						message: "Autonomous agent tasks are not configured for this AIRA deployment.",
 					},
 				},
 				{ status: 503 },
 			);
 		}
-		if (error instanceof AutoGptRequestError) {
+		if (error instanceof DeerFlowRequestError || error instanceof AutoGptRequestError) {
 			return noStoreJson(
 				{ error: { code: error.code, message: error.message, retryable: error.retryable } },
 				{ status: error.status },
