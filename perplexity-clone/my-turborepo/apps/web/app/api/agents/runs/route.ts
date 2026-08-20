@@ -12,6 +12,14 @@ import {
 	getEffectiveEntitlements,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
+import { checkDeerFlowHealth, DeerFlowRequestError } from "@/lib/deerflow/client";
+import {
+	DeerFlowConfigError,
+	getDeerFlowConfig,
+	isDeerFlowConfigured,
+	isDeerFlowEnabled,
+} from "@/lib/deerflow/config";
+import { submitDeerFlowAgentRun } from "@/lib/deerflow/runs";
 import {
 	admitFoundationRequest,
 	releaseFoundationLease,
@@ -25,15 +33,78 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type AgentProvider = "DEERFLOW" | "AUTOGPT";
+
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(4_000),
+	provider: z.enum(["DEERFLOW", "AUTOGPT"]).optional(),
 });
 
 function noStoreJson(body: unknown, init?: ResponseInit): Response {
 	const headers = new Headers(init?.headers);
 	headers.set("Cache-Control", "no-store");
 	return Response.json(body, { ...init, headers });
+}
+
+function configuredProviderState() {
+	return {
+		deerFlow: {
+			enabled: isDeerFlowEnabled(),
+			configured: isDeerFlowConfigured(),
+		},
+		autoGpt: {
+			enabled: isAutoGptEnabled(),
+			configured: isAutoGptConfigured(),
+		},
+	};
+}
+
+async function deerFlowHealthy(configured: boolean): Promise<boolean> {
+	if (!configured) return false;
+	try {
+		return await checkDeerFlowHealth(getDeerFlowConfig());
+	} catch {
+		return false;
+	}
+}
+
+async function selectProvider(requested?: AgentProvider): Promise<AgentProvider> {
+	const state = configuredProviderState();
+	if (requested === "DEERFLOW") {
+		if (!state.deerFlow.configured) {
+			throw new DeerFlowConfigError("DeerFlow is not configured for this AIRA deployment.");
+		}
+		if (!(await deerFlowHealthy(true))) {
+			throw new DeerFlowRequestError({
+				code: "DEERFLOW_UNHEALTHY",
+				message: "The DeerFlow SuperAgent runtime is temporarily unavailable.",
+				status: 503,
+				retryable: true,
+			});
+		}
+		return "DEERFLOW";
+	}
+	if (requested === "AUTOGPT") {
+		if (!state.autoGpt.configured) {
+			throw new AutoGptConfigError("AutoGPT is not configured for this AIRA deployment.");
+		}
+		return "AUTOGPT";
+	}
+
+	// DeerFlow is AIRA's preferred long-horizon engine, but a failed health probe
+	// must not strand the workspace when the already-hardened AutoGPT fallback is configured.
+	if (state.deerFlow.configured && (await deerFlowHealthy(true))) return "DEERFLOW";
+	if (state.autoGpt.configured) return "AUTOGPT";
+	if (state.deerFlow.configured) {
+		throw new DeerFlowRequestError({
+			code: "DEERFLOW_UNHEALTHY",
+			message: "The DeerFlow SuperAgent runtime is temporarily unavailable.",
+			status: 503,
+			retryable: true,
+		});
+	}
+	throw new DeerFlowConfigError("No autonomous agent runtime is configured.");
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -46,15 +117,30 @@ export async function GET(req: Request): Promise<Response> {
 	}
 	const requestedLimit = Number(new URL(req.url).searchParams.get("limit") ?? "20");
 	const limit = Number.isFinite(requestedLimit) ? requestedLimit : 20;
-	const [runs, entitlements] = await Promise.all([
+	const configured = configuredProviderState();
+	const [runs, entitlements, deerFlowIsHealthy] = await Promise.all([
 		listAgentRuns(session.user.id, limit),
 		getEffectiveEntitlements(session.user.id),
+		deerFlowHealthy(configured.deerFlow.configured),
 	]);
+	const deerFlowReady = configured.deerFlow.configured && deerFlowIsHealthy;
+	const autoGptReady = configured.autoGpt.configured;
+	const preferredProvider: AgentProvider | null = deerFlowReady
+		? "DEERFLOW"
+		: autoGptReady
+			? "AUTOGPT"
+			: null;
 	return noStoreJson({
 		runs,
 		feature: {
-			enabled: isAutoGptEnabled(),
-			configured: isAutoGptConfigured(),
+			enabled: configured.deerFlow.enabled || configured.autoGpt.enabled,
+			configured: configured.deerFlow.configured || configured.autoGpt.configured,
+			ready: deerFlowReady || autoGptReady,
+			preferredProvider,
+			providers: {
+				DEERFLOW: { ...configured.deerFlow, healthy: deerFlowIsHealthy, ready: deerFlowReady },
+				AUTOGPT: { ...configured.autoGpt, healthy: null, ready: autoGptReady },
+			},
 		},
 		usage: {
 			billingPlan: entitlements.billingPlan,
@@ -117,6 +203,7 @@ export async function POST(req: Request): Promise<Response> {
 
 	let leaseId: string | undefined;
 	try {
+		const provider = await selectProvider(parsed.data.provider);
 		const lease = await admitFoundationRequest({
 			requestId: parsed.data.clientRequestId,
 			kind: "agent",
@@ -137,11 +224,17 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		leaseId = lease.leaseId;
 
-		const submitted = await submitAgentRun({
-			userId: session.user.id,
-			clientRequestId: parsed.data.clientRequestId,
-			objective: parsed.data.objective,
-		});
+		const submitted = provider === "DEERFLOW"
+			? await submitDeerFlowAgentRun({
+				userId: session.user.id,
+				clientRequestId: parsed.data.clientRequestId,
+				objective: parsed.data.objective,
+			})
+			: await submitAgentRun({
+				userId: session.user.id,
+				clientRequestId: parsed.data.clientRequestId,
+				objective: parsed.data.objective,
+			});
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
 		if (error instanceof PlanEnforcementError) {
@@ -150,18 +243,18 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: error.status },
 			);
 		}
-		if (error instanceof AutoGptConfigError) {
+		if (error instanceof DeerFlowConfigError || error instanceof AutoGptConfigError) {
 			return noStoreJson(
 				{
 					error: {
 						code: error.code,
-						message: "Agent tasks are not configured for this Aira deployment.",
+						message: "Autonomous agent tasks are not configured for this AIRA deployment.",
 					},
 				},
 				{ status: 503 },
 			);
 		}
-		if (error instanceof AutoGptRequestError) {
+		if (error instanceof DeerFlowRequestError || error instanceof AutoGptRequestError) {
 			return noStoreJson(
 				{ error: { code: error.code, message: error.message, retryable: error.retryable } },
 				{ status: error.status },

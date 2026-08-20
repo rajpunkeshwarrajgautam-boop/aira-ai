@@ -2,6 +2,9 @@ import { auth } from "@/auth";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import { AutoGptConfigError } from "@/lib/autogpt/config";
 import { getAgentRun, refreshAgentRun } from "@/lib/autogpt/runs";
+import { DeerFlowRequestError } from "@/lib/deerflow/client";
+import { DeerFlowConfigError } from "@/lib/deerflow/config";
+import { refreshDeerFlowAgentRun } from "@/lib/deerflow/runs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +28,16 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 	}
 	const { runId } = await params;
 	try {
-		const run = await refreshAgentRun(session.user.id, runId);
+		const cached = await getAgentRun(session.user.id, runId);
+		if (!cached) {
+			return noStoreJson(
+				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
+				{ status: 404 },
+			);
+		}
+		const run = cached.provider === "DEERFLOW"
+			? await refreshDeerFlowAgentRun(session.user.id, runId)
+			: await refreshAgentRun(session.user.id, runId);
 		if (!run) {
 			return noStoreJson(
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
@@ -34,7 +46,12 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 		}
 		return noStoreJson({ run });
 	} catch (error) {
-		if (error instanceof AutoGptRequestError || error instanceof AutoGptConfigError) {
+		if (
+			error instanceof DeerFlowRequestError ||
+			error instanceof DeerFlowConfigError ||
+			error instanceof AutoGptRequestError ||
+			error instanceof AutoGptConfigError
+		) {
 			const cached = await getAgentRun(session.user.id, runId);
 			if (!cached) {
 				return noStoreJson(
@@ -44,7 +61,7 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 			}
 			return noStoreJson({
 				run: cached,
-				syncWarning: "Live status is temporarily unavailable. Aira will retry automatically.",
+				syncWarning: "Live status is temporarily unavailable. AIRA will retry automatically.",
 			});
 		}
 		console.error("[agents:runs:get]", error);
