@@ -121,23 +121,44 @@ By default upstream nginx binds to loopback. Keep it that way and put a TLS reve
 
 ## Verification gate
 
-Do not set `DEERFLOW_AGENT_ENABLED=true` in AIRA until all of these pass:
+Do not set `DEERFLOW_AGENT_ENABLED=true` in AIRA until all of these pass.
+
+### 1. Infrastructure checks (one command)
+
+`verify-deployment.sh` implements this gate so the result is reproducible rather
+than a judgement call. Every check is a read; the script changes nothing and never
+prints a secret value. It exits non-zero if any check fails.
+
+On the DeerFlow host:
 
 ```bash
-# On DeerFlow host
-curl -fsS http://127.0.0.1:8001/health
-curl -fsS http://127.0.0.1:2026/api/models
-
-docker compose -p deer-flow -f /opt/aira/deer-flow/docker/docker-compose.yaml ps
+sudo bash infra/deerflow-runner/scripts/verify-deployment.sh --host
 ```
 
-Then verify from an external trusted machine through TLS:
+This confirms the checkout is at the validated pin, `config.yaml` holds no literal
+API key, `.env` is mode 600 with docs disabled and a loopback bind, the internal
+auth token meets the minimum length, the state root is mode 700, all Compose
+services are running, and both the Gateway health and models endpoints answer.
+
+From a trusted machine outside the host, through TLS:
 
 ```bash
-curl -fsS https://deerflow.example.com/health
+bash infra/deerflow-runner/scripts/verify-deployment.sh --public https://deerflow.example.com
 ```
 
-Finally enable the AIRA variables and run a real signed-in task from `/agents`. A successful activation requires:
+This confirms the base URL is a bare HTTPS origin AIRA will accept, public
+`/health` answers, `/docs`, `/redoc` and `/openapi.json` are not served, an
+unauthenticated caller cannot reach `/api/threads`, and ports 2026, 8001, 6379 and
+5432 are not reachable from the Internet.
+
+The script's own logic is covered by `--self-test`, which CI runs on every change
+along with a check that `--host` still fails closed when no host is present.
+
+### 2. End-to-end checks
+
+Infrastructure checks are necessary but not sufficient. Enable the AIRA variables
+in Preview first and run a real signed-in task from `/agents`. A successful
+activation requires:
 
 - AIRA reports `DeerFlow 2.0 SuperAgent` as ready;
 - the task reaches `COMPLETED`;
@@ -147,6 +168,42 @@ Finally enable the AIRA variables and run a real signed-in task from `/agents`. 
 - another AIRA user cannot read or cancel the first user's task;
 - a simulated DeerFlow outage makes AIRA fail closed or use the configured AutoGPT fallback;
 - no DeerFlow token or model key appears in browser/network payloads.
+
+## Rollback
+
+DeerFlow activation is a configuration change in AIRA, not a code change, so
+rollback does not require a redeploy of the application code.
+
+**Fastest rollback — stop routing work to DeerFlow.** Set
+`DEERFLOW_AGENT_ENABLED=false` in the affected Vercel environment and redeploy
+that environment. AIRA immediately stops selecting DeerFlow for new jobs. If the
+hardened AutoGPT fallback is configured it takes new work; otherwise new
+autonomous tasks fail closed with a clear message. This is safe at any time:
+already-running DeerFlow work is never migrated to another provider, and runs
+that can no longer be polled are closed by AIRA's stale-run reconciliation rather
+than spinning in the workspace.
+
+**Rolling back a bad host change.** The AIRA variables can keep pointing at the
+host while you repair it, because AIRA probes `/health` before preferring
+DeerFlow and will not select an unhealthy runtime. To restore the previous
+container state:
+
+```bash
+cd /opt/aira/deer-flow
+docker compose -p deer-flow -f docker/docker-compose.yaml down
+git -C /opt/aira/deer-flow checkout --detach --force a5acc25de6742b2166b3f41c97bd895822277b94
+make up
+sudo bash infra/deerflow-runner/scripts/verify-deployment.sh --host
+```
+
+`DEER_FLOW_HOME` (`/var/lib/deer-flow` by default) holds thread state and is not
+touched by `down` without `-v`. Do not pass `-v`: it destroys persisted threads
+and artifacts.
+
+**Rotating the internal token.** Set a new value in the host `.env` and in the
+AIRA environment, then restart the stack and redeploy AIRA. Rotate in that order
+so the window where the two disagree only causes health-check failures, which
+fail closed, rather than unauthenticated acceptance.
 
 ## Upgrade procedure
 
