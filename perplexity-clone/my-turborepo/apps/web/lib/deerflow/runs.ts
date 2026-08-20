@@ -9,6 +9,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 import {
+	cancelDeerFlowRun,
 	createDeerFlowRun,
 	createDeerFlowThread,
 	DeerFlowRequestError,
@@ -208,7 +209,7 @@ export async function refreshDeerFlowAgentRun(
 	let result: Prisma.InputJsonValue | undefined;
 	if (status === AgentRunStatus.COMPLETED) {
 		const state = await getDeerFlowThreadState(config, userId, threadId);
-		result = extractDeerFlowResult(state, remote) as Prisma.InputJsonValue;
+		result = extractDeerFlowResult(state, remote) as unknown as Prisma.InputJsonValue;
 	}
 
 	const errorMessage =
@@ -223,6 +224,37 @@ export async function refreshDeerFlowAgentRun(
 			status,
 			...(result !== undefined ? { result } : {}),
 			...(errorMessage ? { errorMessage } : {}),
+			completedAt: terminal ? row.completedAt ?? new Date() : null,
+		},
+		select: RUN_SELECT,
+	});
+	return toDto(updated);
+}
+
+export async function cancelDeerFlowAgentRun(
+	userId: string,
+	runId: string,
+): Promise<AgentRunDto | null> {
+	const row = await prisma.agentRun.findFirst({
+		where: { id: runId, userId, provider: PROVIDER },
+	});
+	if (!row) return null;
+	if (isTerminal(row.status) || !row.remoteExecutionId) return toDto(row);
+
+	const { threadId, runId: remoteRunId } = decodeRemoteExecution(row.remoteExecutionId);
+	const config = getDeerFlowConfig();
+	await cancelDeerFlowRun(config, userId, threadId, remoteRunId);
+
+	// Cancellation is asynchronous in DeerFlow. Read back once for an accurate
+	// status; if it is still running, the normal AIRA polling loop will observe
+	// the eventual `interrupted` state rather than claiming success early.
+	const remote = await getDeerFlowRun(config, userId, threadId, remoteRunId);
+	const status = statusFromDeerFlow(remote.status);
+	const terminal = isTerminal(status);
+	const updated = await prisma.agentRun.update({
+		where: { id: row.id },
+		data: {
+			status,
 			completedAt: terminal ? row.completedAt ?? new Date() : null,
 		},
 		select: RUN_SELECT,
