@@ -99,21 +99,53 @@ jobs:
       - name: Validate the DeerFlow host Terraform module
         run: |
           if command -v terraform >/dev/null 2>&1; then
-            terraform -chdir=infra/deerflow-runner/terraform fmt -check -recursive
-            terraform -chdir=infra/deerflow-runner/terraform init -backend=false -input=false
-            terraform -chdir=infra/deerflow-runner/terraform validate
+            for module in infra/deerflow-runner/terraform infra/deerflow-runner/terraform-oci; do
+              terraform -chdir="$module" fmt -check -recursive
+              terraform -chdir="$module" init -backend=false -input=false
+              terraform -chdir="$module" validate
+            done
           else
             echo "::notice::Terraform not available on this runner; skipping HCL validation."
           fi
 
       - name: Confirm the module commits no credential
         run: |
-          if grep -rniE 'DIGITALOCEAN_TOKEN[[:space:]]*=[[:space:]]*"[^"]|password[[:space:]]*=[[:space:]]*"[a-zA-Z0-9]|api_key[[:space:]]*=[[:space:]]*"[a-zA-Z0-9]' \
-               infra/deerflow-runner/terraform infra/deerflow-runner/config.production.example.yaml; then
+          if grep -rniE 'DIGITALOCEAN_TOKEN[[:space:]]*=[[:space:]]*"[^"]|password[[:space:]]*=[[:space:]]*"[a-zA-Z0-9]|api_key[[:space:]]*=[[:space:]]*"[a-zA-Z0-9]|BEGIN [A-Z ]*PRIVATE KEY' \
+               infra/deerflow-runner/terraform infra/deerflow-runner/terraform-oci \
+               infra/deerflow-runner/config.production.example.yaml \
+               infra/deerflow-runner/config.free-tier.example.yaml \
+               infra/deerflow-runner/compose.free-tier.yaml; then
             echo "::error::A literal credential appears in committed DeerFlow infrastructure."
             exit 1
           fi
           echo "No literal credentials in committed DeerFlow infrastructure."
+
+      - name: Confirm the free-tier module creates no billable resource
+        run: |
+          # These resource types all bill on OCI. None may appear in the module
+          # that exists specifically to cost nothing.
+          if grep -rnE 'oci_core_nat_gateway|oci_load_balancer|oci_network_load_balancer|oci_database_autonomous_database|oci_containerengine_cluster|oci_database_db_system' \
+               infra/deerflow-runner/terraform-oci; then
+            echo "::error::A billable OCI resource appears in the Always Free module."
+            exit 1
+          fi
+          # The shape lock and the SSH guard must both survive.
+          grep -q 'var.shape == "VM.Standard.A1.Flex"' infra/deerflow-runner/terraform-oci/variables.tf \
+            || { echo "::error::The Always Free shape lock was removed."; exit 1; }
+          grep -q 'contains(var.admin_ipv4_cidrs, "0.0.0.0/0")' infra/deerflow-runner/terraform-oci/variables.tf \
+            || { echo "::error::The SSH 0.0.0.0/0 guard was removed."; exit 1; }
+          echo "Always Free module contains no billable resource and keeps its guardrails."
+
+      - name: Confirm the sandbox image is pinned, not :latest
+        run: |
+          # Upstream's :latest on this mirror is a frozen pre-1.9.3 digest that
+          # lacks the /v1/bash/* routes, and upstream's own Compose defaults to
+          # it. The override must keep an explicit version.
+          if grep -nE 'all-in-one-sandbox:latest' infra/deerflow-runner/compose.free-tier.yaml infra/deerflow-runner/config.free-tier.example.yaml; then
+            echo "::error::The AIO sandbox image must be pinned to a version, not :latest."
+            exit 1
+          fi
+          echo "AIO sandbox image is version-pinned."
 
       - name: Confirm the upstream pin is consistent across the runner
         run: |

@@ -147,6 +147,44 @@ GATEWAY_ENABLE_DOCS=false
 
 Model credentials depend on `config.yaml`. Keep them only on the DeerFlow host. DeerFlow supports environment-variable substitution in `config.yaml`, so use `$VARIABLE_NAME` references instead of literal secrets.
 
+## Two host options
+
+| | `terraform-oci/` (default) | `terraform/` |
+| --- | --- | --- |
+| Provider | Oracle Cloud Always Free | DigitalOcean |
+| Recurring cost | $0 (verify against the live account) | ~$63/month |
+| Compute | Ampere A1 ARM64, 2 OCPU / 12 GB | s-4vcpu-8gb x86 |
+| PostgreSQL | self-hosted container | managed cluster |
+| Sandbox | AIO provider on local k3s | E2B |
+| Concurrency | 1 sandbox | 3 sandboxes |
+| Availability | free-tier, reclaimable, no redundancy | paid, managed DB failover |
+
+Use `config.free-tier.example.yaml` plus `compose.free-tier.yaml` with the Oracle
+module, and `config.production.example.yaml` with the DigitalOcean module.
+
+### Verified for the ARM64 free-tier path
+
+Checked against pinned revision `a5acc25d`, not assumed:
+
+- **Every image AIRA builds is multi-arch.** The Gateway builds from
+  `python:3.12-slim-bookworm`, the frontend from `node:22-alpine`, and Compose
+  uses `redis:7-alpine` and `nginx:alpine` — all official multi-arch bases that
+  publish `linux/arm64`.
+- **The AIO sandbox image works on arm64 only at a pinned tag.** Upstream states
+  `1.11.0` is multi-arch, and warns that the mirror's `:latest` is frozen on a
+  pre-1.9.3 digest missing the `/v1/bash/*` routes. **Upstream's own Compose
+  still hardcodes `SANDBOX_IMAGE=...:latest`**, so `compose.free-tier.yaml`
+  overrides it. Deploying without that override installs the broken image.
+- **`provisioner_url: http://provisioner:8002`** is the real config key, used by
+  `aio_sandbox_provider.py` and upstream's Helm values. The provisioner reaches
+  k3s at `K8S_API_SERVER=https://host.docker.internal:26443` — note **26443**,
+  not 6443 — and mounts `~/.kube/config` read-only.
+- **`run_events.backend` defaults to `memory`**, which discards execution traces
+  and token counts on restart. AIRA persists token accounting onto its `AgentRun`
+  rows, so the free-tier config sets `backend: db`.
+- The sandbox image is served from a Volcengine registry in `cn-beijing`. Pull
+  latency from an Indian Oracle region may be poor; mirror it if it is.
+
 ## Provisioning the host
 
 `terraform/` provisions the droplet, its firewall, and a managed PostgreSQL
