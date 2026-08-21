@@ -17,12 +17,21 @@ const settings = source("src/v2/components/modules/SettingsWorkspacePanel.tsx");
 const library = source("src/v2/components/modules/LibraryWorkspacePanel.tsx");
 const mobileContext = source("src/v2/components/MobileContextSheet.tsx");
 const styles = source("app/v2/v2-next.css");
+const proxy = source("proxy.ts");
 
 test("serves the finalized V2 workspace without replacing the production root", () => {
   assert.match(page, /AiraV2WorkspaceFinal/);
   assert.doesNotMatch(page, /redirect\s*\(/);
   assert.match(workspace, /href="\/"/);
   assert.match(workspace, /Current AIRA/);
+});
+
+test("keeps V2 public for the existing anonymous research flow without opening private APIs", () => {
+  assert.match(proxy, /pathname === "\/v2"/);
+  assert.match(proxy, /pathname\.startsWith\("\/v2\/"\)/);
+  assert.match(proxy, /pathname\.startsWith\("\/api\/billing"\)/);
+  assert.match(proxy, /pathname\.startsWith\("\/api\/history"\)/);
+  assert.match(proxy, /pathname\.startsWith\("\/api\/share"\)/);
 });
 
 test("keeps research parity behind the existing compatibility API", () => {
@@ -37,7 +46,7 @@ test("keeps research parity behind the existing compatibility API", () => {
 
 test("keeps account, memory, agents, artifacts, and sharing behind existing APIs", () => {
   for (const route of ["/api/agents/runs", "/api/memory"]) {
-    assert.match(compat, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.ok(compat.includes(route), `V2 compatibility client must use ${route}`);
   }
   const account = source("src/v2/compat/account-api.ts");
   assert.match(account, /\/api\/billing\/status/);
