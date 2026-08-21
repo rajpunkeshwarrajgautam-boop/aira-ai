@@ -46,6 +46,13 @@ export interface AgentRun {
   readonly completedAt: string | null;
 }
 
+export interface AgentProviderState {
+  readonly enabled?: boolean;
+  readonly configured?: boolean;
+  readonly healthy?: boolean | null;
+  readonly ready?: boolean;
+}
+
 export interface AgentDashboard {
   readonly runs: readonly AgentRun[];
   readonly feature?: {
@@ -53,6 +60,7 @@ export interface AgentDashboard {
     readonly configured?: boolean;
     readonly ready?: boolean;
     readonly preferredProvider?: string | null;
+    readonly providers?: Readonly<Record<string, AgentProviderState>>;
   };
   readonly usage?: {
     readonly billingPlan?: string;
@@ -60,6 +68,31 @@ export interface AgentDashboard {
     readonly agentRunsUsed?: number;
     readonly agentRunsRemaining?: number;
   };
+}
+
+export type MemoryKind =
+  | "PROFILE"
+  | "PREFERENCE"
+  | "GOAL"
+  | "PROJECT"
+  | "DECISION"
+  | "CONSTRAINT"
+  | "RELATIONSHIP"
+  | "OTHER";
+
+export interface UserMemory {
+  readonly id: string;
+  readonly memoryKey: string;
+  readonly kind: MemoryKind;
+  readonly content: string;
+  readonly keywords: readonly string[];
+  readonly importance: number;
+  readonly confidence: number;
+  readonly pinned: boolean;
+  readonly lastRecalledAt: string | null;
+  readonly recallCount: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 interface ApiErrorBody {
@@ -99,12 +132,32 @@ export interface SearchStreamCallbacks {
   readonly onStreamError?: (payload: StreamErrorEvent) => void;
 }
 
+export class AiraCompatibilityError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+
+  constructor(message: string, args: { readonly code?: string | null; readonly status: number }) {
+    super(message);
+    this.name = "AiraCompatibilityError";
+    this.code = args.code ?? null;
+    this.status = args.status;
+  }
+}
+
 function parseJson<T>(value: string): T | null {
   try {
     return JSON.parse(value) as T;
   } catch {
     return null;
   }
+}
+
+async function errorFromResponse(response: Response, fallback: string): Promise<AiraCompatibilityError> {
+  const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
+  return new AiraCompatibilityError(body?.error?.message ?? fallback, {
+    code: body?.error?.code ?? null,
+    status: response.status,
+  });
 }
 
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -119,8 +172,7 @@ async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-    throw new Error(body?.error?.message ?? `AIRA request failed (${response.status}).`);
+    throw await errorFromResponse(response, `AIRA request failed (${response.status}).`);
   }
 
   return (await response.json()) as T;
@@ -142,8 +194,99 @@ export async function getConversationMessages(
   return result.messages;
 }
 
-export async function getAgentDashboard(): Promise<AgentDashboard> {
-  return apiJson<AgentDashboard>("/api/agents/runs?limit=12");
+export async function getAgentDashboard(limit = 24): Promise<AgentDashboard> {
+  return apiJson<AgentDashboard>(`/api/agents/runs?limit=${Math.min(Math.max(limit, 1), 50)}`);
+}
+
+export async function startAgentRun(objective: string): Promise<{
+  readonly run: AgentRun;
+  readonly agentRunsRemaining?: number;
+}> {
+  return apiJson("/api/agents/runs", {
+    method: "POST",
+    body: JSON.stringify({ clientRequestId: crypto.randomUUID(), objective }),
+  });
+}
+
+export async function syncAgentRun(runId: string): Promise<{
+  readonly run: AgentRun;
+  readonly syncWarning?: string;
+}> {
+  return apiJson(`/api/agents/runs/${encodeURIComponent(runId)}`);
+}
+
+export async function cancelAgentRun(runId: string): Promise<{ readonly run: AgentRun }> {
+  return apiJson(`/api/agents/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST" });
+}
+
+function resultRecord(value: unknown): Readonly<Record<string, unknown>> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Readonly<Record<string, unknown>>)
+    : null;
+}
+
+export function agentResultText(result: unknown): string | null {
+  if (typeof result === "string" && result.trim()) return result.trim();
+  const output = resultRecord(result)?.output;
+  return typeof output === "string" && output.trim() ? output.trim() : null;
+}
+
+export function agentArtifactPaths(result: unknown): readonly string[] {
+  const artifacts = resultRecord(result)?.artifacts;
+  if (!Array.isArray(artifacts)) return [];
+  return Array.from(
+    new Set(
+      artifacts
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.replace(/\\/g, "/").replace(/^\/+/, ""))
+        .filter((value) => value.startsWith("mnt/user-data/outputs/")),
+    ),
+  ).slice(0, 25);
+}
+
+export function agentArtifactHref(runId: string, artifactPath: string): string {
+  const encoded = artifactPath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `/api/agents/runs/${encodeURIComponent(runId)}/artifacts/${encoded}`;
+}
+
+export async function listMemories(limit = 100): Promise<readonly UserMemory[]> {
+  const result = await apiJson<{ readonly memories: readonly UserMemory[] }>(
+    `/api/memory?limit=${Math.min(Math.max(limit, 1), 200)}`,
+  );
+  return result.memories;
+}
+
+export async function createMemory(input: {
+  readonly content: string;
+  readonly kind?: MemoryKind;
+  readonly pinned?: boolean;
+}): Promise<UserMemory> {
+  const result = await apiJson<{ readonly memory: UserMemory }>("/api/memory", {
+    method: "POST",
+    body: JSON.stringify({
+      content: input.content,
+      ...(input.kind ? { kind: input.kind } : {}),
+      pinned: input.pinned ?? true,
+    }),
+  });
+  return result.memory;
+}
+
+export async function setMemoryPinned(id: string, pinned: boolean): Promise<void> {
+  await apiJson<{ readonly ok: true }>("/api/memory", {
+    method: "PATCH",
+    body: JSON.stringify({ id, pinned }),
+  });
+}
+
+export async function deleteMemory(id: string): Promise<void> {
+  await apiJson<{ readonly ok: true }>("/api/memory", {
+    method: "DELETE",
+    body: JSON.stringify({ id }),
+  });
 }
 
 function dispatchSseBlock(block: string, callbacks: SearchStreamCallbacks): void {
@@ -207,8 +350,7 @@ export async function streamSearch(
   });
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-    throw new Error(body?.error?.message ?? `Search failed (${response.status}).`);
+    throw await errorFromResponse(response, `Search failed (${response.status}).`);
   }
 
   if (!response.body) throw new Error("AIRA search returned no response stream.");
