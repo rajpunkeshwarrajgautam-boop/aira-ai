@@ -6,7 +6,7 @@ import { ProviderRouter } from "@services/providers/provider-router";
 import { OpenAIProvider } from "@services/providers/openai-provider";
 import { NVIDIAProvider } from "@services/providers/nvidia-provider";
 import { SelfHostedProvider } from "@services/providers/self-hosted-provider";
-import { getLocalAiConfig, localAiConfigured } from "@services/local-ai/config";
+import { getLocalAiConfigOrDisabled } from "@services/local-ai/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ const CompareSchema = z.object({
 });
 
 function descriptors() {
-  const local = getLocalAiConfig();
+  const local = getLocalAiConfigOrDisabled();
   return [
     {
       id: "openai" as const,
@@ -37,7 +37,7 @@ function descriptors() {
     {
       id: "self-hosted" as const,
       label: "Virexa Local",
-      configured: localAiConfigured(),
+      configured: local.configured,
       model: local.model || "Local model",
     },
   ];
@@ -54,7 +54,7 @@ function createRouter(id: ProviderId): ProviderRouter | null {
     return router;
   }
   if (id === "self-hosted") {
-    const local = getLocalAiConfig();
+    const local = getLocalAiConfigOrDisabled();
     if (!local.configured) return null;
     router.registerProvider(
       new SelfHostedProvider({
