@@ -1,0 +1,183 @@
+/* AIRA premium refresh: restrained enterprise polish layered over legacy interaction styles. */
+
+.aira-shell::before,
+.aira-shell::after {
+	display: none !important;
+	animation: none !important;
+}
+
+.aira-gradient-frame::before,
+.aira-featured-plan::before {
+	background: hsl(var(--border-subtle)) !important;
+	opacity: 1 !important;
+	animation: none !important;
+}
+
+.aira-gradient-frame::after,
+.aira-featured-plan::after {
+	background: hsl(var(--surface-elevated)) !important;
+}
+
+.aira-composer,
+.aira-enterprise-composer {
+	background: hsl(var(--surface-elevated) / 0.98);
+	border-color: hsl(var(--border-subtle));
+	box-shadow:
+		0 1px 2px hsl(222 33% 11% / 0.035),
+		0 14px 42px hsl(222 33% 11% / 0.07);
+	transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.aira-composer:focus-within,
+.aira-enterprise-composer:focus-within {
+	transform: translateY(-1px);
+	border-color: hsl(var(--accent) / 0.32);
+	box-shadow:
+		0 1px 2px hsl(222 33% 11% / 0.04),
+		0 18px 48px hsl(222 33% 11% / 0.09),
+		0 0 0 4px hsl(var(--accent) / 0.06);
+}
+
+.aira-glass,
+.aira-profile-pill,
+.aira-popover {
+	background: hsl(var(--surface-elevated) / 0.92) !important;
+	border-color: hsl(var(--border-subtle)) !important;
+	backdrop-filter: blur(20px) saturate(1.02);
+}
+
+.aira-glass,
+.aira-profile-pill {
+	box-shadow: 0 8px 30px hsl(222 33% 11% / 0.055) !important;
+}
+
+.aira-popover {
+	box-shadow: 0 18px 55px hsl(222 33% 11% / 0.13) !important;
+}
+
+.aira-fun-card::before,
+.aira-agent-objective::after {
+	display: none !important;
+}
+
+.aira-fun-card,
+.aira-provider-button,
+.aira-memory-card {
+	transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.aira-fun-card:hover,
+.aira-provider-button:hover {
+	transform: translateY(-1px) !important;
+	border-color: hsl(var(--accent) / 0.18) !important;
+	box-shadow: 0 14px 38px hsl(222 33% 11% / 0.07) !important;
+}
+
+.aira-memory-card:hover {
+	transform: translateX(2px) !important;
+	box-shadow: inset 2px 0 0 hsl(var(--accent) / 0.32) !important;
+}
+
+.aira-nav-rail {
+	padding: 3px !important;
+	border-radius: 12px !important;
+	background: hsl(var(--surface-inset) / 0.82) !important;
+	border: 1px solid hsl(var(--border-subtle)) !important;
+	box-shadow: none !important;
+}
+
+.aira-nav-pill {
+	border-radius: 9px;
+	transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease !important;
+}
+
+.aira-nav-pill:hover {
+	transform: none !important;
+	background: hsl(var(--surface-elevated) / 0.72);
+}
+
+.aira-nav-pill[data-active="true"] {
+	background: hsl(var(--surface-elevated)) !important;
+	color: hsl(var(--content-primary)) !important;
+	box-shadow: 0 1px 2px hsl(222 33% 11% / 0.05), 0 0 0 1px hsl(var(--border-subtle)) !important;
+}
+
+.aira-nav-pill[data-active="true"]::after {
+	display: none !important;
+}
+
+.aira-mark {
+	border: 1px solid hsl(var(--border-subtle));
+	border-radius: 10px;
+	background: linear-gradient(180deg, hsl(var(--surface-elevated)), hsl(var(--surface-inset)));
+	box-shadow: 0 1px 2px hsl(222 33% 11% / 0.05);
+	transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.group:hover .aira-mark {
+	transform: translateY(-1px);
+	border-color: hsl(var(--accent) / 0.24);
+	box-shadow: 0 5px 16px hsl(222 33% 11% / 0.08);
+}
+
+.aira-shine-button::after,
+[aria-label="Sources"] li > a::after {
+	display: none !important;
+}
+
+.aira-shine-button:active,
+.aira-provider-button:active {
+	transform: scale(0.985) !important;
+}
+
+.aira-featured-plan {
+	transform: none !important;
+	box-shadow: 0 18px 52px hsl(222 33% 11% / 0.08) !important;
+}
+
+.aira-status-pill::before {
+	box-shadow: none !important;
+	animation: none !important;
+	opacity: 0.55 !important;
+}
+
+.aira-progress-track > *::after {
+	opacity: 0.42;
+}
+
+.aira-orbit-loader::after {
+	box-shadow: none !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+	outline: 2px solid hsl(var(--accent) / 0.55);
+	outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+	.aira-nav-rail {
+		width: 100%;
+		justify-content: space-between;
+	}
+
+	.aira-nav-pill {
+		flex: 1 1 0%;
+		justify-content: center;
+		min-width: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.aira-composer,
+	.aira-enterprise-composer,
+	.aira-mark,
+	.aira-fun-card,
+	.aira-provider-button,
+	.aira-memory-card,
+	.aira-nav-pill {
+		transition: none !important;
+		transform: none !important;
+	}
+}
