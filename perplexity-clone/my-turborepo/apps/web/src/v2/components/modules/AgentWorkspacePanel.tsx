@@ -78,7 +78,7 @@ export function AgentWorkspacePanel({
   const [error, setError] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
-  const runs = dashboard?.runs ?? [];
+  const runs = useMemo(() => dashboard?.runs ?? [], [dashboard?.runs]);
   const selectedRun = useMemo(
     () => runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null,
     [runs, selectedRunId],
