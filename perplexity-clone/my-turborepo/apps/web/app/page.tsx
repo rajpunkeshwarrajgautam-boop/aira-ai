@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import "./aira-reference.css";
+import "./impeccable-polish.css";
 import { AiraPreloader } from "../components/AiraPreloader";
 import { SearchLayout } from "../components/SearchLayout";
 
