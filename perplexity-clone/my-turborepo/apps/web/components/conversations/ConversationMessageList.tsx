@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Cpu, FileText, Globe2, Sparkles, WandSparkles } from "lucide-react";
+import { Check, Copy, Cpu, FileText, Globe2, PencilLine, Sparkles, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -64,6 +64,20 @@ function MessageCopyButton({ text, label = "Copy" }: { readonly text: string; re
 		>
 			{copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" strokeWidth={1.7} aria-hidden />}
 			{copied ? "Copied" : label}
+		</button>
+	);
+}
+
+function ReusePromptButton({ text }: { readonly text: string }) {
+	return (
+		<button
+			type="button"
+			onClick={() => window.dispatchEvent(new CustomEvent("aira:reuse-message", { detail: { content: text } }))}
+			className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] text-content-tertiary transition hover:bg-surface-elevated hover:text-content-primary"
+			aria-label="Reuse and edit this prompt"
+		>
+			<PencilLine className="size-3.5" strokeWidth={1.7} aria-hidden />
+			Reuse
 		</button>
 	);
 }
@@ -161,7 +175,10 @@ export function ConversationMessageList({ messages, streamingUserQuery, streamin
 				<div key={message.id} className="aira-enter group flex w-full justify-end py-3">
 					<div className="max-w-[86%] sm:max-w-[78%]">
 						<div className="rounded-[14px] bg-surface-elevated px-4 py-2.5 text-[14px] leading-6 text-content-primary">{message.content}</div>
-						<div className="mt-1 flex justify-end opacity-0 transition group-hover:opacity-100 focus-within:opacity-100"><MessageCopyButton text={message.content} /></div>
+						<div className="mt-1 flex justify-end gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+							<ReusePromptButton text={message.content} />
+							<MessageCopyButton text={message.content} />
+						</div>
 					</div>
 				</div>
 			) : <div key={message.id}>{renderAssistant({ content: message.content, citations: message.citations, streaming: false })}</div>)}
