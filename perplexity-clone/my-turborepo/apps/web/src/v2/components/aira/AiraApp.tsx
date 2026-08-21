@@ -17,6 +17,7 @@ import {
   Settings2,
   Square,
 } from "lucide-react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -495,7 +496,7 @@ export function AiraApp() {
                 <button type="button" onClick={() => { setContextOpen(true); setShowMore(false); }}><History size={17} aria-hidden="true" /> Research history & sources</button>
                 <button type="button" onClick={() => navigateView("settings")}><Settings2 size={17} aria-hidden="true" /> Settings & usage</button>
                 <a href="/pricing">Pricing</a>
-                <a href="/">Current AIRA</a>
+                <Link href="/">Current AIRA</Link>
               </div>
             </>
           ) : null}
