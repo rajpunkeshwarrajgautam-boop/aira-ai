@@ -60,10 +60,16 @@ export default auth((req) => {
 		return NextResponse.next();
 	}
 
-	// Public HTML: home (guest search shell) + read-only share pages.
-	// Keep this above the unauthenticated redirect. The common matcher regex often
-	// does not match "/" on its own (Next.js #62078), so `config.matcher` also lists "/".
-	if (pathname === "/" || pathname === "/share" || pathname.startsWith("/share/")) {
+	// Public HTML: current guest search, parallel V2 guest workspace, and read-only share pages.
+	// V2 deliberately reuses the existing anonymous-search quota and keeps all saved/private
+	// features protected by their existing route-level authentication checks.
+	if (
+		pathname === "/" ||
+		pathname === "/v2" ||
+		pathname.startsWith("/v2/") ||
+		pathname === "/share" ||
+		pathname.startsWith("/share/")
+	) {
 		return NextResponse.next();
 	}
 
