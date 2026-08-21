@@ -59,7 +59,12 @@ async function runStructuredWorker<T>(args: {
 		maxCompletionTokens: 1200,
 	});
 	const parsed = args.schema.parse(parseJsonObject(result.text));
-	const { text: _text, ...execution } = result;
+	const execution: Omit<HybridTextResult, "text"> = {
+		provider: result.provider,
+		routing: result.routing,
+		...(result.model ? { model: result.model } : {}),
+		...(result.localFallbackReason ? { localFallbackReason: result.localFallbackReason } : {}),
+	};
 	return { data: parsed, execution };
 }
 
