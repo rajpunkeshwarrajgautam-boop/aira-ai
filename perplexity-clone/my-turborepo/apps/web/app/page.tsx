@@ -2,18 +2,23 @@ import { Suspense } from "react";
 
 import "./aira-reference.css";
 import "./impeccable-polish.css";
+import "./aira-v2.css";
 import { AiraPreloader } from "../components/AiraPreloader";
+import { AiraV2Frame } from "../components/AiraV2Frame";
 import { SearchLayout } from "../components/SearchLayout";
 
 function HomeSkeleton() {
 	return (
-		<div className="aira-shell min-h-dvh w-full bg-[#0a0a0a]" aria-hidden>
-			<div className="flex min-h-dvh">
-				<div className="hidden w-[260px] border-r border-white/[0.07] bg-[#0d0d0d] md:block" />
-				<div className="flex-1 px-4 py-10">
-					<div className="mx-auto max-w-[768px] space-y-5 pt-24">
-						<div className="mx-auto h-8 w-44 animate-pulse rounded bg-[#161616]" />
-						<div className="h-28 animate-pulse rounded-xl border border-white/[0.07] bg-[#161616]" />
+		<div className="aira-v2-page min-h-dvh w-full" aria-hidden>
+			<div className="aira-v2-frame">
+				<div className="aira-v2-rail" />
+				<div className="aira-v2-main">
+					<div className="aira-v2-topbar" />
+					<div className="aira-v2-stage flex items-center justify-center px-6">
+						<div className="w-full max-w-[860px] space-y-4">
+							<div className="h-7 w-52 animate-pulse rounded-lg bg-[#171a1f]" />
+							<div className="h-32 animate-pulse rounded-2xl border border-white/[0.07] bg-[#13161a]" />
+						</div>
 					</div>
 				</div>
 			</div>
@@ -23,11 +28,13 @@ function HomeSkeleton() {
 
 export default function Home() {
 	return (
-		<div className="aira-home">
+		<div className="aira-home aira-v2-page">
 			<AiraPreloader />
-			<Suspense fallback={<HomeSkeleton />}>
-				<SearchLayout />
-			</Suspense>
+			<AiraV2Frame>
+				<Suspense fallback={<HomeSkeleton />}>
+					<SearchLayout />
+				</Suspense>
+			</AiraV2Frame>
 		</div>
 	);
 }
