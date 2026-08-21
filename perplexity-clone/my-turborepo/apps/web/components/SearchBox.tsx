@@ -79,6 +79,21 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	}, [value, resize]);
 
 	useEffect(() => {
+		const onReuseMessage = (event: Event) => {
+			const detail = (event as CustomEvent<{ readonly content?: string }>).detail;
+			if (!detail?.content || isBusy) return;
+			onChange(detail.content);
+			requestAnimationFrame(() => {
+				resize();
+				taRef.current?.focus();
+				taRef.current?.setSelectionRange(detail.content!.length, detail.content!.length);
+			});
+		};
+		window.addEventListener("aira:reuse-message", onReuseMessage);
+		return () => window.removeEventListener("aira:reuse-message", onReuseMessage);
+	}, [isBusy, onChange, resize]);
+
+	useEffect(() => {
 		if (!contextMenuOpen) return;
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") setContextMenuOpen(false);
