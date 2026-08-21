@@ -6,7 +6,8 @@
 		"check-types": "turbo run check-types --filter=web",
 		"audit:prod": "pnpm audit --prod",
 		"test": "turbo run test --filter=web",
-		"ci": "pnpm run audit:prod && pnpm run lint && pnpm run check-types && pnpm run test && pnpm run build"
+		"test:v2:e2e": "pnpm --filter web test:v2:e2e",
+		"ci": "pnpm run audit:prod && pnpm run lint && pnpm run check-types && pnpm run test && pnpm run build && pnpm run test:v2:e2e"
 	},
 	"devDependencies": {
 		"dotenv": "^17.4.2",
