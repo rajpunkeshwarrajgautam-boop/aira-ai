@@ -4,9 +4,13 @@ import {
   BarChart3,
   Bot,
   Brain,
+  Columns2,
   Command,
   CreditCard,
+  FolderOpen,
+  History,
   Search,
+  Settings2,
   Sparkles,
   X,
 } from "lucide-react";
@@ -19,11 +23,16 @@ import { AiraLogo } from "./AiraLogo";
 
 const PRIMARY_NAV = [
   { href: "/", label: "Research", description: "Ask, investigate, cite", icon: Search },
-  { href: "/agents", label: "Agents", description: "Run autonomous work", icon: Bot },
+  { href: "/compare", label: "Compare", description: "Test models side by side", icon: Columns2 },
+  { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
+  { href: "/agents", label: "Agents", description: "Design autonomous work", icon: Bot },
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
 ] as const;
 
 const MANAGE_NAV = [
+  { href: "/workspace-search", label: "Global search", description: "Chats, messages and memory", icon: Search },
+  { href: "/runs", label: "Run center", description: "Monitor autonomous execution", icon: History },
+  { href: "/settings", label: "Integrations", description: "Runtime and provider status", icon: Settings2 },
   { href: "/pricing", label: "Plans", description: "Usage and upgrades", icon: CreditCard },
   { href: "/admin/analytics", label: "Analytics", description: "Owner telemetry", icon: BarChart3 },
 ] as const;
@@ -79,6 +88,8 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
     router.push(href);
   };
 
+  const CurrentIcon = current.icon;
+
   return (
     <div className="aira-v2-frame">
       <aside className="aira-v2-rail" aria-label="AIRA workspace navigation">
@@ -86,7 +97,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           <AiraLogo />
           <div className="aira-v2-brand-copy">
             <span>AIRA AI</span>
-            <small>Research workspace</small>
+            <small>Intelligence workspace</small>
           </div>
         </div>
 
@@ -96,12 +107,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn("aira-v2-nav-item", active && "is-active")}
-                aria-current={active ? "page" : undefined}
-              >
+              <Link key={item.href} href={item.href} className={cn("aira-v2-nav-item", active && "is-active")} aria-current={active ? "page" : undefined}>
                 <span className="aira-v2-nav-icon"><Icon className="size-[18px]" strokeWidth={1.8} aria-hidden /></span>
                 <span className="aira-v2-nav-copy"><strong>{item.label}</strong><small>{item.description}</small></span>
               </Link>
@@ -113,12 +119,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn("aira-v2-nav-item", active && "is-active")}
-                aria-current={active ? "page" : undefined}
-              >
+              <Link key={item.href} href={item.href} className={cn("aira-v2-nav-item", active && "is-active")} aria-current={active ? "page" : undefined}>
                 <span className="aira-v2-nav-icon"><Icon className="size-[18px]" strokeWidth={1.8} aria-hidden /></span>
                 <span className="aira-v2-nav-copy"><strong>{item.label}</strong><small>{item.description}</small></span>
               </Link>
@@ -136,18 +137,13 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       <div className="aira-v2-main">
         <header className="aira-v2-topbar">
           <div className="aira-v2-topbar-title">
-            <span className="aira-v2-topbar-icon"><current.icon className="size-[16px]" strokeWidth={1.9} aria-hidden /></span>
-            <div>
-              <strong>{current.label}</strong>
-              <small>{current.description}</small>
-            </div>
+            <span className="aira-v2-topbar-icon"><CurrentIcon className="size-[16px]" strokeWidth={1.9} aria-hidden /></span>
+            <div><strong>{current.label}</strong><small>{current.description}</small></div>
           </div>
           <div className="aira-v2-topbar-actions">
-            <span className="aira-v2-grounded-status"><span className="aira-v2-status-dot" aria-hidden />Live citations</span>
+            <span className="aira-v2-grounded-status"><span className="aira-v2-status-dot" aria-hidden />Connected workspace</span>
             <button type="button" className="aira-v2-topbar-command" onClick={() => setPaletteOpen(true)} aria-label="Open command palette">
-              <Command className="size-[15px]" aria-hidden />
-              <span>Navigate</span>
-              <kbd>⌘K</kbd>
+              <Command className="size-[15px]" aria-hidden /><span>Navigate</span><kbd>⌘K</kbd>
             </button>
           </div>
         </header>
@@ -159,28 +155,13 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           <div className="aira-v2-palette" role="dialog" aria-modal="true" aria-label="AIRA command palette" onMouseDown={(event) => event.stopPropagation()}>
             <div className="aira-v2-palette-search">
               <Search className="size-[18px]" aria-hidden />
-              <input
-                ref={inputRef}
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                placeholder="Go to research, agents, memory…"
-                aria-label="Filter destinations"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href);
-                }}
-              />
+              <input ref={inputRef} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Go to research, compare, knowledge, runs…" aria-label="Filter destinations" onKeyDown={(event) => { if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href); }} />
               <button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette"><X className="size-4" /></button>
             </div>
             <div className="aira-v2-palette-results">
               {filteredCommands.length ? filteredCommands.map((item) => {
                 const Icon = item.icon;
-                return (
-                  <button key={item.href} type="button" onClick={() => navigate(item.href)} className="aira-v2-palette-item">
-                    <span className="aira-v2-palette-item-icon"><Icon className="size-[17px]" aria-hidden /></span>
-                    <span><strong>{item.label}</strong><small>{item.description}</small></span>
-                    <span className="aira-v2-palette-enter">↵</span>
-                  </button>
-                );
+                return <button key={item.href} type="button" onClick={() => navigate(item.href)} className="aira-v2-palette-item"><span className="aira-v2-palette-item-icon"><Icon className="size-[17px]" aria-hidden /></span><span><strong>{item.label}</strong><small>{item.description}</small></span><span className="aira-v2-palette-enter">↵</span></button>;
               }) : <p className="aira-v2-palette-empty">No matching workspace.</p>}
             </div>
             <div className="aira-v2-palette-footer"><Sparkles className="size-3.5" aria-hidden />AIRA command palette <span>Esc to close</span></div>
