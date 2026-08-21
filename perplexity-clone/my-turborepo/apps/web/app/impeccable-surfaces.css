@@ -1,0 +1,165 @@
+/* AIRA AI — Impeccable secondary surfaces
+ * Scoped presentation-only treatment for auth, pricing, checkout, shares, and admin.
+ */
+
+.aira-impeccable-surface {
+  --imp-bg: #090909;
+  --imp-panel: #111111;
+  --imp-panel-2: #151515;
+  --imp-panel-3: #1b1b1b;
+  --imp-line: rgba(255,255,255,.075);
+  --imp-line-strong: rgba(255,255,255,.14);
+  --imp-text: #f1f1ef;
+  --imp-text-2: #aaa8a3;
+  --imp-text-3: #706e69;
+  --imp-accent: #c9a84c;
+  --imp-accent-soft: rgba(201,168,76,.12);
+  --imp-ease: cubic-bezier(.2,.8,.2,1);
+  background: var(--imp-bg) !important;
+  color: var(--imp-text);
+}
+
+.aira-impeccable-surface :where(button,a,input,textarea,select):focus-visible {
+  outline: 2px solid rgba(201,168,76,.72) !important;
+  outline-offset: 2px !important;
+}
+
+.aira-impeccable-surface :where(button,a) {
+  transition: background-color 140ms var(--imp-ease), color 140ms var(--imp-ease), border-color 140ms var(--imp-ease), transform 140ms var(--imp-ease), opacity 140ms var(--imp-ease) !important;
+}
+
+.aira-impeccable-surface :where(button,a):active:not(:disabled) { transform: translateY(1px); }
+
+.aira-impeccable-surface .aira-orb,
+.aira-impeccable-surface .aira-gradient-frame::before,
+.aira-impeccable-surface .aira-pro-glow::before { display: none !important; }
+
+.aira-impeccable-surface .aira-gradient-text {
+  background: none !important;
+  color: var(--imp-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.aira-impeccable-surface .aira-display {
+  letter-spacing: -.035em;
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.aira-impeccable-surface .aira-glass,
+.aira-impeccable-surface .aira-premium-card,
+.aira-impeccable-surface .aira-card,
+.aira-impeccable-surface .aira-gradient-frame {
+  border: 1px solid var(--imp-line) !important;
+  background: var(--imp-panel) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-impeccable-surface .aira-card-hover:hover {
+  transform: translateY(-1px) !important;
+  border-color: var(--imp-line-strong) !important;
+  background: var(--imp-panel-2) !important;
+  box-shadow: none !important;
+}
+
+/* Auth */
+.aira-auth-surface .aira-gradient-frame { max-width: 430px; }
+.aira-auth-surface .aira-glass { padding: 30px !important; }
+.aira-auth-surface [class*="shadow-[0_0_8px"] { box-shadow: none !important; background: var(--imp-accent) !important; }
+.aira-auth-surface [class*="bg-accent/"] { background: var(--imp-accent-soft) !important; }
+.aira-auth-surface h1 { font-size: clamp(2rem, 6vw, 2.6rem) !important; }
+.aira-auth-surface p { color: var(--imp-text-2) !important; }
+
+/* Pricing */
+.aira-pricing-surface .aira-premium-card {
+  border-radius: 18px !important;
+  padding: 24px !important;
+}
+.aira-pricing-surface .aira-premium-card.md\:-translate-y-2 { transform: none !important; }
+.aira-pricing-surface .aira-premium-card[class*="border-accent"] {
+  border-color: rgba(201,168,76,.36) !important;
+  background: #13120e !important;
+}
+.aira-pricing-surface [class*="radial-gradient"],
+.aira-pricing-surface [class*="linear-gradient"] { background-image: none !important; }
+.aira-pricing-surface .aira-icon-pop,
+.aira-pricing-surface section span[class*="size-11"] {
+  background: var(--imp-panel-3) !important;
+  color: var(--imp-text-2) !important;
+  box-shadow: none !important;
+}
+.aira-pricing-surface section[class*="border-accent"] span[class*="size-11"] {
+  background: var(--imp-accent-soft) !important;
+  color: #d8bd72 !important;
+}
+.aira-pricing-surface ul li { color: #bbb9b4 !important; }
+.aira-pricing-surface ul li span { background: #1c1c1c !important; }
+.aira-pricing-surface .aira-shine-button { background: #ecebe7 !important; color: #111 !important; box-shadow: none !important; }
+.aira-pricing-surface .aira-shine-button:hover { background: #fff !important; }
+
+/* Checkout */
+.aira-upgrade-surface .aira-gradient-frame { max-width: 570px; border-radius: 18px !important; }
+.aira-upgrade-surface .aira-glass { border-radius: 17px !important; padding: 24px !important; }
+.aira-upgrade-surface [class*="bg-white/"] { background: var(--imp-panel-2) !important; }
+.aira-upgrade-surface [class*="ring-white"],
+.aira-upgrade-surface [class*="shadow-"] { box-shadow: none !important; }
+.aira-upgrade-surface input,
+.aira-upgrade-surface select {
+  color-scheme: dark;
+  border: 1px solid var(--imp-line) !important;
+  background: #0f0f0f !important;
+  color: var(--imp-text) !important;
+}
+.aira-upgrade-surface input:focus { border-color: rgba(201,168,76,.42) !important; box-shadow: 0 0 0 1px rgba(201,168,76,.08) !important; }
+.aira-upgrade-surface .aira-fun-card { background: #141414 !important; border-color: var(--imp-line) !important; }
+.aira-upgrade-surface .aira-shine-button { background: #ecebe7 !important; color: #111 !important; box-shadow: none !important; }
+
+/* Shared research */
+.aira-share-surface > div > header { border-bottom: 1px solid var(--imp-line); }
+.aira-share-surface main { max-width: 900px !important; }
+.aira-share-surface [aria-label="Research answer"] { border-radius: 16px !important; background: transparent !important; border-color: var(--imp-line) !important; }
+.aira-share-surface .answer-markdown,
+.aira-share-surface article { font-size: 14.5px; line-height: 1.72; }
+.aira-share-surface section.aira-card { border-radius: 16px !important; background: var(--imp-panel) !important; }
+.aira-share-surface [class*="shadow-[0_0_8px"] { box-shadow: none !important; background: var(--imp-accent) !important; }
+
+/* Owner analytics */
+.aira-admin-surface { color-scheme: dark; }
+.aira-admin-surface > div { max-width: 1180px !important; }
+.aira-admin-surface section {
+  border-color: var(--imp-line) !important;
+  background: var(--imp-panel) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.aira-admin-surface section > div[class*="overflow-x-auto"] {
+  border-color: var(--imp-line) !important;
+  background: #0d0d0d !important;
+}
+.aira-admin-surface table { font-variant-numeric: tabular-nums; }
+.aira-admin-surface thead { background: #101010; }
+.aira-admin-surface th { font-weight: 600; letter-spacing: .01em; }
+.aira-admin-surface td { color: #b8b6b1; }
+.aira-admin-surface tbody tr { border-color: rgba(255,255,255,.055) !important; }
+.aira-admin-surface tbody tr:hover { background: rgba(255,255,255,.025); }
+.aira-admin-surface [class*="bg-accent/20"] { background: #1e1c15 !important; }
+.aira-admin-surface [class*="bg-accent/70"] { background: #b99a43 !important; }
+
+@media (max-width: 767px) {
+  .aira-impeccable-surface .aira-display { letter-spacing: -.028em; }
+  .aira-pricing-surface .aira-premium-card { border-radius: 15px !important; padding: 20px !important; }
+  .aira-share-surface [aria-label="Research answer"] { padding: 18px !important; }
+  .aira-admin-surface { padding-inline: 12px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-impeccable-surface *,
+  .aira-impeccable-surface *::before,
+  .aira-impeccable-surface *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

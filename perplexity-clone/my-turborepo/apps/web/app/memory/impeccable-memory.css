@@ -1,0 +1,178 @@
+/* Impeccable memory workspace refinements. Scoped to avoid cross-page regressions. */
+
+.aira-memory-workspace {
+  --memory-canvas: #090909;
+  --memory-panel: #111111;
+  --memory-panel-hover: #171717;
+  --memory-line: rgba(255,255,255,.075);
+  --memory-line-strong: rgba(255,255,255,.14);
+  --memory-text: #f1f1ef;
+  --memory-text-2: #aaa8a3;
+  --memory-text-3: #706e69;
+  --memory-accent: #c9a84c;
+  min-height: 100dvh;
+  background: var(--memory-canvas);
+  color: var(--memory-text);
+}
+
+.aira-memory-workspace > main {
+  background: var(--memory-canvas) !important;
+  color: var(--memory-text) !important;
+}
+
+.aira-memory-workspace .aira-orb {
+  display: none !important;
+}
+
+.aira-memory-workspace .aira-display {
+  color: var(--memory-text) !important;
+  font-size: clamp(2.15rem, 4vw, 3.25rem) !important;
+  font-weight: 640 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -.045em !important;
+  text-wrap: balance;
+}
+
+.aira-memory-workspace .aira-gradient-text {
+  background: none !important;
+  color: #d3b965 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.aira-memory-workspace .aira-icon-pop {
+  background: #151515 !important;
+  border: 1px solid var(--memory-line) !important;
+  color: #d3b965 !important;
+  box-shadow: none !important;
+}
+
+.aira-memory-workspace .aira-premium-card,
+.aira-memory-workspace .aira-glass,
+.aira-memory-workspace .aira-card-hover {
+  background: var(--memory-panel) !important;
+  border-color: var(--memory-line) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-memory-workspace .aira-premium-card,
+.aira-memory-workspace .aira-glass {
+  border: 1px solid var(--memory-line) !important;
+  border-radius: 16px !important;
+}
+
+.aira-memory-workspace .aira-premium-card > span[aria-hidden] {
+  display: none !important;
+}
+
+.aira-memory-workspace form .rounded-2xl.border.border-border-subtle {
+  background: #0d0d0d !important;
+  border-color: var(--memory-line-strong) !important;
+  box-shadow: none !important;
+}
+
+.aira-memory-workspace select,
+.aira-memory-workspace textarea {
+  color: var(--memory-text) !important;
+}
+
+.aira-memory-workspace select {
+  background: #121212 !important;
+  border: 1px solid var(--memory-line) !important;
+}
+
+.aira-memory-workspace select option {
+  background: #121212;
+  color: var(--memory-text);
+}
+
+.aira-memory-workspace textarea {
+  caret-color: #d3b965;
+}
+
+.aira-memory-workspace textarea::placeholder {
+  color: #6f6d68 !important;
+}
+
+.aira-memory-workspace .aira-shine-button {
+  background: #ecebe7 !important;
+  color: #111 !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+}
+
+.aira-memory-workspace .aira-shine-button::before,
+.aira-memory-workspace .aira-shine-button::after {
+  display: none !important;
+}
+
+.aira-memory-workspace .aira-shine-button:hover:not(:disabled) {
+  background: white !important;
+  transform: translateY(-1px);
+}
+
+.aira-memory-workspace article.aira-card-hover {
+  border-radius: 12px !important;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease !important;
+}
+
+.aira-memory-workspace article.aira-card-hover:hover {
+  background: var(--memory-panel-hover) !important;
+  border-color: var(--memory-line-strong) !important;
+  transform: translateY(-1px);
+}
+
+.aira-memory-workspace article[class*="border-accent"] {
+  border-color: rgba(201,168,76,.22) !important;
+  background: rgba(201,168,76,.045) !important;
+}
+
+.aira-memory-workspace [class*="bg-accent/"] {
+  background: rgba(201,168,76,.09) !important;
+}
+
+.aira-memory-workspace [class*="text-emerald-700"] {
+  color: #81bd8c !important;
+}
+
+.aira-memory-workspace [class*="bg-emerald-500"] {
+  background: rgba(88,168,106,.10) !important;
+}
+
+.aira-memory-workspace [class*="bg-red-50"] {
+  background: #160f0f !important;
+}
+
+.aira-memory-workspace [class*="border-red-200"] {
+  border-color: rgba(216,137,137,.25) !important;
+}
+
+.aira-memory-workspace [class*="text-red-700"],
+.aira-memory-workspace [class*="text-red-500"] {
+  color: #d88989 !important;
+}
+
+.aira-memory-workspace button:hover[class*="hover:bg-red-50"] {
+  background: rgba(216,137,137,.08) !important;
+}
+
+.aira-memory-workspace :where(button, a, textarea, select):focus-visible {
+  outline: 2px solid rgba(201,168,76,.72) !important;
+  outline-offset: 2px !important;
+}
+
+@media (max-width: 767px) {
+  .aira-memory-workspace .aira-display {
+    font-size: 2.15rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-memory-workspace *,
+  .aira-memory-workspace *::before,
+  .aira-memory-workspace *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

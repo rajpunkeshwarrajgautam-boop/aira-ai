@@ -1,0 +1,417 @@
+/*
+ * AIRA AI — Impeccable design pass
+ * Presentation-only overrides. Keep behavior in React components.
+ * Principles: quiet hierarchy, disciplined spacing, clear states,
+ * restrained motion, strong focus affordances, and responsive density.
+ */
+
+.aira-home,
+.aira-agent-workspace {
+  --aira-canvas: #090909;
+  --aira-sidebar: #0c0c0c;
+  --aira-panel: #111111;
+  --aira-panel-hover: #171717;
+  --aira-panel-strong: #1c1c1c;
+  --aira-line: rgba(255, 255, 255, 0.075);
+  --aira-line-strong: rgba(255, 255, 255, 0.14);
+  --aira-text: #f1f1ef;
+  --aira-text-2: #aaa8a3;
+  --aira-text-3: #706e69;
+  --aira-gold: #c9a84c;
+  --aira-gold-soft: rgba(201, 168, 76, 0.12);
+  --aira-success: #58a86a;
+  --aira-radius-sm: 8px;
+  --aira-radius-md: 12px;
+  --aira-radius-lg: 16px;
+  --aira-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: var(--aira-canvas);
+}
+
+.aira-home,
+.aira-home button,
+.aira-home input,
+.aira-home textarea,
+.aira-home select,
+.aira-agent-workspace,
+.aira-agent-workspace button,
+.aira-agent-workspace input,
+.aira-agent-workspace textarea,
+.aira-agent-workspace select {
+  font-feature-settings: "ss01" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+}
+
+.aira-home *,
+.aira-agent-workspace * {
+  scrollbar-color: rgba(255,255,255,.12) transparent;
+}
+
+/* Keyboard navigation must remain obvious on the dark shell. */
+.aira-home :where(button, a, textarea, select, input):focus-visible,
+.aira-agent-workspace :where(button, a, textarea, select, input):focus-visible {
+  outline: 2px solid rgba(201, 168, 76, 0.72) !important;
+  outline-offset: 2px !important;
+}
+
+/* Sidebar: quieter chrome, stronger information grouping. */
+.aira-home aside[aria-label="Conversation sidebar"] {
+  background: var(--aira-sidebar) !important;
+  border-color: var(--aira-line) !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] > div:first-child {
+  border-color: var(--aira-line) !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] button,
+.aira-home aside[aria-label="Conversation sidebar"] a {
+  transition:
+    background-color 140ms var(--aira-ease),
+    color 140ms var(--aira-ease),
+    border-color 140ms var(--aira-ease),
+    transform 140ms var(--aira-ease);
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] button:hover,
+.aira-home aside[aria-label="Conversation sidebar"] a:hover {
+  background: var(--aira-panel-hover) !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] button:active,
+.aira-home aside[aria-label="Conversation sidebar"] a:active {
+  transform: translateY(1px);
+}
+
+/* Header: compact command-bar feel instead of a landing-page hero. */
+.aira-home main > header {
+  background: color-mix(in srgb, var(--aira-canvas) 94%, transparent) !important;
+  border-color: var(--aira-line) !important;
+}
+
+.aira-home main > header h1 {
+  color: var(--aira-text) !important;
+  text-wrap: balance;
+}
+
+/* Conversation reading width and typography. */
+.aira-home [class*="max-w-[820px]"] {
+  max-width: 760px !important;
+}
+
+.aira-home .answer-markdown {
+  font-size: 14.5px;
+  line-height: 1.72;
+  letter-spacing: -0.003em;
+}
+
+.aira-home .answer-markdown :where(h1, h2, h3) {
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.aira-home .answer-markdown h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin-top: 1.8em;
+}
+
+.aira-home .answer-markdown h2 {
+  font-size: 1.2rem;
+  line-height: 1.35;
+  margin-top: 1.7em;
+}
+
+.aira-home .answer-markdown h3 {
+  font-size: 1rem;
+  line-height: 1.45;
+  margin-top: 1.5em;
+}
+
+.aira-home .answer-markdown :where(p, li) {
+  color: #c1c0bd;
+}
+
+.aira-home .answer-markdown a {
+  color: #d2b661;
+  text-decoration-color: rgba(210,182,97,.35);
+  text-underline-offset: 3px;
+}
+
+.aira-home .answer-markdown a:hover {
+  text-decoration-color: rgba(210,182,97,.9);
+}
+
+.aira-home .answer-markdown blockquote {
+  border-left-color: rgba(201,168,76,.35);
+  color: var(--aira-text-2);
+}
+
+.aira-home .answer-markdown pre {
+  border-radius: var(--aira-radius-md);
+  border-color: var(--aira-line) !important;
+  background: #0d0d0d !important;
+}
+
+.aira-home .answer-markdown code:not(pre code) {
+  border-radius: 6px;
+  padding: .12em .38em;
+  background: #171717 !important;
+}
+
+/* Composer: make the primary interaction unmistakable without glow. */
+.aira-enterprise-composer {
+  border-radius: var(--aira-radius-lg) !important;
+  border-color: var(--aira-line-strong) !important;
+  background: #141414 !important;
+  box-shadow: 0 14px 40px rgba(0,0,0,.22) !important;
+  transition:
+    border-color 150ms var(--aira-ease),
+    background-color 150ms var(--aira-ease),
+    box-shadow 150ms var(--aira-ease),
+    transform 150ms var(--aira-ease) !important;
+}
+
+.aira-enterprise-composer:hover {
+  border-color: rgba(255,255,255,.18) !important;
+}
+
+.aira-enterprise-composer:focus-within {
+  background: #161616 !important;
+  border-color: rgba(201,168,76,.42) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.30), 0 0 0 1px rgba(201,168,76,.08) !important;
+}
+
+.aira-enterprise-composer textarea {
+  caret-color: #d2b661;
+}
+
+.aira-enterprise-composer textarea::placeholder {
+  color: #73716c !important;
+}
+
+.aira-enterprise-composer button[aria-label="Send to AIRA AI"] {
+  background: #ecebe7 !important;
+  color: #111 !important;
+  border-radius: 10px !important;
+  transition:
+    transform 140ms var(--aira-ease),
+    background-color 140ms var(--aira-ease),
+    opacity 140ms var(--aira-ease) !important;
+}
+
+.aira-enterprise-composer button[aria-label="Send to AIRA AI"]:hover:not(:disabled) {
+  background: #fff !important;
+  transform: translateY(-1px);
+}
+
+.aira-enterprise-composer button[aria-label="Send to AIRA AI"]:active:not(:disabled) {
+  transform: translateY(0) scale(.97);
+}
+
+/* Native controls should match the shell instead of looking browser-default. */
+.aira-home select {
+  border-radius: 9px !important;
+  border-color: var(--aira-line) !important;
+  background: #101010 !important;
+  color: #c8c7c3 !important;
+  min-height: 34px;
+}
+
+/* Status / alert surfaces: reduce saturation and preserve semantic contrast. */
+.aira-home [role="alert"] {
+  border-radius: var(--aira-radius-md) !important;
+  box-shadow: none !important;
+}
+
+/* Buttons and chips get a shared interaction cadence. */
+.aira-home :where(button, a)[class*="rounded"],
+.aira-agent-workspace :where(button, a)[class*="rounded"] {
+  transition-duration: 140ms !important;
+  transition-timing-function: var(--aira-ease) !important;
+}
+
+/* Agent workspace — convert the previous glossy marketing treatment into a
+   calmer operational console while preserving every runtime interaction. */
+.aira-agent-workspace {
+  min-height: 100dvh;
+  color: var(--aira-text);
+}
+
+.aira-agent-workspace > main,
+.aira-agent-workspace .aira-shell {
+  background: var(--aira-canvas) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-agent-workspace .aira-display {
+  color: var(--aira-text) !important;
+  font-size: clamp(2rem, 4vw, 3rem) !important;
+  font-weight: 640 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1.06 !important;
+  text-wrap: balance;
+}
+
+.aira-agent-workspace .aira-card,
+.aira-agent-workspace .aira-glass {
+  background: var(--aira-panel) !important;
+  border: 1px solid var(--aira-line) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-agent-workspace .aira-fun-card::before,
+.aira-agent-workspace .aira-fun-card::after {
+  display: none !important;
+}
+
+.aira-agent-workspace .aira-agent-objective {
+  border-radius: var(--aira-radius-lg) !important;
+}
+
+.aira-agent-workspace textarea#agent-objective {
+  background: #0d0d0d !important;
+  border-color: var(--aira-line-strong) !important;
+  color: var(--aira-text) !important;
+  border-radius: var(--aira-radius-md) !important;
+  box-shadow: none !important;
+  caret-color: #d2b661;
+  transition: border-color 140ms var(--aira-ease), background-color 140ms var(--aira-ease) !important;
+}
+
+.aira-agent-workspace textarea#agent-objective::placeholder {
+  color: #6f6d68 !important;
+}
+
+.aira-agent-workspace textarea#agent-objective:focus {
+  background: #101010 !important;
+  border-color: rgba(201,168,76,.42) !important;
+  box-shadow: 0 0 0 1px rgba(201,168,76,.08) !important;
+}
+
+.aira-agent-workspace .aira-shine-button {
+  background: #ecebe7 !important;
+  color: #111 !important;
+  box-shadow: none !important;
+}
+
+.aira-agent-workspace .aira-shine-button::before,
+.aira-agent-workspace .aira-shine-button::after {
+  display: none !important;
+}
+
+.aira-agent-workspace .aira-shine-button:hover:not(:disabled) {
+  background: #fff !important;
+  transform: translateY(-1px);
+}
+
+.aira-agent-workspace .aira-provider-button {
+  background: transparent !important;
+  border-color: var(--aira-line) !important;
+  color: var(--aira-text-2) !important;
+  box-shadow: none !important;
+}
+
+.aira-agent-workspace .aira-provider-button:hover {
+  background: var(--aira-panel-hover) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-agent-workspace .aira-progress-track {
+  background: #090909 !important;
+}
+
+.aira-agent-workspace .aira-progress-track > div {
+  background: #b99a45 !important;
+}
+
+.aira-agent-workspace [class*="from-accent"][class*="to-violet"] {
+  background-image: none !important;
+  background-color: #171717 !important;
+  color: #d8bd6a !important;
+  box-shadow: inset 0 0 0 1px var(--aira-line) !important;
+}
+
+.aira-agent-workspace [class*="text-emerald-700"] {
+  color: #7fc18c !important;
+}
+
+.aira-agent-workspace [class*="text-amber-700"],
+.aira-agent-workspace [class*="text-amber-800"],
+.aira-agent-workspace [class*="text-amber-900"] {
+  color: #d1b56b !important;
+}
+
+.aira-agent-workspace [class*="text-red-700"],
+.aira-agent-workspace [class*="text-red-800"] {
+  color: #d88989 !important;
+}
+
+.aira-agent-workspace [class*="bg-red-50"],
+.aira-agent-workspace [class*="bg-amber-50"] {
+  background: #14110f !important;
+}
+
+.aira-agent-workspace [class*="border-red-200"],
+.aira-agent-workspace [class*="border-amber-200"] {
+  border-color: var(--aira-line-strong) !important;
+}
+
+.aira-agent-workspace .aira-status-pill {
+  border: 1px solid var(--aira-line) !important;
+  background: #101010 !important;
+}
+
+.aira-agent-workspace section[aria-labelledby="agent-runs-heading"] {
+  border-radius: var(--aira-radius-lg) !important;
+}
+
+.aira-agent-workspace section[aria-labelledby="agent-runs-heading"] > div:first-child {
+  border-color: var(--aira-line) !important;
+}
+
+.aira-agent-workspace a {
+  text-underline-offset: 3px;
+}
+
+/* Mobile: preserve input prominence and safe-area comfort. */
+@media (max-width: 767px) {
+  .aira-home main > header {
+    min-height: 54px !important;
+    padding-inline: 12px !important;
+  }
+
+  .aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+    padding: 8px 0 max(10px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .aira-home form[aria-label="Ask AiraAI"] {
+    padding-inline: 10px !important;
+  }
+
+  .aira-enterprise-composer {
+    border-radius: 14px !important;
+  }
+
+  .aira-home .answer-markdown {
+    font-size: 14px;
+    line-height: 1.68;
+  }
+
+  .aira-agent-workspace .aira-display {
+    font-size: 2rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-home *,
+  .aira-home *::before,
+  .aira-home *::after,
+  .aira-agent-workspace *,
+  .aira-agent-workspace *::before,
+  .aira-agent-workspace *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
