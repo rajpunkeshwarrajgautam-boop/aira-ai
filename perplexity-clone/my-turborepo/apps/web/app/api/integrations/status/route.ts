@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { isAutoGptConfigured, isAutoGptEnabled } from "@/lib/autogpt/config";
 import { isDeerFlowConfigured, isDeerFlowEnabled } from "@/lib/deerflow/config";
 import { knowledgeStorageConfigured } from "@/lib/foundation-storage";
-import { getLocalAiConfig, localAiConfigured } from "@services/local-ai/config";
+import { getLocalAiConfigOrDisabled } from "@services/local-ai/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,14 +17,14 @@ export async function GET(): Promise<Response> {
     return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
   }
 
-  const local = getLocalAiConfig();
+  const local = getLocalAiConfigOrDisabled();
   const integrations = [
     item("openai", "OpenAI", Boolean(process.env.OPENAI_API_KEY), "Cloud model provider", process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini"),
     item("nvidia", "NVIDIA", Boolean(process.env.NVIDIA_API_KEY), "Cloud fallback/provider", process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct"),
     item(
       "self-hosted",
       "Virexa Local AI",
-      localAiConfigured(),
+      local.configured,
       "llama.cpp private worker · chat, routing, RAG, tools and business workers",
       local.model || undefined,
     ),
