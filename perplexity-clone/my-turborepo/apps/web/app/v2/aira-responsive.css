@@ -1,0 +1,56 @@
+@media (max-width: 900px) {
+  .aira-header-center { display: none; }
+  .aira-header-actions { min-width: 0; }
+  .aira-header-account { display: none; }
+  .aira-starters { grid-template-columns: 1fr; }
+  .aira-starters button { min-height: 78px; }
+  .aira-footer-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .aira-page .v2-agent-grid { grid-template-columns: 1fr; }
+  .aira-page .v2-agent-run-list { max-height: 320px; overflow: auto; }
+}
+
+@media (max-width: 640px) {
+  .aira-announcement { min-height: 40px; padding: 7px 14px; }
+  .aira-announcement-link { font-size: 12px; }
+  .aira-header { height: 54px; }
+  .aira-header-nav { width: calc(100% - 24px); }
+  .aira-logo-wordmark { font-size: 21px; }
+  .aira-header-secondary { display: none; }
+  .aira-header-primary { min-height: 30px; padding: 5px 9px; font-size: 12px; }
+  .aira-hero { min-height: calc(100vh - 94px); padding: 54px 16px 72px; align-items: flex-start; }
+  .aira-hero h1 { margin-bottom: 25px; font-size: 34px; line-height: 1.3; }
+  .aira-composer-card { min-height: 118px; padding: 11px 12px; border-radius: 20px; }
+  .aira-composer-card textarea { min-height: 86px; font-size: 15px; }
+  .aira-action-row { gap: 6px; }
+  .aira-action-row > button, .aira-more-button { height: 36px; padding: 0 11px; font-size: 12px; }
+  .aira-research-options > span { width: 100%; margin-left: 0; }
+  .aira-workspace-section, .aira-research-view { width: calc(100% - 28px); padding: 48px 0 70px; }
+  .aira-workspace-heading { align-items: flex-start; flex-direction: column; margin-bottom: 25px; }
+  .aira-workspace-heading h1, .aira-page .v2-module-heading h1 { font-size: 32px; }
+  .aira-workspace-actions { width: 100%; }
+  .aira-user-message > div { max-width: 88%; }
+  .aira-assistant-message { grid-template-columns: 28px minmax(0,1fr); gap: 9px; }
+  .aira-assistant-mark { width: 28px; height: 28px; font-size: 14px; }
+  .aira-page .v2-context-sheet-backdrop { align-items: flex-end; }
+  .aira-page .v2-context-sheet { width: 100%; height: min(78vh, 680px); border-left: 0; border-top: 1px solid var(--aira-line); border-radius: 18px 18px 0 0; }
+  .aira-page .v2-agent-launch-foot { align-items: flex-end; }
+  .aira-page .v2-agent-launch-foot > span { max-width: 58%; }
+  .aira-page .v2-memory-create-actions { flex-wrap: wrap; }
+  .aira-page .v2-memory-create-actions > span { order: 3; flex-basis: 100%; }
+  .aira-page .v2-memory-row-foot { align-items: flex-end; }
+  .aira-page .v2-library-controls { align-items: stretch; flex-direction: column; }
+  .aira-page .v2-library-controls > label { min-width: 0; }
+  .aira-page .v2-library-controls > div { overflow-x: auto; }
+  .aira-page .v2-library-version-list > article { grid-template-columns: 38px minmax(0,1fr); }
+  .aira-page .v2-library-version-list > article > a, .aira-page .v2-library-version-list > article > .v2-library-recorded { grid-column: 2; }
+  .aira-page .v2-settings-grid, .aira-page .v2-settings-fields { grid-template-columns: 1fr; }
+  .aira-page .v2-settings-card-wide { grid-column: auto; }
+  .aira-footer-inner { width: calc(100% - 32px); padding: 64px 0 36px; }
+  .aira-footer-tagline { font-size: 31px; }
+  .aira-footer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 28px 18px; }
+  .aira-footer-bottom { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-page *, .aira-page *::before, .aira-page *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
