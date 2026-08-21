@@ -66,10 +66,24 @@ export function getLocalAiConfig(env: EnvLike = process.env): LocalAiConfig {
 	};
 }
 
-export function localAiConfigured(env: EnvLike = process.env): boolean {
+export function getLocalAiConfigOrDisabled(env: EnvLike = process.env): LocalAiConfig {
 	try {
-		return getLocalAiConfig(env).configured;
+		return getLocalAiConfig(env);
 	} catch {
-		return false;
+		return {
+			enabled: parseBoolean(env.VIREXA_LOCAL_AI_ENABLED, false),
+			configured: false,
+			baseURL: "",
+			apiKey: env.SELF_HOSTED_LLM_API_KEY?.trim() || "no-key",
+			model: env.SELF_HOSTED_LLM_MODEL?.trim() ?? "",
+			timeoutMs: parseBoundedInt(env.VIREXA_LOCAL_AI_TIMEOUT_MS, 45_000, 2_000, 180_000),
+			maxCompletionTokens: parseBoundedInt(env.VIREXA_LOCAL_AI_MAX_TOKENS, 1600, 128, 8192),
+			localFirst: parseBoolean(env.AIRA_LOCAL_FIRST_ENABLED, false),
+			required: parseBoolean(env.AIRA_LOCAL_AI_REQUIRED, false),
+		};
 	}
+}
+
+export function localAiConfigured(env: EnvLike = process.env): boolean {
+	return getLocalAiConfigOrDisabled(env).configured;
 }
