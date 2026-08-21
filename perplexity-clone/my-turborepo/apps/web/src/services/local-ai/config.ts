@@ -10,6 +10,8 @@ export interface LocalAiConfig {
 	readonly required: boolean;
 }
 
+type EnvLike = Readonly<Record<string, string | undefined>>;
+
 function parseBoolean(value: string | undefined, fallback = false): boolean {
 	if (value === undefined || value.trim() === "") return fallback;
 	return value.trim().toLowerCase() === "true";
@@ -26,7 +28,7 @@ function parseBoundedInt(
 	return Math.min(max, Math.max(min, parsed));
 }
 
-export function normalizeLocalAiBaseURL(raw: string): string {
+export function normalizeLocalAiBaseURL(raw: string, nodeEnv = process.env.NODE_ENV): string {
 	const trimmed = raw.trim().replace(/\/$/, "");
 	if (!trimmed) return "";
 	const url = new URL(trimmed);
@@ -37,16 +39,16 @@ export function normalizeLocalAiBaseURL(raw: string): string {
 		throw new Error("SELF_HOSTED_LLM_BASE_URL must use http or https.");
 	}
 	const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "::1";
-	if (process.env.NODE_ENV === "production" && url.protocol !== "https:" && !loopback) {
+	if (nodeEnv === "production" && url.protocol !== "https:" && !loopback) {
 		throw new Error("Production self-hosted inference must use HTTPS unless it is loopback-only.");
 	}
 	return url.toString().replace(/\/$/, "");
 }
 
-export function getLocalAiConfig(env: NodeJS.ProcessEnv = process.env): LocalAiConfig {
+export function getLocalAiConfig(env: EnvLike = process.env): LocalAiConfig {
 	const enabled = parseBoolean(env.VIREXA_LOCAL_AI_ENABLED, false);
 	const baseURL = env.SELF_HOSTED_LLM_BASE_URL?.trim()
-		? normalizeLocalAiBaseURL(env.SELF_HOSTED_LLM_BASE_URL)
+		? normalizeLocalAiBaseURL(env.SELF_HOSTED_LLM_BASE_URL, env.NODE_ENV)
 		: "";
 	const model = env.SELF_HOSTED_LLM_MODEL?.trim() ?? "";
 	const configured = enabled && Boolean(baseURL && model);
@@ -64,7 +66,7 @@ export function getLocalAiConfig(env: NodeJS.ProcessEnv = process.env): LocalAiC
 	};
 }
 
-export function localAiConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function localAiConfigured(env: EnvLike = process.env): boolean {
 	try {
 		return getLocalAiConfig(env).configured;
 	} catch {
