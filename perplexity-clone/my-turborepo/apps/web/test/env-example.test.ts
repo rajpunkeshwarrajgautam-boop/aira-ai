@@ -106,6 +106,9 @@ test("keeps every externally gated runtime disabled by default", () => {
 	for (const name of [
 		"DEERFLOW_AGENT_ENABLED",
 		"AUTOGPT_AGENT_ENABLED",
+		"VIREXA_LOCAL_AI_ENABLED",
+		"AIRA_LOCAL_FIRST_ENABLED",
+		"AIRA_LOCAL_AI_REQUIRED",
 		"PYTHON_SANDBOX_ENABLED",
 		"SEMANTIC_MEMORY_ENABLED",
 		"GRAPH_MEMORY_ENABLED",
