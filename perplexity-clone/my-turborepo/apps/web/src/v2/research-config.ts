@@ -96,5 +96,5 @@ export function saveV2WorkspacePreferences(preferences: V2WorkspacePreferences):
 }
 
 export function researchPreset(id: ResearchPresetId): ResearchPresetSummary {
-  return V2_RESEARCH_PRESETS.find((preset) => preset.id === id) ?? V2_RESEARCH_PRESETS[0];
+  return V2_RESEARCH_PRESETS.find((preset) => preset.id === id) ?? V2_RESEARCH_PRESETS[0]!;
 }
