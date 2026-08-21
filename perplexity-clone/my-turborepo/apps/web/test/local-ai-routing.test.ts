@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getLocalAiConfig } from "../src/services/local-ai/config.ts";
-import { routeLocalAiTask } from "../src/services/local-ai/task-router.ts";
+import { getLocalAiConfig } from "../src/services/local-ai/config";
+import { routeLocalAiTask } from "../src/services/local-ai/task-router";
 
 test("keeps routine lead and extraction work on the local tier", () => {
 	const lead = routeLocalAiTask({
