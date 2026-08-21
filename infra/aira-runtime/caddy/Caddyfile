@@ -1,0 +1,143 @@
+# AIRA runtime edge.
+#
+# Terminates TLS for every Vercel-facing runtime service on one host and
+# reverse-proxies to the loopback ports the existing service Compose files
+# already publish. Nothing here loosens an upstream's own authentication: the
+# control plane, sandbox gateway, AutoGPT adapters and DeerFlow Gateway each
+# still require their own token on every request. The edge only narrows the
+# surface further, by refusing paths AIRA never calls.
+#
+# Runs with network_mode: host so 127.0.0.1:<port> resolves to the services
+# published by infra/foundation/compose.yml, infra/autogpt-runner/compose.yml
+# and DeerFlow's own upstream Compose, without editing any of them.
+{
+	email {$AIRA_ACME_EMAIL}
+	admin off
+}
+
+(hardened) {
+	encode zstd gzip
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Cross-Origin-Resource-Policy "same-origin"
+	}
+	request_body {
+		max_size 24MB
+	}
+}
+
+# --- Foundation control plane -------------------------------------------------
+# Only the five paths AIRA actually calls are published, plus /healthz for
+# operator and uptime probes. /v1/jobs/claim and /v1/jobs/ack are deliberately
+# NOT published: the knowledge worker reaches the control plane over the
+# internal Docker network, so exposing the claim path would only widen the
+# surface on which a leaked control token could steal queued jobs.
+{$AIRA_CONTROL_HOST} {
+	import hardened
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:{$AIRA_CONTROL_PORT}
+	}
+
+	handle /v1/admit {
+		reverse_proxy 127.0.0.1:{$AIRA_CONTROL_PORT}
+	}
+
+	handle /v1/release {
+		reverse_proxy 127.0.0.1:{$AIRA_CONTROL_PORT}
+	}
+
+	handle /v1/providers/* {
+		reverse_proxy 127.0.0.1:{$AIRA_CONTROL_PORT}
+	}
+
+	handle /v1/jobs/enqueue {
+		reverse_proxy 127.0.0.1:{$AIRA_CONTROL_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# --- Python sandbox gateway ---------------------------------------------------
+{$AIRA_SANDBOX_HOST} {
+	import hardened
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:{$AIRA_SANDBOX_PORT}
+	}
+
+	handle /v1/execute {
+		reverse_proxy 127.0.0.1:{$AIRA_SANDBOX_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# --- DeerFlow Gateway ---------------------------------------------------------
+# Upstream publishes exactly one host port (nginx on 127.0.0.1:2026) which
+# serves both /health and /api/*. Interactive API documentation is refused here
+# as well as by GATEWAY_ENABLE_DOCS=false, so a future upstream default flip
+# cannot quietly expose it.
+{$AIRA_DEERFLOW_HOST} {
+	import hardened
+
+	handle /docs* {
+		respond 404
+	}
+
+	handle /redoc* {
+		respond 404
+	}
+
+	handle /openapi.json {
+		respond 404
+	}
+
+	handle /health {
+		reverse_proxy 127.0.0.1:{$AIRA_DEERFLOW_PORT}
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:{$AIRA_DEERFLOW_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# --- AutoGPT primary ----------------------------------------------------------
+# Only the adapter's external API is published. /internal/v1/* is the private
+# NVIDIA translation surface used by the AutoGPT container over the internal
+# Docker network and must never be reachable from the Internet.
+{$AIRA_AUTOGPT_PRIMARY_HOST} {
+	import hardened
+
+	handle /external-api/* {
+		reverse_proxy 127.0.0.1:{$AIRA_AUTOGPT_PRIMARY_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# --- AutoGPT secondary --------------------------------------------------------
+{$AIRA_AUTOGPT_SECONDARY_HOST} {
+	import hardened
+
+	handle /external-api/* {
+		reverse_proxy 127.0.0.1:{$AIRA_AUTOGPT_SECONDARY_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
