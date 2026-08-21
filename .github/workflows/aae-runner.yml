@@ -1,0 +1,61 @@
+name: AAE Runner CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/aae-runner/**"
+      - ".github/workflows/aae-runner.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/aae-runner/**"
+      - ".github/workflows/aae-runner.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aae-runner-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: infra/aae-runner/pyproject.toml
+
+      - name: Install runner test dependencies
+        run: pip install "aiosqlite>=0.20,<1" "pydantic>=2.10,<3" "pytest>=8.4,<9"
+
+      - name: Compile runner and sandbox
+        run: python -m compileall -q infra/aae-runner/aae_runner infra/aae-runner/sandbox
+
+      - name: Run runner policy and persistence tests
+        working-directory: infra/aae-runner
+        run: pytest -q
+
+      - name: Validate isolated Compose topology
+        working-directory: infra/aae-runner
+        env:
+          OPENAI_API_KEY: sk-ci-placeholder-not-a-real-key
+          AAE_API_TOKEN: ci-runner-token-ci-runner-token
+          AAE_ALLOWED_OWNER_ID: ci-owner
+          AAE_SANDBOX_TOKEN: ci-sandbox-token-ci-sandbox-token
+          AAE_PORT: "18000"
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Build runner and no-egress sandbox images
+        run: |
+          docker build -t aira-aae-runner:ci infra/aae-runner
+          docker build -t aira-aae-sandbox:ci infra/aae-runner/sandbox
