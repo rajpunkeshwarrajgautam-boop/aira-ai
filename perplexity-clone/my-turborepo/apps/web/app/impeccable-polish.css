@@ -5,7 +5,8 @@
  * restrained motion, strong focus affordances, and responsive density.
  */
 
-.aira-home {
+.aira-home,
+.aira-agent-workspace {
   --aira-canvas: #090909;
   --aira-sidebar: #0c0c0c;
   --aira-panel: #111111;
@@ -30,16 +31,23 @@
 .aira-home button,
 .aira-home input,
 .aira-home textarea,
-.aira-home select {
+.aira-home select,
+.aira-agent-workspace,
+.aira-agent-workspace button,
+.aira-agent-workspace input,
+.aira-agent-workspace textarea,
+.aira-agent-workspace select {
   font-feature-settings: "ss01" 1, "cv02" 1, "cv03" 1, "cv04" 1;
 }
 
-.aira-home * {
+.aira-home *,
+.aira-agent-workspace * {
   scrollbar-color: rgba(255,255,255,.12) transparent;
 }
 
 /* Keyboard navigation must remain obvious on the dark shell. */
-.aira-home :where(button, a, textarea, select, input):focus-visible {
+.aira-home :where(button, a, textarea, select, input):focus-visible,
+.aira-agent-workspace :where(button, a, textarea, select, input):focus-visible {
   outline: 2px solid rgba(201, 168, 76, 0.72) !important;
   outline-offset: 2px !important;
 }
@@ -215,9 +223,154 @@
 }
 
 /* Buttons and chips get a shared interaction cadence. */
-.aira-home :where(button, a)[class*="rounded"] {
+.aira-home :where(button, a)[class*="rounded"],
+.aira-agent-workspace :where(button, a)[class*="rounded"] {
   transition-duration: 140ms !important;
   transition-timing-function: var(--aira-ease) !important;
+}
+
+/* Agent workspace — convert the previous glossy marketing treatment into a
+   calmer operational console while preserving every runtime interaction. */
+.aira-agent-workspace {
+  min-height: 100dvh;
+  color: var(--aira-text);
+}
+
+.aira-agent-workspace > main,
+.aira-agent-workspace .aira-shell {
+  background: var(--aira-canvas) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-agent-workspace .aira-display {
+  color: var(--aira-text) !important;
+  font-size: clamp(2rem, 4vw, 3rem) !important;
+  font-weight: 640 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1.06 !important;
+  text-wrap: balance;
+}
+
+.aira-agent-workspace .aira-card,
+.aira-agent-workspace .aira-glass {
+  background: var(--aira-panel) !important;
+  border: 1px solid var(--aira-line) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-agent-workspace .aira-fun-card::before,
+.aira-agent-workspace .aira-fun-card::after {
+  display: none !important;
+}
+
+.aira-agent-workspace .aira-agent-objective {
+  border-radius: var(--aira-radius-lg) !important;
+}
+
+.aira-agent-workspace textarea#agent-objective {
+  background: #0d0d0d !important;
+  border-color: var(--aira-line-strong) !important;
+  color: var(--aira-text) !important;
+  border-radius: var(--aira-radius-md) !important;
+  box-shadow: none !important;
+  caret-color: #d2b661;
+  transition: border-color 140ms var(--aira-ease), background-color 140ms var(--aira-ease) !important;
+}
+
+.aira-agent-workspace textarea#agent-objective::placeholder {
+  color: #6f6d68 !important;
+}
+
+.aira-agent-workspace textarea#agent-objective:focus {
+  background: #101010 !important;
+  border-color: rgba(201,168,76,.42) !important;
+  box-shadow: 0 0 0 1px rgba(201,168,76,.08) !important;
+}
+
+.aira-agent-workspace .aira-shine-button {
+  background: #ecebe7 !important;
+  color: #111 !important;
+  box-shadow: none !important;
+}
+
+.aira-agent-workspace .aira-shine-button::before,
+.aira-agent-workspace .aira-shine-button::after {
+  display: none !important;
+}
+
+.aira-agent-workspace .aira-shine-button:hover:not(:disabled) {
+  background: #fff !important;
+  transform: translateY(-1px);
+}
+
+.aira-agent-workspace .aira-provider-button {
+  background: transparent !important;
+  border-color: var(--aira-line) !important;
+  color: var(--aira-text-2) !important;
+  box-shadow: none !important;
+}
+
+.aira-agent-workspace .aira-provider-button:hover {
+  background: var(--aira-panel-hover) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-agent-workspace .aira-progress-track {
+  background: #090909 !important;
+}
+
+.aira-agent-workspace .aira-progress-track > div {
+  background: #b99a45 !important;
+}
+
+.aira-agent-workspace [class*="from-accent"][class*="to-violet"] {
+  background-image: none !important;
+  background-color: #171717 !important;
+  color: #d8bd6a !important;
+  box-shadow: inset 0 0 0 1px var(--aira-line) !important;
+}
+
+.aira-agent-workspace [class*="text-emerald-700"] {
+  color: #7fc18c !important;
+}
+
+.aira-agent-workspace [class*="text-amber-700"],
+.aira-agent-workspace [class*="text-amber-800"],
+.aira-agent-workspace [class*="text-amber-900"] {
+  color: #d1b56b !important;
+}
+
+.aira-agent-workspace [class*="text-red-700"],
+.aira-agent-workspace [class*="text-red-800"] {
+  color: #d88989 !important;
+}
+
+.aira-agent-workspace [class*="bg-red-50"],
+.aira-agent-workspace [class*="bg-amber-50"] {
+  background: #14110f !important;
+}
+
+.aira-agent-workspace [class*="border-red-200"],
+.aira-agent-workspace [class*="border-amber-200"] {
+  border-color: var(--aira-line-strong) !important;
+}
+
+.aira-agent-workspace .aira-status-pill {
+  border: 1px solid var(--aira-line) !important;
+  background: #101010 !important;
+}
+
+.aira-agent-workspace section[aria-labelledby="agent-runs-heading"] {
+  border-radius: var(--aira-radius-lg) !important;
+}
+
+.aira-agent-workspace section[aria-labelledby="agent-runs-heading"] > div:first-child {
+  border-color: var(--aira-line) !important;
+}
+
+.aira-agent-workspace a {
+  text-underline-offset: 3px;
 }
 
 /* Mobile: preserve input prominence and safe-area comfort. */
@@ -243,12 +396,19 @@
     font-size: 14px;
     line-height: 1.68;
   }
+
+  .aira-agent-workspace .aira-display {
+    font-size: 2rem !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .aira-home *,
   .aira-home *::before,
-  .aira-home *::after {
+  .aira-home *::after,
+  .aira-agent-workspace *,
+  .aira-agent-workspace *::before,
+  .aira-agent-workspace *::after {
     scroll-behavior: auto !important;
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
