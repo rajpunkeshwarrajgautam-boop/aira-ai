@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import "./aira-reference.css";
 import "./impeccable-polish.css";
+import "./impeccable-chat-v2.css";
 import "./aira-v2.css";
 import { AiraPreloader } from "../components/AiraPreloader";
 import { SearchLayout } from "../components/SearchLayout";
@@ -18,7 +19,6 @@ function HomeSkeleton() {
 					</div>
 				</div>
 			</div>
-		</div>
 	);
 }
 
