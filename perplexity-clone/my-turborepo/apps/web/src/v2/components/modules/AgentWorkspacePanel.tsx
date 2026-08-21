@@ -115,30 +115,34 @@ export function AgentWorkspacePanel({
   );
 
   useEffect(() => {
-    if (activeIds.length === 0) return;
-    const timer = window.setInterval(() => {
-      void Promise.all(
-        activeIds.map(async (runId) => {
-          try {
-            const synced = await syncAgentRun(runId);
-            setSyncWarning(synced.syncWarning ?? null);
-            onDashboardChange(
-              dashboard
-                ? {
-                    ...dashboard,
-                    runs: dashboard.runs.map((run) =>
-                      run.id === synced.run.id ? synced.run : run,
-                    ),
-                  }
-                : dashboard,
-            );
-          } catch {
-            // The next poll or a manual refresh will retry. Existing server state remains authoritative.
-          }
-        }),
-      );
-    }, 4_000);
-    return () => window.clearInterval(timer);
+    if (activeIds.length === 0 || !dashboard) return;
+    let disposed = false;
+
+    const poll = async () => {
+      const results = await Promise.allSettled(activeIds.map((runId) => syncAgentRun(runId)));
+      if (disposed) return;
+
+      const updates = new Map<string, AgentRun>();
+      let nextWarning: string | null = null;
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        updates.set(result.value.run.id, result.value.run);
+        if (result.value.syncWarning) nextWarning = result.value.syncWarning;
+      }
+      if (updates.size > 0) {
+        onDashboardChange({
+          ...dashboard,
+          runs: dashboard.runs.map((run) => updates.get(run.id) ?? run),
+        });
+      }
+      setSyncWarning(nextWarning);
+    };
+
+    const timer = window.setInterval(() => void poll(), 4_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
   }, [activeIds, dashboard, onDashboardChange]);
 
   const start = useCallback(async () => {
