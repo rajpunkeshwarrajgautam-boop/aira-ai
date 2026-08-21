@@ -13,7 +13,7 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "../../lib/cn";
 import { AiraLogo } from "../AiraLogo";
@@ -94,6 +94,17 @@ export function ConversationSidebar({
 		}
 		return result;
 	}, [filtered]);
+
+	useEffect(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "o") {
+				event.preventDefault();
+				if (!disabled) onCreateConversation();
+			}
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [disabled, onCreateConversation]);
 
 	return (
 		<aside
