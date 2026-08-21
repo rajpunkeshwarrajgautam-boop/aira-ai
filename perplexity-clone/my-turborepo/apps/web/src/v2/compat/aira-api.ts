@@ -26,6 +26,14 @@ export interface ConversationMessage {
   readonly createdAt: string;
 }
 
+export interface ResearchHistoryRow {
+  readonly id: string;
+  readonly conversationId: string | null;
+  readonly query: string;
+  readonly createdAt: string;
+  readonly citationCount: number;
+}
+
 export type AgentRunStatus =
   | "QUEUED"
   | "RUNNING"
@@ -194,7 +202,14 @@ export async function getConversationMessages(
   return result.messages;
 }
 
-export async function getAgentDashboard(limit = 24): Promise<AgentDashboard> {
+export async function listResearchHistory(limit = 50): Promise<readonly ResearchHistoryRow[]> {
+  const result = await apiJson<{ readonly history: readonly ResearchHistoryRow[] }>(
+    `/api/history/research?limit=${Math.min(Math.max(limit, 1), 100)}`,
+  );
+  return result.history;
+}
+
+export async function getAgentDashboard(limit = 50): Promise<AgentDashboard> {
   return apiJson<AgentDashboard>(`/api/agents/runs?limit=${Math.min(Math.max(limit, 1), 50)}`);
 }
 
@@ -225,23 +240,39 @@ function resultRecord(value: unknown): Readonly<Record<string, unknown>> | null 
     : null;
 }
 
+export function agentProviderLabel(provider: string): string {
+  if (provider === "DEERFLOW") return "DeerFlow 2.0";
+  if (provider === "AUTOGPT") return "AutoGPT";
+  if (provider === "AAE") return "AIRA Agent Engine";
+  return provider;
+}
+
 export function agentResultText(result: unknown): string | null {
   if (typeof result === "string" && result.trim()) return result.trim();
   const output = resultRecord(result)?.output;
   return typeof output === "string" && output.trim() ? output.trim() : null;
 }
 
-export function agentArtifactPaths(result: unknown): readonly string[] {
-  const artifacts = resultRecord(result)?.artifacts;
-  if (!Array.isArray(artifacts)) return [];
+function normalizedPathList(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return [];
   return Array.from(
     new Set(
-      artifacts
-        .filter((value): value is string => typeof value === "string")
-        .map((value) => value.replace(/\\/g, "/").replace(/^\/+/, ""))
-        .filter((value) => value.startsWith("mnt/user-data/outputs/")),
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.replace(/\\/g, "/").replace(/^\/+/, "").trim())
+        .filter(Boolean),
     ),
+  ).slice(0, 100);
+}
+
+export function agentArtifactPaths(result: unknown): readonly string[] {
+  return normalizedPathList(resultRecord(result)?.artifacts).filter((value) =>
+    value.startsWith("mnt/user-data/outputs/"),
   ).slice(0, 25);
+}
+
+export function agentWorkspaceFilePaths(result: unknown): readonly string[] {
+  return normalizedPathList(resultRecord(result)?.modifiedFiles).slice(0, 100);
 }
 
 export function agentArtifactHref(runId: string, artifactPath: string): string {
@@ -317,7 +348,7 @@ function dispatchSseBlock(block: string, callbacks: SearchStreamCallbacks): void
     if (payload) callbacks.onDone?.(payload);
     return;
   }
-  if (eventName === "stream_error") {
+  if (eventName === "stream_error" || eventName === "error") {
     const payload = parseJson<StreamErrorEvent>(raw);
     if (payload) callbacks.onStreamError?.(payload);
   }
@@ -329,6 +360,7 @@ export async function streamSearch(
     readonly mode: ResearchMode;
     readonly conversationId?: string;
     readonly parentMessageId?: string;
+    readonly continueResearch?: boolean;
     readonly presetId?: string;
   },
   callbacks: SearchStreamCallbacks,
@@ -346,6 +378,11 @@ export async function streamSearch(
       presetId: input.presetId ?? "general",
       ...(input.conversationId ? { conversationId: input.conversationId } : {}),
       ...(input.parentMessageId ? { parentMessageId: input.parentMessageId } : {}),
+      ...(input.continueResearch !== undefined
+        ? { continueResearch: input.continueResearch }
+        : input.parentMessageId
+          ? { continueResearch: true }
+          : {}),
     }),
   });
 
