@@ -28,7 +28,7 @@ function parseBoundedInt(
 	return Math.min(max, Math.max(min, parsed));
 }
 
-export function normalizeLocalAiBaseURL(raw: string, nodeEnv = process.env.NODE_ENV): string {
+export function normalizeLocalAiBaseURL(raw: string, nodeEnv: string | undefined = process.env.NODE_ENV): string {
 	const trimmed = raw.trim().replace(/\/$/, "");
 	if (!trimmed) return "";
 	const url = new URL(trimmed);
