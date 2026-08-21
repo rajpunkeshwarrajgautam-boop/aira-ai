@@ -37,8 +37,8 @@ export function MobileContextSheet({
           'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ),
       ).filter((element) => !element.hasAttribute("hidden"));
-      if (focusable.length === 0) return;
       const first = focusable[0];
+      if (!first) return;
       const last = focusable.at(-1) ?? first;
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
