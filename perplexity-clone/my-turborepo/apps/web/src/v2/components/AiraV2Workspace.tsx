@@ -24,9 +24,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { ShareAnswerButton } from "@/src/v2/components/ShareAnswerButton";
 import { AgentWorkspacePanel } from "@/src/v2/components/modules/AgentWorkspacePanel";
 import { LibraryWorkspacePanel } from "@/src/v2/components/modules/LibraryWorkspacePanel";
 import { MemoryWorkspacePanel } from "@/src/v2/components/modules/MemoryWorkspacePanel";
+import {
+  getBillingStatus,
+  type BillingStatus,
+} from "@/src/v2/compat/account-api";
 import {
   getAgentDashboard,
   getConversationMessages,
@@ -104,6 +109,12 @@ function sourceDomain(url: string): string {
   }
 }
 
+function initials(name: string | null | undefined, email: string | null | undefined): string {
+  const source = name?.trim() || email?.trim() || "A";
+  const parts = source.split(/[\s@._-]+/).filter(Boolean);
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "A";
+}
+
 function MarkdownMessage({
   content,
   citations,
@@ -145,7 +156,7 @@ function MarkdownMessage({
 }
 
 export function AiraV2Workspace() {
-  const { status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const authenticated = sessionStatus === "authenticated";
   const [view, setView] = useState<WorkspaceView>("home");
   const [query, setQuery] = useState("");
@@ -159,6 +170,7 @@ export function AiraV2Workspace() {
   const [phase, setPhase] = useState<"idle" | "searching" | "streaming" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentDashboard | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [agentRefreshing, setAgentRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
@@ -198,10 +210,23 @@ export function AiraV2Workspace() {
     }
   }, [authenticated]);
 
+  const refreshBilling = useCallback(async () => {
+    if (!authenticated) {
+      setBilling(null);
+      return;
+    }
+    try {
+      setBilling(await getBillingStatus());
+    } catch {
+      setBilling(null);
+    }
+  }, [authenticated]);
+
   useEffect(() => {
     void refreshConversations();
     void refreshAgents();
-  }, [refreshAgents, refreshConversations]);
+    void refreshBilling();
+  }, [refreshAgents, refreshBilling, refreshConversations]);
 
   useEffect(() => {
     if (view !== "research" && view !== "home") return;
@@ -294,7 +319,7 @@ export function AiraV2Workspace() {
         setStreamingUser(null);
         setStreamingAnswer("");
         setPhase("idle");
-        await refreshConversations();
+        await Promise.all([refreshConversations(), refreshBilling()]);
       } catch (submitError) {
         if (controller.signal.aborted) {
           setPhase("idle");
@@ -304,11 +329,12 @@ export function AiraV2Workspace() {
         }
         setError(submitError instanceof Error ? submitError.message : "AIRA could not complete the request.");
         setPhase("error");
+        await refreshBilling();
       } finally {
         abortRef.current = null;
       }
     },
-    [busy, conversationId, mode, parentMessageId, query, refreshConversations],
+    [busy, conversationId, mode, parentMessageId, query, refreshBilling, refreshConversations],
   );
 
   const stop = useCallback(() => {
@@ -320,6 +346,8 @@ export function AiraV2Workspace() {
     setSidebarOpen(false);
     if (next === "agents" || next === "library") void refreshAgents();
   }, [refreshAgents]);
+
+  const accountLabel = session?.user?.name?.trim() || session?.user?.email?.trim() || "Account";
 
   return (
     <div className="aira-v2">
@@ -342,8 +370,24 @@ export function AiraV2Workspace() {
           <span>One workspace for research, memory, artifacts, and autonomous work</span>
         </div>
         <div className="v2-topbar-actions">
+          {authenticated && billing ? (
+            <Link href="/pricing" className="v2-usage-pill" title="View plan and usage">
+              <span>{billing.billingPlan}</span>
+              <strong>{billing.searchesRemaining}</strong>
+              <small>searches</small>
+            </Link>
+          ) : null}
+          {authenticated ? (
+            <div className="v2-account-chip" title={accountLabel}>
+              <span>{initials(session?.user?.name, session?.user?.email)}</span>
+              <div><strong>{accountLabel}</strong><small>Signed in</small></div>
+            </div>
+          ) : sessionStatus === "unauthenticated" ? (
+            <Link href={`/signin?callbackUrl=${encodeURIComponent("/v2")}`} className="v2-signin-link">Sign in</Link>
+          ) : (
+            <span className="v2-account-loading"><Loader2 className="spin" aria-hidden /></span>
+          )}
           <Link href="/" className="v2-legacy-link">Current AIRA</Link>
-          <span className={`v2-session-dot ${sessionStatus}`} aria-hidden />
         </div>
       </header>
 
@@ -478,6 +522,9 @@ export function AiraV2Workspace() {
                           content={message.content}
                           citations={isCitationArray(message.citations) ? message.citations : []}
                         />
+                        {authenticated && conversationId ? (
+                          <ShareAnswerButton conversationId={conversationId} messageId={message.id} />
+                        ) : null}
                       </div>
                     </article>
                   ),
