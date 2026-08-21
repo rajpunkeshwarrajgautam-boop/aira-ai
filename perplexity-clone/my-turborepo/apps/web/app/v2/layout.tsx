@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import "./v2.css";
+import "./modules.css";
 
 export const metadata: Metadata = {
   title: "AIRA V2 — AI workspace preview",
