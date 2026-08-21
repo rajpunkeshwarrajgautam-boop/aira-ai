@@ -15,6 +15,17 @@ test("keeps routine lead and extraction work on the local tier", () => {
 	assert.equal(summary.tier, "local");
 });
 
+test("does not promote generic chat just because a previous router pass labeled it chat", () => {
+	const first = routeLocalAiTask({ prompt: "Explain the tradeoffs between these two business strategies." });
+	assert.equal(first.tier, "cloud");
+
+	const second = routeLocalAiTask({
+		prompt: "Explain the tradeoffs between these two business strategies.",
+		taskKind: first.taskKind,
+	});
+	assert.equal(second.tier, "cloud");
+});
+
 test("routes fresh web research and high-stakes work away from the 1B worker", () => {
 	const research = routeLocalAiTask({
 		prompt: "Search the web for the latest tax regulation today, verify sources and give citations.",
