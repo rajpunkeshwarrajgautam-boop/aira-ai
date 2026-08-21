@@ -6,6 +6,7 @@ import { ProviderRouter } from "@services/providers/provider-router";
 import { OpenAIProvider } from "@services/providers/openai-provider";
 import { NVIDIAProvider } from "@services/providers/nvidia-provider";
 import { SelfHostedProvider } from "@services/providers/self-hosted-provider";
+import { getLocalAiConfig, localAiConfigured } from "@services/local-ai/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ const CompareSchema = z.object({
 });
 
 function descriptors() {
+  const local = getLocalAiConfig();
   return [
     {
       id: "openai" as const,
@@ -34,13 +36,9 @@ function descriptors() {
     },
     {
       id: "self-hosted" as const,
-      label: "Self-hosted",
-      configured: Boolean(
-        process.env.SELF_HOSTED_LLM_BASE_URL?.trim() &&
-        process.env.SELF_HOSTED_LLM_API_KEY?.trim() &&
-        process.env.SELF_HOSTED_LLM_MODEL?.trim(),
-      ),
-      model: process.env.SELF_HOSTED_LLM_MODEL ?? "Local model",
+      label: "Virexa Local",
+      configured: localAiConfigured(),
+      model: local.model || "Local model",
     },
   ];
 }
@@ -55,17 +53,14 @@ function createRouter(id: ProviderId): ProviderRouter | null {
     router.registerProvider(new NVIDIAProvider(process.env.NVIDIA_API_KEY));
     return router;
   }
-  if (
-    id === "self-hosted" &&
-    process.env.SELF_HOSTED_LLM_BASE_URL?.trim() &&
-    process.env.SELF_HOSTED_LLM_API_KEY?.trim() &&
-    process.env.SELF_HOSTED_LLM_MODEL?.trim()
-  ) {
+  if (id === "self-hosted") {
+    const local = getLocalAiConfig();
+    if (!local.configured) return null;
     router.registerProvider(
       new SelfHostedProvider({
-        baseURL: process.env.SELF_HOSTED_LLM_BASE_URL,
-        apiKey: process.env.SELF_HOSTED_LLM_API_KEY,
-        model: process.env.SELF_HOSTED_LLM_MODEL,
+        baseURL: local.baseURL,
+        apiKey: local.apiKey,
+        model: local.model,
       }),
     );
     return router;
