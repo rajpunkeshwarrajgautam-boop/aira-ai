@@ -24,6 +24,7 @@ export async function POST(req: Request): Promise<Response> {
 	await assertSafetyAllowed("input", `${parsed.data.from}\n${parsed.data.subject}\n${parsed.data.body}`);
 	try {
 		const result = await runEmailWorker(parsed.data);
+		await assertSafetyAllowed("output", JSON.stringify(result.data));
 		return Response.json(result, { headers: { "Cache-Control": "no-store" } });
 	} catch (error) {
 		return Response.json(
