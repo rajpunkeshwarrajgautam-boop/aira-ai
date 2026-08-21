@@ -5,9 +5,7 @@ import {
   ArrowUp,
   Bot,
   Brain,
-  CheckCircle2,
   ChevronRight,
-  Circle,
   Globe2,
   Library,
   Loader2,
@@ -26,13 +24,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { AgentWorkspacePanel } from "@/src/v2/components/modules/AgentWorkspacePanel";
+import { LibraryWorkspacePanel } from "@/src/v2/components/modules/LibraryWorkspacePanel";
+import { MemoryWorkspacePanel } from "@/src/v2/components/modules/MemoryWorkspacePanel";
 import {
   getAgentDashboard,
   getConversationMessages,
   listConversations,
   streamSearch,
   type AgentDashboard,
-  type AgentRun,
   type Citation,
   type ConversationMessage,
   type ConversationSummary,
@@ -104,12 +104,6 @@ function sourceDomain(url: string): string {
   }
 }
 
-function RunDot({ run }: { readonly run: AgentRun }) {
-  if (run.status === "COMPLETED") return <CheckCircle2 className="v2-run-dot done" aria-hidden />;
-  if (run.status === "RUNNING") return <Loader2 className="v2-run-dot running" aria-hidden />;
-  return <Circle className="v2-run-dot" aria-hidden />;
-}
-
 function MarkdownMessage({
   content,
   citations,
@@ -152,6 +146,7 @@ function MarkdownMessage({
 
 export function AiraV2Workspace() {
   const { status: sessionStatus } = useSession();
+  const authenticated = sessionStatus === "authenticated";
   const [view, setView] = useState<WorkspaceView>("home");
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<ResearchMode>("standard");
@@ -164,6 +159,7 @@ export function AiraV2Workspace() {
   const [phase, setPhase] = useState<"idle" | "searching" | "streaming" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentDashboard | null>(null);
+  const [agentRefreshing, setAgentRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -182,22 +178,25 @@ export function AiraV2Workspace() {
   }, [messages, streamingCitations]);
 
   const refreshConversations = useCallback(async () => {
-    if (sessionStatus !== "authenticated") return;
+    if (!authenticated) return;
     try {
       setConversations(await listConversations());
     } catch {
-      // V2 shell remains usable even if history is temporarily unavailable.
+      // History failure should never make the live research composer unusable.
     }
-  }, [sessionStatus]);
+  }, [authenticated]);
 
   const refreshAgents = useCallback(async () => {
-    if (sessionStatus !== "authenticated") return;
+    if (!authenticated) return;
+    setAgentRefreshing(true);
     try {
       setAgents(await getAgentDashboard());
     } catch {
       setAgents(null);
+    } finally {
+      setAgentRefreshing(false);
     }
-  }, [sessionStatus]);
+  }, [authenticated]);
 
   useEffect(() => {
     void refreshConversations();
@@ -205,8 +204,9 @@ export function AiraV2Workspace() {
   }, [refreshAgents, refreshConversations]);
 
   useEffect(() => {
+    if (view !== "research" && view !== "home") return;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, streamingAnswer, streamingUser, phase]);
+  }, [messages, phase, streamingAnswer, streamingUser, view]);
 
   const selectConversation = useCallback(async (id: string) => {
     if (busy) return;
@@ -315,6 +315,12 @@ export function AiraV2Workspace() {
     abortRef.current?.abort();
   }, []);
 
+  const switchView = useCallback((next: WorkspaceView) => {
+    setView(next);
+    setSidebarOpen(false);
+    if (next === "agents" || next === "library") void refreshAgents();
+  }, [refreshAgents]);
+
   return (
     <div className="aira-v2">
       <header className="v2-topbar">
@@ -333,8 +339,7 @@ export function AiraV2Workspace() {
         </Link>
         <div className="v2-topbar-center">
           <Search aria-hidden />
-          <span>Search workspace</span>
-          <kbd>⌘ K</kbd>
+          <span>One workspace for research, memory, artifacts, and autonomous work</span>
         </div>
         <div className="v2-topbar-actions">
           <Link href="/" className="v2-legacy-link">Current AIRA</Link>
@@ -369,11 +374,8 @@ export function AiraV2Workspace() {
                 key={id}
                 type="button"
                 data-active={view === id ? "true" : "false"}
-                onClick={() => {
-                  setView(id);
-                  setSidebarOpen(false);
-                  if (id === "agents") void refreshAgents();
-                }}
+                onClick={() => switchView(id)}
+                aria-current={view === id ? "page" : undefined}
               >
                 <Icon aria-hidden />
                 <span>{label}</span>
@@ -386,7 +388,7 @@ export function AiraV2Workspace() {
               <span>Recent</span>
               <Archive aria-hidden />
             </div>
-            {sessionStatus !== "authenticated" ? (
+            {!authenticated ? (
               <p className="v2-muted-copy">Sign in to sync conversations and workspace memory.</p>
             ) : conversations.length === 0 ? (
               <p className="v2-muted-copy">Your saved work will appear here.</p>
@@ -412,7 +414,9 @@ export function AiraV2Workspace() {
           </div>
         </aside>
 
-        {sidebarOpen ? <button type="button" className="v2-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" /> : null}
+        {sidebarOpen ? (
+          <button type="button" className="v2-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />
+        ) : null}
 
         <main className="v2-main">
           <div className="v2-main-scroll" ref={scrollRef}>
@@ -422,8 +426,8 @@ export function AiraV2Workspace() {
                 <p className="v2-eyebrow">AI WORKSPACE</p>
                 <h1>What do you want AIRA to accomplish?</h1>
                 <p className="v2-home-subtitle">
-                  Research, reason, build, and act from one workspace. V2 is using the existing
-                  production backend as its compatibility layer.
+                  Research, reason, remember, create, and run autonomous work from one surface.
+                  The existing AIRA backend remains the compatibility and safety layer.
                 </p>
 
                 <div className="v2-starter-grid">
@@ -436,48 +440,20 @@ export function AiraV2Workspace() {
                 </div>
               </section>
             ) : view === "agents" ? (
-              <section className="v2-module-page">
-                <div className="v2-module-heading">
-                  <div>
-                    <p className="v2-eyebrow">AUTONOMOUS WORK</p>
-                    <h1>Agent activity</h1>
-                  </div>
-                  <Link href="/agents">Open current Agent controls</Link>
-                </div>
-                <div className="v2-agent-list">
-                  {(agents?.runs ?? []).length === 0 ? (
-                    <div className="v2-empty-card">No recent agent runs are available.</div>
-                  ) : (
-                    agents?.runs.map((run) => (
-                      <article key={run.id} className="v2-agent-row">
-                        <RunDot run={run} />
-                        <div>
-                          <h2>{run.objective}</h2>
-                          <p>{run.provider} · {run.status.toLowerCase()}</p>
-                        </div>
-                        <time>{formatRelative(run.updatedAt)}</time>
-                      </article>
-                    ))
-                  )}
-                </div>
-              </section>
-            ) : view === "library" || view === "memory" ? (
-              <section className="v2-module-page">
-                <div className="v2-module-heading">
-                  <div>
-                    <p className="v2-eyebrow">{view === "library" ? "ARTIFACTS" : "CONTEXT"}</p>
-                    <h1>{view === "library" ? "Library" : "Memory"}</h1>
-                  </div>
-                  <Link href={view === "memory" ? "/memory" : "/"}>Open current module</Link>
-                </div>
-                <div className="v2-empty-card">
-                  <strong>{view === "library" ? "Artifact compatibility is next." : "Memory compatibility is next."}</strong>
-                  <p>
-                    This V2 surface is intentionally isolated. The existing backend remains the source of truth
-                    while this module receives a typed adapter and parity tests.
-                  </p>
-                </div>
-              </section>
+              <AgentWorkspacePanel
+                authenticated={authenticated}
+                dashboard={agents}
+                onDashboardChange={setAgents}
+              />
+            ) : view === "library" ? (
+              <LibraryWorkspacePanel
+                authenticated={authenticated}
+                dashboard={agents}
+                refreshing={agentRefreshing}
+                onRefresh={() => void refreshAgents()}
+              />
+            ) : view === "memory" ? (
+              <MemoryWorkspacePanel authenticated={authenticated} />
             ) : (
               <section className="v2-thread" aria-live="polite">
                 {messages.length === 0 && !streamingUser ? (
@@ -508,9 +484,7 @@ export function AiraV2Workspace() {
                 )}
 
                 {streamingUser ? (
-                  <div className="v2-user-message">
-                    <div>{streamingUser}</div>
-                  </div>
+                  <div className="v2-user-message"><div>{streamingUser}</div></div>
                 ) : null}
 
                 {streamingUser ? (
@@ -525,9 +499,7 @@ export function AiraV2Workspace() {
                         <MarkdownMessage content={streamingAnswer} citations={streamingCitations} />
                       ) : (
                         <div className="v2-thinking">
-                          <span />
-                          <span />
-                          <span />
+                          <span /><span /><span />
                           {streamingCitations.length > 0
                             ? `Reading ${streamingCitations.length} sources`
                             : "Searching and reasoning"}
@@ -538,10 +510,7 @@ export function AiraV2Workspace() {
                 ) : null}
 
                 {error ? (
-                  <div className="v2-error">
-                    <strong>Request not completed</strong>
-                    <span>{error}</span>
-                  </div>
+                  <div className="v2-error"><strong>Request not completed</strong><span>{error}</span></div>
                 ) : null}
               </section>
             )}
@@ -599,7 +568,9 @@ export function AiraV2Workspace() {
           <div className="v2-context-head">
             <div>
               <span>Context</span>
-              <small>{view === "agents" ? "Runs" : "Sources"}</small>
+              <small>
+                {view === "agents" ? "Runtime" : view === "memory" ? "Privacy" : view === "library" ? "Artifacts" : "Sources"}
+              </small>
             </div>
             <button type="button" className="v2-icon-button" onClick={() => setContextOpen(false)} aria-label="Close context panel">
               <PanelRightClose aria-hidden />
@@ -608,14 +579,21 @@ export function AiraV2Workspace() {
 
           {view === "agents" ? (
             <div className="v2-context-content">
-              <div className="v2-context-stat">
-                <span>Runtime</span>
-                <strong>{agents?.feature?.preferredProvider ?? "Automatic"}</strong>
-              </div>
-              <div className="v2-context-stat">
-                <span>Remaining</span>
-                <strong>{agents?.usage?.agentRunsRemaining ?? "—"}</strong>
-              </div>
+              <div className="v2-context-stat"><span>Runtime</span><strong>{agents?.feature?.preferredProvider ?? "Automatic"}</strong></div>
+              <div className="v2-context-stat"><span>Ready</span><strong>{agents?.feature?.ready ? "Yes" : "No"}</strong></div>
+              <div className="v2-context-stat"><span>Remaining</span><strong>{agents?.usage?.agentRunsRemaining ?? "—"}</strong></div>
+            </div>
+          ) : view === "memory" ? (
+            <div className="v2-context-placeholder">
+              <Brain aria-hidden />
+              <strong>Private account memory</strong>
+              <p>V2 never reads the database directly. Memory ownership and sensitive-content rejection remain enforced by the existing AIRA backend.</p>
+            </div>
+          ) : view === "library" ? (
+            <div className="v2-context-placeholder">
+              <Library aria-hidden />
+              <strong>Protected outputs</strong>
+              <p>Artifact links resolve through the existing authenticated download route, which validates both run ownership and recorded artifact paths.</p>
             </div>
           ) : activeCitations.length > 0 ? (
             <div className="v2-source-list">
