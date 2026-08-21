@@ -1,4 +1,7 @@
 import { auth } from "@/auth";
+import { AaeRequestError } from "@/lib/aae/client";
+import { AaeConfigError } from "@/lib/aae/config";
+import { refreshAaeAgentRun } from "@/lib/aae/runs";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import { AutoGptConfigError } from "@/lib/autogpt/config";
 import { getAgentRun, refreshAgentRun } from "@/lib/autogpt/runs";
@@ -35,9 +38,12 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 				{ status: 404 },
 			);
 		}
-		const run = cached.provider === "DEERFLOW"
-			? await refreshDeerFlowAgentRun(session.user.id, runId)
-			: await refreshAgentRun(session.user.id, runId);
+		const run =
+			cached.provider === "DEERFLOW"
+				? await refreshDeerFlowAgentRun(session.user.id, runId)
+				: cached.provider === "AAE"
+					? await refreshAaeAgentRun(session.user.id, runId)
+					: await refreshAgentRun(session.user.id, runId);
 		if (!run) {
 			return noStoreJson(
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
@@ -50,7 +56,9 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 			error instanceof DeerFlowRequestError ||
 			error instanceof DeerFlowConfigError ||
 			error instanceof AutoGptRequestError ||
-			error instanceof AutoGptConfigError
+			error instanceof AutoGptConfigError ||
+			error instanceof AaeRequestError ||
+			error instanceof AaeConfigError
 		) {
 			const cached = await getAgentRun(session.user.id, runId);
 			if (!cached) {

@@ -1,0 +1,75 @@
+services:
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?required}
+      AAE_API_TOKEN: ${AAE_API_TOKEN:?required}
+      AAE_ALLOWED_OWNER_ID: ${AAE_ALLOWED_OWNER_ID:?required}
+      AAE_SANDBOX_TOKEN: ${AAE_SANDBOX_TOKEN:?required}
+      AAE_MODEL: ${AAE_MODEL:-gpt-5.6-sol}
+      AAE_WORKSPACE: /workspace
+      AAE_DATABASE_PATH: /data/jobs.db
+      AAE_SESSION_DATABASE_PATH: /data/sessions.db
+      AAE_ALLOW_FILE_WRITES: ${AAE_ALLOW_FILE_WRITES:-true}
+      AAE_ALLOW_SHELL: ${AAE_ALLOW_SHELL:-true}
+      AAE_ENABLE_WEB_SEARCH: ${AAE_ENABLE_WEB_SEARCH:-true}
+      AAE_SANDBOX_URL: http://sandbox:9000
+      AAE_MAX_TURNS: ${AAE_MAX_TURNS:-40}
+      AAE_SHELL_TIMEOUT_SECONDS: ${AAE_SHELL_TIMEOUT_SECONDS:-120}
+    volumes:
+      - aae-data:/data
+      - ./workspace:/workspace
+    ports:
+      - "127.0.0.1:${AAE_PORT:-8000}:8000"
+    networks:
+      - outbound
+      - sandbox-net
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid,nodev
+    pids_limit: 256
+    mem_limit: 2g
+    cpus: 2.0
+    depends_on:
+      sandbox:
+        condition: service_healthy
+
+  sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AAE_SANDBOX_TOKEN: ${AAE_SANDBOX_TOKEN:?required}
+      AAE_WORKSPACE: /workspace
+      AAE_SANDBOX_MAX_OUTPUT_CHARS: 60000
+    volumes:
+      - ./workspace:/workspace
+    networks:
+      - sandbox-net
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,nosuid,nodev
+    pids_limit: 192
+    mem_limit: 2g
+    cpus: 2.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  outbound: {}
+  sandbox-net:
+    internal: true
+
+volumes:
+  aae-data: {}
