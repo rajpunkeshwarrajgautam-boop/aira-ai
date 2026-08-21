@@ -1,5 +1,5 @@
-import { AiraV2Workspace } from "@/src/v2/components/AiraV2Workspace";
+import { AiraV2WorkspaceFinal } from "@/src/v2/components/AiraV2WorkspaceFinal";
 
 export default function AiraV2Page() {
-  return <AiraV2Workspace />;
+  return <AiraV2WorkspaceFinal />;
 }
