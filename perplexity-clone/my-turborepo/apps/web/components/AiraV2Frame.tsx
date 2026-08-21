@@ -6,6 +6,7 @@ import {
   Brain,
   Columns2,
   Command,
+  Cpu,
   CreditCard,
   FolderOpen,
   History,
@@ -24,6 +25,7 @@ import { AiraLogo } from "./AiraLogo";
 const PRIMARY_NAV = [
   { href: "/", label: "Research", description: "Ask, investigate, cite", icon: Search },
   { href: "/compare", label: "Compare", description: "Test models side by side", icon: Columns2 },
+  { href: "/local-ai", label: "Local AI", description: "MiniCPM private worker", icon: Cpu },
   { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
   { href: "/agents", label: "Agents", description: "Design autonomous work", icon: Bot },
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
@@ -155,7 +157,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           <div className="aira-v2-palette" role="dialog" aria-modal="true" aria-label="AIRA command palette" onMouseDown={(event) => event.stopPropagation()}>
             <div className="aira-v2-palette-search">
               <Search className="size-[18px]" aria-hidden />
-              <input ref={inputRef} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Go to research, compare, knowledge, runs…" aria-label="Filter destinations" onKeyDown={(event) => { if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href); }} />
+              <input ref={inputRef} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Go to research, local AI, compare, knowledge, runs…" aria-label="Filter destinations" onKeyDown={(event) => { if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href); }} />
               <button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette"><X className="size-4" /></button>
             </div>
             <div className="aira-v2-palette-results">

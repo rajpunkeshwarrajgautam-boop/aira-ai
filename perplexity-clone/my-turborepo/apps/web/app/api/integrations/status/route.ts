@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { isAutoGptConfigured, isAutoGptEnabled } from "@/lib/autogpt/config";
 import { isDeerFlowConfigured, isDeerFlowEnabled } from "@/lib/deerflow/config";
 import { knowledgeStorageConfigured } from "@/lib/foundation-storage";
+import { getLocalAiConfigOrDisabled } from "@services/local-ai/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,15 +17,16 @@ export async function GET(): Promise<Response> {
     return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
   }
 
+  const local = getLocalAiConfigOrDisabled();
   const integrations = [
     item("openai", "OpenAI", Boolean(process.env.OPENAI_API_KEY), "Cloud model provider", process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini"),
     item("nvidia", "NVIDIA", Boolean(process.env.NVIDIA_API_KEY), "Cloud fallback/provider", process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct"),
     item(
       "self-hosted",
-      "Self-hosted LLM",
-      Boolean(process.env.SELF_HOSTED_LLM_BASE_URL?.trim() && process.env.SELF_HOSTED_LLM_API_KEY?.trim() && process.env.SELF_HOSTED_LLM_MODEL?.trim()),
-      "OpenAI-compatible local or private endpoint",
-      process.env.SELF_HOSTED_LLM_MODEL ?? undefined,
+      "Virexa Local AI",
+      local.configured,
+      "llama.cpp private worker · chat, routing, RAG, tools and business workers",
+      local.model || undefined,
     ),
     item("exa", "Exa Search", Boolean(process.env.EXA_API_KEY), "Live web retrieval and citations"),
     item(
@@ -44,6 +46,7 @@ export async function GET(): Promise<Response> {
       defaults: {
         primaryProvider: process.env.DEFAULT_PRO_PROVIDER ?? "openai",
         fallbackProvider: process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
+        localRouting: local.localFirst ? "local-first" : "selective",
       },
     },
     { headers: { "Cache-Control": "no-store" } },

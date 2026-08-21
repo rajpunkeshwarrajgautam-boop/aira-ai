@@ -11,9 +11,12 @@ export class SelfHostedProvider implements AIProvider {
 	readonly defaultModel: string;
 	private readonly client: OpenAI;
 
-	constructor(args: { readonly apiKey: string; readonly baseURL: string; readonly model: string }) {
+	constructor(args: { readonly apiKey?: string; readonly baseURL: string; readonly model: string }) {
 		this.defaultModel = args.model;
-		this.client = new OpenAI({ apiKey: args.apiKey, baseURL: args.baseURL.replace(/\/$/, "") });
+		this.client = new OpenAI({
+			apiKey: args.apiKey?.trim() || "no-key",
+			baseURL: args.baseURL.replace(/\/$/, ""),
+		});
 	}
 
 	async *generateTextStream(
