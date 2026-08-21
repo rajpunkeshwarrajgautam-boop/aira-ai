@@ -1,0 +1,100 @@
+/* Context sheet and research history */
+.aira-page .v2-context-sheet-backdrop { position: fixed; inset: 0; z-index: 110; display: flex; justify-content: flex-end; background: rgba(26,26,25,.24); backdrop-filter: blur(2px); }
+.aira-page .v2-context-sheet { width: min(430px, 100%); height: 100%; display: flex; flex-direction: column; border-left: 1px solid var(--aira-line); background: var(--aira-bg); box-shadow: -20px 0 50px rgba(0,0,0,.08); }
+.aira-page .v2-context-sheet > header { height: 58px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--aira-line); padding: 0 18px; }
+.aira-page .v2-context-sheet > header strong { font-family: Georgia, serif; font-size: 19px; font-weight: 400; }
+.aira-page .v2-context-sheet > header button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--aira-muted); cursor: pointer; }
+.aira-page .v2-context-sheet > header button:hover { background: var(--aira-soft); color: var(--aira-ink); }
+.aira-page .v2-context-sheet-body { flex: 1; overflow: auto; padding: 18px; }
+.aira-context-content { display: grid; gap: 20px; }
+.aira-context-section, .aira-page .v2-history-panel { border: 1px solid var(--aira-line); border-radius: 14px; background: #fff; padding: 13px; }
+.aira-context-heading, .aira-page .v2-context-section-head { display: flex; align-items: center; gap: 7px; min-height: 28px; }
+.aira-context-heading svg, .aira-page .v2-context-section-head svg { width: 15px; height: 15px; color: var(--aira-faint); }
+.aira-context-heading strong, .aira-page .v2-context-section-head strong { font-size: 12px; font-weight: 650; }
+.aira-context-heading > span, .aira-page .v2-context-section-head > span { margin-left: auto; color: var(--aira-faint); font-size: 10px; }
+.aira-context-empty, .aira-page .v2-context-empty { margin: 9px 0 0; color: var(--aira-faint); font-size: 11px; line-height: 1.45; }
+.aira-source-list { display: grid; gap: 4px; margin-top: 8px; }
+.aira-source-list a { min-height: 48px; display: grid; grid-template-columns: 24px minmax(0,1fr) 16px; gap: 8px; align-items: center; border-radius: 9px; color: var(--aira-ink); padding: 6px; text-decoration: none; }
+.aira-source-list a:hover { background: var(--aira-soft); }
+.aira-source-list > a > span { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid var(--aira-line); border-radius: 50%; color: var(--aira-muted); font-size: 9px; }
+.aira-source-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.aira-source-list small { display: block; margin-top: 2px; color: var(--aira-faint); font-size: 9px; }
+.aira-source-list svg { width: 12px; color: var(--aira-faint); }
+.aira-context-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 10px 0 0; }
+.aira-context-facts div { border-radius: 9px; background: var(--aira-soft); padding: 8px; }
+.aira-context-facts dt { color: var(--aira-faint); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; }
+.aira-context-facts dd { margin: 3px 0 0; font-size: 10px; font-weight: 600; }
+.aira-context-section > p { color: var(--aira-muted); font-size: 10px; line-height: 1.5; }
+.aira-page .v2-history-list { display: grid; gap: 2px; margin-top: 8px; }
+.aira-page .v2-history-list button { width: 100%; min-height: 48px; display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 7px; align-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--aira-ink); padding: 7px; text-align: left; cursor: pointer; }
+.aira-page .v2-history-list button:hover, .aira-page .v2-history-list button[data-active="true"] { background: var(--aira-soft); }
+.aira-page .v2-history-list button > svg { width: 14px; color: var(--aira-faint); }
+.aira-page .v2-history-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.aira-page .v2-history-list small { display: flex; align-items: center; gap: 3px; margin-top: 3px; color: var(--aira-faint); font-size: 8px; }
+.aira-page .v2-history-list small svg { width: 9px; }
+
+/* Shared module styling. Existing backend components are rendered inside the new shell only. */
+.aira-page .v2-module-page { width: 100%; color: var(--aira-ink); }
+.aira-page .v2-module-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.aira-page .v2-empty-card { min-height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--aira-line); border-radius: 16px; background: rgba(255,255,255,.55); color: var(--aira-muted); padding: 28px; text-align: center; }
+.aira-page .v2-empty-card strong { color: var(--aira-ink); font-size: 14px; }
+.aira-page .v2-empty-card p { max-width: 560px; margin: 0; font-size: 12px; line-height: 1.5; }
+.aira-page .v2-panel-title { min-height: 42px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--aira-line); padding: 0 13px; }
+.aira-page .v2-panel-title span { font-size: 12px; font-weight: 650; }
+.aira-page .v2-panel-title small { color: var(--aira-faint); font-size: 10px; }
+.aira-page .v2-panel-empty { min-height: 120px; display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--aira-faint); padding: 20px; text-align: center; font-size: 12px; }
+.aira-page .v2-warning { margin-top: 10px; border: 1px solid #e8d8b7; border-radius: 10px; background: #fff9ec; color: #8a6b2f; padding: 10px 12px; font-size: 11px; }
+
+/* Agents */
+.aira-page .v2-agent-launch, .aira-page .v2-memory-create, .aira-page .v2-library-summary, .aira-page .v2-settings-card {
+  overflow: hidden;
+  border: 1px solid var(--aira-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.018);
+}
+.aira-page .v2-agent-launch { margin-top: 16px; }
+.aira-page .v2-agent-launch-head { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--aira-line); padding: 0 14px; }
+.aira-page .v2-agent-launch-head > div { display: flex; align-items: center; gap: 8px; }
+.aira-page .v2-agent-launch-head strong { font-size: 12px; }
+.aira-page .v2-agent-launch-head > span { color: var(--aira-faint); font-size: 10px; }
+.aira-page .v2-runtime-state { width: 7px; height: 7px; border-radius: 50%; background: #aaa79f; }
+.aira-page .v2-runtime-state.ready { background: var(--aira-success); box-shadow: 0 0 0 4px rgba(55,122,87,.08); }
+.aira-page .v2-agent-launch textarea { width: 100%; min-height: 104px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--aira-ink); padding: 14px; font-size: 14px; line-height: 1.6; }
+.aira-page .v2-agent-launch textarea::placeholder, .aira-page .v2-memory-create textarea::placeholder { color: rgba(52,50,45,.38); }
+.aira-page .v2-agent-launch-foot { min-height: 49px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--aira-line); padding: 8px 9px 8px 14px; }
+.aira-page .v2-agent-launch-foot > span { color: var(--aira-faint); font-size: 10px; line-height: 1.4; }
+.aira-page .v2-agent-launch-foot > button, .aira-page .v2-memory-create-actions > button { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 9px; background: var(--aira-dark); color: #fff; padding: 0 12px; cursor: pointer; font-size: 11px; font-weight: 650; }
+.aira-page .v2-agent-launch-foot > button:disabled, .aira-page .v2-memory-create-actions > button:disabled { opacity: .32; cursor: default; }
+.aira-page .v2-agent-grid { display: grid; grid-template-columns: minmax(250px,.85fr) minmax(0,1.5fr); gap: 10px; margin-top: 14px; }
+.aira-page .v2-agent-run-list, .aira-page .v2-agent-detail { overflow: hidden; border: 1px solid var(--aira-line); border-radius: 14px; background: rgba(255,255,255,.62); }
+.aira-page .v2-agent-run-list > button { width: 100%; min-height: 64px; display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 9px; align-items: center; border: 0; border-bottom: 1px solid var(--aira-line); background: transparent; color: var(--aira-muted); padding: 10px 11px; text-align: left; cursor: pointer; }
+.aira-page .v2-agent-run-list > button:hover, .aira-page .v2-agent-run-list > button[data-active="true"] { background: var(--aira-soft); }
+.aira-page .v2-agent-run-list > button > svg { width: 14px; }
+.aira-page .v2-agent-run-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--aira-ink); font-size: 11px; }
+.aira-page .v2-agent-run-list span, .aira-page .v2-agent-run-list time { display: block; margin-top: 3px; color: var(--aira-faint); font-size: 9px; }
+.aira-page .v2-agent-detail-body { padding: 13px; }
+.aira-page .v2-agent-objective-copy > span, .aira-page .v2-agent-result > span, .aira-page .v2-agent-artifacts > span { display: block; margin-bottom: 6px; color: var(--aira-faint); font-size: 8px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.aira-page .v2-agent-objective-copy > strong { display: block; font-size: 12px; line-height: 1.55; }
+.aira-page .v2-agent-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
+.aira-page .v2-agent-metadata > div { border-radius: 9px; background: var(--aira-soft); padding: 9px; }
+.aira-page .v2-agent-metadata span { display: block; color: var(--aira-faint); font-size: 8px; }
+.aira-page .v2-agent-metadata strong { display: block; margin-top: 3px; font-size: 10px; }
+.aira-page .v2-agent-active-state { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: 8px; align-items: center; margin-top: 12px; border: 1px solid #d9ddd4; border-radius: 10px; background: #f6f8f3; padding: 10px; }
+.aira-page .v2-agent-active-state > svg { width: 14px; color: var(--aira-success); }
+.aira-page .v2-agent-active-state strong { display: block; font-size: 10px; } .aira-page .v2-agent-active-state span { display: block; margin-top: 2px; color: var(--aira-faint); font-size: 9px; }
+.aira-page .v2-agent-active-state button { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #ead6d6; border-radius: 8px; background: #fff6f6; color: var(--aira-danger); padding: 7px 8px; cursor: pointer; font-size: 9px; }
+.aira-page .v2-agent-result { margin-top: 13px; }
+.aira-page .v2-agent-result pre { max-height: 320px; overflow: auto; margin: 0; border-radius: 10px; background: var(--aira-dark); color: #f4f2ed; padding: 12px; white-space: pre-wrap; font-family: var(--font-geist-mono), monospace; font-size: 10px; line-height: 1.55; }
+.aira-page .v2-agent-artifacts { margin-top: 13px; }
+.aira-page .v2-agent-artifacts > a { min-height: 40px; display: grid; grid-template-columns: 16px minmax(0,1fr) 15px; gap: 7px; align-items: center; border-top: 1px solid var(--aira-line); color: var(--aira-muted); text-decoration: none; font-size: 10px; }
+
+/* Memory */
+.aira-page .v2-memory-create { margin-top: 16px; }
+.aira-page .v2-memory-create-copy { display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 10px; align-items: center; border-bottom: 1px solid var(--aira-line); padding: 12px 14px; }
+.aira-page .v2-memory-create-copy > svg { width: 17px; color: var(--aira-muted); }
+.aira-page .v2-memory-create-copy strong { display: block; font-size: 12px; } .aira-page .v2-memory-create-copy span { display: block; margin-top: 3px; color: var(--aira-faint); font-size: 10px; line-height: 1.4; }
+.aira-page .v2-memory-create textarea { width: 100%; min-height: 92px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--aira-ink); padding: 13px 14px; font-size: 13px; line-height: 1.6; }
+.aira-page .v2-memory-create-actions { min-height: 48px; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--aira-line); padding: 7px 9px 7px 13px; }
+.aira-page .v2-memory-create-actions select { height: 32px; border: 1px solid var(--aira-line); border-radius: 8px; background: var(--aira-bg); color: var(--aira-ink); padding: 0 8px; font-size: 10px; }
+.aira-page .v2-memory-create-actions > span { flex: 1; color: var(--aira-faint); font-size: 9px; }

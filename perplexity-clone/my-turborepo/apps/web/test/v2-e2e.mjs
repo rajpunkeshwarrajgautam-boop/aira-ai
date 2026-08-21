@@ -18,8 +18,7 @@ const child = spawn(command, ["exec", "next", "start", "--hostname", "127.0.0.1"
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "v2-e2e-google-secret",
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || "v2-e2e-github-client",
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || "v2-e2e-github-secret",
-    DATABASE_URL:
-      process.env.DATABASE_URL || "postgresql://aira:aira@127.0.0.1:65432/aira_v2_e2e?connect_timeout=1",
+    DATABASE_URL: process.env.DATABASE_URL || "postgresql://aira:aira@127.0.0.1:65432/aira_v2_e2e?connect_timeout=1",
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -62,14 +61,17 @@ try {
   const page = await fetch(`${baseUrl}/v2`);
   assert.equal(page.status, 200);
   const html = await page.text();
-  assert.match(html, /AIRA/);
-  assert.match(html, /V2 ACCEPTANCE/);
+  assert.match(html, /AIRA AI/);
+  assert.match(html, /What can I do for you\?/);
+  assert.match(html, /Assign a task or ask anything/);
   assert.match(html, /Skip to main content/);
   assert.match(html, /Research/);
-  assert.match(html, /Agents/);
+  assert.match(html, /AIRA Agents/);
   assert.match(html, /Memory/);
   assert.match(html, /Library/);
   assert.match(html, /Settings/);
+  const forbiddenBrand = new RegExp(["ma", "nus"].join(""), "i");
+  assert.doesNotMatch(html, forbiddenBrand);
   assert.doesNotMatch(html, /NEXT_REDIRECT/);
 
   await expectUnauthenticated("/api/billing/status");
@@ -88,7 +90,7 @@ try {
   });
   assert.equal(invalidSearch.status, 400, "search route should reject invalid JSON before any provider execution");
 
-  console.log("AIRA V2 E2E passed: built route rendered and protected compatibility APIs remained fail-closed.");
+  console.log("AIRA replacement E2E passed: branded route rendered and protected compatibility APIs remained fail-closed.");
 } finally {
   child.kill("SIGTERM");
   await Promise.race([
