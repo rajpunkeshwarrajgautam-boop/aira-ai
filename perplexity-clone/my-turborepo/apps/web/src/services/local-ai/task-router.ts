@@ -42,8 +42,25 @@ const LOCAL_PATTERNS: readonly [RegExp, string, number, LocalTaskKind][] = [
 	[/\b(simple code|small script|regex|sql query|one function)\b/i, "small-coding-task", 2, "code"],
 ];
 
+const EXPLICIT_LOCAL_KINDS = new Set<LocalTaskKind>([
+	"summarize",
+	"rewrite",
+	"extract",
+	"classify",
+	"lead",
+	"email",
+	"rag",
+	"code",
+]);
+
 function inferKind(prompt: string, explicit?: LocalTaskKind): { kind: LocalTaskKind; signals: string[]; score: number } {
-	if (explicit && explicit !== "unknown") return { kind: explicit, signals: [`task:${explicit}`], score: 2 };
+	if (explicit && explicit !== "unknown") {
+		return {
+			kind: explicit,
+			signals: [`task:${explicit}`],
+			score: EXPLICIT_LOCAL_KINDS.has(explicit) ? 2 : 0,
+		};
+	}
 	let kind: LocalTaskKind = "chat";
 	let score = 0;
 	const signals: string[] = [];
