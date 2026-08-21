@@ -1,0 +1,19 @@
+[project]
+name = "aira-autonomous-agent-engine"
+version = "0.2.0"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "aiosqlite>=0.20,<1",
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "openai-agents==0.19.4",
+  "pydantic-settings>=2.10,<3",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.4,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

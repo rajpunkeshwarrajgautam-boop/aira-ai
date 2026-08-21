@@ -1,4 +1,7 @@
 import { auth } from "@/auth";
+import { AaeRequestError } from "@/lib/aae/client";
+import { AaeConfigError } from "@/lib/aae/config";
+import { cancelAaeAgentRun } from "@/lib/aae/runs";
 import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
 import { DeerFlowConfigError } from "@/lib/deerflow/config";
@@ -33,7 +36,7 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 			{ status: 404 },
 		);
 	}
-	if (cached.provider !== "DEERFLOW") {
+	if (cached.provider !== "DEERFLOW" && cached.provider !== "AAE") {
 		return noStoreJson(
 			{
 				error: {
@@ -46,7 +49,10 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 	}
 
 	try {
-		const run = await cancelDeerFlowAgentRun(session.user.id, runId);
+		const run =
+			cached.provider === "DEERFLOW"
+				? await cancelDeerFlowAgentRun(session.user.id, runId)
+				: await cancelAaeAgentRun(session.user.id, runId);
 		if (!run) {
 			return noStoreJson(
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
@@ -55,10 +61,20 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 		}
 		return noStoreJson({ run, cancelRequested: true }, { status: 202 });
 	} catch (error) {
-		if (error instanceof DeerFlowRequestError || error instanceof DeerFlowConfigError) {
+		if (
+			error instanceof DeerFlowRequestError ||
+			error instanceof DeerFlowConfigError ||
+			error instanceof AaeRequestError ||
+			error instanceof AaeConfigError
+		) {
 			return noStoreJson(
 				{ error: { code: error.code, message: error.message } },
-				{ status: error instanceof DeerFlowRequestError ? error.status : 503 },
+				{
+					status:
+						error instanceof DeerFlowRequestError || error instanceof AaeRequestError
+							? error.status
+							: 503,
+				},
 			);
 		}
 		console.error("[agents:runs:cancel]", error);
