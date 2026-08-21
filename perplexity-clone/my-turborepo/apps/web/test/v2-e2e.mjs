@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import process from "node:process";
 
-const port = Number(process.env.V2_E2E_PORT ?? "3217");
+const port = 3217;
 const baseUrl = `http://127.0.0.1:${port}`;
 const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
