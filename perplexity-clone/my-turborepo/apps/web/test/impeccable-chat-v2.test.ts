@@ -23,7 +23,7 @@ test("composer exposes real commands and connected context destinations", () => 
 		assert.ok(searchBox.includes(command), `expected ${command} command in composer`);
 	}
 	for (const destination of ["/knowledge", "/agents", "/local-ai"]) {
-		assert.ok(searchBox.includes(`href=\"${destination}\"`), `expected connected ${destination} action`);
+		assert.ok(searchBox.includes(`href="${destination}"`), `expected connected ${destination} action`);
 	}
 	assert.ok(searchBox.includes("aira:reuse-message"));
 });
