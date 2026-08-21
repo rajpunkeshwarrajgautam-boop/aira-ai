@@ -121,18 +121,23 @@ export function LibraryWorkspacePanel({
     }
 
     return Array.from(groups.entries())
-      .map(([key, groupVersions]) => {
+      .map(([key, groupVersions]): LibraryEntry | null => {
         const sorted = [...groupVersions].sort((a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt));
         const latest = sorted[0];
+        if (!latest) return null;
         return {
           key,
           name: latest.name,
           relativePath: latest.relativePath,
           kind: latest.kind,
           versions: sorted,
-        } satisfies LibraryEntry;
+        };
       })
-      .sort((a, b) => safeTime(b.versions[0].updatedAt) - safeTime(a.versions[0].updatedAt));
+      .filter((entry): entry is LibraryEntry => entry !== null)
+      .sort(
+        (a, b) =>
+          safeTime(b.versions[0]?.updatedAt ?? "") - safeTime(a.versions[0]?.updatedAt ?? ""),
+      );
   }, [versions]);
 
   const filtered = useMemo(() => {
@@ -141,6 +146,7 @@ export function LibraryWorkspacePanel({
       if (kind !== "all" && entry.kind !== kind) return false;
       if (!normalized) return true;
       const latest = entry.versions[0];
+      if (!latest) return false;
       return [entry.name, entry.relativePath, latest.objective, latest.provider]
         .join(" ")
         .toLowerCase()
@@ -198,6 +204,7 @@ export function LibraryWorkspacePanel({
         <div className="v2-library-version-list">
           {filtered.map((entry) => {
             const latest = entry.versions[0];
+            if (!latest) return null;
             return (
               <article key={entry.key}>
                 <div className="v2-library-file-icon"><FileText aria-hidden /><span>{extension(entry.name)}</span></div>
