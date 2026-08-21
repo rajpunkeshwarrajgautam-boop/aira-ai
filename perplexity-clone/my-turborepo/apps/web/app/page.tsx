@@ -2,23 +2,20 @@ import { Suspense } from "react";
 
 import "./aira-reference.css";
 import "./impeccable-polish.css";
+import "./impeccable-chat-v2.css";
 import "./aira-v2.css";
 import { AiraPreloader } from "../components/AiraPreloader";
-import { AiraV2Frame } from "../components/AiraV2Frame";
 import { SearchLayout } from "../components/SearchLayout";
 
 function HomeSkeleton() {
 	return (
-		<div className="aira-v2-page min-h-dvh w-full" aria-hidden>
-			<div className="aira-v2-frame">
-				<div className="aira-v2-rail" />
-				<div className="aira-v2-main">
-					<div className="aira-v2-topbar" />
-					<div className="aira-v2-stage flex items-center justify-center px-6">
-						<div className="w-full max-w-[860px] space-y-4">
-							<div className="h-7 w-52 animate-pulse rounded-lg bg-[#171a1f]" />
-							<div className="h-32 animate-pulse rounded-2xl border border-white/[0.07] bg-[#13161a]" />
-						</div>
+		<div className="min-h-dvh w-full bg-[#090909]" aria-hidden>
+			<div className="mx-auto flex min-h-dvh max-w-7xl">
+				<div className="hidden w-[320px] shrink-0 border-r border-white/[0.07] bg-[#0c0c0c] md:block" />
+				<div className="flex flex-1 flex-col px-5 py-5 md:px-8">
+					<div className="mx-auto flex w-full max-w-[820px] flex-1 flex-col justify-center gap-4">
+						<div className="mx-auto h-7 w-52 animate-pulse rounded-md bg-[#171717]" />
+						<div className="mx-auto h-28 w-full max-w-[780px] animate-pulse rounded-2xl border border-white/[0.08] bg-[#131313]" />
 					</div>
 				</div>
 			</div>
@@ -28,13 +25,11 @@ function HomeSkeleton() {
 
 export default function Home() {
 	return (
-		<div className="aira-home aira-v2-page">
+		<div className="aira-home min-h-dvh bg-[#090909]">
 			<AiraPreloader />
-			<AiraV2Frame>
-				<Suspense fallback={<HomeSkeleton />}>
-					<SearchLayout />
-				</Suspense>
-			</AiraV2Frame>
+			<Suspense fallback={<HomeSkeleton />}>
+				<SearchLayout />
+			</Suspense>
 		</div>
 	);
 }

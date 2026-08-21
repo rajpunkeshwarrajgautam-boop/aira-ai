@@ -1,0 +1,231 @@
+/*
+ * AIRA chat workspace — Impeccable product UI pass.
+ * Deliberately avoids generic AI dashboard patterns: no nested glass cards,
+ * no decorative gradients, restrained radii, strong reading hierarchy,
+ * visible interaction states, and motion only where it communicates state.
+ */
+
+.aira-home {
+  --chat-canvas: #090909;
+  --chat-sidebar: #0c0c0c;
+  --chat-panel: #111111;
+  --chat-panel-hover: #171717;
+  --chat-panel-strong: #1b1b1b;
+  --chat-line: rgba(255, 255, 255, 0.075);
+  --chat-line-strong: rgba(255, 255, 255, 0.14);
+  --chat-text: #f0efec;
+  --chat-text-soft: #aaa8a3;
+  --chat-text-muted: #716f6a;
+  --chat-accent: #c9a84c;
+  background: var(--chat-canvas);
+}
+
+/* Chat owns the whole home viewport now: one shell, one navigation hierarchy. */
+.aira-home > div:not([class*="preloader"]) {
+  background: var(--chat-canvas);
+}
+
+.aira-home main {
+  min-width: 0;
+  background: var(--chat-canvas);
+}
+
+/* Quiet the promotional pill so the prompt remains the clear first action. */
+.aira-home main > div:first-child > div > div {
+  border-color: var(--chat-line) !important;
+  background: transparent !important;
+  color: var(--chat-text-muted) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+}
+
+/* Header should read like chat chrome, not a landing hero. */
+.aira-home main > header {
+  padding-top: 22px !important;
+  padding-bottom: 18px !important;
+  background: var(--chat-canvas) !important;
+  border: 0 !important;
+}
+
+.aira-home main > header h1 {
+  font-size: clamp(1.15rem, 2.2vw, 1.55rem) !important;
+  font-weight: 590 !important;
+  letter-spacing: -0.032em !important;
+}
+
+.aira-home main > header p {
+  color: var(--chat-text-muted) !important;
+}
+
+/* The response surface is content, not a card nested in a card. */
+.aira-home [aria-busy="true"],
+.aira-home [aria-busy="false"] {
+  box-shadow: none;
+}
+
+.aira-home main div[aria-busy] {
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-home main div[aria-busy] > div:first-child {
+  scrollbar-gutter: stable;
+}
+
+/* Keep line length close to Claude/ChatGPT reading comfort. */
+.aira-home .answer-markdown {
+  max-width: 72ch;
+  color: #c5c3bf;
+  font-size: 14.5px;
+  line-height: 1.74;
+}
+
+.aira-home .answer-markdown :where(p, li) {
+  color: #c5c3bf;
+}
+
+.aira-home .answer-markdown :where(h1, h2, h3) {
+  color: #efeee9;
+  font-weight: 610;
+}
+
+.aira-home .answer-markdown hr {
+  border-color: var(--chat-line);
+}
+
+/* User turns should be distinct without a giant colorful speech bubble. */
+.aira-home [aria-label="Streaming user message"] > div,
+.aira-home .aira-enter.group > div > div[class*="bg-surface-elevated"] {
+  border: 1px solid var(--chat-line);
+  background: #171717 !important;
+}
+
+/* Unified composer: tactile, dense, and visually stable while streaming. */
+.aira-home .aira-enterprise-composer {
+  overflow: visible !important;
+  border: 1px solid var(--chat-line-strong) !important;
+  border-radius: 16px !important;
+  background: #141414 !important;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28) !important;
+}
+
+.aira-home .aira-enterprise-composer:focus-within {
+  border-color: rgba(201, 168, 76, 0.48) !important;
+  background: #151515 !important;
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(201, 168, 76, 0.08) !important;
+}
+
+.aira-home form[aria-label="Ask AiraAI"] > div[class*="absolute"] {
+  animation: aira-command-in 120ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+/* Research controls become a utility bar instead of floating glass pills. */
+.aira-home select,
+.aira-home div[role="group"][aria-label="Search mode"] {
+  min-height: 36px;
+  border-radius: 10px !important;
+  border-color: var(--chat-line) !important;
+  background: #101010 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  ring: none !important;
+}
+
+.aira-home div[role="group"][aria-label="Search mode"] button {
+  border-radius: 8px !important;
+  font-size: 11px !important;
+}
+
+/* Sidebar: closer to a native workspace navigator than a dashboard panel. */
+.aira-home aside[aria-label="Conversation sidebar"] {
+  border-color: var(--chat-line) !important;
+  background: var(--chat-sidebar) !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] nav {
+  border: 0;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] input {
+  caret-color: var(--chat-accent);
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] section > p {
+  color: #66645f;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] button[aria-current="page"] {
+  background: #181818 !important;
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] a,
+.aira-home aside[aria-label="Conversation sidebar"] button {
+  transition:
+    background-color 120ms cubic-bezier(.2,.8,.2,1),
+    color 120ms cubic-bezier(.2,.8,.2,1),
+    border-color 120ms cubic-bezier(.2,.8,.2,1),
+    transform 120ms cubic-bezier(.2,.8,.2,1);
+}
+
+.aira-home aside[aria-label="Conversation sidebar"] a:active,
+.aira-home aside[aria-label="Conversation sidebar"] button:active {
+  transform: translateY(1px);
+}
+
+/* Empty state: useful choices, not a collection of decorative feature cards. */
+.aira-home a[href="/knowledge"],
+.aira-home a[href="/agents"],
+.aira-home a[href="/local-ai"] {
+  text-decoration: none;
+}
+
+/* Source cards should support the answer rather than overpower it. */
+.aira-home [class*="citation"] {
+  box-shadow: none !important;
+}
+
+/* Keep top-level quota/status UI visible but not card-heavy. */
+.aira-home header [aria-label="Plan and usage"] {
+  border-radius: 10px !important;
+  border-color: var(--chat-line) !important;
+  background: #0f0f0f !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+@keyframes aira-command-in {
+  from { opacity: 0; transform: translateY(4px) scale(.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 767px) {
+  .aira-home main > header {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .aira-home main div[aria-busy] {
+    min-height: 0;
+  }
+
+  .aira-home .answer-markdown {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .aira-home .aira-enterprise-composer {
+    border-radius: 14px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-home form[aria-label="Ask AiraAI"] > div[class*="absolute"] {
+    animation: none !important;
+  }
+}
