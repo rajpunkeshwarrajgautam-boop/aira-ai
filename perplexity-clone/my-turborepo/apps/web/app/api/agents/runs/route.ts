@@ -1,6 +1,15 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { AaeRequestError, checkAaeHealth } from "@/lib/aae/client";
+import {
+	AaeConfigError,
+	getAaeConfig,
+	isAaeConfigured,
+	isAaeEnabled,
+	isAaeUserAllowed,
+} from "@/lib/aae/config";
+import { submitAaeAgentRun } from "@/lib/aae/runs";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import {
 	AutoGptConfigError,
@@ -33,12 +42,12 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type AgentProvider = "DEERFLOW" | "AUTOGPT";
+type AgentProvider = "DEERFLOW" | "AUTOGPT" | "AAE";
 
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(4_000),
-	provider: z.enum(["DEERFLOW", "AUTOGPT"]).optional(),
+	provider: z.enum(["DEERFLOW", "AUTOGPT", "AAE"]).optional(),
 });
 
 function noStoreJson(body: unknown, init?: ResponseInit): Response {
@@ -47,7 +56,7 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 	return Response.json(body, { ...init, headers });
 }
 
-function configuredProviderState() {
+function configuredProviderState(userId: string) {
 	return {
 		deerFlow: {
 			enabled: isDeerFlowEnabled(),
@@ -56,6 +65,10 @@ function configuredProviderState() {
 		autoGpt: {
 			enabled: isAutoGptEnabled(),
 			configured: isAutoGptConfigured(),
+		},
+		aae: {
+			enabled: isAaeEnabled(),
+			configured: isAaeConfigured() && isAaeUserAllowed(userId),
 		},
 	};
 }
@@ -69,8 +82,17 @@ async function deerFlowHealthy(configured: boolean): Promise<boolean> {
 	}
 }
 
-async function selectProvider(requested?: AgentProvider): Promise<AgentProvider> {
-	const state = configuredProviderState();
+async function aaeHealthy(configured: boolean): Promise<boolean> {
+	if (!configured) return false;
+	try {
+		return await checkAaeHealth(getAaeConfig());
+	} catch {
+		return false;
+	}
+}
+
+async function selectProvider(userId: string, requested?: AgentProvider): Promise<AgentProvider> {
+	const state = configuredProviderState(userId);
 	if (requested === "DEERFLOW") {
 		if (!state.deerFlow.configured) {
 			throw new DeerFlowConfigError("DeerFlow is not configured for this AIRA deployment.");
@@ -91,15 +113,38 @@ async function selectProvider(requested?: AgentProvider): Promise<AgentProvider>
 		}
 		return "AUTOGPT";
 	}
+	if (requested === "AAE") {
+		if (!state.aae.configured) {
+			throw new AaeConfigError("AAE is not configured for this AIRA user.");
+		}
+		if (!(await aaeHealthy(true))) {
+			throw new AaeRequestError({
+				code: "AAE_UNHEALTHY",
+				message: "The autonomous engine is temporarily unavailable.",
+				status: 503,
+				retryable: true,
+			});
+		}
+		return "AAE";
+	}
 
-	// DeerFlow is AIRA's preferred long-horizon engine, but a failed health probe
-	// must not strand the workspace when the already-hardened AutoGPT fallback is configured.
+	// Preserve the existing provider order. AAE is a third, opt-in fallback so
+	// landing this integration cannot silently change DeerFlow/AutoGPT behavior.
 	if (state.deerFlow.configured && (await deerFlowHealthy(true))) return "DEERFLOW";
 	if (state.autoGpt.configured) return "AUTOGPT";
+	if (state.aae.configured && (await aaeHealthy(true))) return "AAE";
 	if (state.deerFlow.configured) {
 		throw new DeerFlowRequestError({
 			code: "DEERFLOW_UNHEALTHY",
 			message: "The DeerFlow SuperAgent runtime is temporarily unavailable.",
+			status: 503,
+			retryable: true,
+		});
+	}
+	if (state.aae.configured) {
+		throw new AaeRequestError({
+			code: "AAE_UNHEALTHY",
+			message: "The autonomous engine is temporarily unavailable.",
 			status: 503,
 			retryable: true,
 		});
@@ -117,29 +162,35 @@ export async function GET(req: Request): Promise<Response> {
 	}
 	const requestedLimit = Number(new URL(req.url).searchParams.get("limit") ?? "20");
 	const limit = Number.isFinite(requestedLimit) ? requestedLimit : 20;
-	const configured = configuredProviderState();
-	const [runs, entitlements, deerFlowIsHealthy] = await Promise.all([
+	const configured = configuredProviderState(session.user.id);
+	const [runs, entitlements, deerFlowIsHealthy, aaeIsHealthy] = await Promise.all([
 		listAgentRuns(session.user.id, limit),
 		getEffectiveEntitlements(session.user.id),
 		deerFlowHealthy(configured.deerFlow.configured),
+		aaeHealthy(configured.aae.configured),
 	]);
 	const deerFlowReady = configured.deerFlow.configured && deerFlowIsHealthy;
 	const autoGptReady = configured.autoGpt.configured;
+	const aaeReady = configured.aae.configured && aaeIsHealthy;
 	const preferredProvider: AgentProvider | null = deerFlowReady
 		? "DEERFLOW"
 		: autoGptReady
 			? "AUTOGPT"
-			: null;
+			: aaeReady
+				? "AAE"
+				: null;
 	return noStoreJson({
 		runs,
 		feature: {
-			enabled: configured.deerFlow.enabled || configured.autoGpt.enabled,
-			configured: configured.deerFlow.configured || configured.autoGpt.configured,
-			ready: deerFlowReady || autoGptReady,
+			enabled: configured.deerFlow.enabled || configured.autoGpt.enabled || configured.aae.enabled,
+			configured:
+				configured.deerFlow.configured || configured.autoGpt.configured || configured.aae.configured,
+			ready: deerFlowReady || autoGptReady || aaeReady,
 			preferredProvider,
 			providers: {
 				DEERFLOW: { ...configured.deerFlow, healthy: deerFlowIsHealthy, ready: deerFlowReady },
 				AUTOGPT: { ...configured.autoGpt, healthy: null, ready: autoGptReady },
+				AAE: { ...configured.aae, healthy: aaeIsHealthy, ready: aaeReady },
 			},
 		},
 		usage: {
@@ -188,13 +239,23 @@ export async function POST(req: Request): Promise<Response> {
 	} catch (error) {
 		if (error instanceof SafetyBlockedError) {
 			return noStoreJson(
-				{ error: { code: "SAFETY_BLOCKED", message: "This autonomous objective cannot be processed by the configured safety policy." } },
+				{
+					error: {
+						code: "SAFETY_BLOCKED",
+						message: "This autonomous objective cannot be processed by the configured safety policy.",
+					},
+				},
 				{ status: 403 },
 			);
 		}
 		if (error instanceof SafetyGatewayError) {
 			return noStoreJson(
-				{ error: { code: "SAFETY_GATEWAY_UNAVAILABLE", message: "The required safety service is temporarily unavailable." } },
+				{
+					error: {
+						code: "SAFETY_GATEWAY_UNAVAILABLE",
+						message: "The required safety service is temporarily unavailable.",
+					},
+				},
 				{ status: 503 },
 			);
 		}
@@ -203,7 +264,7 @@ export async function POST(req: Request): Promise<Response> {
 
 	let leaseId: string | undefined;
 	try {
-		const provider = await selectProvider(parsed.data.provider);
+		const provider = await selectProvider(session.user.id, parsed.data.provider);
 		const lease = await admitFoundationRequest({
 			requestId: parsed.data.clientRequestId,
 			kind: "agent",
@@ -218,23 +279,32 @@ export async function POST(req: Request): Promise<Response> {
 				},
 				{
 					status: 503,
-					headers: { "Retry-After": String(Math.max(1, Math.ceil((lease.retryAfterMs ?? 1000) / 1000))) },
+					headers: {
+						"Retry-After": String(Math.max(1, Math.ceil((lease.retryAfterMs ?? 1000) / 1000))),
+					},
 				},
 			);
 		}
 		leaseId = lease.leaseId;
 
-		const submitted = provider === "DEERFLOW"
-			? await submitDeerFlowAgentRun({
-				userId: session.user.id,
-				clientRequestId: parsed.data.clientRequestId,
-				objective: parsed.data.objective,
-			})
-			: await submitAgentRun({
-				userId: session.user.id,
-				clientRequestId: parsed.data.clientRequestId,
-				objective: parsed.data.objective,
-			});
+		const submitted =
+			provider === "DEERFLOW"
+				? await submitDeerFlowAgentRun({
+						userId: session.user.id,
+						clientRequestId: parsed.data.clientRequestId,
+						objective: parsed.data.objective,
+					})
+				: provider === "AAE"
+					? await submitAaeAgentRun({
+							userId: session.user.id,
+							clientRequestId: parsed.data.clientRequestId,
+							objective: parsed.data.objective,
+						})
+					: await submitAgentRun({
+							userId: session.user.id,
+							clientRequestId: parsed.data.clientRequestId,
+							objective: parsed.data.objective,
+						});
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
 		if (error instanceof PlanEnforcementError) {
@@ -243,7 +313,11 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: error.status },
 			);
 		}
-		if (error instanceof DeerFlowConfigError || error instanceof AutoGptConfigError) {
+		if (
+			error instanceof DeerFlowConfigError ||
+			error instanceof AutoGptConfigError ||
+			error instanceof AaeConfigError
+		) {
 			return noStoreJson(
 				{
 					error: {
@@ -254,7 +328,11 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: 503 },
 			);
 		}
-		if (error instanceof DeerFlowRequestError || error instanceof AutoGptRequestError) {
+		if (
+			error instanceof DeerFlowRequestError ||
+			error instanceof AutoGptRequestError ||
+			error instanceof AaeRequestError
+		) {
 			return noStoreJson(
 				{ error: { code: error.code, message: error.message, retryable: error.retryable } },
 				{ status: error.status },
