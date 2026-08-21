@@ -19,6 +19,7 @@ function HomeSkeleton() {
 					</div>
 				</div>
 			</div>
+		</div>
 	);
 }
 
