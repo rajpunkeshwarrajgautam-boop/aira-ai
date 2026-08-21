@@ -53,11 +53,20 @@ function isTerminal(status: AgentRunStatus): boolean {
 	);
 }
 
-function resultFromJob(job: AaeJob): Prisma.InputJsonValue {
+function jsonSafeUsage(usage: Readonly<Record<string, unknown>> | undefined): Prisma.InputJsonObject {
+	const safe: Record<string, string | number | boolean> = {};
+	for (const [key, value] of Object.entries(usage ?? {})) {
+		if (typeof value === "string" || typeof value === "boolean") safe[key] = value;
+		else if (typeof value === "number" && Number.isFinite(value)) safe[key] = value;
+	}
+	return safe;
+}
+
+function resultFromJob(job: AaeJob): Prisma.InputJsonObject {
 	return {
-		output: job.output ?? null,
+		output: job.output ?? "",
 		modifiedFiles: [...(job.modified_files ?? [])].slice(0, 500),
-		usage: { ...(job.usage ?? {}) },
+		usage: jsonSafeUsage(job.usage),
 	};
 }
 
