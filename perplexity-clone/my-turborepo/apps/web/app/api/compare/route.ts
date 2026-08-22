@@ -5,23 +5,29 @@ import { assertSafetyAllowed } from "@services/safety/safety-gateway";
 import { ProviderRouter } from "@services/providers/provider-router";
 import { OpenAIProvider } from "@services/providers/openai-provider";
 import { NVIDIAProvider } from "@services/providers/nvidia-provider";
-import { SelfHostedProvider } from "@services/providers/self-hosted-provider";
-import { getLocalAiConfigOrDisabled } from "@services/local-ai/config";
+import { OmniRouteProvider } from "@services/providers/omniroute-provider";
+import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-type ProviderId = "openai" | "nvidia" | "self-hosted";
+type ProviderId = "openai" | "nvidia" | "omniroute";
 
 const CompareSchema = z.object({
   prompt: z.string().trim().min(2).max(12000),
-  providers: z.array(z.enum(["openai", "nvidia", "self-hosted"])).min(2).max(3),
+  providers: z.array(z.enum(["openai", "nvidia", "omniroute"])).min(2).max(3),
 });
 
 function descriptors() {
-  const local = getLocalAiConfigOrDisabled();
+  const omniRoute = getOmniRouteConfigOrDisabled();
   return [
+    {
+      id: "omniroute" as const,
+      label: "OmniRoute",
+      configured: omniRoute.configured,
+      model: omniRoute.model,
+    },
     {
       id: "openai" as const,
       label: "OpenAI",
@@ -34,35 +40,29 @@ function descriptors() {
       configured: Boolean(process.env.NVIDIA_API_KEY),
       model: process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct",
     },
-    {
-      id: "self-hosted" as const,
-      label: "Virexa Local",
-      configured: local.configured,
-      model: local.model || "Local model",
-    },
   ];
 }
 
 function createRouter(id: ProviderId): ProviderRouter | null {
   const router = new ProviderRouter(id, id);
+  if (id === "omniroute") {
+    const omniRoute = getOmniRouteConfigOrDisabled();
+    if (!omniRoute.configured) return null;
+    router.registerProvider(
+      new OmniRouteProvider({
+        baseURL: omniRoute.baseURL,
+        apiKey: omniRoute.apiKey,
+        model: omniRoute.model,
+      }),
+    );
+    return router;
+  }
   if (id === "openai" && process.env.OPENAI_API_KEY) {
     router.registerProvider(new OpenAIProvider(process.env.OPENAI_API_KEY));
     return router;
   }
   if (id === "nvidia" && process.env.NVIDIA_API_KEY) {
     router.registerProvider(new NVIDIAProvider(process.env.NVIDIA_API_KEY));
-    return router;
-  }
-  if (id === "self-hosted") {
-    const local = getLocalAiConfigOrDisabled();
-    if (!local.configured) return null;
-    router.registerProvider(
-      new SelfHostedProvider({
-        baseURL: local.baseURL,
-        apiKey: local.apiKey,
-        model: local.model,
-      }),
-    );
     return router;
   }
   return null;
