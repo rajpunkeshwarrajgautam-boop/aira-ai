@@ -111,17 +111,69 @@ pretending a stop succeeded.
 
 ### Basis for the runtime statuses above
 
-Vercel environment variables are not readable through the tooling used for this
-reconciliation, so "configured" is reported from two facts that are checkable: no
-DeerFlow or AutoGPT host has been provisioned, and both adapters fail closed without
-one. If an operator has since set these variables in Vercel, update this file --
-pointing AIRA at a host that has not passed the verification gate is exactly the
-state these tables exist to prevent.
+Vercel environment variables were read directly on 21 August 2026 with an
+authenticated `vercel env ls production` against `aira-ai-live`. Production carries
+auth, database, Exa, OpenAI, NVIDIA, provider-default and Cashfree variables and
+**no** DeerFlow, AutoGPT, foundation, sandbox or Supabase-storage variable. Both
+adapters therefore remain fail-closed, and "configured: NO" above is measured rather
+than inferred.
+
+### Foundation control plane, knowledge worker and sandbox
+
+| State | Status |
+| --- | --- |
+| integrated | YES — admission leases, provider circuit breaker, job queue, ingestion callback and sandbox client are merged |
+| deployed | NO — no host exists |
+| configured | NO — no foundation variable is set in Vercel Production |
+| verified | PARTIAL — the contracts are verified, the deployment is not |
+| production active | NO |
+
+On 21 August 2026 the foundation services were run directly from this repository's
+sources against a local Redis and verified end to end. The control plane refused an
+unauthenticated enqueue, issued and released an admission lease, opened a provider
+circuit after three transient failures, and accepted, served and acknowledged jobs
+with the stream draining to zero. The knowledge worker claimed each job, downloaded
+the object, extracted and chunked `text/plain`, `text/markdown`, `application/pdf`
+and `.docx`, and posted the `knowledge.ingest` completion callback with contiguous
+chunk ordinals and the worker token; an unreachable object produced the `failed`
+callback with a useful error instead of a silent drop. The sandbox gateway refused an
+unauthenticated caller, executed authenticated code correctly, enforced its
+wall-clock timeout, `RLIMIT_AS` memory ceiling and process limit, and rejected
+oversized payloads and unknown paths.
+
+That is a contract verification, not a deployment. Supabase is ready — `KnowledgeAsset`
+and `KnowledgeChunk` exist with RLS enabled, and the private `aira-knowledge` bucket
+carries the matching MIME allowlist and 20 MB limit — but nothing consumes the queue
+in production because no host runs the worker.
+
+### Deployment path
+
+`infra/aira-runtime/` is the single entry point that turns all of the above on:
+
+```bash
+sudo AIRA_NVIDIA_API_KEY=… AIRA_ACME_EMAIL=… bash infra/aira-runtime/bootstrap.sh
+```
+
+It composes the deployment implementations already in this repository, adds the one
+piece that was missing — a TLS edge Vercel can reach — generates every secret once
+into `/etc/aira/runtime.env`, runs `infra/aira-runtime/verify.sh` as an activation
+gate, and writes a ready-to-apply Vercel environment. With no DNS credentials it
+derives `sslip.io` hostnames from the host's public IPv4 address, so Let's Encrypt
+still issues real certificates. It is idempotent: re-running preserves secrets, so a
+configured Vercel project is never invalidated.
 
 ## External activation gates
 
 These are the only genuine blockers. Each needs infrastructure that does not exist
 yet; none of them can be resolved from inside the repository.
+
+0. **A persistent Linux host.** The single blocker behind gates 1 and 2, and behind
+   the foundation stack. `infra/aira-runtime/bootstrap.sh` deploys everything in one
+   command once a host exists: roughly 4 GB of RAM covers the foundation stack, the
+   sandbox and both AutoGPT runners, and about 8 GB adds DeerFlow. As of 21 August
+   2026 no such host is reachable — the operator's machine has no SSH key, no OCI
+   credential, no Cloudflare Tunnel and a stopped Docker Desktop, and a Claude Code
+   session container cannot substitute for one.
 
 1. **DeerFlow host.** A persistent Linux host, reachable from Vercel over TLS, with
    Docker Engine, the Compose plugin, a Postgres instance (not part of upstream's

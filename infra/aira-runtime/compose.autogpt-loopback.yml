@@ -1,0 +1,16 @@
+# Publishes an AutoGPT runner adapter on a loopback port so the shared AIRA
+# edge (infra/aira-runtime/compose.edge.yml) can terminate TLS for it.
+#
+# Used *instead of* infra/autogpt-runner/compose.vps.yml, which starts its own
+# Caddy bound to 0.0.0.0:80/443. Two runner stacks share one host here, so a
+# per-stack Caddy would collide on those ports; the shared edge terminates TLS
+# for both, on two distinct hostnames, and each adapter keeps its own
+# RUNNER_API_KEY. The adapter still binds loopback only and is never reachable
+# except through the edge.
+
+services:
+  adapter:
+    environment:
+      RUNNER_HOST_ROLE: ${RUNNER_HOST_ROLE:?set RUNNER_HOST_ROLE}
+    ports:
+      - "127.0.0.1:${ADAPTER_LOOPBACK_PORT:?set ADAPTER_LOOPBACK_PORT}:8080"
