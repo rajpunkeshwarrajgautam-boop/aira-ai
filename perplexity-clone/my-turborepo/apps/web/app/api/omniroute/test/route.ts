@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { isOmniRoutePreviewTestAccessEnabled } from "@/lib/omniroute-preview-access";
 import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
 import { fetchOmniRouteModels, OmniRouteGatewayError } from "@services/omniroute/gateway";
 import { isAllowedOmniRouteSelection, isOmniRouteRoutingMode } from "@services/omniroute/routing";
@@ -88,7 +89,7 @@ function publicInferenceError(error: unknown, requestAborted: boolean): {
 
 export async function POST(req: Request): Promise<Response> {
 	const session = await auth();
-	const userId = session?.user?.id;
+	const userId = session?.user?.id ?? (isOmniRoutePreviewTestAccessEnabled() ? "preview-omniroute-tester" : undefined);
 	if (!userId) {
 		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	}
