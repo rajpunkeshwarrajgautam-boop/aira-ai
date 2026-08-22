@@ -131,6 +131,7 @@ function conversationText(messages: readonly ConversationMessageDto[]): string {
 }
 
 export function ConversationMessageList({ messages, streamingUserQuery, streamingAssistantMarkdown, streamingCitations, showAssistantSkeleton = false, showEmptyHint = false, exampleQueries = [], onPickExample, statusText }: ConversationMessageListProps) {
+	const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 	const latestStoredCitations = useMemo(() => {
 		for (let index = messages.length - 1; index >= 0; index -= 1) {
 			const message = messages[index];
@@ -142,6 +143,35 @@ export function ConversationMessageList({ messages, streamingUserQuery, streamin
 	const createdAt = messages[0]?.createdAt ? new Date(messages[0].createdAt) : null;
 	const title = threadTitle(messages, streamingUserQuery);
 	const copyAll = conversationText(messages);
+	const shareableText = [
+		copyAll,
+		streamingUserQuery ? `You:\n${streamingUserQuery}` : "",
+		streamingAssistantMarkdown ? `AIRA AI:\n${streamingAssistantMarkdown}` : "",
+	].filter(Boolean).join("\n\n");
+
+	async function shareConversation() {
+		if (!shareableText.trim()) {
+			setShareFeedback("Start a conversation before sharing.");
+			window.setTimeout(() => setShareFeedback(null), 2200);
+			return;
+		}
+		try {
+			if (typeof navigator.share === "function") {
+				await navigator.share({ title, text: shareableText });
+				setShareFeedback("Shared");
+			} else if (navigator.clipboard?.writeText) {
+				await navigator.clipboard.writeText(shareableText);
+				setShareFeedback("Conversation copied");
+			} else {
+				window.prompt("Copy this conversation:", shareableText);
+				setShareFeedback("Ready to copy");
+			}
+		} catch (error) {
+			if (error instanceof DOMException && error.name === "AbortError") return;
+			setShareFeedback("Could not share this conversation");
+		}
+		window.setTimeout(() => setShareFeedback(null), 2200);
+	}
 
 	const renderAssistant = (message: { readonly content: string; readonly citations: unknown; readonly streaming: boolean }) => {
 		const citations = isCitationArray(message.citations) ? message.citations : [];
@@ -168,15 +198,16 @@ export function ConversationMessageList({ messages, streamingUserQuery, streamin
 		<div className="aira-thread-layout w-full">
 			<div className="aira-thread-toolbar sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-white/[0.07] bg-[#0b1020]/92 px-4 backdrop-blur-xl sm:px-5">
 				<div className="min-w-0"><h2 className="truncate text-[13px] font-semibold text-content-primary">{title}</h2><p className="mt-0.5 text-[9px] text-content-tertiary">AIRA workspace</p></div>
-				<div className="hidden items-center rounded-xl border border-white/[0.08] bg-[#0d1322] p-1 sm:flex">
-					<button type="button" className="rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-1.5 text-[10px] font-semibold text-white shadow-sm">AIRA</button>
-					<button type="button" onClick={() => emitComposerCommand("/deep ")} className="rounded-lg px-4 py-1.5 text-[10px] font-medium text-content-tertiary transition hover:text-content-primary" title="Start Deep Research">Web</button>
+				<div className="hidden items-center rounded-xl border border-white/[0.08] bg-[#0d1322] p-1 sm:flex" aria-label="Research tools">
+					<span className="rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-1.5 text-[10px] font-semibold text-white shadow-sm" title="AIRA standard research">AIRA</span>
+					<button type="button" onClick={() => emitComposerCommand("/deep ")} className="rounded-lg px-4 py-1.5 text-[10px] font-medium text-content-tertiary transition hover:text-content-primary" title="Prepare a Deep Research query">Web</button>
 				</div>
 				<div className="flex items-center gap-1.5">
 					<Link href="/workspace-search" className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary" aria-label="Search conversation history"><History className="size-4" strokeWidth={1.6} /></Link>
-					<button type="button" onClick={() => emitComposerCommand("/share")} className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary" aria-label="Share conversation"><Share2 className="size-4" strokeWidth={1.6} /></button>
+					<button type="button" onClick={() => void shareConversation()} disabled={!shareableText.trim()} className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-35" aria-label="Share conversation"><Share2 className="size-4" strokeWidth={1.6} /></button>
 					<Link href="/compare" className="ml-1 hidden h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#111827] px-3 text-[10px] font-medium text-content-secondary transition hover:border-violet-400/25 hover:text-content-primary md:flex" title="Open Model Compare"><span className="size-1.5 rounded-full bg-emerald-400" />AIRA Auto<GitCompareArrows className="size-3.5" strokeWidth={1.6} /></Link>
 				</div>
+				{shareFeedback ? <span className="sr-only" role="status" aria-live="polite">{shareFeedback}</span> : null}
 			</div>
 
 			<div className="aira-thread-columns grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
@@ -208,7 +239,7 @@ export function ConversationMessageList({ messages, streamingUserQuery, streamin
 
 						<section className="rounded-2xl border border-white/[0.08] bg-[#111827]/80 p-3"><p className="text-[11px] font-semibold text-content-primary">Conversation Info</p><dl className="mt-2 space-y-2 text-[9px]"><div className="flex items-center justify-between gap-3"><dt className="text-content-tertiary">Created</dt><dd className="truncate text-content-secondary">{createdAt && !Number.isNaN(createdAt.getTime()) ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(createdAt) : "New thread"}</dd></div><div className="flex items-center justify-between"><dt className="text-content-tertiary">Messages</dt><dd className="tabular-nums text-content-secondary">{messages.length}</dd></div><div className="flex items-center justify-between"><dt className="text-content-tertiary">Sources</dt><dd className="tabular-nums text-content-secondary">{inspectorCitations.length}</dd></div><div className="flex items-center justify-between"><dt className="text-content-tertiary">Status</dt><dd className="inline-flex items-center gap-1 text-content-secondary"><span className="size-1.5 rounded-full bg-emerald-400" />Active</dd></div></dl></section>
 
-						<section className="rounded-2xl border border-white/[0.08] bg-[#111827]/80 p-3"><p className="text-[11px] font-semibold text-content-primary">Actions</p><div className="mt-2 space-y-0.5"><button type="button" disabled={!copyAll} onClick={() => void navigator.clipboard.writeText(copyAll)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary disabled:opacity-40"><Copy className="size-3.5" strokeWidth={1.6} />Copy conversation</button><button type="button" onClick={() => emitComposerCommand("/share")} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary"><Share2 className="size-3.5" strokeWidth={1.6} />Share conversation</button><button type="button" onClick={() => window.print()} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary"><FileDown className="size-3.5" strokeWidth={1.6} />Print / save as PDF</button><button type="button" onClick={() => emitComposerCommand("/new")} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary"><MessageSquarePlus className="size-3.5" strokeWidth={1.6} />New conversation</button></div></section>
+						<section className="rounded-2xl border border-white/[0.08] bg-[#111827]/80 p-3"><p className="text-[11px] font-semibold text-content-primary">Actions</p><div className="mt-2 space-y-0.5"><button type="button" disabled={!copyAll} onClick={() => void navigator.clipboard.writeText(copyAll)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary disabled:opacity-40"><Copy className="size-3.5" strokeWidth={1.6} />Copy conversation</button><button type="button" disabled={!shareableText.trim()} onClick={() => void shareConversation()} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-40"><Share2 className="size-3.5" strokeWidth={1.6} />Share conversation</button><button type="button" onClick={() => window.print()} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary"><FileDown className="size-3.5" strokeWidth={1.6} />Print / save as PDF</button><button type="button" onClick={() => emitComposerCommand("/new")} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[9px] text-content-secondary transition hover:bg-white/[0.04] hover:text-content-primary"><MessageSquarePlus className="size-3.5" strokeWidth={1.6} />New conversation</button></div>{shareFeedback ? <p className="mt-2 rounded-lg bg-white/[0.035] px-2 py-1.5 text-[9px] text-content-tertiary" role="status">{shareFeedback}</p> : null}</section>
 					</div>
 				</aside>
 			</div>
