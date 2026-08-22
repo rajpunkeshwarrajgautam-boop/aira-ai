@@ -121,6 +121,12 @@ test("pricing preserves Pro and Team checkout selections", () => {
 	assert.ok(upgrade.includes("callbackUrl = requested ? `/upgrade?plan=${requested}` : \"/upgrade\""));
 });
 
+test("pricing remains a public plan-comparison route", () => {
+	const proxy = read("proxy.ts");
+	assert.ok(proxy.includes('pathname === "/pricing"'));
+	assert.ok(proxy.indexOf('pathname === "/pricing"') < proxy.indexOf("if (!req.auth)"), "pricing must be allowlisted before the unauthenticated redirect");
+});
+
 test("admin analytics navigation is capability-aware", () => {
 	const frame = read("components/AiraV2Frame.tsx");
 	const accessRoute = read("app/api/admin/access/route.ts");
