@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextMiddleware, type NextRequest } from "next/server";
 
 import { authConfig } from "./auth.config";
 import { isOmniRoutePreviewTestAccessEnabled } from "./lib/omniroute-preview-access";
@@ -140,7 +140,7 @@ export default function proxy(req: NextRequest, event: NextFetchEvent) {
 	) {
 		return NextResponse.next();
 	}
-	return authenticatedProxy(req, event);
+	return (authenticatedProxy as NextMiddleware)(req, event);
 }
 
 export const config = {
