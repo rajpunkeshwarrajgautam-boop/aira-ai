@@ -123,7 +123,7 @@ globalCommandRegistry.registerCommand({
 
 globalCommandRegistry.registerCommand({
 	name: "/share",
-	description: "Generate a shareable link for the current conversation",
+	description: "Share the current conversation",
 	execute: (_args, context) => {
 		if (!context?.conversationId) {
 			return { type: "error", payload: null, message: "No active conversation to share." };
@@ -131,7 +131,7 @@ globalCommandRegistry.registerCommand({
 		return {
 			type: "action",
 			payload: { action: "create_share", conversationId: context.conversationId },
-			message: "Generating share link...",
+			message: "Preparing share action...",
 		};
 	},
 });
