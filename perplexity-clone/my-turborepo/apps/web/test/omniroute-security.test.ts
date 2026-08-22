@@ -60,7 +60,7 @@ test("OmniRoute preview test bypass is explicit, preview-only, and runs before A
 	assert.ok(helper.includes('process.env.OMNIROUTE_PREVIEW_TEST_BYPASS === "true"'));
 	assert.ok(proxy.includes('pathname === "/omniroute" || pathname.startsWith("/api/omniroute/")'));
 	assert.ok(proxy.includes("const authenticatedProxy = auth("));
-	assert.ok(proxy.includes("return (authenticatedProxy as NextMiddleware)(req, event)"));
+	assert.ok(proxy.includes("return (authenticatedProxy as unknown as NextMiddleware)(req, event)"));
 	assert.ok(
 		proxy.indexOf("isOmniRoutePreviewTestAccessEnabled()") <
 			proxy.lastIndexOf("return (authenticatedProxy as NextMiddleware)(req, event)"),
