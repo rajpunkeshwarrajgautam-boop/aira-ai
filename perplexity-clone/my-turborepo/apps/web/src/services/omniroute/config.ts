@@ -9,6 +9,7 @@ export interface OmniRouteConfig {
 }
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const DEFAULT_OMNIROUTE_MODEL = "nvidia/openai/gpt-oss-20b";
 
 function parseTimeout(value: string | undefined): number {
 	const parsed = Number.parseInt(value ?? "", 10);
@@ -78,7 +79,7 @@ export function normalizeOmniRouteBaseURL(
 export function getOmniRouteConfigOrDisabled(): OmniRouteConfig {
 	const enabled = process.env.OMNIROUTE_ENABLED === "true";
 	const apiKey = process.env.OMNIROUTE_API_KEY?.trim() ?? "";
-	const model = process.env.OMNIROUTE_MODEL?.trim() || "auto";
+	const model = process.env.OMNIROUTE_MODEL?.trim() || DEFAULT_OMNIROUTE_MODEL;
 	const timeoutMs = parseTimeout(process.env.OMNIROUTE_TIMEOUT_MS);
 
 	let baseURL = "";
