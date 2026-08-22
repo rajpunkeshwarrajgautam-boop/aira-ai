@@ -1,0 +1,71 @@
+name: OmniRoute Fly Contract
+
+on:
+  pull_request:
+    paths:
+      - "infra/omniroute/**"
+      - ".github/workflows/omniroute-fly-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/omniroute/**"
+      - ".github/workflows/omniroute-fly-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-powershell:
+    runs-on: windows-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Parse Fly bootstrap with PowerShell AST
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          $path = Resolve-Path "infra/omniroute/deploy-fly.ps1"
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            $path,
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+          Write-Host "PowerShell syntax is valid."
+
+      - name: Confirm no credential-shaped literal is committed
+        shell: pwsh
+        run: |
+          $patterns = @(
+            'sk-[A-Za-z0-9_-]{20,}',
+            'nvapi-[A-Za-z0-9_-]{20,}',
+            '-----BEGIN [A-Z ]*PRIVATE KEY-----',
+            '(?i)OMNIROUTE_API_KEY\s*=\s*[^<\s][^\s]{12,}'
+          )
+
+          $files = Get-ChildItem "infra/omniroute" -File -Recurse
+          $hits = foreach ($file in $files) {
+            $text = Get-Content -Raw $file.FullName
+            foreach ($pattern in $patterns) {
+              if ($text -match $pattern) {
+                "$($file.FullName): $pattern"
+              }
+            }
+          }
+
+          if ($hits) {
+            $hits | ForEach-Object { Write-Error "Credential-shaped literal detected: $_" }
+            exit 1
+          }
+
+          Write-Host "No credential-shaped literal found under infra/omniroute."
