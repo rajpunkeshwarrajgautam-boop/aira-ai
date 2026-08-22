@@ -5,8 +5,8 @@ AIRA Desktop is a local-first Windows agentic operating layer built with Electro
 ## 1.0 capabilities
 
 - Multi-step autonomous agent loop with explicit tool execution trace
-- Local Ollama inference plus optional OpenAI-compatible model routing
-- Structured JSON decisions
+- Local Ollama inference plus OpenAI-compatible routing, including local `llama.cpp`
+- Structured JSON decisions with compatibility fallback for local servers
 - Local vision using `qwen3-vl:8b`
 - Screen capture, visual inspection and UI coordinate grounding
 - Approval-gated mouse, keyboard, foreground-window and PowerShell actions
@@ -33,8 +33,11 @@ File tools are restricted to the configured workspace root.
 
 - Windows 10/11
 - Node.js 22+ for development
-- Ollama for local inference
-- Recommended local models:
+- At least one text inference provider:
+  - Ollama, or
+  - an OpenAI-compatible endpoint such as local `llama.cpp`
+- Ollama is still required in 1.0 for the built-in local vision and embedding pipelines
+- Recommended models depend on available RAM/VRAM. The default Ollama stack is:
   - `qwen3.5:9b`
   - `qwen3-vl:8b`
   - `embeddinggemma`
@@ -56,6 +59,38 @@ ollama pull qwen3-vl:8b
 ollama pull embeddinggemma
 npm run dev
 ```
+
+## Use a local llama.cpp model as AIRA's main brain
+
+AIRA Desktop can use `llama-server` directly through its OpenAI-compatible API. The llama.cpp web page at `http://127.0.0.1:8080` remains the inference server's basic UI; AIRA Desktop supplies the agent loop, workspace tools, browser/computer actions, skills, memory and approvals.
+
+Start your GGUF model with a recent llama.cpp build. Example:
+
+```powershell
+llama-server.exe `
+  -m C:\Models\your-model.gguf `
+  -ngl 99 `
+  -c 8192 `
+  --host 127.0.0.1 `
+  --port 8080
+```
+
+Confirm the OpenAI-compatible endpoint is alive:
+
+```powershell
+curl.exe http://127.0.0.1:8080/v1/models
+```
+
+Then in **AIRA Desktop → Settings** set:
+
+- **Provider:** `OpenAI-compatible Remote`
+- **Remote API Base:** `http://127.0.0.1:8080/v1`
+- **Remote model:** use the model ID returned by `/v1/models`
+- **Remote API Key:** leave empty for a normal loopback llama.cpp server
+
+AIRA treats `localhost`, `127.x.x.x` and `::1` endpoints as local and permits them without an API key. Non-loopback OpenAI-compatible endpoints still require a key from the encrypted vault.
+
+If a local server rejects OpenAI's `response_format: json_object`, AIRA automatically retries the agent decision request without that field while retaining its strict JSON decision protocol.
 
 ## Validation
 
@@ -94,6 +129,6 @@ Examples:
 
 Unattended tasks intentionally cannot make state-changing system actions.
 
-## Remote model provider
+## OpenAI-compatible providers
 
-Settings can route text reasoning to an OpenAI-compatible `/chat/completions` endpoint. The API key is encrypted using the operating system credential encryption through Electron `safeStorage`. Vision and embeddings remain local through Ollama in 1.0.
+Settings can route text reasoning to an OpenAI-compatible endpoint. Remote endpoints require an API key, which is encrypted using Electron `safeStorage`. Loopback endpoints such as local llama.cpp can run keyless. Vision and embeddings remain local through Ollama in 1.0.
