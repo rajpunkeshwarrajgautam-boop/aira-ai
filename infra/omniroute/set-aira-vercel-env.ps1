@@ -8,7 +8,7 @@ param(
     [string]$Target = 'production',
 
     [ValidateNotNullOrEmpty()]
-    [string]$Model = 'nvidia/openai/gpt-oss-20b',
+    [string]$Model = 'auto',
 
     [string]$GitBranch = ''
 )
