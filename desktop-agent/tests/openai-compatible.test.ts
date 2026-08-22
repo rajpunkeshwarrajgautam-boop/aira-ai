@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  chooseOpenAICompatibleModel,
   isLoopbackOpenAICompatibleUrl,
   openAICompatibleAuthHeaders,
   openAICompatibleChatUrl,
@@ -30,4 +31,10 @@ test('remote OpenAI-compatible endpoints still require authentication', () => {
   assert.deepEqual(openAICompatibleAuthHeaders('https://api.openai.com/v1', 'secret'), {
     Authorization: 'Bearer secret'
   })
+})
+
+test('local compatible model selection prefers a detected model ID', () => {
+  assert.equal(chooseOpenAICompatibleModel('loaded-model', ['loaded-model', 'other-model']), 'loaded-model')
+  assert.equal(chooseOpenAICompatibleModel('gpt-5-mini', ['Qwen3.6-27B-Q3_K_M.gguf']), 'Qwen3.6-27B-Q3_K_M.gguf')
+  assert.equal(chooseOpenAICompatibleModel('fallback-model', []), 'fallback-model')
 })
