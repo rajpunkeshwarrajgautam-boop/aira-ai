@@ -8,12 +8,12 @@ import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
 
 type Integration = { id: string; label: string; configured: boolean; detail: string; model?: string };
-type Status = { integrations: Integration[]; defaults: { primaryProvider: string; fallbackProvider: string } };
+type Status = { integrations: Integration[]; defaults: { primaryProvider: string; fallbackProvider: string; omniRouteModel?: string } };
 
 const INTEGRATION_DESTINATIONS: Readonly<Record<string, { href: string; label: string }>> = {
+  omniroute: { href: "/omniroute", label: "Open OmniRoute" },
   openai: { href: "/compare", label: "Open Compare" },
   nvidia: { href: "/compare", label: "Open Compare" },
-  "self-hosted": { href: "/local-ai", label: "Open Local AI" },
   exa: { href: "/", label: "Open Research" },
   knowledge: { href: "/knowledge", label: "Open Knowledge" },
   deerflow: { href: "/agents", label: "Open Agents" },
@@ -59,8 +59,8 @@ export default function SettingsPage() {
             {loading && !status ? <div className="grid place-items-center rounded-2xl border border-white/[0.08] bg-[#0f1216] py-20"><Loader2 className="size-5 animate-spin text-[#a98b43]" /></div> : status ? (
               <>
                 <section className="mb-5 grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-lg bg-[#181b20] text-[#c9a84c]"><Settings2 className="size-4" /></span><div><h2 className="text-sm font-semibold text-[#eeeeeb]">Model routing</h2><p className="mt-1 text-xs text-[#72777f]">Current server defaults</p></div></div><dl className="grid gap-3 text-sm"><div className="flex items-center justify-between rounded-lg bg-[#0b0e11] px-3 py-2.5"><dt className="text-[#777c84]">Primary</dt><dd className="font-medium text-[#d6d8d9]">{status.defaults.primaryProvider}</dd></div><div className="flex items-center justify-between rounded-lg bg-[#0b0e11] px-3 py-2.5"><dt className="text-[#777c84]">Fallback</dt><dd className="font-medium text-[#d6d8d9]">{status.defaults.fallbackProvider}</dd></div></dl><Link href="/compare" className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-[#d0b25c] transition hover:text-[#e0c36d]">Test configured models <ArrowUpRight className="size-3.5" /></Link></div>
-                  <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><h2 className="text-sm font-semibold text-[#eeeeeb]">Configuration model</h2><p className="mt-2 text-sm leading-6 text-[#7d828a]">Provider credentials and infrastructure endpoints are deployment-level settings. This page intentionally exposes readiness and selected models without exposing API keys or private endpoint URLs.</p><p className="mt-3 text-xs leading-5 text-[#656a72]">This keeps integrations real and connected while preserving the server-side trust boundary.</p></div>
+                  <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-lg bg-[#181b20] text-[#c9a84c]"><Settings2 className="size-4" /></span><div><h2 className="text-sm font-semibold text-[#eeeeeb]">Model routing</h2><p className="mt-1 text-xs text-[#72777f]">Current server defaults</p></div></div><dl className="grid gap-3 text-sm"><div className="flex items-center justify-between rounded-lg bg-[#0b0e11] px-3 py-2.5"><dt className="text-[#777c84]">Primary</dt><dd className="font-medium text-[#d6d8d9]">{status.defaults.primaryProvider}</dd></div><div className="flex items-center justify-between rounded-lg bg-[#0b0e11] px-3 py-2.5"><dt className="text-[#777c84]">Fallback</dt><dd className="font-medium text-[#d6d8d9]">{status.defaults.fallbackProvider}</dd></div>{status.defaults.omniRouteModel ? <div className="flex items-center justify-between rounded-lg bg-[#0b0e11] px-3 py-2.5"><dt className="text-[#777c84]">OmniRoute mode</dt><dd className="font-medium text-[#d6d8d9]">{status.defaults.omniRouteModel}</dd></div> : null}</dl><Link href="/omniroute" className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-[#d0b25c] transition hover:text-[#e0c36d]">Open routing gateway <ArrowUpRight className="size-3.5" /></Link></div>
+                  <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><h2 className="text-sm font-semibold text-[#eeeeeb]">Configuration model</h2><p className="mt-2 text-sm leading-6 text-[#7d828a]">OmniRoute credentials and infrastructure endpoints stay deployment-level settings. AIRA exposes readiness, selected routing mode, live models, and inference tests without exposing API keys or private endpoint URLs.</p><p className="mt-3 text-xs leading-5 text-[#656a72]">AIRA keeps its safety, citation, publication, and agent layers while OmniRoute handles provider selection and upstream failover.</p></div>
                 </section>
 
                 <section id="integrations" className="scroll-mt-24 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1216]">
