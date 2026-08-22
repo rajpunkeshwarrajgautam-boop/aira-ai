@@ -7,6 +7,12 @@ import type {
 import { getOmniRouteConfigOrDisabled } from "../omniroute/config";
 import type { AIProvider, ProviderOptions } from "./provider-router";
 
+function upstreamStatus(error: unknown): number | undefined {
+	if (typeof error !== "object" || error === null || !("status" in error)) return undefined;
+	const status = (error as { readonly status?: unknown }).status;
+	return typeof status === "number" ? status : undefined;
+}
+
 /**
  * OmniRoute exposes an OpenAI-compatible /v1 gateway. Keeping it behind the
  * AIRA provider interface means AIRA's safety, publication, residency and
@@ -42,8 +48,9 @@ export class OmniRouteProvider implements AIProvider {
 		messages: ChatCompletionMessageParam[],
 		options: ProviderOptions,
 	): AsyncGenerator<string, void, undefined> {
+		const model = options.model ?? this.defaultModel;
 		const params: ChatCompletionCreateParamsStreaming = {
-			model: options.model ?? this.defaultModel,
+			model,
 			messages,
 			stream: true,
 			temperature: options.temperature,
@@ -53,14 +60,34 @@ export class OmniRouteProvider implements AIProvider {
 			presence_penalty: options.presencePenalty,
 		};
 
-		const stream = await this.client.chat.completions.create(params, {
-			signal: options.abortSignal,
-		});
+		const startedAt = Date.now();
+		try {
+			const stream = await this.client.chat.completions.create(params, {
+				signal: options.abortSignal,
+			});
 
-		for await (const chunk of stream) {
-			const delta = chunk.choices[0]?.delta;
-			if (typeof delta?.content === "string" && delta.content) yield delta.content;
-			if (typeof delta?.refusal === "string" && delta.refusal) yield delta.refusal;
+			for await (const chunk of stream) {
+				const delta = chunk.choices[0]?.delta;
+				if (typeof delta?.content === "string" && delta.content) yield delta.content;
+				if (typeof delta?.refusal === "string" && delta.refusal) yield delta.refusal;
+			}
+			console.info("[OmniRoute]", JSON.stringify({
+				event: "inference_success",
+				provider: "omniroute",
+				model,
+				latencyMs: Date.now() - startedAt,
+			}));
+		} catch (error) {
+			const status = upstreamStatus(error);
+			console.warn("[OmniRoute]", JSON.stringify({
+				event: "inference_failure",
+				provider: "omniroute",
+				model,
+				latencyMs: Date.now() - startedAt,
+				...(status ? { upstreamStatus: status, statusClass: `${Math.floor(status / 100)}xx` } : {}),
+				cancelled: options.abortSignal?.aborted === true,
+			}));
+			throw error;
 		}
 	}
 }
