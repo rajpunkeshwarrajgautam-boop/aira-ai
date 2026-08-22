@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "../../lib/cn";
 import { AiraLogo } from "../AiraLogo";
@@ -31,7 +31,7 @@ export interface ConversationSummary {
 export interface ConversationSidebarProps {
 	readonly conversations: readonly ConversationSummary[];
 	readonly selectedConversationId: string | null;
-	readonly onSelectConversation: (id: string) => void;
+	readonly onSelectConversation: (id: string) => void | Promise<void>;
 	readonly onCreateConversation: () => void;
 	readonly disabled?: boolean;
 	readonly className?: string;
@@ -79,6 +79,7 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const deepLinkInFlightRef = useRef<string | null>(null);
 	const [filter, setFilter] = useState("");
 	const sorted = useMemo(
 		() => [...conversations].sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1)),
@@ -114,12 +115,19 @@ export function ConversationSidebar({
 	useEffect(() => {
 		const targetConversationId = searchParams.get("conversation")?.trim();
 		if (!targetConversationId || disabled) return;
-		if (!conversations.some((conversation) => conversation.id === targetConversationId)) return;
-		if (selectedConversationId !== targetConversationId) {
-			onSelectConversation(targetConversationId);
+		if (deepLinkInFlightRef.current === targetConversationId) return;
+		if (selectedConversationId === targetConversationId) {
+			router.replace("/", { scroll: false });
+			return;
 		}
-		router.replace("/", { scroll: false });
-	}, [conversations, disabled, onSelectConversation, router, searchParams, selectedConversationId]);
+		deepLinkInFlightRef.current = targetConversationId;
+		void Promise.resolve(onSelectConversation(targetConversationId))
+			.catch(() => undefined)
+			.finally(() => {
+				deepLinkInFlightRef.current = null;
+				router.replace("/", { scroll: false });
+			});
+	}, [disabled, onSelectConversation, router, searchParams, selectedConversationId]);
 
 	return (
 		<aside
@@ -217,7 +225,7 @@ export function ConversationSidebar({
 												<li key={conversation.id}>
 													<button
 														type="button"
-														onClick={() => onSelectConversation(conversation.id)}
+														onClick={() => void onSelectConversation(conversation.id)}
 														disabled={disabled}
 														aria-current={selected ? "page" : undefined}
 														className={cn(
