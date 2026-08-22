@@ -1,5 +1,9 @@
+"use client";
+
 import { Check, Crown, Shield, Sparkles, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { Button } from "@/components/ui/button";
@@ -11,11 +15,12 @@ interface PricingPlan {
 	readonly priceNote?: string;
 	readonly description: string;
 	readonly features: readonly string[];
-	readonly buttonText: string;
 	readonly icon: LucideIcon;
 	readonly highlight?: boolean;
 	readonly eyebrow: string;
 }
+
+type BillingPlan = "FREE" | "PRO" | "TEAM";
 
 const PLANS: readonly PricingPlan[] = [
 	{
@@ -24,7 +29,6 @@ const PLANS: readonly PricingPlan[] = [
 		eyebrow: "Explore",
 		description: "A generous place to think, ask, and research with Aira.",
 		features: ["250 searches per month", "Standard search", "Grounded citations", "Persistent conversation history", "Memory controls"],
-		buttonText: "Current plan",
 		icon: Zap,
 	},
 	{
@@ -33,7 +37,6 @@ const PLANS: readonly PricingPlan[] = [
 		eyebrow: "Go deeper",
 		description: "For people who use Aira as a serious research and execution partner.",
 		features: ["2,000 searches per month", "Deep Research", "50 autonomous agent tasks", "Advanced citation ranking", "Priority support"],
-		buttonText: "Upgrade to Pro",
 		icon: Crown,
 		highlight: true,
 	},
@@ -44,12 +47,44 @@ const PLANS: readonly PricingPlan[] = [
 		eyebrow: "Build together",
 		description: "Shared intelligence, higher limits, and cleaner operations for teams.",
 		features: ["10,000 searches per seat", "250 agent tasks per seat", "Centralized billing", "Team-wide research history", "Admin controls"],
-		buttonText: "Choose Team",
 		icon: Shield,
 	},
 ];
 
+function planKey(name: PricingPlan["name"]): BillingPlan {
+	return name.toUpperCase() as BillingPlan;
+}
+
 export default function PricingPage() {
+	const { status: sessionStatus } = useSession();
+	const [activePlan, setActivePlan] = useState<BillingPlan | null>(null);
+	const [checkingPlan, setCheckingPlan] = useState(false);
+
+	useEffect(() => {
+		if (sessionStatus !== "authenticated") {
+			setActivePlan(null);
+			setCheckingPlan(false);
+			return;
+		}
+		let cancelled = false;
+		setCheckingPlan(true);
+		void fetch("/api/billing/status", { credentials: "include", cache: "no-store" })
+			.then(async (response) => {
+				if (!response.ok) throw new Error("Could not load billing status.");
+				const body = (await response.json()) as { billingPlan?: string };
+				if (!cancelled && ["FREE", "PRO", "TEAM"].includes(body.billingPlan ?? "")) {
+					setActivePlan(body.billingPlan as BillingPlan);
+				}
+			})
+			.catch(() => undefined)
+			.finally(() => {
+				if (!cancelled) setCheckingPlan(false);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [sessionStatus]);
+
 	return (
 		<main className="aira-shell min-h-dvh overflow-hidden text-content-primary">
 			<WorkspaceHeader />
@@ -66,6 +101,9 @@ export default function PricingPage() {
 				<div className="relative mt-11 grid gap-4 md:grid-cols-3 md:items-stretch">
 					{PLANS.map((plan) => {
 						const Icon = plan.icon;
+						const key = planKey(plan.name);
+						const isCurrent = activePlan === key;
+						const checkoutHref = plan.name === "Team" ? "/upgrade?plan=team" : "/upgrade?plan=pro";
 						return (
 							<section key={plan.name} className={cn("aira-premium-card aira-card-hover relative flex flex-col overflow-hidden rounded-[28px] p-6", plan.highlight && "aira-pro-glow border-accent/25 md:-translate-y-2")}>
 								{plan.highlight ? <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.15),transparent_72%)]" aria-hidden /> : null}
@@ -79,7 +117,16 @@ export default function PricingPage() {
 								<div className="relative mt-6 flex items-end gap-2"><span className="text-4xl font-semibold tracking-tight">{plan.price}</span>{plan.name !== "Free" ? <span className="pb-1 text-xs text-content-tertiary">/ month</span> : null}</div>
 								{plan.priceNote ? <p className="relative mt-1 text-[11px] text-content-tertiary">{plan.priceNote}</p> : null}
 								<ul className="relative my-6 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex items-start gap-2.5 text-sm leading-5 text-content-secondary"><span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full", plan.highlight ? "bg-accent/10 text-accent" : "bg-surface-inset text-content-secondary")}><Check className="size-3" aria-hidden /></span>{feature}</li>)}</ul>
-								{plan.name === "Free" ? <Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">{plan.buttonText}</Button> : <Button asChild className={cn("aira-shine-button relative h-11 w-full rounded-xl shadow-sm", plan.highlight ? "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] hover:opacity-95" : "bg-content-primary hover:bg-content-primary/90")}><Link href="/upgrade">{plan.buttonText}</Link></Button>}
+
+								{(sessionStatus === "loading" || (sessionStatus === "authenticated" && checkingPlan)) ? (
+									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Checking plan…</Button>
+								) : isCurrent ? (
+									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Current plan</Button>
+								) : plan.name === "Free" ? (
+									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-surface-inset/60"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
+								) : (
+									<Button asChild className={cn("aira-shine-button relative h-11 w-full rounded-xl shadow-sm", plan.highlight ? "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] hover:opacity-95" : "bg-content-primary hover:bg-content-primary/90")}><Link href={checkoutHref}>{plan.name === "Pro" ? "Upgrade to Pro" : "Choose Team"}</Link></Button>
+								)}
 							</section>
 						);
 					})}
