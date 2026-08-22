@@ -24,7 +24,7 @@ test("all framed workspaces render real content below the shared shell", () => {
     ["app/knowledge/page.tsx", "Files that AIRA can actually use"],
     ["app/settings/page.tsx", "Runtime & integrations"],
     ["app/compare/page.tsx", "Compare models side by side"],
-    ["app/local-ai/page.tsx", "Local AI Engine"],
+    ["app/omniroute/page.tsx", "OmniRoute gateway"],
     ["app/runs/page.tsx", "Run"],
     ["app/workspace-search/page.tsx", "search"],
   ] as const;
@@ -34,6 +34,12 @@ test("all framed workspaces render real content below the shared shell", () => {
     assert.ok(source.includes("<AiraV2Frame>"), `${file} must remain inside the shared workspace shell`);
     assert.ok(source.toLowerCase().includes(marker.toLowerCase()), `${file} must contain its workspace content marker`);
   }
+});
+
+test("retired Local AI route redirects to OmniRoute", () => {
+  const compatibilityRoute = read("app/local-ai/page.tsx");
+  assert.ok(compatibilityRoute.includes('redirect("/omniroute")'));
+  assert.ok(!compatibilityRoute.includes("<AiraV2Frame>"), "the retired Local AI page should not render a second workspace");
 });
 
 test("pricing remains a real public comparison page", () => {
