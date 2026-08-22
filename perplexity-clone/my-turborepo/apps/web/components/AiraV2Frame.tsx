@@ -184,7 +184,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             </button>
           </div>
         </header>
-        <section className="aira-v2-stage">{children}</section>
+        <section className="aira-v2-workspace-stage min-w-0 min-h-[calc(100dvh-64px)]">{children}</section>
       </div>
 
       {paletteOpen ? (
