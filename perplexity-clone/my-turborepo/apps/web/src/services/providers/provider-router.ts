@@ -86,7 +86,7 @@ export class ProviderRouter {
 	private readonly providerDefaultModels = new Map<string, string>();
 
 	constructor(
-		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "openai",
+		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "omniroute",
 		private readonly fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
 	) {
 		this.primaryCore = new CoreProviderRouter(primaryProviderId, primaryProviderId);
