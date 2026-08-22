@@ -14,21 +14,23 @@ const ENV_KEYS = [
 	"OMNIROUTE_TIMEOUT_MS",
 ] as const;
 
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 async function withGatewayEnv(run: () => Promise<void>): Promise<void> {
 	const previous = new Map<string, string | undefined>();
-	for (const key of ENV_KEYS) previous.set(key, process.env[key]);
-	process.env.NODE_ENV = "test";
-	process.env.OMNIROUTE_ENABLED = "true";
-	process.env.OMNIROUTE_BASE_URL = "http://127.0.0.1:20128";
-	process.env.OMNIROUTE_API_KEY = "super-secret-test-key";
-	process.env.OMNIROUTE_TIMEOUT_MS = "45000";
+	for (const key of ENV_KEYS) previous.set(key, mutableEnv[key]);
+	mutableEnv.NODE_ENV = "test";
+	mutableEnv.OMNIROUTE_ENABLED = "true";
+	mutableEnv.OMNIROUTE_BASE_URL = "http://127.0.0.1:20128";
+	mutableEnv.OMNIROUTE_API_KEY = "super-secret-test-key";
+	mutableEnv.OMNIROUTE_TIMEOUT_MS = "45000";
 	try {
 		await run();
 	} finally {
 		for (const key of ENV_KEYS) {
 			const value = previous.get(key);
-			if (value === undefined) delete process.env[key];
-			else process.env[key] = value;
+			if (value === undefined) delete mutableEnv[key];
+			else mutableEnv[key] = value;
 		}
 	}
 }
