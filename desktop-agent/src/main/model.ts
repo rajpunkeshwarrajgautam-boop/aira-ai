@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import type { AppSettings } from './config'
 import {
+  chooseOpenAICompatibleModel,
   isLoopbackOpenAICompatibleUrl,
   openAICompatibleAuthHeaders,
   openAICompatibleChatUrl,
@@ -66,6 +67,25 @@ function openAICompatibleMessages(messages: ChatMessage[]): Array<{ role: 'syste
   })
 }
 
+async function compatibleModels(settings: AppSettings): Promise<string[]> {
+  const response = await fetch(openAICompatibleModelsUrl(settings.remoteBaseUrl), {
+    headers: compatibleHeaders(settings),
+    signal: AbortSignal.timeout(8_000)
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const data = (await response.json()) as { data?: Array<{ id?: string }> }
+  return (data.data || []).map((model) => model.id || '').filter(Boolean)
+}
+
+async function compatibleModel(settings: AppSettings): Promise<string> {
+  if (!isLoopbackOpenAICompatibleUrl(settings.remoteBaseUrl)) return settings.remoteModel
+  try {
+    return chooseOpenAICompatibleModel(settings.remoteModel, await compatibleModels(settings))
+  } catch {
+    return settings.remoteModel
+  }
+}
+
 function shouldRetryWithoutResponseFormat(settings: AppSettings, error: unknown): boolean {
   if (!isLoopbackOpenAICompatibleUrl(settings.remoteBaseUrl)) return false
   const message = error instanceof Error ? error.message : String(error)
@@ -75,7 +95,7 @@ function shouldRetryWithoutResponseFormat(settings: AppSettings, error: unknown)
 export async function callDecision(settings: AppSettings, messages: ChatMessage[]): Promise<AgentDecision> {
   if (settings.provider === 'openai-compatible') {
     const body = {
-      model: settings.remoteModel,
+      model: await compatibleModel(settings),
       messages: openAICompatibleMessages(messages),
       temperature: 0.2,
       response_format: { type: 'json_object' }
@@ -85,7 +105,11 @@ export async function callDecision(settings: AppSettings, messages: ChatMessage[
       data = await postJson(openAICompatibleChatUrl(settings.remoteBaseUrl), body, compatibleHeaders(settings))
     } catch (error) {
       if (!shouldRetryWithoutResponseFormat(settings, error)) throw error
-      const { response_format: _responseFormat, ...fallbackBody } = body
+      const fallbackBody = {
+        model: body.model,
+        messages: body.messages,
+        temperature: body.temperature
+      }
       data = await postJson(openAICompatibleChatUrl(settings.remoteBaseUrl), fallbackBody, compatibleHeaders(settings))
     }
     return parseDecision(String(data?.choices?.[0]?.message?.content || ''))
@@ -106,7 +130,7 @@ export async function chatText(settings: AppSettings, messages: ChatMessage[]): 
     const data = await postJson(
       openAICompatibleChatUrl(settings.remoteBaseUrl),
       {
-        model: settings.remoteModel,
+        model: await compatibleModel(settings),
         messages: openAICompatibleMessages(messages),
         temperature: 0.3
       },
@@ -165,13 +189,7 @@ export async function checkOllama(settings: AppSettings): Promise<{ ok: boolean;
 
 export async function checkOpenAICompatible(settings: AppSettings): Promise<{ ok: boolean; models: string[]; error?: string }> {
   try {
-    const response = await fetch(openAICompatibleModelsUrl(settings.remoteBaseUrl), {
-      headers: compatibleHeaders(settings),
-      signal: AbortSignal.timeout(8_000)
-    })
-    if (!response.ok) return { ok: false, models: [], error: `HTTP ${response.status}` }
-    const data = (await response.json()) as { data?: Array<{ id?: string }> }
-    return { ok: true, models: (data.data || []).map((model) => model.id || '').filter(Boolean) }
+    return { ok: true, models: await compatibleModels(settings) }
   } catch (error) {
     return { ok: false, models: [], error: error instanceof Error ? error.message : String(error) }
   }
