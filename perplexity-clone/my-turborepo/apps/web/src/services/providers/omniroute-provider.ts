@@ -4,6 +4,7 @@ import type {
 	ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 
+import { getOmniRouteConfigOrDisabled } from "../omniroute/config";
 import type { AIProvider, ProviderOptions } from "./provider-router";
 
 /**
@@ -28,10 +29,11 @@ export class OmniRouteProvider implements AIProvider {
 		readonly timeoutMs?: number;
 	}) {
 		this.defaultModel = args.model?.trim() || "auto";
+		const timeoutMs = args.timeoutMs ?? getOmniRouteConfigOrDisabled().timeoutMs;
 		this.client = new OpenAI({
 			apiKey: args.apiKey.trim(),
 			baseURL: args.baseURL.replace(/\/$/, ""),
-			timeout: args.timeoutMs ?? 45_000,
+			timeout: timeoutMs,
 			maxRetries: 0,
 		});
 	}
