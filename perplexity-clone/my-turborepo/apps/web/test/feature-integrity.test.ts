@@ -77,6 +77,15 @@ test("global search conversation results open any authenticated saved conversati
 	assert.ok(!sidebar.includes("conversations.some((conversation) => conversation.id === targetConversationId)"), "deep links must not be limited to the recent sidebar window");
 });
 
+test("global memory search opens and focuses the exact memory", () => {
+	const api = read("app/api/global-search/route.ts");
+	const manager = read("components/memory/MemoryManager.tsx");
+	assert.ok(api.includes("/memory?memory="));
+	assert.ok(manager.includes('searchParams.get("memory")'));
+	assert.ok(manager.includes("scrollIntoView"));
+	assert.ok(manager.includes("Search result"));
+});
+
 test("history command resolves to the real workspace search", () => {
 	const registry = read("lib/agents/commands/command-registry.ts");
 	const composer = read("components/SearchBox.tsx");
