@@ -17,26 +17,26 @@ function Require-Command([string]$Name) {
     }
 }
 
-function Invoke-Vercel([string[]]$Arguments) {
-    & vercel @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "Vercel CLI command failed: vercel $($Arguments -join ' ')"
-    }
-}
-
-function Set-VercelValue([string]$Name, [string]$Value, [string]$Environment) {
+function Set-VercelValue(
+    [string]$Name,
+    [string]$Value,
+    [string]$Environment,
+    [switch]$Sensitive
+) {
     & vercel env rm $Name $Environment --yes *> $null
-    $previousExit = $LASTEXITCODE
-    if ($previousExit -ne 0) {
-        # The value may not exist yet; env add below is authoritative.
-        $global:LASTEXITCODE = 0
-    }
+    # A non-zero result here normally means the variable did not exist yet.
+    # The add operation below remains authoritative.
 
-    $Value | & vercel env add $Name $Environment *> $null
+    if ($Sensitive) {
+        $Value | & vercel env add $Name $Environment --sensitive *> $null
+    }
+    else {
+        $Value | & vercel env add $Name $Environment *> $null
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Could not set Vercel environment variable '$Name'."
     }
-    Write-Host "  set  $Name"
+    Write-Host "  set  $Name$($(if ($Sensitive) { ' [sensitive]' } else { '' }))"
 }
 
 Require-Command 'vercel'
@@ -80,7 +80,7 @@ try {
     Write-Host "Applying OmniRoute variables to Vercel $Target..."
     Set-VercelValue 'OMNIROUTE_ENABLED' 'true' $Target
     Set-VercelValue 'OMNIROUTE_BASE_URL' $apiRoot $Target
-    Set-VercelValue 'OMNIROUTE_API_KEY' $plainApiKey $Target
+    Set-VercelValue 'OMNIROUTE_API_KEY' $plainApiKey $Target -Sensitive
     Set-VercelValue 'OMNIROUTE_MODEL' 'auto' $Target
     Set-VercelValue 'OMNIROUTE_TIMEOUT_MS' '45000' $Target
     Set-VercelValue 'DEFAULT_PRO_PROVIDER' 'omniroute' $Target
