@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { authConfig } from "./auth.config";
 import { isOmniRoutePreviewTestAccessEnabled } from "./lib/omniroute-preview-access";
@@ -31,21 +31,10 @@ function jsonUnauthorized(): NextResponse {
 	);
 }
 
-export default auth((req) => {
+const authenticatedProxy = auth((req) => {
 	const { pathname } = req.nextUrl;
 	const canonicalOrigin = canonicalProductionOrigin();
 	const acceptsHtml = req.headers.get("accept")?.includes("text/html") ?? false;
-	const omniRoutePreviewTestAccess =
-		isOmniRoutePreviewTestAccessEnabled() &&
-		(pathname === "/omniroute" || pathname.startsWith("/api/omniroute/"));
-
-	// Preview OAuth intentionally remains canonicalized to production because the
-	// OAuth apps have production callback URLs. For protected Vercel previews we
-	// expose only the OmniRoute control surface behind an explicit preview-only
-	// test flag so integration can be validated without weakening production auth.
-	if (omniRoutePreviewTestAccess) {
-		return NextResponse.next();
-	}
 
 	// OAuth transient cookies are host-scoped. If a user opens a Vercel
 	// deployment alias but GitHub returns to AUTH_URL, the PKCE verifier is not
@@ -135,6 +124,24 @@ export default auth((req) => {
 
 	return NextResponse.next();
 });
+
+/**
+ * The OmniRoute preview test gate must run before Auth.js. Preview deployments
+ * can intentionally omit OAuth/session secrets while the gateway integration is
+ * being validated, and invoking Auth.js first would fail with MissingSecret.
+ * This path is impossible in production because the helper requires
+ * VERCEL_ENV=preview and the explicit preview-only flag.
+ */
+export default function proxy(req: NextRequest) {
+	const { pathname } = req.nextUrl;
+	if (
+		isOmniRoutePreviewTestAccessEnabled() &&
+		(pathname === "/omniroute" || pathname.startsWith("/api/omniroute/"))
+	) {
+		return NextResponse.next();
+	}
+	return authenticatedProxy(req);
+}
 
 export const config = {
 	matcher: [
