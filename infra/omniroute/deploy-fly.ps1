@@ -42,12 +42,45 @@ function Invoke-Fly([string[]]$Arguments) {
     }
 }
 
+function Test-FlyCommand([string[]]$Arguments) {
+    # Windows PowerShell 5.1 can promote redirected native stderr to a
+    # NativeCommandError when the script-level ErrorActionPreference is Stop.
+    # Probe commands intentionally use their exit code, so suppress that
+    # conversion locally and restore the caller's preference afterwards.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & flyctl @Arguments *> $null
+        return ($LASTEXITCODE -eq 0)
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
+function Invoke-FlyCapture([string[]]$Arguments) {
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = & flyctl @Arguments 2>$null
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($exitCode -ne 0) {
+        throw "flyctl failed: flyctl $($Arguments -join ' ')"
+    }
+
+    return $output
+}
+
 Require-Command 'git'
 Require-Command 'flyctl'
 
 Write-Host 'Checking Fly.io authentication...'
-& flyctl auth whoami *> $null
-if ($LASTEXITCODE -ne 0) {
+if (-not (Test-FlyCommand -Arguments @('auth', 'whoami'))) {
     Write-Host 'Fly.io authentication is required before this deployment can continue.' -ForegroundColor Yellow
     Write-Host 'Run: flyctl auth login' -ForegroundColor Cyan
     Write-Host 'Then rerun this script with the same -AppName value.' -ForegroundColor Cyan
@@ -78,8 +111,8 @@ if (-not (Test-Path $flyToml)) {
     throw 'The selected OmniRoute release does not contain fly.toml.'
 }
 
-$appPattern = '(?m)^app\s*=\s*[''"][^''"]+[''"]'
-$regionPattern = '(?m)^primary_region\s*=\s*[''"][^''"]+[''"]'
+$appPattern = '(?m)^app\s*=\s*[''\"][^''\"]+[''\"]'
+$regionPattern = '(?m)^primary_region\s*=\s*[''\"][^''\"]+[''\"]'
 $toml = Get-Content -Raw $flyToml
 if ($toml -match $appPattern) {
     $toml = [regex]::Replace($toml, $appPattern, "app = '$AppName'")
@@ -93,16 +126,12 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($flyToml, $toml, $utf8NoBom)
 
 Write-Host 'Ensuring Fly application exists...'
-& flyctl status -a $AppName *> $null
-if ($LASTEXITCODE -ne 0) {
+if (-not (Test-FlyCommand -Arguments @('status', '-a', $AppName))) {
     Invoke-Fly -Arguments @('apps', 'create', $AppName)
 }
 
 Write-Host "Ensuring persistent volume exists in $Region..."
-$volumeJson = & flyctl volumes list -a $AppName --json 2>$null
-if ($LASTEXITCODE -ne 0) {
-    throw "Could not inspect Fly volumes for $AppName."
-}
+$volumeJson = Invoke-FlyCapture -Arguments @('volumes', 'list', '-a', $AppName, '--json')
 $volumes = @()
 if ($volumeJson) {
     $parsedVolumes = $volumeJson | ConvertFrom-Json
