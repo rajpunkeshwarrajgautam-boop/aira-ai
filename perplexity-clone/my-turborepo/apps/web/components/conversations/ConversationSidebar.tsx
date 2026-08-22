@@ -14,6 +14,7 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "../../lib/cn";
@@ -76,6 +77,8 @@ export function ConversationSidebar({
 	disabled,
 	className,
 }: ConversationSidebarProps) {
+	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [filter, setFilter] = useState("");
 	const sorted = useMemo(
 		() => [...conversations].sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1)),
@@ -107,6 +110,16 @@ export function ConversationSidebar({
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [disabled, onCreateConversation]);
+
+	useEffect(() => {
+		const targetConversationId = searchParams.get("conversation")?.trim();
+		if (!targetConversationId || disabled) return;
+		if (!conversations.some((conversation) => conversation.id === targetConversationId)) return;
+		if (selectedConversationId !== targetConversationId) {
+			onSelectConversation(targetConversationId);
+		}
+		router.replace("/", { scroll: false });
+	}, [conversations, disabled, onSelectConversation, router, searchParams, selectedConversationId]);
 
 	return (
 		<aside
@@ -164,7 +177,7 @@ export function ConversationSidebar({
 						className="aira-new-chat flex h-11 w-full items-center justify-between rounded-xl border border-violet-400/15 bg-gradient-to-r from-violet-600/45 to-indigo-600/30 px-3 text-[12px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition hover:from-violet-600/55 hover:to-indigo-600/40 disabled:opacity-50"
 					>
 						<span className="flex items-center gap-2.5"><Plus className="size-4" strokeWidth={1.8} aria-hidden />New Chat</span>
-						<span className="rounded-md border border-white/10 bg-black/15 px-1.5 py-0.5 font-mono text-[9px] text-violet-100/75">⌘K</span>
+						<span className="rounded-md border border-white/10 bg-black/15 px-1.5 py-0.5 font-mono text-[9px] text-violet-100/75">⌘⇧O</span>
 					</button>
 
 					<div className="relative mt-2.5">
