@@ -23,8 +23,8 @@ test("all framed workspaces render real content below the shared shell", () => {
   const pages = [
     ["app/knowledge/page.tsx", "Files that AIRA can actually use"],
     ["app/settings/page.tsx", "Runtime & integrations"],
-    ["app/compare/page.tsx", "Model Compare"],
-    ["app/local-ai/page.tsx", "Local AI"],
+    ["app/compare/page.tsx", "Compare models side by side"],
+    ["app/local-ai/page.tsx", "Local AI Engine"],
     ["app/runs/page.tsx", "Run"],
     ["app/workspace-search/page.tsx", "search"],
   ] as const;
@@ -34,4 +34,14 @@ test("all framed workspaces render real content below the shared shell", () => {
     assert.ok(source.includes("<AiraV2Frame>"), `${file} must remain inside the shared workspace shell`);
     assert.ok(source.toLowerCase().includes(marker.toLowerCase()), `${file} must contain its workspace content marker`);
   }
+});
+
+test("pricing remains a real public comparison page", () => {
+  const proxy = read("proxy.ts");
+  const pricing = read("app/pricing/page.tsx");
+
+  assert.ok(proxy.includes('pathname === "/pricing"'), "pricing must bypass the authenticated workspace redirect");
+  assert.ok(pricing.includes("Start free"), "public pricing should expose the guest start path");
+  assert.ok(pricing.includes("Upgrade to Pro"));
+  assert.ok(pricing.includes("Choose Team"));
 });
