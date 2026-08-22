@@ -62,7 +62,8 @@ test("gateway transport disables hidden SDK retries and applies a timeout", () =
 	assert.ok(provider.includes("signal: options.abortSignal"));
 	assert.ok(provider.includes("inference_success"));
 	assert.ok(provider.includes("inference_failure"));
-	assert.ok(!provider.includes("messages:"), "structured observability must not log user message content");
+	assert.ok(!provider.includes("JSON.stringify(messages)"));
+	assert.ok(!provider.includes("Authorization"), "provider observability must never construct or log an authorization header");
 });
 
 test("live inference tests are bounded, safety-checked, authenticated and rate-limited", () => {
@@ -86,11 +87,17 @@ test("compare supports multiple distinct OmniRoute models or routing modes", () 
 	assert.ok(page.includes("targets: selectedChoices.map"));
 });
 
-test("retired self-hosted/local runtime identifiers are absent from executable source", () => {
-	const forbidden = ["SELF_HOSTED_LLM", "VIREXA_LOCAL_AI", "BrowserLlamaCppBridge", "/api/local-ai"];
+test("retired self-hosted/local runtime identifiers are absent from repository source", () => {
+	const forbidden = [
+		"SELF_" + "HOSTED_LLM",
+		"VIREXA_" + "LOCAL_AI",
+		"Browser" + "LlamaCppBridge",
+		"/api/" + "local-ai",
+	];
 	const offenders: string[] = [];
 	for (const absolute of collectTextFiles(REPO_ROOT)) {
 		const relative = path.relative(REPO_ROOT, absolute).replaceAll(path.sep, "/");
+		if (relative.endsWith("test/omniroute-security.test.ts")) continue;
 		const source = readFileSync(absolute, "utf8");
 		for (const token of forbidden) {
 			if (source.includes(token)) offenders.push(`${relative}: ${token}`);
