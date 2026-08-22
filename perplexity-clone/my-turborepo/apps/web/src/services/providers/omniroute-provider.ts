@@ -1,0 +1,57 @@
+import OpenAI from "openai";
+import type {
+	ChatCompletionCreateParamsStreaming,
+	ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
+
+import type { AIProvider, ProviderOptions } from "./provider-router";
+
+/**
+ * OmniRoute exposes an OpenAI-compatible /v1 gateway. Keeping it behind the
+ * AIRA provider interface means AIRA's safety, publication, residency and
+ * circuit-breaker layers remain authoritative while OmniRoute handles the
+ * upstream provider/model fleet.
+ */
+export class OmniRouteProvider implements AIProvider {
+	readonly providerId = "omniroute";
+	readonly defaultModel: string;
+	private readonly client: OpenAI;
+
+	constructor(args: {
+		readonly baseURL: string;
+		readonly apiKey: string;
+		readonly model?: string;
+	}) {
+		this.defaultModel = args.model?.trim() || "auto";
+		this.client = new OpenAI({
+			apiKey: args.apiKey.trim(),
+			baseURL: args.baseURL.replace(/\/$/, ""),
+		});
+	}
+
+	async *generateTextStream(
+		messages: ChatCompletionMessageParam[],
+		options: ProviderOptions,
+	): AsyncGenerator<string, void, undefined> {
+		const params: ChatCompletionCreateParamsStreaming = {
+			model: options.model ?? this.defaultModel,
+			messages,
+			stream: true,
+			temperature: options.temperature,
+			max_completion_tokens: options.maxCompletionTokens,
+			top_p: options.topP,
+			frequency_penalty: options.frequencyPenalty,
+			presence_penalty: options.presencePenalty,
+		};
+
+		const stream = await this.client.chat.completions.create(params, {
+			signal: options.abortSignal,
+		});
+
+		for await (const chunk of stream) {
+			const delta = chunk.choices[0]?.delta;
+			if (delta?.content) yield delta.content;
+			if (delta?.refusal) yield delta.refusal;
+		}
+	}
+}
