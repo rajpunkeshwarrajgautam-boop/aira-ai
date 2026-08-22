@@ -24,7 +24,7 @@ test("all framed workspaces render real content below the shared shell", () => {
     ["app/knowledge/page.tsx", "Files that AIRA can actually use"],
     ["app/settings/page.tsx", "Runtime & integrations"],
     ["app/compare/page.tsx", "Compare models side by side"],
-    ["app/omniroute/page.tsx", "OmniRoute gateway"],
+    ["app/omniroute/page.tsx", "Universal inference gateway"],
     ["app/runs/page.tsx", "Run"],
     ["app/workspace-search/page.tsx", "search"],
   ] as const;
