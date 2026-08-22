@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node --import tsx --test tests/policy.test.ts",
+    "test": "node --import tsx --test tests/policy.test.ts tests/openai-compatible.test.ts",
     "build": "npm run typecheck && npm test && electron-vite build",
     "start": "electron-vite preview",
     "dist:win": "npm run build && electron-builder --win nsis --publish never",
