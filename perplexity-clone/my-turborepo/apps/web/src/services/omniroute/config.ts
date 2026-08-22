@@ -9,7 +9,7 @@ export interface OmniRouteConfig {
 }
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
-const DEFAULT_OMNIROUTE_MODEL = "nvidia/openai/gpt-oss-20b";
+const DEFAULT_OMNIROUTE_MODEL = "auto";
 
 function parseTimeout(value: string | undefined): number {
 	const parsed = Number.parseInt(value ?? "", 10);
