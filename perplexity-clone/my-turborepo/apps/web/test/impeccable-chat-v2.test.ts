@@ -22,7 +22,7 @@ test("composer exposes real commands, tools, and voice input", () => {
 	for (const command of ["/deep ", "/new", "/history", "/share"]) {
 		assert.ok(searchBox.includes(command), `expected ${command} command in composer`);
 	}
-	for (const destination of ["/knowledge", "/agents", "/local-ai"]) {
+	for (const destination of ["/knowledge", "/agents", "/omniroute"]) {
 		assert.ok(searchBox.includes(`href="${destination}"`), `expected connected ${destination} action`);
 	}
 	assert.ok(searchBox.includes("aira:reuse-message"));
@@ -36,7 +36,7 @@ test("conversation sidebar matches reference app rail and searchable history", (
 	assert.ok(sidebar.includes("aira-app-rail"));
 	assert.ok(sidebar.includes("Search conversations"));
 	assert.ok(sidebar.includes("Previous 7 Days"));
-	for (const label of ["Chat", "Agents", "Files", "Local AI", "Compare", "Memory", "Search", "Integrations", "Settings"]) {
+	for (const label of ["Chat", "Agents", "Files", "OmniRoute", "Compare", "Memory", "Search", "Integrations", "Settings"]) {
 		assert.ok(sidebar.includes(label), `expected ${label} in app rail`);
 	}
 	assert.ok(sidebar.includes("event.metaKey || event.ctrlKey"));
@@ -48,7 +48,7 @@ test("message workspace has live inspector and non-placeholder actions", () => {
 	const messages = read("components/conversations/ConversationMessageList.tsx");
 	assert.ok(messages.includes("aira-live-inspector"));
 	assert.ok(messages.includes("AIRA Auto"));
-	assert.ok(messages.includes("Provider router + task policy"));
+	assert.ok(messages.includes("OmniRoute + AIRA policy"));
 	assert.ok(messages.includes("hostnameFromUrl"));
 	assert.ok(messages.includes("navigator.clipboard.writeText"));
 	assert.ok(messages.includes("navigator.share"));
