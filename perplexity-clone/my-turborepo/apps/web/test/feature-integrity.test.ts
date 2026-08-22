@@ -68,12 +68,13 @@ test("type=button controls are not decorative no-ops", () => {
 	assert.deepEqual(failures, [], `Found type=button controls without an action:\n${failures.join("\n")}`);
 });
 
-test("global search conversation results open the saved conversation", () => {
+test("global search conversation results open any authenticated saved conversation", () => {
 	const api = read("app/api/global-search/route.ts");
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
 	assert.ok(api.includes("?conversation="));
 	assert.ok(sidebar.includes('searchParams.get("conversation")'));
 	assert.ok(sidebar.includes("onSelectConversation(targetConversationId)"));
+	assert.ok(!sidebar.includes("conversations.some((conversation) => conversation.id === targetConversationId)"), "deep links must not be limited to the recent sidebar window");
 });
 
 test("history command resolves to the real workspace search", () => {
@@ -97,6 +98,8 @@ test("integrations shortcut lands on an actual settings anchor", () => {
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
 	assert.ok(sidebar.includes('href="/settings#integrations"'));
 	assert.ok(settings.includes('id="integrations"'));
+	assert.ok(settings.includes("Refresh status"));
+	assert.ok(settings.includes("INTEGRATION_DESTINATIONS"));
 });
 
 test("pricing preserves Pro and Team checkout selections", () => {
@@ -104,6 +107,17 @@ test("pricing preserves Pro and Team checkout selections", () => {
 	const upgrade = read("app/upgrade/page.tsx");
 	assert.ok(pricing.includes('"/upgrade?plan=pro"'));
 	assert.ok(pricing.includes('"/upgrade?plan=team"'));
+	assert.ok(pricing.includes('fetch("/api/billing/status"'));
 	assert.ok(upgrade.includes('new URLSearchParams(window.location.search).get("plan")'));
 	assert.ok(upgrade.includes("callbackUrl = requested ? `/upgrade?plan=${requested}` : \"/upgrade\""));
+});
+
+test("admin analytics navigation is capability-aware", () => {
+	const frame = read("components/AiraV2Frame.tsx");
+	const accessRoute = read("app/api/admin/access/route.ts");
+	assert.ok(frame.includes('fetch("/api/admin/access"'));
+	assert.ok(frame.includes("analyticsAdmin ? [...MANAGE_NAV, ANALYTICS_NAV] : MANAGE_NAV"));
+	assert.ok(accessRoute.includes("requireAnalyticsAdmin"));
+	assert.ok(accessRoute.includes("analyticsAdmin: true"));
+	assert.ok(accessRoute.includes("analyticsAdmin: false"));
 });
