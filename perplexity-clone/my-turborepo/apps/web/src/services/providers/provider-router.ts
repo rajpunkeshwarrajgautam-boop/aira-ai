@@ -12,6 +12,7 @@ import {
 	SafetyBlockedError,
 	SafetyGatewayError,
 } from "../safety/safety-gateway";
+import { getOmniRouteConfigOrDisabled } from "../omniroute/config";
 import {
 	getProviderHealthSnapshot,
 	providerCircuitAllowsRequest,
@@ -85,7 +86,7 @@ export class ProviderRouter {
 	private readonly providerDefaultModels = new Map<string, string>();
 
 	constructor(
-		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "openai",
+		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "omniroute",
 		private readonly fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
 	) {
 		this.primaryCore = new CoreProviderRouter(primaryProviderId, primaryProviderId);
@@ -104,7 +105,7 @@ export class ProviderRouter {
 	static async createDefault(): Promise<ProviderRouter> {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
-		const { SelfHostedProvider } = await import("./self-hosted-provider");
+		const { OmniRouteProvider } = await import("./omniroute-provider");
 		const router = new ProviderRouter();
 
 		const openAiKey = process.env.OPENAI_API_KEY;
@@ -113,15 +114,13 @@ export class ProviderRouter {
 		const nvidiaKey = process.env.NVIDIA_API_KEY;
 		if (nvidiaKey) router.registerProvider(new NVIDIAProvider(nvidiaKey));
 
-		const selfHostedBaseURL = process.env.SELF_HOSTED_LLM_BASE_URL?.trim();
-		const selfHostedApiKey = process.env.SELF_HOSTED_LLM_API_KEY?.trim();
-		const selfHostedModel = process.env.SELF_HOSTED_LLM_MODEL?.trim();
-		if (selfHostedBaseURL && selfHostedApiKey && selfHostedModel) {
+		const omniRoute = getOmniRouteConfigOrDisabled();
+		if (omniRoute.configured) {
 			router.registerProvider(
-				new SelfHostedProvider({
-					baseURL: selfHostedBaseURL,
-					apiKey: selfHostedApiKey,
-					model: selfHostedModel,
+				new OmniRouteProvider({
+					baseURL: omniRoute.baseURL,
+					apiKey: omniRoute.apiKey,
+					model: omniRoute.model,
 				}),
 			);
 		}

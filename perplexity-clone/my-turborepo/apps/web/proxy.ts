@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 
 import { authConfig } from "./auth.config";
+import { isOmniRoutePreviewTestAccessEnabled } from "./lib/omniroute-preview-access";
 
 /**
  * Edge-safe Auth.js instance (no Prisma). Validates JWT session cookie only.
@@ -34,6 +35,17 @@ export default auth((req) => {
 	const { pathname } = req.nextUrl;
 	const canonicalOrigin = canonicalProductionOrigin();
 	const acceptsHtml = req.headers.get("accept")?.includes("text/html") ?? false;
+	const omniRoutePreviewTestAccess =
+		isOmniRoutePreviewTestAccessEnabled() &&
+		(pathname === "/omniroute" || pathname.startsWith("/api/omniroute/"));
+
+	// Preview OAuth intentionally remains canonicalized to production because the
+	// OAuth apps have production callback URLs. For protected Vercel previews we
+	// expose only the OmniRoute control surface behind an explicit preview-only
+	// test flag so integration can be validated without weakening production auth.
+	if (omniRoutePreviewTestAccess) {
+		return NextResponse.next();
+	}
 
 	// OAuth transient cookies are host-scoped. If a user opens a Vercel
 	// deployment alias but GitHub returns to AUTH_URL, the PKCE verifier is not
