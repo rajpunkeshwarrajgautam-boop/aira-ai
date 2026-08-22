@@ -140,7 +140,7 @@ export default function proxy(req: NextRequest, event: NextFetchEvent) {
 	) {
 		return NextResponse.next();
 	}
-	return (authenticatedProxy as NextMiddleware)(req, event);
+	return (authenticatedProxy as unknown as NextMiddleware)(req, event);
 }
 
 export const config = {
