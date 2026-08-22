@@ -32,6 +32,11 @@ const ROUTING_PRESETS = [
 	{ id: "auto/offline", label: "Available", detail: "Capacity first" },
 ] as const;
 
+// OmniRoute's explicit NVIDIA routes passed live validation, but the current
+// auto profile returned OMNIROUTE_INFERENCE_FAILED. Keep the profiles visible
+// for operator awareness without presenting them as production-ready controls.
+const AUTOMATIC_ROUTING_VALIDATED = false;
+
 function formatCheckedAt(value: string | undefined): string {
 	if (!value) return "—";
 	const date = new Date(value);
@@ -154,7 +159,7 @@ export default function OmniRoutePage() {
 							<div>
 								<p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">Universal inference gateway</p>
 								<h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">OmniRoute</h1>
-								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#8b9098]">Discover models exposed by your OmniRoute server, choose automatic routing modes, and verify live inference without exposing gateway credentials to the browser.</p>
+								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#8b9098]">Discover models exposed by your OmniRoute server, inspect routing profiles, and verify live inference without exposing gateway credentials to the browser.</p>
 							</div>
 							<button type="button" onClick={() => void loadGateway()} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#111419] px-3 py-2 text-xs font-medium text-[#abb0b7] transition hover:bg-[#171a1f] disabled:opacity-50"><RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />Refresh gateway</button>
 						</div>
@@ -172,8 +177,8 @@ export default function OmniRoutePage() {
 						<div className="mt-3 rounded-xl border border-white/[0.07] bg-[#0d1014] px-4 py-3 text-[11px] text-[#6f747c]">Last gateway check: <span className="text-[#9ca1a8]">{formatCheckedAt(status?.checkedAt)}</span> · Active default: <code className="text-[#b69a50]">{status?.model ?? "auto"}</code></div>
 
 						<section className="mt-5 rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
-							<div className="mb-4"><h2 className="text-sm font-semibold text-[#eeeeeb]">Automatic routing</h2><p className="mt-1 text-xs text-[#72777f]">Selection is session-local. Use an OmniRoute profile here or choose a specific discovered model below.</p></div>
-							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{ROUTING_PRESETS.map((preset) => <button key={preset.id} type="button" onClick={() => setSelectedModel(preset.id)} className={`rounded-xl border px-3 py-3 text-left transition ${selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]"}`}><strong className="block text-xs font-semibold text-[#ecece8]">{preset.label}</strong><span className="mt-1 block text-[10px] text-[#747981]">{preset.detail}</span><code className="mt-2 block truncate text-[9px] text-[#9c8448]">{preset.id}</code></button>)}</div>
+							<div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-[#eeeeeb]">Automatic routing</h2><span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-200/80">Experimental</span></div><p className="mt-1 max-w-3xl text-xs leading-5 text-[#72777f]">Temporarily disabled in AIRA because the current OmniRoute auto profiles did not pass live inference validation. Use the verified configured default or choose a specific discovered model below.</p></div></div>
+							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{ROUTING_PRESETS.map((preset) => <button key={preset.id} type="button" disabled={!AUTOMATIC_ROUTING_VALIDATED} onClick={() => { if (AUTOMATIC_ROUTING_VALIDATED) setSelectedModel(preset.id); }} title="Experimental OmniRoute profile — disabled until live validation passes" className={`rounded-xl border px-3 py-3 text-left transition ${AUTOMATIC_ROUTING_VALIDATED ? (selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]") : "cursor-not-allowed border-white/[0.06] bg-[#101318] opacity-55"}`}><strong className="block text-xs font-semibold text-[#ecece8]">{preset.label}</strong><span className="mt-1 block text-[10px] text-[#747981]">{preset.detail}</span><code className="mt-2 block truncate text-[9px] text-[#9c8448]">{preset.id}</code></button>)}</div>
 						</section>
 
 						<div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">
