@@ -15,21 +15,23 @@ const KEYS = [
 	"OMNIROUTE_TIMEOUT_MS",
 ] as const;
 
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 function withEnv(values: Partial<Record<(typeof KEYS)[number], string | undefined>>, run: () => void) {
 	const previous = new Map<string, string | undefined>();
 	for (const key of KEYS) {
-		previous.set(key, process.env[key]);
+		previous.set(key, mutableEnv[key]);
 		const next = values[key];
-		if (next === undefined) delete process.env[key];
-		else process.env[key] = next;
+		if (next === undefined) delete mutableEnv[key];
+		else mutableEnv[key] = next;
 	}
 	try {
 		run();
 	} finally {
 		for (const key of KEYS) {
 			const value = previous.get(key);
-			if (value === undefined) delete process.env[key];
-			else process.env[key] = value;
+			if (value === undefined) delete mutableEnv[key];
+			else mutableEnv[key] = value;
 		}
 	}
 }
