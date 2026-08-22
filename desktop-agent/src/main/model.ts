@@ -57,6 +57,15 @@ function compatibleHeaders(settings: AppSettings): Record<string, string> {
   return openAICompatibleAuthHeaders(settings.remoteBaseUrl, getSecret('remoteApiKey'))
 }
 
+function openAICompatibleMessages(messages: ChatMessage[]): Array<{ role: 'system' | 'user' | 'assistant'; content: string }> {
+  return messages.map((message) => {
+    if (message.role === 'tool') {
+      return { role: 'user' as const, content: `TOOL RESULT (runtime evidence):\n${message.content}` }
+    }
+    return { role: message.role, content: message.content }
+  })
+}
+
 function shouldRetryWithoutResponseFormat(settings: AppSettings, error: unknown): boolean {
   if (!isLoopbackOpenAICompatibleUrl(settings.remoteBaseUrl)) return false
   const message = error instanceof Error ? error.message : String(error)
@@ -67,7 +76,7 @@ export async function callDecision(settings: AppSettings, messages: ChatMessage[
   if (settings.provider === 'openai-compatible') {
     const body = {
       model: settings.remoteModel,
-      messages: messages.map(({ role, content }) => ({ role, content })),
+      messages: openAICompatibleMessages(messages),
       temperature: 0.2,
       response_format: { type: 'json_object' }
     }
@@ -98,7 +107,7 @@ export async function chatText(settings: AppSettings, messages: ChatMessage[]): 
       openAICompatibleChatUrl(settings.remoteBaseUrl),
       {
         model: settings.remoteModel,
-        messages: messages.map(({ role, content }) => ({ role, content })),
+        messages: openAICompatibleMessages(messages),
         temperature: 0.3
       },
       compatibleHeaders(settings)
@@ -148,7 +157,7 @@ export async function checkOllama(settings: AppSettings): Promise<{ ok: boolean;
     const response = await fetch(`${settings.ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(8_000) })
     if (!response.ok) return { ok: false, models: [], error: `HTTP ${response.status}` }
     const data = (await response.json()) as { models?: Array<{ name?: string }> }
-    return { ok: true, models: (data.models || []).map((m) => m.name || '').filter(Boolean) }
+    return { ok: true, models: (data.models || []).map((model) => model.name || '').filter(Boolean) }
   } catch (error) {
     return { ok: false, models: [], error: error instanceof Error ? error.message : String(error) }
   }
