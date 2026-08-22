@@ -24,8 +24,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Parse operator scripts with PowerShell AST
-        shell: pwsh
+      - name: Parse operator scripts with Windows PowerShell 5.1 AST
+        shell: powershell
         run: |
           $failed = $false
           $scripts = Get-ChildItem "infra/omniroute" -Filter "*.ps1" -File -Recurse
@@ -48,14 +48,40 @@ jobs:
               $errors | ForEach-Object { Write-Error "$($script.Name): $($_.Message)" }
             }
             else {
-              Write-Host "PowerShell syntax valid: $($script.Name)"
+              Write-Host "Windows PowerShell syntax valid: $($script.Name)"
             }
           }
 
           if ($failed) { exit 1 }
 
+      - name: Reject known PowerShell 7-only operator APIs
+        shell: powershell
+        run: |
+          $patterns = @(
+            '(?i)-Encoding\s+utf8NoBOM',
+            '\[Convert\]::ToHexString\s*\(',
+            'RandomNumberGenerator\]::Fill\s*\('
+          )
+
+          $files = Get-ChildItem "infra/omniroute" -Filter "*.ps1" -File -Recurse
+          $hits = foreach ($file in $files) {
+            $text = Get-Content -Raw $file.FullName
+            foreach ($pattern in $patterns) {
+              if ($text -match $pattern) {
+                "$($file.FullName): $pattern"
+              }
+            }
+          }
+
+          if ($hits) {
+            $hits | ForEach-Object { Write-Error "PowerShell 7-only API detected in Windows operator script: $_" }
+            exit 1
+          }
+
+          Write-Host "No known PowerShell 7-only APIs found in OmniRoute operator scripts."
+
       - name: Confirm no credential-shaped literal is committed
-        shell: pwsh
+        shell: powershell
         run: |
           $patterns = @(
             'sk-[A-Za-z0-9_-]{20,}',
