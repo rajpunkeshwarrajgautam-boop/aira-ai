@@ -7,9 +7,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-	const session = await auth();
-	if (!session?.user?.id && !isOmniRoutePreviewTestAccessEnabled()) {
-		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+	if (!isOmniRoutePreviewTestAccessEnabled()) {
+		const session = await auth();
+		if (!session?.user?.id) {
+			return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+		}
 	}
 
 	const config = getOmniRouteConfigOrDisabled();
