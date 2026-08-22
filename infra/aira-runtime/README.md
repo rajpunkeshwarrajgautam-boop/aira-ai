@@ -1,6 +1,6 @@
 # AIRA runtime host
 
-One command stands up every externally gated AIRA runtime on one persistent
+One command stands up AIRA's externally gated worker runtimes on one persistent
 Linux host, puts a single TLS edge in front of them, and writes the exact
 Vercel environment that points AIRA at what is now running.
 
@@ -9,16 +9,17 @@ sudo AIRA_NVIDIA_API_KEY=… AIRA_ACME_EMAIL=you@example.com \
   bash infra/aira-runtime/bootstrap.sh
 ```
 
-This directory adds no new runtime. It composes the ones the repository already
-defines — `infra/foundation`, `infra/autogpt-runner`, `infra/deerflow-runner` —
-and supplies the two pieces that were missing: a TLS edge Vercel can reach, and
-a single idempotent entry point that wires them together with generated
-secrets.
+This directory adds no new inference gateway. It composes the runtimes the
+repository already defines — `infra/foundation`, `infra/autogpt-runner`,
+`infra/deerflow-runner` — and supplies the two pieces that were missing: a TLS
+edge Vercel can reach, and a single idempotent entry point that wires them
+together with generated secrets. OmniRoute is an external inference gateway and
+is configured separately through the `OMNIROUTE_*` variables documented below.
 
 ## What runs where
 
 ```
-Vercel ── AIRA Next.js app
+Vercel ── AIRA Next.js app ── HTTPS ── OmniRoute public gateway (separate deployment)
    │
    │  HTTPS, per-service token on every request
    ▼
@@ -33,8 +34,11 @@ Ubuntu host ── Caddy edge (the only listener on 80/443)
 Supabase ── Postgres · knowledge tables · private bucket aira-knowledge
 ```
 
-Every backend binds loopback only. The edge is the sole public listener, and
-`verify.sh` proves the private ports stay unreachable from the Internet.
+Every backend on the AIRA runtime host binds loopback only. The edge is the sole
+public listener, and `verify.sh` proves the private ports stay unreachable from
+the Internet. OmniRoute is intentionally separate because the Vercel app must
+reach it through a stable public HTTPS origin; a PC-only `127.0.0.1` endpoint is
+not reachable from Vercel.
 
 ### Hostnames without DNS credentials
 
@@ -79,12 +83,37 @@ intended level.
 Read from the code, not from documentation. "Where" is the file that decides
 whether the feature is on.
 
+### OmniRoute inference gateway — `src/services/omniroute/config.ts`
+
+| Variable | Required | Effect |
+| --- | --- | --- |
+| `OMNIROUTE_ENABLED` | yes, `"true"` | Enables OmniRoute registration in AIRA's provider router. |
+| `OMNIROUTE_BASE_URL` | yes | Public HTTPS gateway origin. AIRA normalizes it to the OpenAI-compatible `/v1` root. |
+| `OMNIROUTE_API_KEY` | yes | Server-only bearer credential used for model discovery and inference. |
+| `OMNIROUTE_MODEL` | no | Defaults to `auto`. Also supports OmniRoute routing profiles such as `auto/coding`, `auto/fast`, `auto/cheap`, `auto/smart`, and `auto/offline`. |
+| `OMNIROUTE_TIMEOUT_MS` | no | Defaults to 45000 and is bounded by AIRA's gateway configuration. |
+| `DEFAULT_PRO_PROVIDER` | recommended | Set to `omniroute`; the code also defaults to OmniRoute when this variable is absent. |
+| `DEFAULT_FREE_PROVIDER` | no | Defaults to `nvidia` and remains AIRA's isolated fallback when configured. |
+
+AIRA exposes authenticated `GET /api/omniroute/status`, `GET /api/omniroute/models`
+and `POST /api/omniroute/test` routes plus the `/omniroute` control surface. The
+API key never reaches the browser. Model discovery calls OmniRoute's
+OpenAI-compatible `/v1/models`; normal AIRA generation keeps the existing
+safety, publication, residency, provider-health and citation boundaries around
+the OmniRoute provider.
+
+For production, deploy OmniRoute to a persistent public host such as its
+supported Fly.io configuration, then set the five `OMNIROUTE_*` variables in
+Vercel. This repository deliberately does not provision OmniRoute inside the
+AIRA runtime bootstrap because provider credentials, persistent OmniRoute data,
+and its public lifecycle belong to the gateway deployment itself.
+
 ### Foundation control plane — `lib/foundation-control-plane.ts`
 
 | Variable | Required | Effect |
 | --- | --- | --- |
 | `FOUNDATION_CONTROL_PLANE_ENABLED` | yes, `"true"` | Any other value makes admission a no-op that always allows. |
-| `FOUNDATION_CONTROL_PLANE_REQUIRED` | no | `"true"` turns a control-plane outage into a request failure. Left `false` by the bootstrap so chat degrades to the local path instead of going down with the control plane. |
+| `FOUNDATION_CONTROL_PLANE_REQUIRED` | no | `"true"` turns a control-plane outage into a request failure. Left `false` by the bootstrap so chat degrades to the configured provider path instead of going down with the control plane. |
 | `AIRA_CONTROL_PLANE_URL` | yes | Base URL. Trailing slash stripped. |
 | `AIRA_CONTROL_PLANE_TOKEN` | yes | Sent as `X-AIRA-Control-Token`. Compared with `hmac.compare_digest` server-side. |
 | `AIRA_CONTROL_PLANE_TIMEOUT_MS` | no | Defaults to 1500. |
@@ -160,18 +189,10 @@ Endpoints: `GET /external-api/v1/health`,
 `PYTHON_SANDBOX_ENABLED=true`, `AIRA_SANDBOX_URL`, `AIRA_SANDBOX_TOKEN`
 (sent as `X-AIRA-Sandbox-Token`).
 
-### Optional self-hosted LLM — `app/api/integrations/status/route.ts`
-
-Reports configured only when `SELF_HOSTED_LLM_BASE_URL`,
-`SELF_HOSTED_LLM_API_KEY` **and** `SELF_HOSTED_LLM_MODEL` are all non-empty.
-The bootstrap does not set these: `.env.example` requires GPU fabric
-validation, health checks and canary load tests first, and no such endpoint
-exists yet.
-
 ## Runbook
 
 ```bash
-# Deploy or re-deploy. Idempotent; existing secrets are preserved.
+# Deploy or re-deploy AIRA's worker/runtime host. Idempotent; existing secrets are preserved.
 sudo AIRA_NVIDIA_API_KEY=… AIRA_ACME_EMAIL=you@example.com \
   bash infra/aira-runtime/bootstrap.sh
 
@@ -181,10 +202,15 @@ sudo … bash infra/aira-runtime/bootstrap.sh --no-deerflow
 # Re-run the activation gate at any time.
 sudo bash infra/aira-runtime/verify.sh
 
-# Apply the generated environment to Vercel, from a linked checkout.
+# Apply the generated worker/runtime environment to Vercel, from a linked checkout.
 bash infra/aira-runtime/set-vercel-env.sh /etc/aira/vercel.production.env
 vercel --prod
 ```
+
+OmniRoute variables are applied separately because the gateway is a separate
+persistent deployment. At minimum AIRA needs `OMNIROUTE_ENABLED=true`, the
+public `OMNIROUTE_BASE_URL`, the server-only `OMNIROUTE_API_KEY`, and an
+`OMNIROUTE_MODEL` such as `auto`.
 
 Logs:
 
@@ -202,15 +228,17 @@ on the next deployment. Nothing needs to be torn down on the host first.
 
 ```bash
 # Disable one integration
+vercel env rm OMNIROUTE_ENABLED production --yes
 vercel env rm DEERFLOW_AGENT_ENABLED production --yes
 vercel env rm AUTOGPT_AGENT_ENABLED  production --yes
 vercel env rm MULTIMODAL_INGESTION_ENABLED production --yes
 vercel --prod
 ```
 
-Removing `FOUNDATION_CONTROL_PLANE_ENABLED` returns admission to the local
-path. Because the bootstrap leaves `FOUNDATION_CONTROL_PLANE_REQUIRED=false`,
-a control-plane outage already degrades rather than failing user requests.
+Removing `FOUNDATION_CONTROL_PLANE_ENABLED` returns admission to the normal
+configured provider path. Because the bootstrap leaves
+`FOUNDATION_CONTROL_PLANE_REQUIRED=false`, a control-plane outage already
+degrades rather than failing user requests.
 
 Stop the host side without losing state (Redis AOF, SQLite runner databases and
 DeerFlow threads all live in named volumes):
@@ -223,15 +251,17 @@ docker compose -p aira-autogpt-secondary down
 ```
 
 Re-running `bootstrap.sh` restores everything with the same secrets, so Vercel
-does not need reconfiguring.
+does not need reconfiguring for those worker runtimes.
 
 ## Secret handling
 
 - Generated once into `/etc/aira/runtime.env`, mode 600, root only. Re-runs
   reuse it, so an already-configured Vercel project is never invalidated.
 - `/etc/aira/vercel.production.env` (mode 600) is the only file containing the
-  values in Vercel-ready form. `bootstrap.sh` does **not** print it unless
-  `--print-secrets` is passed.
+  worker-runtime values in Vercel-ready form. `bootstrap.sh` does **not** print
+  it unless `--print-secrets` is passed.
+- OmniRoute's API key is managed by the OmniRoute deployment and Vercel; this
+  bootstrap neither creates nor stores it.
 - `set-vercel-env.sh` prints variable names and add/replace decisions only,
   never values, so its transcript is safe to paste.
 - `.env`, `.env.*` and `/etc/aira` are outside the repository or covered by
