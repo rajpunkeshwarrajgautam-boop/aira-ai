@@ -17,7 +17,7 @@ test("chat home uses a single focused shell", () => {
 	assert.ok(page.includes("impeccable-chat-v2.css"));
 });
 
-test("composer exposes real commands and connected context destinations", () => {
+test("composer exposes real commands, tools, and voice input", () => {
 	const searchBox = read("components/SearchBox.tsx");
 	for (const command of ["/deep ", "/new", "/history", "/share"]) {
 		assert.ok(searchBox.includes(command), `expected ${command} command in composer`);
@@ -26,21 +26,36 @@ test("composer exposes real commands and connected context destinations", () => 
 		assert.ok(searchBox.includes(`href="${destination}"`), `expected connected ${destination} action`);
 	}
 	assert.ok(searchBox.includes("aira:reuse-message"));
+	assert.ok(searchBox.includes("aira:command"));
+	assert.ok(searchBox.includes("SpeechRecognition"));
+	assert.ok(searchBox.includes("Start voice input"));
 });
 
-test("conversation sidebar has search, grouping, and a working new-chat shortcut", () => {
+test("conversation sidebar matches reference app rail and searchable history", () => {
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
-	assert.ok(sidebar.includes("Search chats"));
-	assert.ok(sidebar.includes("Previous 7 days"));
+	assert.ok(sidebar.includes("aira-app-rail"));
+	assert.ok(sidebar.includes("Search conversations"));
+	assert.ok(sidebar.includes("Previous 7 Days"));
+	for (const label of ["Chat", "Agents", "Files", "Local AI", "Compare", "Memory", "Search", "Integrations", "Settings"]) {
+		assert.ok(sidebar.includes(label), `expected ${label} in app rail`);
+	}
 	assert.ok(sidebar.includes("event.metaKey || event.ctrlKey"));
 	assert.ok(sidebar.includes("event.shiftKey"));
 	assert.ok(sidebar.includes('event.key.toLowerCase() === "o"'));
 });
 
-test("message list provides copy and reuse actions without mutating persistence", () => {
+test("message workspace has live inspector and non-placeholder actions", () => {
 	const messages = read("components/conversations/ConversationMessageList.tsx");
+	assert.ok(messages.includes("aira-live-inspector"));
+	assert.ok(messages.includes("AIRA Auto"));
+	assert.ok(messages.includes("Provider router + task policy"));
+	assert.ok(messages.includes("hostnameFromUrl"));
 	assert.ok(messages.includes("navigator.clipboard.writeText"));
+	assert.ok(messages.includes("window.print()"));
 	assert.ok(messages.includes("ReusePromptButton"));
 	assert.ok(messages.includes("aira:reuse-message"));
+	assert.ok(messages.includes('emitComposerCommand("/share")'));
+	assert.ok(messages.includes('emitComposerCommand("/new")'));
+	assert.ok(!messages.includes("GPT-4.1"), "reference shell must not fake a provider model label");
 	assert.ok(!messages.includes("/api/conversations/"), "message actions should not silently mutate stored conversation history");
 });
