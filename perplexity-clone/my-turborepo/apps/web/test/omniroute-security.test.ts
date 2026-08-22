@@ -46,6 +46,15 @@ test("OmniRoute API routes require an authenticated AIRA session", () => {
 	}
 });
 
+test("OmniRoute preview test bypass is explicit and preview-only", () => {
+	const helper = read("lib/omniroute-preview-access.ts");
+	const proxy = read("proxy.ts");
+	assert.ok(helper.includes('process.env.VERCEL_ENV === "preview"'));
+	assert.ok(helper.includes('process.env.OMNIROUTE_PREVIEW_TEST_BYPASS === "true"'));
+	assert.ok(proxy.includes('pathname === "/omniroute" || pathname.startsWith("/api/omniroute/")'));
+	assert.ok(!helper.includes('VERCEL_ENV === "production"'));
+});
+
 test("OmniRoute credentials remain server-only", () => {
 	const env = readFileSync(path.join(REPO_ROOT, ".env.example"), "utf8");
 	const page = read("app/omniroute/page.tsx");
