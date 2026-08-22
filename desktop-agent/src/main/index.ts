@@ -5,7 +5,7 @@ import { electronApp, is } from '@electron-toolkit/utils'
 import { runAgent } from './agent'
 import { getAudit } from './audit'
 import { getSettings, setSettings } from './config'
-import { checkOllama, pullOllamaModel } from './model'
+import { checkOllama, checkOpenAICompatible, pullOllamaModel } from './model'
 import { deleteMemory, listMemories } from './memory'
 import { indexWorkspace, ragStatus } from './rag'
 import { startScheduler, stopScheduler, listTasks } from './scheduler'
@@ -31,7 +31,7 @@ app.whenReady().then(async()=>{
   ipcMain.handle('agent:send',async(_event,request:unknown)=>runAgent(cleanAgentRequest(request),{approve:requestApproval}))
   ipcMain.handle('agent:approval-response',(_event,id:string,approved:boolean)=>{const resolve=approvals.get(String(id));if(resolve){approvals.delete(String(id));resolve(Boolean(approved))}return true})
   ipcMain.handle('settings:get',()=>getSettings());ipcMain.handle('settings:set',(_event,patch)=>setSettings((patch||{}) as any));ipcMain.handle('secrets:status',()=>secretStatus());ipcMain.handle('secrets:set',(_event,key:string,value:string)=>setSecret(String(key),String(value||'')))
-  ipcMain.handle('ollama:status',()=>checkOllama(getSettings()));ipcMain.handle('ollama:pull',(_event,model:string)=>pullOllamaModel(getSettings(),String(model||'').slice(0,200)))
+  ipcMain.handle('ollama:status',()=>checkOllama(getSettings()));ipcMain.handle('compatible:status',()=>checkOpenAICompatible(getSettings()));ipcMain.handle('ollama:pull',(_event,model:string)=>pullOllamaModel(getSettings(),String(model||'').slice(0,200)))
   ipcMain.handle('voice:listen',()=>listenOnce());ipcMain.handle('voice:speak',(_event,text:string)=>speak(String(text||'').slice(0,12_000)));ipcMain.handle('voice:stop-speaking',()=>stopSpeaking());ipcMain.handle('voice:start-continuous',()=>startContinuous(transcript=>{const wake=getSettings().wakeWord.toLowerCase().trim();const lower=transcript.toLowerCase();if(wake&&!lower.includes(wake))return;const idx=wake?lower.indexOf(wake):-1;const text=idx>=0?transcript.slice(idx+wake.length).replace(/^[,:\s-]+/,'').trim():transcript;mainWindow?.webContents.send('voice:transcript',{text,raw:transcript})}));ipcMain.handle('voice:stop-continuous',()=>stopContinuous())
   ipcMain.handle('memory:list',(_event,limit?:number)=>listMemories(Number(limit)||100));ipcMain.handle('memory:delete',(_event,id:string)=>deleteMemory(String(id)));ipcMain.handle('rag:status',()=>ragStatus());ipcMain.handle('rag:index',()=>indexWorkspace(getSettings()));ipcMain.handle('tasks:list',()=>listTasks());ipcMain.handle('audit:list',(_event,limit?:number)=>getAudit(Number(limit)||100))
   ipcMain.handle('update:check',()=>checkForUpdates());ipcMain.handle('update:install',()=>installUpdate());ipcMain.handle('app:version',()=>app.getVersion())
