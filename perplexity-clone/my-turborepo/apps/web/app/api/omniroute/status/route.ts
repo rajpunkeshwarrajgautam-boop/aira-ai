@@ -16,9 +16,11 @@ function gatewayHost(baseURL: string): string | null {
 }
 
 export async function GET(): Promise<Response> {
-	const session = await auth();
-	if (!session?.user?.id && !isOmniRoutePreviewTestAccessEnabled()) {
-		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+	if (!isOmniRoutePreviewTestAccessEnabled()) {
+		const session = await auth();
+		if (!session?.user?.id) {
+			return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+		}
 	}
 
 	const config = getOmniRouteConfigOrDisabled();
