@@ -13,7 +13,7 @@ export interface CommandContext {
 }
 
 export interface AgentCommand {
-	name: string; // e.g. "/new"
+	name: string;
 	description: string;
 	aliases?: string[];
 	execute: (
@@ -39,7 +39,6 @@ export class CommandRegistry {
 	}
 
 	getAllCommands(): AgentCommand[] {
-		// filter out aliases to return unique commands
 		const uniqueCommands = new Set(this.commands.values());
 		return Array.from(uniqueCommands);
 	}
@@ -66,7 +65,7 @@ export class CommandRegistry {
 			return {
 				type: "error",
 				payload: null,
-				message: `Command ${commandName} not found. Type /help for available commands.`,
+				message: `Command ${commandName} not found. Try /new, /history, /deep <query>, or /share.`,
 			};
 		}
 
@@ -85,7 +84,6 @@ export class CommandRegistry {
 
 export const globalCommandRegistry = new CommandRegistry();
 
-// Register Built-in Safe Commands
 globalCommandRegistry.registerCommand({
 	name: "/new",
 	description: "Start a new conversation",
@@ -96,10 +94,14 @@ globalCommandRegistry.registerCommand({
 
 globalCommandRegistry.registerCommand({
 	name: "/history",
-	description: "View conversation history",
+	description: "Open searchable conversation and memory history",
 	aliases: ["/h"],
 	execute: () => {
-		return { type: "system_message", payload: null, message: "Displaying conversation history." };
+		return {
+			type: "redirect",
+			payload: "/workspace-search",
+			message: "Opening workspace history.",
+		};
 	},
 });
 
@@ -121,7 +123,7 @@ globalCommandRegistry.registerCommand({
 
 globalCommandRegistry.registerCommand({
 	name: "/share",
-	description: "Generate a shareable link for the current conversation",
+	description: "Share the current conversation",
 	execute: (_args, context) => {
 		if (!context?.conversationId) {
 			return { type: "error", payload: null, message: "No active conversation to share." };
@@ -129,7 +131,7 @@ globalCommandRegistry.registerCommand({
 		return {
 			type: "action",
 			payload: { action: "create_share", conversationId: context.conversationId },
-			message: "Generating share link...",
+			message: "Preparing share action...",
 		};
 	},
 });

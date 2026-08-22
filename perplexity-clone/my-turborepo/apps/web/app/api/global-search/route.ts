@@ -41,7 +41,7 @@ export async function GET(req: Request): Promise<Response> {
         title: memory.kind,
         snippet: memory.content,
         updatedAt: memory.updatedAt,
-        href: "/memory",
+        href: `/memory?memory=${encodeURIComponent(memory.id)}`,
       });
     }
   }

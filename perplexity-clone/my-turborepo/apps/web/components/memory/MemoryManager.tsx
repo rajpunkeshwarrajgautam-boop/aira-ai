@@ -1,7 +1,8 @@
 "use client";
 
 import { Brain, Pin, PinOff, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -21,6 +22,8 @@ interface MemoryItem {
 const KIND_OPTIONS = ["OTHER", "PREFERENCE", "GOAL", "PROJECT", "DECISION", "CONSTRAINT", "PROFILE", "RELATIONSHIP"] as const;
 
 export function MemoryManager() {
+	const searchParams = useSearchParams();
+	const selectedMemoryId = searchParams.get("memory")?.trim() ?? null;
 	const [memories, setMemories] = useState<MemoryItem[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [busyId, setBusyId] = useState<string | null>(null);
@@ -44,6 +47,19 @@ export function MemoryManager() {
 	}, []);
 
 	useEffect(() => { void loadMemories(); }, [loadMemories]);
+
+	const selectedMemoryExists = useMemo(
+		() => Boolean(selectedMemoryId && memories.some((memory) => memory.id === selectedMemoryId)),
+		[memories, selectedMemoryId],
+	);
+
+	useEffect(() => {
+		if (loading || !selectedMemoryId || !selectedMemoryExists) return;
+		const id = window.setTimeout(() => {
+			document.getElementById(`memory-${selectedMemoryId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+		}, 80);
+		return () => window.clearTimeout(id);
+	}, [loading, selectedMemoryExists, selectedMemoryId]);
 
 	async function addMemory(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -117,6 +133,7 @@ export function MemoryManager() {
 					<div className="flex items-center gap-2"><span className="rounded-full bg-surface-inset px-2.5 py-1 text-xs font-medium text-content-secondary">{memories.length} total</span><span className="rounded-full bg-accent/[0.08] px-2.5 py-1 text-xs font-medium text-accent">{pinnedCount} pinned</span></div>
 				</div>
 
+				{selectedMemoryId && !loading && !selectedMemoryExists ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">That memory is no longer available. Showing your current memory list instead.</div> : null}
 				{error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
 				{loading ? (
@@ -125,20 +142,23 @@ export function MemoryManager() {
 					<div className="py-14 text-center"><span className="aira-icon-pop mx-auto flex size-12 items-center justify-center rounded-2xl"><Brain className="size-5" /></span><p className="mt-4 text-sm font-semibold text-content-primary">Nothing planted yet</p><p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-content-tertiary">Pin a useful preference, project, goal, or constraint and Aira can carry it into future conversations.</p></div>
 				) : (
 					<div className="mt-5 grid gap-3 sm:grid-cols-2">
-						{memories.map((memory) => (
-							<article key={memory.id} className={cn("aira-card-hover relative rounded-2xl border p-4", memory.pinned ? "border-accent/20 bg-[linear-gradient(145deg,hsl(var(--accent)/0.045),hsl(var(--accent-violet)/0.025),white)]" : "border-border-subtle bg-white/70")}>
-								{memory.pinned ? <Sparkles className="absolute right-3 top-3 size-3.5 text-accent/70" aria-hidden /> : null}
-								<div className="flex flex-wrap items-center gap-2 pr-5"><span className="rounded-full bg-accent/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-accent">{memory.kind}</span>{memory.pinned ? <span className="text-[11px] font-medium text-content-secondary">Pinned</span> : null}</div>
-								<p className="mt-3 text-sm leading-6 text-content-primary">{memory.content}</p>
-								<div className="mt-4 flex items-end justify-between gap-2">
-									<div><p className="text-[10px] uppercase tracking-[0.1em] text-content-tertiary">importance {memory.importance}/5</p><p className="mt-1 text-[10px] text-content-tertiary">Recalled {memory.recallCount} times · {new Date(memory.updatedAt).toLocaleDateString()}</p></div>
-									<div className="flex shrink-0 gap-1">
-										<Button variant="ghost" size="sm" className="aira-pin-button size-8 rounded-xl p-0" aria-pressed={memory.pinned} disabled={busyId === memory.id} onClick={() => void togglePinned(memory)} title={memory.pinned ? "Unpin memory" : "Pin memory"}>{memory.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}</Button>
-										<Button variant="ghost" size="sm" className="size-8 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600" disabled={busyId === memory.id} onClick={() => void removeMemory(memory)} title="Delete memory"><Trash2 className="size-4" /></Button>
+						{memories.map((memory) => {
+							const selected = memory.id === selectedMemoryId;
+							return (
+								<article id={`memory-${memory.id}`} key={memory.id} className={cn("aira-card-hover relative scroll-mt-28 rounded-2xl border p-4 transition", selected ? "border-accent/55 bg-[linear-gradient(145deg,hsl(var(--accent)/0.11),hsl(var(--accent-violet)/0.06),white)] ring-2 ring-accent/15" : memory.pinned ? "border-accent/20 bg-[linear-gradient(145deg,hsl(var(--accent)/0.045),hsl(var(--accent-violet)/0.025),white)]" : "border-border-subtle bg-white/70")} aria-current={selected ? "true" : undefined}>
+									{memory.pinned ? <Sparkles className="absolute right-3 top-3 size-3.5 text-accent/70" aria-hidden /> : null}
+									<div className="flex flex-wrap items-center gap-2 pr-5"><span className="rounded-full bg-accent/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-accent">{memory.kind}</span>{memory.pinned ? <span className="text-[11px] font-medium text-content-secondary">Pinned</span> : null}{selected ? <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-white">Search result</span> : null}</div>
+									<p className="mt-3 text-sm leading-6 text-content-primary">{memory.content}</p>
+									<div className="mt-4 flex items-end justify-between gap-2">
+										<div><p className="text-[10px] uppercase tracking-[0.1em] text-content-tertiary">importance {memory.importance}/5</p><p className="mt-1 text-[10px] text-content-tertiary">Recalled {memory.recallCount} times · {new Date(memory.updatedAt).toLocaleDateString()}</p></div>
+										<div className="flex shrink-0 gap-1">
+											<Button variant="ghost" size="sm" className="aira-pin-button size-8 rounded-xl p-0" aria-pressed={memory.pinned} disabled={busyId === memory.id} onClick={() => void togglePinned(memory)} title={memory.pinned ? "Unpin memory" : "Pin memory"}>{memory.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}</Button>
+											<Button variant="ghost" size="sm" className="size-8 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600" disabled={busyId === memory.id} onClick={() => void removeMemory(memory)} title="Delete memory"><Trash2 className="size-4" /></Button>
+										</div>
 									</div>
-								</div>
-							</article>
-						))}
+								</article>
+							);
+						})}
 					</div>
 				)}
 			</section>

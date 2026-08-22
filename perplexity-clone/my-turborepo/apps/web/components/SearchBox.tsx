@@ -65,8 +65,8 @@ type SpeechWindow = Window & {
 const QUICK_COMMANDS: readonly QuickCommand[] = [
 	{ command: "/deep ", label: "Deep Research", description: "Run a longer multi-step investigation" },
 	{ command: "/new", label: "New chat", description: "Clear the current thread and start fresh" },
-	{ command: "/history", label: "History", description: "Jump to your research history" },
-	{ command: "/share", label: "Share", description: "Create a share link for this answer" },
+	{ command: "/history", label: "History", description: "Search conversations, messages, and memory" },
+	{ command: "/share", label: "Share", description: "Share the current conversation" },
 ] as const;
 
 export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
@@ -110,6 +110,10 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		const onCommand = (event: Event) => {
 			const command = (event as CustomEvent<{ readonly command?: string }>).detail?.command;
 			if (!command || isBusy) return;
+			if (command === "/history" || command === "/h") {
+				window.location.assign("/workspace-search");
+				return;
+			}
 			pendingCommandRef.current = command === "/share" || command === "/new" ? command : null;
 			onChange(command);
 			requestAnimationFrame(() => taRef.current?.focus());
@@ -149,7 +153,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	const showCommandMenu = !busy && value.startsWith("/") && !value.includes(" ") && commandMatches.length > 0;
 
 	const handleSubmit = useCallback(() => {
-		if (value.trim() && !busy) onSubmit();
+		const normalized = value.trim().toLowerCase();
+		if (busy || !normalized) return;
+		if (normalized === "/history" || normalized === "/h") {
+			window.location.assign("/workspace-search");
+			return;
+		}
+		onSubmit();
 	}, [value, busy, onSubmit]);
 
 	const toggleVoice = useCallback(() => {
@@ -187,7 +197,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 			{showCommandMenu ? (
 				<div className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-xl border border-white/[0.09] bg-[#111827] shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
 					<div className="flex items-center gap-2 border-b border-white/[0.07] px-3 py-2 text-[9px] font-medium uppercase tracking-[0.12em] text-content-tertiary"><Command className="size-3.5" aria-hidden />Commands</div>
-					<div className="p-1.5">{commandMatches.map((item) => <button key={item.command} type="button" onClick={() => { onChange(item.command); requestAnimationFrame(() => taRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"><span className="w-14 shrink-0 font-mono text-[10px] text-violet-300">{item.command.trim()}</span><span className="min-w-0"><strong className="block text-[11px] font-medium text-content-primary">{item.label}</strong><small className="mt-0.5 block truncate text-[9px] text-content-tertiary">{item.description}</small></span></button>)}</div>
+					<div className="p-1.5">{commandMatches.map((item) => <button key={item.command} type="button" onClick={() => { if (item.command === "/history") { window.location.assign("/workspace-search"); return; } onChange(item.command); requestAnimationFrame(() => taRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"><span className="w-14 shrink-0 font-mono text-[10px] text-violet-300">{item.command.trim()}</span><span className="min-w-0"><strong className="block text-[11px] font-medium text-content-primary">{item.label}</strong><small className="mt-0.5 block truncate text-[9px] text-content-tertiary">{item.description}</small></span></button>)}</div>
 				</div>
 			) : null}
 

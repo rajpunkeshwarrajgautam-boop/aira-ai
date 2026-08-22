@@ -12,6 +12,12 @@ import { cn } from "@/lib/cn";
 
 type CheckoutPlan = "pro" | "team";
 
+function requestedPlanFromLocation(): CheckoutPlan | null {
+	if (typeof window === "undefined") return null;
+	const requested = new URLSearchParams(window.location.search).get("plan")?.toLowerCase();
+	return requested === "pro" || requested === "team" ? requested : null;
+}
+
 function loadCashfreeScript(): Promise<void> {
 	if (typeof window === "undefined") return Promise.resolve();
 	if (window.Cashfree) return Promise.resolve();
@@ -35,7 +41,15 @@ export default function UpgradePage() {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (status === "unauthenticated") router.replace(`/signin?callbackUrl=${encodeURIComponent("/upgrade")}`);
+		const requested = requestedPlanFromLocation();
+		if (requested) setPlan(requested);
+	}, []);
+
+	useEffect(() => {
+		if (status !== "unauthenticated") return;
+		const requested = requestedPlanFromLocation();
+		const callbackUrl = requested ? `/upgrade?plan=${requested}` : "/upgrade";
+		router.replace(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
 	}, [status, router]);
 
 	const startCheckout = useCallback(async () => {
@@ -61,7 +75,9 @@ export default function UpgradePage() {
 			if (result.error) throw new Error(result.error.message);
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : "Checkout failed.");
-		} finally { setBusy(false); }
+		} finally {
+			setBusy(false);
+		}
 	}, [session?.user?.email, busy, plan, teamSeats, phone]);
 
 	if (status === "loading" || status === "unauthenticated") {
@@ -80,9 +96,9 @@ export default function UpgradePage() {
 
 				<div className="aira-gradient-frame mx-auto mt-9 max-w-xl rounded-[26px]">
 					<div className="aira-glass rounded-[25px] p-5 sm:p-6">
-						<div className="grid grid-cols-2 gap-2 rounded-2xl bg-surface-inset/75 p-1.5 ring-1 ring-border-subtle/70">
+						<div className="grid grid-cols-2 gap-2 rounded-2xl bg-surface-inset/75 p-1.5 ring-1 ring-border-subtle/70" role="group" aria-label="Choose billing plan">
 							{(["pro", "team"] as const).map((option) => (
-								<button key={option} type="button" onClick={() => setPlan(option)} className={cn("rounded-xl px-3 py-2.5 text-sm font-semibold capitalize transition-all duration-200", plan === option ? "bg-white text-content-primary shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white" : "text-content-tertiary hover:bg-white/50 hover:text-content-primary")}>{option}</button>
+								<button key={option} type="button" onClick={() => setPlan(option)} aria-pressed={plan === option} className={cn("rounded-xl px-3 py-2.5 text-sm font-semibold capitalize transition-all duration-200", plan === option ? "bg-white text-content-primary shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white" : "text-content-tertiary hover:bg-white/50 hover:text-content-primary")}>{option}</button>
 							))}
 						</div>
 
@@ -92,13 +108,13 @@ export default function UpgradePage() {
 						</div>
 
 						{plan === "team" ? (
-							<label className="mt-5 block text-sm"><span className="mb-1.5 block font-medium">Seats</span><input type="number" min={2} max={100} value={teamSeats} onChange={(event) => setTeamSeats(Number(event.target.value))} className="h-11 w-full rounded-xl border border-border-subtle bg-surface-inset/60 px-3 outline-none transition focus:border-accent/30 focus:bg-white focus:ring-4 focus:ring-accent/[0.06]" /></label>
+							<label className="mt-5 block text-sm"><span className="mb-1.5 block font-medium">Seats</span><input type="number" min={2} max={100} value={teamSeats} onChange={(event) => setTeamSeats(Math.min(100, Math.max(2, Number(event.target.value) || 2)))} className="h-11 w-full rounded-xl border border-border-subtle bg-surface-inset/60 px-3 outline-none transition focus:border-accent/30 focus:bg-white focus:ring-4 focus:ring-accent/[0.06]" /></label>
 						) : null}
 
-						<label className="mt-5 block text-sm"><span className="mb-1.5 block font-medium">Phone number</span><input type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="e.g. 9876543210" className="h-11 w-full rounded-xl border border-border-subtle bg-surface-inset/60 px-3 outline-none transition placeholder:text-content-tertiary focus:border-accent/30 focus:bg-white focus:ring-4 focus:ring-accent/[0.06]" /><span className="mt-1.5 block text-xs text-content-tertiary">Required by the subscription checkout flow.</span></label>
+						<label className="mt-5 block text-sm"><span className="mb-1.5 block font-medium">Phone number</span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="e.g. 9876543210" className="h-11 w-full rounded-xl border border-border-subtle bg-surface-inset/60 px-3 outline-none transition placeholder:text-content-tertiary focus:border-accent/30 focus:bg-white focus:ring-4 focus:ring-accent/[0.06]" /><span className="mt-1.5 block text-xs text-content-tertiary">Required by the subscription checkout flow.</span></label>
 
 						{error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p> : null}
-						<Button type="button" className="aira-shine-button mt-5 h-11 w-full rounded-xl" disabled={busy || phone.trim().length < 8} onClick={() => void startCheckout()}>{busy ? "Starting…" : "Continue to secure checkout"}</Button>
+						<Button type="button" className="aira-shine-button mt-5 h-11 w-full rounded-xl" disabled={busy || phone.trim().length < 8} onClick={() => void startCheckout()}>{busy ? "Starting…" : `Continue with ${plan === "pro" ? "Pro" : "Team"}`}</Button>
 						<p className="mt-4 text-center text-xs text-content-tertiary"><Link href="/pricing" className="font-medium text-accent">Compare plans</Link><span className="mx-2">·</span><Link href="/" className="font-medium text-accent">Back to research</Link></p>
 					</div>
 				</div>

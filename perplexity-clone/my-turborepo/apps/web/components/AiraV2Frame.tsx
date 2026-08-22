@@ -36,10 +36,16 @@ const MANAGE_NAV = [
   { href: "/runs", label: "Run center", description: "Monitor autonomous execution", icon: History },
   { href: "/settings", label: "Integrations", description: "Runtime and provider status", icon: Settings2 },
   { href: "/pricing", label: "Plans", description: "Usage and upgrades", icon: CreditCard },
-  { href: "/admin/analytics", label: "Analytics", description: "Owner telemetry", icon: BarChart3 },
 ] as const;
 
-const ALL_COMMANDS = [...PRIMARY_NAV, ...MANAGE_NAV] as const;
+const ANALYTICS_NAV = {
+  href: "/admin/analytics",
+  label: "Analytics",
+  description: "Owner telemetry",
+  icon: BarChart3,
+} as const;
+
+type NavigationItem = (typeof PRIMARY_NAV)[number] | (typeof MANAGE_NAV)[number] | typeof ANALYTICS_NAV;
 
 function isActivePath(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -50,20 +56,49 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const [analyticsAdmin, setAnalyticsAdmin] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/admin/access", { credentials: "include", cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return { analyticsAdmin: false };
+        return (await response.json()) as { analyticsAdmin?: boolean };
+      })
+      .then((body) => {
+        if (!cancelled) setAnalyticsAdmin(body.analyticsAdmin === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalyticsAdmin(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const manageNav = useMemo<readonly NavigationItem[]>(
+    () => (analyticsAdmin ? [...MANAGE_NAV, ANALYTICS_NAV] : MANAGE_NAV),
+    [analyticsAdmin],
+  );
+
+  const allCommands = useMemo<readonly NavigationItem[]>(
+    () => [...PRIMARY_NAV, ...manageNav],
+    [manageNav],
+  );
+
   const current = useMemo(
-    () => ALL_COMMANDS.find((item) => isActivePath(pathname, item.href)) ?? PRIMARY_NAV[0],
-    [pathname],
+    () => allCommands.find((item) => isActivePath(pathname, item.href)) ?? PRIMARY_NAV[0],
+    [allCommands, pathname],
   );
 
   const filteredCommands = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    if (!needle) return ALL_COMMANDS;
-    return ALL_COMMANDS.filter((item) =>
+    if (!needle) return allCommands;
+    return allCommands.filter((item) =>
       `${item.label} ${item.description}`.toLowerCase().includes(needle),
     );
-  }, [filter]);
+  }, [allCommands, filter]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -117,7 +152,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           })}
 
           <p className="aira-v2-nav-label aira-v2-nav-label-manage">Manage</p>
-          {MANAGE_NAV.map((item) => {
+          {manageNav.map((item) => {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
             return (

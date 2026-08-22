@@ -51,10 +51,12 @@ test("message workspace has live inspector and non-placeholder actions", () => {
 	assert.ok(messages.includes("Provider router + task policy"));
 	assert.ok(messages.includes("hostnameFromUrl"));
 	assert.ok(messages.includes("navigator.clipboard.writeText"));
+	assert.ok(messages.includes("navigator.share"));
+	assert.ok(messages.includes("shareConversation"));
 	assert.ok(messages.includes("window.print()"));
 	assert.ok(messages.includes("ReusePromptButton"));
 	assert.ok(messages.includes("aira:reuse-message"));
-	assert.ok(messages.includes('emitComposerCommand("/share")'));
+	assert.ok(!messages.includes('onClick={() => emitComposerCommand("/share")}'), "share controls should execute directly rather than recurse through a slash command");
 	assert.ok(messages.includes('emitComposerCommand("/new")'));
 	assert.ok(!messages.includes("GPT-4.1"), "reference shell must not fake a provider model label");
 	assert.ok(!messages.includes("/api/conversations/"), "message actions should not silently mutate stored conversation history");
