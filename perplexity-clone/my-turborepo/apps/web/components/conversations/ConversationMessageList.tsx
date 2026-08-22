@@ -3,7 +3,6 @@
 import {
 	Check,
 	Copy,
-	Cpu,
 	ExternalLink,
 	FileDown,
 	FileText,
@@ -11,6 +10,7 @@ import {
 	Globe2,
 	History,
 	MessageSquarePlus,
+	Network,
 	PencilLine,
 	Share2,
 	Sparkles,
@@ -117,7 +117,7 @@ function AssistantSkeleton({ statusText, sourceCount }: { readonly statusText?: 
 const STARTERS = [
 	{ href: "/knowledge", title: "Work with files", description: "Upload PDFs and documents, then ask with context.", icon: FileText },
 	{ href: "/agents", title: "Delegate a task", description: "Run a longer autonomous workflow with an agent.", icon: WandSparkles },
-	{ href: "/local-ai", title: "Use Local AI", description: "Keep routine private work on your llama.cpp worker.", icon: Cpu },
+	{ href: "/omniroute", title: "Open OmniRoute", description: "Route across your configured AI providers and models.", icon: Network },
 ] as const;
 
 function threadTitle(messages: readonly ConversationMessageDto[], streamingUserQuery: string | null): string {
@@ -233,7 +233,7 @@ export function ConversationMessageList({ messages, streamingUserQuery, streamin
 
 				<aside className="aira-live-inspector hidden border-l border-white/[0.07] bg-[#0d1320]/72 p-3 xl:block" aria-label="Conversation inspector">
 					<div className="sticky top-20 space-y-3">
-						<section className="rounded-2xl border border-white/[0.08] bg-[#111827]/80 p-3"><p className="text-[11px] font-semibold text-content-primary">Model</p><Link href="/compare" className="mt-2 flex items-center justify-between rounded-xl border border-white/[0.07] bg-[#0d1423] px-3 py-2.5 transition hover:border-violet-400/25"><span><strong className="block text-[11px] font-semibold text-content-primary">AIRA Auto</strong><small className="mt-0.5 block text-[9px] text-content-tertiary">Provider router + task policy</small></span><GitCompareArrows className="size-4 text-violet-300" strokeWidth={1.6} /></Link></section>
+						<section className="rounded-2xl border border-white/[0.08] bg-[#111827]/80 p-3"><p className="text-[11px] font-semibold text-content-primary">Model</p><Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-xl border border-white/[0.07] bg-[#0d1423] px-3 py-2.5 transition hover:border-violet-400/25"><span><strong className="block text-[11px] font-semibold text-content-primary">AIRA Auto</strong><small className="mt-0.5 block text-[9px] text-content-tertiary">OmniRoute + AIRA policy</small></span><Network className="size-4 text-violet-300" strokeWidth={1.6} /></Link></section>
 
 						<section className="rounded-2xl border border-white/[0.08] bg-[#111827]/80 p-3"><div className="flex items-center justify-between"><p className="text-[11px] font-semibold text-content-primary">Sources</p><span className="text-[9px] text-content-tertiary">{inspectorCitations.length || 0}</span></div><div className="mt-2 space-y-1">{inspectorCitations.length === 0 ? <p className="rounded-lg border border-dashed border-white/[0.07] px-2.5 py-3 text-[9px] leading-4 text-content-tertiary">Sources appear here when AIRA grounds an answer on the web.</p> : inspectorCitations.slice(0, 6).map((citation) => <a key={`${citation.index}-${citation.url}`} href={citation.url} target="_blank" rel="noreferrer" className="group flex gap-2 rounded-lg px-2 py-2 transition hover:bg-white/[0.04]"><span className="w-4 shrink-0 text-[9px] text-content-tertiary">{citation.index}</span><span className="min-w-0 flex-1"><strong className="block truncate text-[9px] font-medium text-content-secondary group-hover:text-content-primary">{citation.title}</strong><small className="mt-0.5 flex items-center gap-1 truncate text-[8px] text-content-tertiary">{hostnameFromUrl(citation.url)}<ExternalLink className="size-2.5" /></small></span></a>)}</div></section>
 
