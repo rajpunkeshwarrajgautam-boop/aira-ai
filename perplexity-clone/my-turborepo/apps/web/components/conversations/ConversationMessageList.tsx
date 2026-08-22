@@ -2,7 +2,6 @@
 
 import {
 	Check,
-	Clock3,
 	Copy,
 	Cpu,
 	ExternalLink,
