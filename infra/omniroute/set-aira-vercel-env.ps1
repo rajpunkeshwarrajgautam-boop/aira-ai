@@ -12,8 +12,26 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 function Require-Command([string]$Name) {
-    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if (-not $command) {
         throw "Required command '$Name' is not installed or not on PATH."
+    }
+    return $command
+}
+
+function Invoke-VercelQuiet([string[]]$Arguments) {
+    $previous = $ErrorActionPreference
+    try {
+        # Windows PowerShell 5.1 promotes stderr written by native commands and
+        # npm-generated *.ps1 shims to NativeCommandError when the caller uses
+        # ErrorActionPreference=Stop. Vercel writes its version banner to stderr
+        # even on successful commands, so treat exit code as authoritative.
+        $ErrorActionPreference = 'Continue'
+        & $script:VercelCommand @Arguments *> $null
+        return $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previous
     }
 }
 
@@ -23,27 +41,44 @@ function Set-VercelValue(
     [string]$Environment,
     [switch]$Sensitive
 ) {
-    & vercel env rm $Name $Environment --yes *> $null
+    [void](Invoke-VercelQuiet @('env', 'rm', $Name, $Environment, '--yes'))
     # A non-zero result here normally means the variable did not exist yet.
     # The add operation below remains authoritative.
 
-    if ($Sensitive) {
-        $Value | & vercel env add $Name $Environment --sensitive *> $null
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        if ($Sensitive) {
+            $Value | & $script:VercelCommand env add $Name $Environment --sensitive *> $null
+        }
+        else {
+            $Value | & $script:VercelCommand env add $Name $Environment *> $null
+        }
+        $exitCode = $LASTEXITCODE
     }
-    else {
-        $Value | & vercel env add $Name $Environment *> $null
+    finally {
+        $ErrorActionPreference = $previous
     }
-    if ($LASTEXITCODE -ne 0) {
+
+    if ($exitCode -ne 0) {
         throw "Could not set Vercel environment variable '$Name'."
     }
     $suffix = if ($Sensitive) { ' [sensitive]' } else { '' }
     Write-Host "  set  $Name$suffix"
 }
 
-Require-Command 'vercel'
+# Prefer the Windows npm .cmd shim when available. It avoids an extra PowerShell
+# wrapper layer and behaves consistently in Windows PowerShell 5.1 and pwsh.
+$vercelCmd = Get-Command 'vercel.cmd' -ErrorAction SilentlyContinue
+if ($vercelCmd) {
+    $script:VercelCommand = $vercelCmd.Source
+}
+else {
+    $vercel = Require-Command 'vercel'
+    $script:VercelCommand = $vercel.Source
+}
 
-& vercel whoami *> $null
-if ($LASTEXITCODE -ne 0) {
+if ((Invoke-VercelQuiet @('whoami')) -ne 0) {
     Write-Host 'Vercel CLI authentication is required.' -ForegroundColor Yellow
     Write-Host 'Run: vercel login' -ForegroundColor Cyan
     exit 20
@@ -71,7 +106,7 @@ $apiRoot = "$($uri.Scheme)://$($uri.Authority)/v1"
 
 Write-Host 'Enter the dedicated OmniRoute endpoint API key for AIRA.'
 $secureApiKey = Read-Host -AsSecureString 'OMNIROUTE_API_KEY'
-$credential = [pscredential]::new('omniroute', $secureApiKey)
+$credential = New-Object System.Management.Automation.PSCredential('omniroute', $secureApiKey)
 $plainApiKey = $credential.GetNetworkCredential().Password
 if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
     throw 'An OmniRoute API key is required.'
