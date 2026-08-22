@@ -88,8 +88,12 @@ function publicInferenceError(error: unknown, requestAborted: boolean): {
 }
 
 export async function POST(req: Request): Promise<Response> {
-	const session = await auth();
-	const userId = session?.user?.id ?? (isOmniRoutePreviewTestAccessEnabled() ? "preview-omniroute-tester" : undefined);
+	const previewAccess = isOmniRoutePreviewTestAccessEnabled();
+	let userId: string | undefined = previewAccess ? "preview-omniroute-tester" : undefined;
+	if (!previewAccess) {
+		const session = await auth();
+		userId = session?.user?.id;
+	}
 	if (!userId) {
 		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	}
