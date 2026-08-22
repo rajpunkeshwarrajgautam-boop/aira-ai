@@ -15,11 +15,6 @@ for (const line of lines) {
 	if (match) assignments.set(match[1]!, match[2]!);
 }
 
-/**
- * Every name AIRA needs before it can serve a signed-in grounded search. A fresh
- * deployment configured only from `.env.example` must not discover one of these
- * by hitting a boot-time throw or an unciteable answer.
- */
 const REQUIRED_NAMES = [
 	"DATABASE_URL",
 	"AUTH_SECRET",
@@ -33,7 +28,6 @@ const REQUIRED_NAMES = [
 	"EXA_API_KEY",
 ];
 
-/** Server-only names that must never be exposed to the browser bundle. */
 const SERVER_ONLY_NAMES = [
 	"DEERFLOW_INTERNAL_AUTH_TOKEN",
 	"SUPABASE_SERVICE_ROLE_KEY",
@@ -42,6 +36,7 @@ const SERVER_ONLY_NAMES = [
 	"EXA_API_KEY",
 	"NVIDIA_API_KEY",
 	"OPENAI_API_KEY",
+	"OMNIROUTE_API_KEY",
 	"CASHFREE_CLIENT_SECRET",
 	"CASHFREE_WEBHOOK_SECRET",
 	"AIRA_CONTROL_PLANE_TOKEN",
@@ -50,7 +45,6 @@ const SERVER_ONLY_NAMES = [
 	"AIRA_SAFETY_GATEWAY_TOKEN",
 	"AUTOGPT_PRIMARY_API_KEY",
 	"AUTOGPT_SECONDARY_API_KEY",
-	"SELF_HOSTED_LLM_API_KEY",
 ];
 
 test("documents every variable required to boot and serve a grounded search", () => {
@@ -66,8 +60,8 @@ test("ships no populated credential", () => {
 		/^gho_[A-Za-z0-9]{8,}/,
 		/^AIza[A-Za-z0-9_-]{8,}/,
 		/^nvapi-[A-Za-z0-9_-]{8,}/,
-		/^eyJ[A-Za-z0-9_-]{16,}\./, // JWT, e.g. a Supabase service-role key
-		/^postgres(ql)?:\/\/[^:]+:[^@]*[^@:]@/, // a connection string carrying a password
+		/^eyJ[A-Za-z0-9_-]{16,}\./,
+		/^postgres(ql)?:\/\/[^:]+:[^@]*[^@:]@/,
 	];
 
 	for (const [name, value] of assignments) {
@@ -84,7 +78,6 @@ test("ships no populated credential", () => {
 });
 
 test("never exposes a secret through a NEXT_PUBLIC_ name", () => {
-	// Anything NEXT_PUBLIC_ is inlined into the browser bundle by Next.js.
 	const publicNames = [...assignments.keys()].filter((name) => name.startsWith("NEXT_PUBLIC_"));
 	for (const name of publicNames) {
 		assert.ok(
@@ -101,14 +94,10 @@ test("never exposes a secret through a NEXT_PUBLIC_ name", () => {
 });
 
 test("keeps every externally gated runtime disabled by default", () => {
-	// Shipping a default of `true` for any of these would activate a capability
-	// whose external infrastructure is not proven to exist.
 	for (const name of [
 		"DEERFLOW_AGENT_ENABLED",
 		"AUTOGPT_AGENT_ENABLED",
-		"VIREXA_LOCAL_AI_ENABLED",
-		"AIRA_LOCAL_FIRST_ENABLED",
-		"AIRA_LOCAL_AI_REQUIRED",
+		"OMNIROUTE_ENABLED",
 		"PYTHON_SANDBOX_ENABLED",
 		"SEMANTIC_MEMORY_ENABLED",
 		"GRAPH_MEMORY_ENABLED",
