@@ -121,6 +121,12 @@ try {
     Set-VercelValue 'OMNIROUTE_TIMEOUT_MS' '45000' $Target
     Set-VercelValue 'DEFAULT_PRO_PROVIDER' 'omniroute' $Target
     Set-VercelValue 'DEFAULT_FREE_PROVIDER' 'nvidia' $Target
+    if ($Target -eq 'preview') {
+        Set-VercelValue 'OMNIROUTE_PREVIEW_TEST_BYPASS' 'true' $Target
+    }
+    else {
+        Set-VercelValue 'OMNIROUTE_PREVIEW_TEST_BYPASS' 'false' $Target
+    }
 }
 finally {
     $plainApiKey = $null
@@ -135,5 +141,6 @@ if ($Target -eq 'production') {
     Write-Host 'Redeploy after PR #92 is approved/merged: vercel --prod' -ForegroundColor Cyan
 }
 else {
+    Write-Host 'Preview-only OmniRoute control access is enabled behind Vercel Deployment Protection.' -ForegroundColor Yellow
     Write-Host 'Create or redeploy the PR preview to validate OmniRoute before production.' -ForegroundColor Cyan
 }
