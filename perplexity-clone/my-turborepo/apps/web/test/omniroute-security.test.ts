@@ -63,7 +63,7 @@ test("OmniRoute preview test bypass is explicit, preview-only, and runs before A
 	assert.ok(proxy.includes("return (authenticatedProxy as unknown as NextMiddleware)(req, event)"));
 	assert.ok(
 		proxy.indexOf("isOmniRoutePreviewTestAccessEnabled()") <
-			proxy.lastIndexOf("return (authenticatedProxy as NextMiddleware)(req, event)"),
+			proxy.lastIndexOf("return (authenticatedProxy as unknown as NextMiddleware)(req, event)"),
 	);
 	assert.ok(layout.includes("disableAuth={previewTestAccess}"));
 	assert.ok(providers.includes("if (disableAuth) return"));
