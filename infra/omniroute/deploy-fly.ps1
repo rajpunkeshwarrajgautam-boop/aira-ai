@@ -10,7 +10,7 @@ param(
     [ValidateRange(1, 50)]
     [int]$VolumeSizeGb = 1,
 
-    [string]$WorkDir = (Join-Path $env:TEMP "aira-omniroute-fly")
+    [string]$WorkDir = (Join-Path $env:TEMP 'aira-omniroute-fly')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,12 +38,12 @@ function Invoke-Fly([string[]]$Arguments) {
 Require-Command 'git'
 Require-Command 'flyctl'
 
-Write-Host "Checking Fly.io authentication..."
+Write-Host 'Checking Fly.io authentication...'
 & flyctl auth whoami *> $null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Fly.io authentication is required before this deployment can continue." -ForegroundColor Yellow
-    Write-Host "Run: flyctl auth login" -ForegroundColor Cyan
-    Write-Host "Then rerun this script with the same -AppName value." -ForegroundColor Cyan
+    Write-Host 'Fly.io authentication is required before this deployment can continue.' -ForegroundColor Yellow
+    Write-Host 'Run: flyctl auth login' -ForegroundColor Cyan
+    Write-Host 'Then rerun this script with the same -AppName value.' -ForegroundColor Cyan
     exit 20
 }
 
@@ -52,11 +52,11 @@ if (Test-Path $WorkDir) {
 }
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 
-Write-Host "Resolving the latest published OmniRoute release..."
+Write-Host 'Resolving the latest published OmniRoute release...'
 $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/diegosouzapw/OmniRoute/releases/latest' -Headers @{ 'User-Agent' = 'AIRA-OmniRoute-Deploy' }
 $tag = [string]$release.tag_name
 if ([string]::IsNullOrWhiteSpace($tag) -or $tag -notmatch '^v?\d+\.\d+\.\d+$') {
-    throw "GitHub did not return a valid immutable OmniRoute release tag. Refusing to deploy a moving branch."
+    throw 'GitHub did not return a valid immutable OmniRoute release tag. Refusing to deploy a moving branch.'
 }
 Write-Host "Using OmniRoute release $tag"
 
@@ -68,24 +68,26 @@ if ($LASTEXITCODE -ne 0) {
 
 $flyToml = Join-Path $sourceDir 'fly.toml'
 if (-not (Test-Path $flyToml)) {
-    throw "The selected OmniRoute release does not contain fly.toml."
+    throw 'The selected OmniRoute release does not contain fly.toml.'
 }
 
+$appPattern = '(?m)^app\s*=\s*[''"][^''"]+[''"]'
+$regionPattern = '(?m)^primary_region\s*=\s*[''"][^''"]+[''"]'
 $toml = Get-Content -Raw $flyToml
-if ($toml -match "(?m)^app\s*=\s*['\"][^'\"]+['\"]") {
-    $toml = [regex]::Replace($toml, "(?m)^app\s*=\s*['\"][^'\"]+['\"]", "app = '$AppName'")
+if ($toml -match $appPattern) {
+    $toml = [regex]::Replace($toml, $appPattern, "app = '$AppName'")
 } else {
     $toml = "app = '$AppName'`n" + $toml
 }
-if ($toml -match "(?m)^primary_region\s*=\s*['\"][^'\"]+['\"]") {
-    $toml = [regex]::Replace($toml, "(?m)^primary_region\s*=\s*['\"][^'\"]+['\"]", "primary_region = '$Region'")
+if ($toml -match $regionPattern) {
+    $toml = [regex]::Replace($toml, $regionPattern, "primary_region = '$Region'")
 }
 Set-Content -Path $flyToml -Value $toml -Encoding utf8NoBOM
 
-Write-Host "Ensuring Fly application exists..."
+Write-Host 'Ensuring Fly application exists...'
 & flyctl status -a $AppName *> $null
 if ($LASTEXITCODE -ne 0) {
-    Invoke-Fly @('apps', 'create', $AppName)
+    Invoke-Fly -Arguments @('apps', 'create', $AppName)
 }
 
 Write-Host "Ensuring persistent volume exists in $Region..."
@@ -100,7 +102,7 @@ if ($volumeJson) {
 }
 $hasDataVolume = $volumes | Where-Object { $_.name -eq 'data' -and $_.region -eq $Region } | Select-Object -First 1
 if (-not $hasDataVolume) {
-    Invoke-Fly @('volumes', 'create', 'data', '--app', $AppName, '--region', $Region, '--size', [string]$VolumeSizeGb, '--yes')
+    Invoke-Fly -Arguments @('volumes', 'create', 'data', '--app', $AppName, '--region', $Region, '--size', [string]$VolumeSizeGb, '--yes')
 }
 
 $apiKeySecret = New-HexSecret 32
@@ -108,13 +110,13 @@ $jwtSecret = New-HexSecret 64
 $machineIdSalt = New-HexSecret 32
 $storageKey = New-HexSecret 32
 $wsBridgeSecret = New-HexSecret 32
-$initialPassword = "Aira!" + (New-HexSecret 18)
+$initialPassword = 'Aira!' + (New-HexSecret 18)
 $baseUrl = "https://$AppName.fly.dev"
 
-Write-Host "Setting production secrets without writing them to the repository..."
+Write-Host 'Setting production secrets without writing them to the repository...'
 Push-Location $sourceDir
 try {
-    Invoke-Fly @(
+    Invoke-Fly -Arguments @(
         'secrets', 'set',
         "API_KEY_SECRET=$apiKeySecret",
         "JWT_SECRET=$jwtSecret",
@@ -128,33 +130,35 @@ try {
     )
 
     Write-Host "Deploying OmniRoute $tag to $baseUrl ..."
-    Invoke-Fly @('deploy', '--app', $AppName)
+    Invoke-Fly -Arguments @('deploy', '--app', $AppName)
+}
 finally {
     Pop-Location
 }
 
-Write-Host "Verifying Fly machine status..."
-Invoke-Fly @('status', '--app', $AppName)
+Write-Host 'Verifying Fly machine status...'
+Invoke-Fly -Arguments @('status', '--app', $AppName)
 
-Write-Host "Checking public HTTPS response..."
+Write-Host 'Checking public HTTPS response...'
 $healthy = $false
 try {
     $response = Invoke-WebRequest -Uri $baseUrl -MaximumRedirection 5 -UseBasicParsing -TimeoutSec 30
     $healthy = ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500)
-} catch {
+}
+catch {
     Write-Warning "Public HTTPS verification failed: $($_.Exception.Message)"
 }
 if (-not $healthy) {
     throw "Deployment completed but the public HTTPS health check did not succeed. Inspect: flyctl logs --no-tail -a $AppName"
 }
 
-Write-Host ""
-Write-Host "OmniRoute public deployment is reachable." -ForegroundColor Green
+Write-Host ''
+Write-Host 'OmniRoute public deployment is reachable.' -ForegroundColor Green
 Write-Host "Base URL: $baseUrl"
 Write-Host "AIRA API root: $baseUrl/v1"
 Write-Host "OmniRoute release: $tag"
-Write-Host ""
-Write-Host "IMPORTANT: save this generated initial administrator password in a password manager now; it is shown only by this script:" -ForegroundColor Yellow
+Write-Host ''
+Write-Host 'IMPORTANT: save this generated initial administrator password in a password manager now; it is shown only by this script:' -ForegroundColor Yellow
 Write-Host $initialPassword -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Next: sign in to the OmniRoute dashboard, create a dedicated endpoint API key for AIRA, and store that key in Vercel encrypted environment variables. Do not commit or paste it into client code."
+Write-Host ''
+Write-Host 'Next: sign in to the OmniRoute dashboard, create a dedicated endpoint API key for AIRA, and store that key in Vercel encrypted environment variables. Do not commit or paste it into client code.'
