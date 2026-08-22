@@ -36,7 +36,8 @@ function Set-VercelValue(
     if ($LASTEXITCODE -ne 0) {
         throw "Could not set Vercel environment variable '$Name'."
     }
-    Write-Host "  set  $Name$($(if ($Sensitive) { ' [sensitive]' } else { '' }))"
+    $suffix = if ($Sensitive) { ' [sensitive]' } else { '' }
+    Write-Host "  set  $Name$suffix"
 }
 
 Require-Command 'vercel'
