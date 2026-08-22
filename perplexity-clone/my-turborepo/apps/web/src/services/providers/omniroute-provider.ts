@@ -11,6 +11,10 @@ import type { AIProvider, ProviderOptions } from "./provider-router";
  * AIRA provider interface means AIRA's safety, publication, residency and
  * circuit-breaker layers remain authoritative while OmniRoute handles the
  * upstream provider/model fleet.
+ *
+ * SDK retries are intentionally disabled. OmniRoute owns model/account fallback
+ * inside the gateway and AIRA owns gateway-level failover, so another hidden
+ * retry layer would multiply latency and request cost.
  */
 export class OmniRouteProvider implements AIProvider {
 	readonly providerId = "omniroute";
@@ -21,11 +25,14 @@ export class OmniRouteProvider implements AIProvider {
 		readonly baseURL: string;
 		readonly apiKey: string;
 		readonly model?: string;
+		readonly timeoutMs?: number;
 	}) {
 		this.defaultModel = args.model?.trim() || "auto";
 		this.client = new OpenAI({
 			apiKey: args.apiKey.trim(),
 			baseURL: args.baseURL.replace(/\/$/, ""),
+			timeout: args.timeoutMs ?? 45_000,
+			maxRetries: 0,
 		});
 	}
 
@@ -50,8 +57,8 @@ export class OmniRouteProvider implements AIProvider {
 
 		for await (const chunk of stream) {
 			const delta = chunk.choices[0]?.delta;
-			if (delta?.content) yield delta.content;
-			if (delta?.refusal) yield delta.refusal;
+			if (typeof delta?.content === "string" && delta.content) yield delta.content;
+			if (typeof delta?.refusal === "string" && delta.refusal) yield delta.refusal;
 		}
 	}
 }
