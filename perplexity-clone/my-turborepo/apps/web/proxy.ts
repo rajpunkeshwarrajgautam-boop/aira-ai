@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
 import { authConfig } from "./auth.config";
 import { isOmniRoutePreviewTestAccessEnabled } from "./lib/omniroute-preview-access";
@@ -132,7 +132,7 @@ const authenticatedProxy = auth((req) => {
  * This path is impossible in production because the helper requires
  * VERCEL_ENV=preview and the explicit preview-only flag.
  */
-export default function proxy(req: NextRequest) {
+export default function proxy(req: NextRequest, event: NextFetchEvent) {
 	const { pathname } = req.nextUrl;
 	if (
 		isOmniRoutePreviewTestAccessEnabled() &&
@@ -140,7 +140,7 @@ export default function proxy(req: NextRequest) {
 	) {
 		return NextResponse.next();
 	}
-	return authenticatedProxy(req);
+	return authenticatedProxy(req, event);
 }
 
 export const config = {
