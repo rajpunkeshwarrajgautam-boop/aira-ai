@@ -59,7 +59,7 @@ function groupLabel(iso: string): "Today" | "Previous 7 Days" | "Older" {
 }
 
 const APP_RAIL = [
-	{ href: "/", label: "Chat", icon: MessageSquare, active: true },
+	{ href: "/", label: "Chat", icon: MessageSquare },
 	{ href: "/agents", label: "Agents", icon: Bot },
 	{ href: "/knowledge", label: "Files", icon: FolderOpen },
 	{ href: "/local-ai", label: "Local AI", icon: Cpu },
@@ -123,13 +123,14 @@ export function ConversationSidebar({
 				<div className="flex w-full flex-1 flex-col items-center gap-1.5">
 					{APP_RAIL.map((item) => {
 						const Icon = item.icon;
+						const active = item.href === "/";
 						return (
 							<Link
 								key={item.href}
 								href={item.href}
 								className={cn(
 									"group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium text-content-tertiary transition",
-									item.active ? "bg-violet-500/15 text-violet-300" : "hover:bg-white/[0.045] hover:text-content-primary",
+									active ? "bg-violet-500/15 text-violet-300" : "hover:bg-white/[0.045] hover:text-content-primary",
 								)}
 							>
 								<Icon className="size-[18px]" strokeWidth={1.65} aria-hidden />
