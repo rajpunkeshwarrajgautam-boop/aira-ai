@@ -33,25 +33,37 @@ function collectTextFiles(root: string): string[] {
 	return results;
 }
 
-test("OmniRoute API routes require an authenticated AIRA session", () => {
+test("OmniRoute API routes require an authenticated AIRA session outside preview test mode", () => {
 	for (const route of [
 		"app/api/omniroute/status/route.ts",
 		"app/api/omniroute/models/route.ts",
 		"app/api/omniroute/test/route.ts",
 	]) {
 		const source = read(route);
-		assert.ok(source.includes("await auth()"), `${route} must authenticate before gateway access`);
+		assert.ok(source.includes("isOmniRoutePreviewTestAccessEnabled()"), `${route} must gate preview access explicitly`);
+		assert.ok(source.includes("await auth()"), `${route} must authenticate outside preview test mode`);
 		assert.ok(source.includes("UNAUTHENTICATED"), `${route} must fail closed for signed-out users`);
 		assert.ok(source.includes("status: 401"), `${route} must return HTTP 401 when signed out`);
+		assert.ok(
+			source.indexOf("isOmniRoutePreviewTestAccessEnabled()") < source.indexOf("await auth()"),
+			`${route} must evaluate the preview gate before invoking Auth.js`,
+		);
 	}
 });
 
-test("OmniRoute preview test bypass is explicit and preview-only", () => {
+test("OmniRoute preview test bypass is explicit, preview-only, and runs before Auth.js", () => {
 	const helper = read("lib/omniroute-preview-access.ts");
 	const proxy = read("proxy.ts");
+	const layout = read("app/layout.tsx");
+	const providers = read("app/providers.tsx");
 	assert.ok(helper.includes('process.env.VERCEL_ENV === "preview"'));
 	assert.ok(helper.includes('process.env.OMNIROUTE_PREVIEW_TEST_BYPASS === "true"'));
 	assert.ok(proxy.includes('pathname === "/omniroute" || pathname.startsWith("/api/omniroute/")'));
+	assert.ok(proxy.includes("const authenticatedProxy = auth("));
+	assert.ok(proxy.includes("return authenticatedProxy(req)"));
+	assert.ok(proxy.indexOf("isOmniRoutePreviewTestAccessEnabled()") < proxy.lastIndexOf("return authenticatedProxy(req)"));
+	assert.ok(layout.includes("disableAuth={previewTestAccess}"));
+	assert.ok(providers.includes("if (disableAuth) return"));
 	assert.ok(!helper.includes('VERCEL_ENV === "production"'));
 });
 
