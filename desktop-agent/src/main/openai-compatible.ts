@@ -30,3 +30,9 @@ export function openAICompatibleAuthHeaders(baseUrl: string, apiKey?: string | n
   if (isLoopbackOpenAICompatibleUrl(baseUrl)) return {}
   throw new Error('Remote API key is not configured in the encrypted vault. API keys are optional only for loopback OpenAI-compatible endpoints such as local llama.cpp.')
 }
+
+export function chooseOpenAICompatibleModel(configuredModel: string, availableModels: string[]): string {
+  const configured = configuredModel.trim()
+  if (configured && availableModels.includes(configured)) return configured
+  return availableModels.find(Boolean) || configured
+}
