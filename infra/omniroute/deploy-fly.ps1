@@ -24,8 +24,15 @@ function Require-Command([string]$Name) {
 
 function New-HexSecret([int]$Bytes) {
     $buffer = New-Object byte[] $Bytes
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($buffer)
-    return [Convert]::ToHexString($buffer).ToLowerInvariant()
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $rng.GetBytes($buffer)
+    }
+    finally {
+        $rng.Dispose()
+    }
+
+    return (([System.BitConverter]::ToString($buffer) -replace '-', '').ToLowerInvariant())
 }
 
 function Invoke-Fly([string[]]$Arguments) {
@@ -82,7 +89,8 @@ if ($toml -match $appPattern) {
 if ($toml -match $regionPattern) {
     $toml = [regex]::Replace($toml, $regionPattern, "primary_region = '$Region'")
 }
-Set-Content -Path $flyToml -Value $toml -Encoding utf8NoBOM
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($flyToml, $toml, $utf8NoBom)
 
 Write-Host 'Ensuring Fly application exists...'
 & flyctl status -a $AppName *> $null
