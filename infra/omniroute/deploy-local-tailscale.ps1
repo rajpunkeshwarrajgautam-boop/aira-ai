@@ -84,7 +84,10 @@ if ([string]::IsNullOrWhiteSpace($tag) -or $tag -notmatch '^v?\d+\.\d+\.\d+$') {
     throw 'GitHub did not return a valid immutable OmniRoute release tag.'
 }
 $version = $tag.TrimStart('v')
-$image = "diegosouzapw/omniroute:$version"
+# OmniRoute publishes the same immutable release manifest to Docker Hub and GHCR.
+# Prefer GHCR on Windows because Docker Hub's auth endpoint is frequently affected
+# by local/ISP proxy interception even when the Docker engine itself is healthy.
+$image = "ghcr.io/diegosouzapw/omniroute:$version"
 Write-Host "Using OmniRoute $tag ($image)"
 
 $dataDir = Join-Path $StateDir 'data'
