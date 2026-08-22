@@ -5,7 +5,12 @@ param(
     [string]$BaseUrl,
 
     [ValidateSet('production', 'preview')]
-    [string]$Target = 'production'
+    [string]$Target = 'production',
+
+    [ValidateNotNullOrEmpty()]
+    [string]$Model = 'nvidia/openai/gpt-oss-20b',
+
+    [string]$GitBranch = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,29 +44,38 @@ function Set-VercelValue(
     [string]$Name,
     [string]$Value,
     [string]$Environment,
+    [string]$Branch,
     [switch]$Sensitive
 ) {
-    [void](Invoke-VercelQuiet @('env', 'rm', $Name, $Environment, '--yes'))
-    # A non-zero result here normally means the variable did not exist yet.
-    # The add operation below remains authoritative.
+    $scope = @($Environment)
+    if (-not [string]::IsNullOrWhiteSpace($Branch)) {
+        $scope += $Branch
+    }
 
+    # Prefer update so rerunning this script is idempotent. If the variable does
+    # not exist at the requested environment/branch scope, fall back to add.
     $previous = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        if ($Sensitive) {
-            $Value | & $script:VercelCommand env add $Name $Environment --sensitive *> $null
-        }
-        else {
-            $Value | & $script:VercelCommand env add $Name $Environment *> $null
-        }
+        $Value | & $script:VercelCommand env update $Name @scope *> $null
         $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+            if ($Sensitive) {
+                $Value | & $script:VercelCommand env add $Name @scope --sensitive *> $null
+            }
+            else {
+                $Value | & $script:VercelCommand env add $Name @scope *> $null
+            }
+            $exitCode = $LASTEXITCODE
+        }
     }
     finally {
         $ErrorActionPreference = $previous
     }
 
     if ($exitCode -ne 0) {
-        throw "Could not set Vercel environment variable '$Name'."
+        $scopeLabel = if ($Branch) { "$Environment ($Branch)" } else { $Environment }
+        throw "Could not set Vercel environment variable '$Name' for $scopeLabel."
     }
     $suffix = if ($Sensitive) { ' [sensitive]' } else { '' }
     Write-Host "  set  $Name$suffix"
@@ -91,6 +105,10 @@ if (-not (Test-Path '.vercel/project.json')) {
     exit 21
 }
 
+if ($Target -eq 'production' -and -not [string]::IsNullOrWhiteSpace($GitBranch)) {
+    throw 'GitBranch can only be used with the preview target.'
+}
+
 $uri = [Uri]$BaseUrl
 if ($uri.Scheme -ne 'https') {
     throw 'BaseUrl must use HTTPS.'
@@ -113,19 +131,20 @@ if ([string]::IsNullOrWhiteSpace($plainApiKey)) {
 }
 
 try {
-    Write-Host "Applying OmniRoute variables to Vercel $Target..."
-    Set-VercelValue 'OMNIROUTE_ENABLED' 'true' $Target
-    Set-VercelValue 'OMNIROUTE_BASE_URL' $apiRoot $Target
-    Set-VercelValue 'OMNIROUTE_API_KEY' $plainApiKey $Target -Sensitive
-    Set-VercelValue 'OMNIROUTE_MODEL' 'auto' $Target
-    Set-VercelValue 'OMNIROUTE_TIMEOUT_MS' '45000' $Target
-    Set-VercelValue 'DEFAULT_PRO_PROVIDER' 'omniroute' $Target
-    Set-VercelValue 'DEFAULT_FREE_PROVIDER' 'nvidia' $Target
+    $scopeLabel = if ($GitBranch) { "$Target ($GitBranch)" } else { $Target }
+    Write-Host "Applying OmniRoute variables to Vercel $scopeLabel..."
+    Set-VercelValue 'OMNIROUTE_ENABLED' 'true' $Target $GitBranch
+    Set-VercelValue 'OMNIROUTE_BASE_URL' $apiRoot $Target $GitBranch
+    Set-VercelValue 'OMNIROUTE_API_KEY' $plainApiKey $Target $GitBranch -Sensitive
+    Set-VercelValue 'OMNIROUTE_MODEL' $Model $Target $GitBranch
+    Set-VercelValue 'OMNIROUTE_TIMEOUT_MS' '45000' $Target $GitBranch
+    Set-VercelValue 'DEFAULT_PRO_PROVIDER' 'omniroute' $Target $GitBranch
+    Set-VercelValue 'DEFAULT_FREE_PROVIDER' 'nvidia' $Target $GitBranch
     if ($Target -eq 'preview') {
-        Set-VercelValue 'OMNIROUTE_PREVIEW_TEST_BYPASS' 'true' $Target
+        Set-VercelValue 'OMNIROUTE_PREVIEW_TEST_BYPASS' 'true' $Target $GitBranch
     }
     else {
-        Set-VercelValue 'OMNIROUTE_PREVIEW_TEST_BYPASS' 'false' $Target
+        Set-VercelValue 'OMNIROUTE_PREVIEW_TEST_BYPASS' 'false' $Target $GitBranch
     }
 }
 finally {
@@ -135,7 +154,8 @@ finally {
 }
 
 Write-Host ''
-Write-Host "OmniRoute variables are configured for Vercel $Target." -ForegroundColor Green
+Write-Host "OmniRoute variables are configured for Vercel $scopeLabel." -ForegroundColor Green
+Write-Host "Default model: $Model" -ForegroundColor Green
 Write-Host 'They take effect only on a new deployment.'
 if ($Target -eq 'production') {
     Write-Host 'Redeploy after PR #92 is approved/merged: vercel --prod' -ForegroundColor Cyan
