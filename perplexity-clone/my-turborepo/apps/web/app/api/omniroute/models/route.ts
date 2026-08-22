@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
-import { fetchOmniRouteModels } from "@services/omniroute/gateway";
+import { fetchOmniRouteModels, OmniRouteGatewayError } from "@services/omniroute/gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,30 +14,38 @@ export async function GET(req: Request): Promise<Response> {
 	const config = getOmniRouteConfigOrDisabled();
 	if (!config.configured) {
 		return Response.json(
-			{ error: { code: "OMNIROUTE_NOT_CONFIGURED", message: "OmniRoute is not configured." } },
+			{ error: { code: "OMNIROUTE_NOT_CONFIGURED", message: config.configurationError ?? "OmniRoute is not configured." } },
 			{ status: 503, headers: { "Cache-Control": "no-store" } },
 		);
 	}
 
 	try {
-		const snapshot = await fetchOmniRouteModels();
-		const q = new URL(req.url).searchParams.get("q")?.trim().toLowerCase() ?? "";
+		const snapshot = await fetchOmniRouteModels(req.signal);
+		const q = new URL(req.url).searchParams.get("q")?.trim().toLowerCase().slice(0, 200) ?? "";
 		const models = q
 			? snapshot.models.filter((model) => `${model.id} ${model.ownedBy ?? ""}`.toLowerCase().includes(q))
 			: snapshot.models;
 		return Response.json(
-			{ models, total: snapshot.models.length, latencyMs: snapshot.latencyMs },
+			{
+				models,
+				total: snapshot.models.length,
+				latencyMs: snapshot.latencyMs,
+				checkedAt: snapshot.checkedAt,
+				version: snapshot.version,
+			},
 			{ headers: { "Cache-Control": "no-store" } },
 		);
 	} catch (error) {
+		const gatewayError = error instanceof OmniRouteGatewayError ? error : null;
+		const status = gatewayError?.code === "OMNIROUTE_TIMEOUT" ? 504 : 502;
 		return Response.json(
 			{
 				error: {
-					code: "OMNIROUTE_UNAVAILABLE",
-					message: error instanceof Error ? error.message : "OmniRoute model discovery failed.",
+					code: gatewayError?.code ?? "OMNIROUTE_UNAVAILABLE",
+					message: gatewayError?.message ?? "OmniRoute model discovery failed.",
 				},
 			},
-			{ status: 502, headers: { "Cache-Control": "no-store" } },
+			{ status, headers: { "Cache-Control": "no-store" } },
 		);
 	}
 }
