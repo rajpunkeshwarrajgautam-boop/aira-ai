@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
 
-type Provider = { id: "openai" | "nvidia" | "self-hosted"; label: string; configured: boolean; model: string };
+type Provider = { id: "openai" | "nvidia" | "omniroute"; label: string; configured: boolean; model: string };
 type Result = { providerId: string; ok: boolean; text?: string; latencyMs?: number; error?: string };
 
 export default function ComparePage() {
@@ -62,7 +62,7 @@ export default function ComparePage() {
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">Evaluation lab</p>
                 <h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">Compare models side by side</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9098]">Send the same prompt to AIRA&apos;s configured providers and compare independent responses, latency, and model identity.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9098]">Send the same prompt to AIRA&apos;s configured providers, including OmniRoute&apos;s smart gateway, and compare independent responses, latency, and model identity.</p>
               </div>
               <div className="rounded-full border border-white/[0.08] bg-[#111419] px-3 py-1.5 text-xs text-[#8b9098]">{readyCount} providers ready</div>
             </div>
