@@ -26,6 +26,19 @@ test("maps anonymous and Free searches to the free provider tier", () => {
 	);
 });
 
+test("keeps NVIDIA as the Free provider when deployment configuration is stale", () => {
+	assert.deepEqual(
+		resolveProviderRoute("free", {
+			DEFAULT_FREE_PROVIDER: "omniroute",
+			DEFAULT_PRO_PROVIDER: "omniroute",
+		}),
+		{
+			primaryProviderId: "nvidia",
+			fallbackProviderId: "nvidia",
+		},
+	);
+});
+
 test("maps paid searches to the Pro provider with the free provider as fallback", () => {
 	for (const plan of [BillingPlan.PRO, BillingPlan.TEAM]) {
 		assert.equal(providerAccessTierForBillingPlan(plan), "pro");
