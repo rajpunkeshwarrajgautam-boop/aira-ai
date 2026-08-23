@@ -29,6 +29,9 @@ test("composer exposes real commands, tools, and voice input", () => {
 	assert.ok(searchBox.includes("aira:command"));
 	assert.ok(searchBox.includes("SpeechRecognition"));
 	assert.ok(searchBox.includes("Start voice input"));
+	assert.ok(searchBox.includes("commandMenuDismissedValue"));
+	assert.ok(searchBox.includes('event.key === "Escape" && showCommandMenu'));
+	assert.ok(searchBox.includes("setCommandMenuDismissedValue(value)"));
 });
 
 test("conversation sidebar matches reference app rail and searchable history", () => {

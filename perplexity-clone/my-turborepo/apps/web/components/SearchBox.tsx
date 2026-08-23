@@ -80,6 +80,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	const contextMenuId = useId();
 	const commandMenuId = useId();
 	const [contextMenuOpen, setContextMenuOpen] = useState(false);
+	const [commandMenuDismissedValue, setCommandMenuDismissedValue] = useState<string | null>(null);
 	const [listening, setListening] = useState(false);
 	const [voiceAvailable, setVoiceAvailable] = useState(false);
 	const resize = useCallback(() => {
@@ -153,7 +154,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		const needle = value.slice(1).trim().toLowerCase();
 		return QUICK_COMMANDS.filter((item) => !needle || `${item.command} ${item.label} ${item.description}`.toLowerCase().includes(needle));
 	}, [value]);
-	const showCommandMenu = !busy && value.startsWith("/") && !value.includes(" ") && commandMatches.length > 0;
+	const showCommandMenu = !busy && value.startsWith("/") && !value.includes(" ") && commandMatches.length > 0 && commandMenuDismissedValue !== value;
 
 	const handleSubmit = useCallback(() => {
 		const normalized = value.trim().toLowerCase();
@@ -200,13 +201,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 			{showCommandMenu ? (
 				<div id={commandMenuId} aria-label="Composer commands" className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-xl border border-white/[0.09] bg-[#111827] shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
 					<div className="flex items-center gap-2 border-b border-white/[0.07] px-3 py-2 text-[9px] font-medium uppercase tracking-[0.12em] text-content-tertiary"><Command className="size-3.5" aria-hidden />Commands</div>
-					<div className="p-1.5">{commandMatches.map((item) => <button key={item.command} type="button" onClick={() => { if (item.command === "/history") { window.location.assign("/workspace-search"); return; } onChange(item.command); requestAnimationFrame(() => taRef.current?.focus()); }} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"><span className="w-14 shrink-0 font-mono text-[10px] text-accent">{item.command.trim()}</span><span className="min-w-0"><strong className="block text-[11px] font-medium text-content-primary">{item.label}</strong><small className="mt-0.5 block truncate text-[10px] text-content-tertiary">{item.description}</small></span></button>)}</div>
+					<div className="p-1.5">{commandMatches.map((item) => <button key={item.command} type="button" onClick={() => { setCommandMenuDismissedValue(null); if (item.command === "/history") { window.location.assign("/workspace-search"); return; } onChange(item.command); requestAnimationFrame(() => taRef.current?.focus()); }} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"><span className="w-14 shrink-0 font-mono text-[10px] text-accent">{item.command.trim()}</span><span className="min-w-0"><strong className="block text-[11px] font-medium text-content-primary">{item.label}</strong><small className="mt-0.5 block truncate text-[10px] text-content-tertiary">{item.description}</small></span></button>)}</div>
 				</div>
 			) : null}
 
 			<div className={cn("aira-enterprise-composer overflow-visible rounded-2xl border border-white/[0.1] bg-[#0d1423] shadow-[0_18px_50px_rgba(0,0,0,0.24)]", busy && "opacity-95")}>
 				<label htmlFor="search-query" className="sr-only">Message AIRA AI</label>
-				<textarea ref={taRef} id="search-query" name="query" rows={1} value={value} disabled={busy} aria-controls={showCommandMenu ? commandMenuId : undefined} aria-expanded={showCommandMenu} onChange={(event) => { onChange(event.target.value); resize(); }} onInput={resize} onKeyDown={(event) => { if (event.key === "Escape" && contextMenuOpen) { setContextMenuOpen(false); return; } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleSubmit(); } }} placeholder={placeholder} className="min-h-[76px] w-full resize-none rounded-t-2xl bg-transparent px-4 pb-2 pt-4 text-[14px] leading-6 text-content-primary outline-none placeholder:text-content-tertiary disabled:cursor-not-allowed sm:px-5 sm:text-[15px]" />
+				<textarea ref={taRef} id="search-query" name="query" rows={1} value={value} disabled={busy} aria-controls={showCommandMenu ? commandMenuId : undefined} aria-expanded={showCommandMenu} onChange={(event) => { setCommandMenuDismissedValue(null); onChange(event.target.value); resize(); }} onInput={resize} onKeyDown={(event) => { if (event.key === "Escape" && contextMenuOpen) { setContextMenuOpen(false); return; } if (event.key === "Escape" && showCommandMenu) { setCommandMenuDismissedValue(value); return; } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleSubmit(); } }} placeholder={placeholder} className="min-h-[76px] w-full resize-none rounded-t-2xl bg-transparent px-4 pb-2 pt-4 text-[14px] leading-6 text-content-primary outline-none placeholder:text-content-tertiary disabled:cursor-not-allowed sm:px-5 sm:text-[15px]" />
 
 				<div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 sm:px-4">
 					<div className="relative flex min-w-0 flex-wrap items-center gap-1.5">
