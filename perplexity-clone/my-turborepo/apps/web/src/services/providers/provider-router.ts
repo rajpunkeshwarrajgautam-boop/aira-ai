@@ -22,12 +22,17 @@ import {
 } from "./provider-health";
 import { providerAllowedByResidency } from "./residency-policy";
 import {
+	resolveProviderRoute,
+	type ProviderAccessTier,
+} from "./provider-selection";
+import {
 	ProviderRouter as CoreProviderRouter,
 	type AIProvider,
 	type ProviderOptions,
 } from "./provider-router-core";
 
 export type { AIProvider, ProviderOptions } from "./provider-router-core";
+export type { ProviderAccessTier } from "./provider-selection";
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -102,11 +107,15 @@ export class ProviderRouter {
 		this.fallbackCore?.registerProvider(provider);
 	}
 
-	static async createDefault(): Promise<ProviderRouter> {
+	static async createDefault(tier: ProviderAccessTier = "pro"): Promise<ProviderRouter> {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
 		const { OmniRouteProvider } = await import("./omniroute-provider");
-		const router = new ProviderRouter();
+		const providerRoute = resolveProviderRoute(tier);
+		const router = new ProviderRouter(
+			providerRoute.primaryProviderId,
+			providerRoute.fallbackProviderId,
+		);
 
 		const openAiKey = process.env.OPENAI_API_KEY;
 		if (openAiKey) router.registerProvider(new OpenAIProvider(openAiKey));
