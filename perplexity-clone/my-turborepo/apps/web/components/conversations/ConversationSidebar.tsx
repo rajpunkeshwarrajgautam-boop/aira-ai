@@ -138,7 +138,7 @@ export function ConversationSidebar({
 			aria-label="Conversation sidebar"
 		>
 			<nav className="aira-app-rail flex w-[72px] shrink-0 flex-col items-center border-r border-border-subtle px-2 py-3" aria-label="AIRA applications">
-				<Link href="/" className="mb-4 grid size-11 place-items-center rounded-2xl border border-white/10 bg-[#11182a] text-[13px] font-semibold text-white shadow-sm" aria-label="AIRA AI home">
+				<Link href="/" className="mb-4 grid size-11 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-[13px] font-semibold text-accent" aria-label="AIRA AI home">
 					A
 				</Link>
 				<div className="flex w-full flex-1 flex-col items-center gap-1.5">
@@ -149,9 +149,10 @@ export function ConversationSidebar({
 							<Link
 								key={item.href}
 								href={item.href}
+								aria-current={active ? "page" : undefined}
 								className={cn(
 									"group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium text-content-tertiary transition",
-									active ? "bg-violet-500/15 text-violet-300" : "hover:bg-white/[0.045] hover:text-content-primary",
+									active ? "bg-accent/15 text-accent" : "hover:bg-white/[0.045] hover:text-content-primary",
 								)}
 							>
 								<Icon className="size-[18px]" strokeWidth={1.65} aria-hidden />
@@ -182,9 +183,9 @@ export function ConversationSidebar({
 						type="button"
 						onClick={onCreateConversation}
 						disabled={disabled}
-						className="aira-new-chat flex h-11 w-full items-center justify-between rounded-xl border border-violet-400/15 bg-gradient-to-r from-violet-600/45 to-indigo-600/30 px-3 text-[12px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition hover:from-violet-600/55 hover:to-indigo-600/40 disabled:opacity-50"
+						className="aira-new-chat flex h-11 w-full items-center justify-between rounded-xl border border-accent/20 bg-accent px-3 text-[12px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition hover:bg-accent/90 disabled:opacity-50"
 					>
-						<span className="flex items-center gap-2.5"><Plus className="size-4" strokeWidth={1.8} aria-hidden />New Chat</span>
+						<span className="flex items-center gap-2.5"><Plus className="size-4" strokeWidth={1.8} aria-hidden />New conversation</span>
 						<span className="rounded-md border border-white/10 bg-black/15 px-1.5 py-0.5 font-mono text-[9px] text-violet-100/75">⌘⇧O</span>
 					</button>
 
@@ -194,7 +195,7 @@ export function ConversationSidebar({
 							value={filter}
 							onChange={(event) => setFilter(event.target.value)}
 							placeholder="Search conversations"
-							className="h-10 w-full rounded-xl border border-white/[0.08] bg-[#0a0f1a] pl-9 pr-8 text-[11px] text-content-primary outline-none placeholder:text-content-tertiary transition focus:border-violet-400/35"
+							className="h-10 w-full rounded-xl border border-white/[0.08] bg-[#0a0f1a] pl-9 pr-8 text-[11px] text-content-primary outline-none placeholder:text-content-tertiary transition focus:border-accent/40"
 							aria-label="Search recent conversations"
 						/>
 						{filter ? (
@@ -217,27 +218,27 @@ export function ConversationSidebar({
 							if (!rows?.length) return null;
 							return (
 								<section key={label} className="mb-4" aria-label={`${label} conversations`}>
-									<p className="px-2 pb-1.5 pt-2 text-[9px] font-medium text-content-tertiary">{label}</p>
+									<h2 className="px-2 pb-1.5 pt-2 text-[10px] font-semibold text-content-tertiary">{label}</h2>
 									<ul className="space-y-0.5">
 										{rows.map((conversation) => {
-											const selected = conversation.id === selectedConversationId;
-											return (
-												<li key={conversation.id}>
-													<button
-														type="button"
-														onClick={() => void onSelectConversation(conversation.id)}
-														disabled={disabled}
-														aria-current={selected ? "page" : undefined}
-														className={cn(
-															"group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition",
-															selected ? "bg-gradient-to-r from-violet-500/20 to-indigo-500/10 text-violet-100" : "text-content-secondary hover:bg-white/[0.04] hover:text-content-primary",
-														)}
-													>
-														<span className="min-w-0 flex-1 truncate text-[11px] font-medium">{conversation.title}</span>
-														<span className="shrink-0 text-[8px] tabular-nums text-content-tertiary">{formatRelative(conversation.lastMessageAt)}</span>
-													</button>
-												</li>
-											);
+								const selected = conversation.id === selectedConversationId;
+								return (
+									<li key={conversation.id}>
+										<button
+											type="button"
+											onClick={() => void onSelectConversation(conversation.id)}
+											disabled={disabled}
+											aria-current={selected ? "page" : undefined}
+											className={cn(
+												"group flex min-h-10 w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left transition",
+												selected ? "border-accent/15 bg-accent/10 text-content-primary" : "text-content-secondary hover:bg-white/[0.04] hover:text-content-primary",
+											)}
+										>
+											<span className="min-w-0 flex-1 truncate text-[12px] font-medium">{conversation.title}</span>
+											<span className="shrink-0 text-[9px] tabular-nums text-content-tertiary">{formatRelative(conversation.lastMessageAt)}</span>
+										</button>
+									</li>
+								);
 										})}
 									</ul>
 								</section>

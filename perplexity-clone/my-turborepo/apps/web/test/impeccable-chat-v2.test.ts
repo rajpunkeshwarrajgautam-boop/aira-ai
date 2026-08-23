@@ -48,7 +48,8 @@ test("message workspace has live inspector and non-placeholder actions", () => {
 	const messages = read("components/conversations/ConversationMessageList.tsx");
 	assert.ok(messages.includes("aira-live-inspector"));
 	assert.ok(messages.includes("AIRA Auto"));
-	assert.ok(messages.includes("OmniRoute + AIRA policy"));
+	assert.ok(messages.includes("Provider routing follows workspace policy"));
+	assert.ok(!messages.includes("OmniRoute + AIRA policy"), "chat chrome must not imply a configured gateway");
 	assert.ok(messages.includes("hostnameFromUrl"));
 	assert.ok(messages.includes("navigator.clipboard.writeText"));
 	assert.ok(messages.includes("navigator.share"));
