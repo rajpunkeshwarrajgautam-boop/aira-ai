@@ -21,13 +21,15 @@ test("compare API publishes each target incrementally over NDJSON", () => {
 	assert.ok(route.includes("parsed.data.targets.map((target) => runTarget"));
 
 	const streamLoop = route.match(
-		/for await \(const delta of router\.streamChat[\s\S]*?publish\(\{ type: "complete"/,
+		/for await \(const delta of router\.streamChat[\s\S]*?publish\(\{\s*type: "complete"/,
 	)?.[0];
 	assert.ok(streamLoop, "compare target must stream provider output before completion");
-	assert.ok(
-		streamLoop.indexOf('publish({ type: "delta"') < streamLoop.indexOf('publish({ type: "complete"'),
-		"delta events must be published before the target completion event",
-	);
+
+	const deltaIndex = streamLoop.search(/publish\(\{\s*type: "delta"/);
+	const completeIndex = streamLoop.search(/publish\(\{\s*type: "complete"/);
+	assert.ok(deltaIndex >= 0, "compare target must publish incremental delta events");
+	assert.ok(completeIndex >= 0, "compare target must publish a completion event");
+	assert.ok(deltaIndex < completeIndex, "delta events must be published before completion");
 });
 
 test("compare workspace consumes streaming events independently per target", () => {
