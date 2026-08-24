@@ -72,6 +72,8 @@ function semanticEmbeddingFailureClass(error: unknown): string {
 			? (error as { status?: unknown }).status
 			: undefined;
 	if (status === 401 || status === 403) return "auth";
+	if (status === 408) return "timeout";
+	if (status === 413) return "request_too_large";
 	if (status === 429) return "rate_limit";
 	if (typeof status === "number" && status >= 500) return "upstream_5xx";
 	if (error instanceof Error && error.name.toLowerCase().includes("timeout")) return "timeout";
@@ -115,12 +117,19 @@ export function semanticEmbeddingVectorLiteral(values: readonly number[]): strin
 	return `[${values.join(",")}]`;
 }
 
+function inputCharacterLimit(route: SemanticEmbeddingRoute): number {
+	// Cloudflare's BGE Base endpoint documents a 512-token maximum. AIRA uses a
+	// conservative character bound instead of pretending it has the model's
+	// exact tokenizer server-side. Canonical memory/document text is not altered.
+	return route.providerId === "cloudflare" ? 1_200 : 12_000;
+}
+
 export async function embedTextWithRoute(
 	route: SemanticEmbeddingRoute,
 	text: string,
 	workload: SemanticEmbeddingWorkload,
 ): Promise<SemanticEmbeddingResult> {
-	const input = formatSemanticEmbeddingInput(route, text, workload).slice(0, 12_000);
+	const input = formatSemanticEmbeddingInput(route, text, workload).slice(0, inputCharacterLimit(route));
 	if (!input) throw new Error("Cannot embed empty text.");
 	const startedAt = Date.now();
 	try {
