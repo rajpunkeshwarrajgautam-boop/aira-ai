@@ -17,7 +17,14 @@ Cloudflare documents an OpenAI-compatible base URL of:
 
 Workers AI currently includes a 10,000-neuron daily free allocation. `@cf/baai/bge-base-en-v1.5` is priced at 6,058 neurons per million input tokens, so normal AIRA semantic-memory usage is intended to stay within the free allocation during the initial rollout. If the free allocation is exhausted, Cloudflare returns a rate-limit error and AIRA must degrade to lexical memory rather than cross to the paid semantic route.
 
-The user independently verified the real Workers AI endpoint with the dedicated account/token pair on 2026-08-24: `@cf/baai/bge-base-en-v1.5` returned exactly 768 finite numeric values. That proves provider compatibility, but does not replace the required AIRA Preview write/query and failure-isolation tests.
+A real operator verification on 2026-08-24 called the Workers AI OpenAI-compatible embeddings endpoint using the dedicated AIRA token and confirmed:
+
+- model: `@cf/baai/bge-base-en-v1.5`
+- vector length: 768
+- all returned vector values finite
+- observed request latency: 946 ms
+
+The token and raw vector were not shared with the repository or ChatGPT. This proves provider compatibility only; it does not replace the required AIRA Preview write/query and failure-isolation tests.
 
 ## Preview configuration
 
