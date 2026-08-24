@@ -46,12 +46,14 @@ function parseJsonObject(raw: string): unknown {
 }
 
 async function runStructuredWorker<T>(args: {
+	readonly userId: string;
 	readonly system: string;
 	readonly prompt: string;
 	readonly taskKind: "lead" | "email";
 	readonly schema: z.ZodType<T>;
 }): Promise<{ readonly data: T; readonly execution: Omit<HybridTextResult, "text"> }> {
 	const result = await runHybridTextTask({
+		userId: args.userId,
 		system: args.system,
 		prompt: args.prompt,
 		taskKind: args.taskKind,
@@ -68,8 +70,9 @@ async function runStructuredWorker<T>(args: {
 	return { data: parsed, execution };
 }
 
-export async function runLeadWorker(input: z.infer<typeof LeadWorkerInputSchema>) {
+export async function runLeadWorker(input: z.infer<typeof LeadWorkerInputSchema>, userId: string) {
 	return runStructuredWorker({
+		userId,
 		taskKind: "lead",
 		schema: LeadWorkerOutputSchema,
 		system:
@@ -78,8 +81,9 @@ export async function runLeadWorker(input: z.infer<typeof LeadWorkerInputSchema>
 	});
 }
 
-export async function runEmailWorker(input: z.infer<typeof EmailWorkerInputSchema>) {
+export async function runEmailWorker(input: z.infer<typeof EmailWorkerInputSchema>, userId: string) {
 	return runStructuredWorker({
+		userId,
 		taskKind: "email",
 		schema: EmailWorkerOutputSchema,
 		system:

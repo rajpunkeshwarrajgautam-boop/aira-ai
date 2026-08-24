@@ -1,3 +1,5 @@
+import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
+import { providerAccessTierForBillingPlan } from "@/lib/billing/provider-policy";
 import { ProviderRouter } from "@services/providers/provider-router";
 
 import { getLocalAiConfig } from "./config";
@@ -17,6 +19,7 @@ function errorMessage(error: unknown): string {
 }
 
 export async function runHybridTextTask(args: {
+	readonly userId: string;
 	readonly system: string;
 	readonly prompt: string;
 	readonly taskKind?: LocalTaskKind;
@@ -60,7 +63,9 @@ export async function runHybridTextTask(args: {
 		}
 	}
 
-	const router = await ProviderRouter.createDefault();
+	const entitlements = await getEffectiveEntitlements(args.userId);
+	const providerTier = providerAccessTierForBillingPlan(entitlements.billingPlan);
+	const router = await ProviderRouter.createDefault(providerTier);
 	let text = "";
 	for await (const delta of router.streamChat(
 		[
