@@ -54,6 +54,26 @@ test("Cloudflare BGE requests use the proven minimal request shape and bounded i
 	assert.match(semantic, /status === 429\) return "rate_limit"/);
 });
 
+test("Turborepo exposes every tiered semantic environment variable to the web build", () => {
+	const turbo = JSON.parse(repoSource("turbo.json")) as { globalEnv?: string[] };
+	const globalEnv = new Set(turbo.globalEnv ?? []);
+	for (const name of [
+		"SEMANTIC_MEMORY_ENABLED",
+		"AIRA_FREE_EMBEDDING_PROVIDER",
+		"AIRA_FREE_EMBEDDING_BASE_URL",
+		"AIRA_FREE_EMBEDDING_API_KEY",
+		"AIRA_FREE_EMBEDDING_MODEL",
+		"AIRA_FREE_EMBEDDING_DIMENSIONS",
+		"AIRA_PRO_EMBEDDING_PROVIDER",
+		"AIRA_PRO_EMBEDDING_BASE_URL",
+		"AIRA_PRO_EMBEDDING_API_KEY",
+		"AIRA_PRO_EMBEDDING_MODEL",
+		"AIRA_PRO_EMBEDDING_DIMENSIONS",
+	]) {
+		assert.ok(globalEnv.has(name), `${name} must be declared in turbo.json globalEnv`);
+	}
+});
+
 test("endpoint verifier requires HTTPS, auth rejection and a 768-dimensional finite vector", () => {
 	const verifier = repoSource("infra/semantic-embedding/scripts/verify_endpoint.py");
 	assert.match(verifier, /DEFAULT_MODEL = "@cf\/baai\/bge-base-en-v1\.5"/);
