@@ -17,11 +17,25 @@ export function resolveProviderRoute(
 	readonly fallbackProviderId: string;
 } {
 	const freeProviderId = FREE_TIER_PROVIDER_ID;
-	return {
-		primaryProviderId:
-			tier === "free"
-				? freeProviderId
-				: environment.DEFAULT_PRO_PROVIDER ?? "openai",
+	const primaryProviderId =
+		tier === "free"
+			? freeProviderId
+			: environment.DEFAULT_PRO_PROVIDER ?? "openai";
+	const route = {
+		primaryProviderId,
 		fallbackProviderId: freeProviderId,
 	};
+
+	if (process.env.NODE_ENV === "production") {
+		console.info(
+			"[ProviderRouter] route selected",
+			JSON.stringify({
+				tier,
+				primaryProviderId: route.primaryProviderId,
+				fallbackProviderId: route.fallbackProviderId,
+			}),
+		);
+	}
+
+	return route;
 }
