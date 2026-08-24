@@ -138,8 +138,8 @@ model BillingSubscription {
   currentPeriodEnd         DateTime?
   cancelAtPeriodEnd        Boolean             @default(false)
   teamSeats                Int                 @default(1)
-  createdAt                DateTime            @default(now())
-  updatedAt                DateTime            @updatedAt
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 }
 
 /// Monthly search usage (UTC calendar month), enforced per billing user.
@@ -156,7 +156,7 @@ model UsageRecord {
   @@unique([userId, periodStart])
 }
 
-/// A user-owned execution submitted to the AutoGPT External API.
+/// A user-owned execution submitted to the autonomous agent runtimes.
 /// Only provider identifiers and execution results are stored; API keys remain server-only.
 model AgentRun {
   id                String         @id @default(cuid())
@@ -175,10 +175,28 @@ model AgentRun {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   completedAt       DateTime?
+  events            AgentRunEvent[]
 
   @@unique([userId, clientRequestId])
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, status, updatedAt(sort: Desc)])
+}
+
+/// Immutable, run-owned lifecycle facts surfaced in the Agent Run Center.
+/// Ownership is inherited from AgentRun; direct Supabase Data API access remains denied.
+model AgentRunEvent {
+  id        String         @id @default(cuid())
+  runId     String
+  run       AgentRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  eventKey  String
+  type      String
+  status    AgentRunStatus?
+  message   String         @db.Text
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  @@unique([runId, eventKey])
+  @@index([runId, createdAt])
 }
 
 /// Cashfree PG webhook idempotency (SHA-256 hex of raw body after signature verification).
@@ -281,32 +299,32 @@ model ResearchHistory {
 }
 
 model AnalyticsVisitorState {
-  anonymousId String   @id
+  anonymousId   String   @id
   firstLandedAt DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model AnalyticsSignupState {
-  userId String @id
+  userId      String   @id
   anonymousId String?
-  signupAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  signupAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AnalyticsEvent {
-  id String @id @default(cuid())
-  type AnalyticsEventType
+  id        String             @id @default(cuid())
+  type      AnalyticsEventType
   /** UTC day boundary for fast day-level aggregation. */
-  eventDay DateTime
-  createdAt DateTime @default(now())
+  eventDay  DateTime
+  createdAt DateTime           @default(now())
 
   anonymousId String?
-  userId String?
-  plan BillingPlan?
-  metadata Json?
+  userId      String?
+  plan        BillingPlan?
+  metadata    Json?
 
   @@index([eventDay])
   @@index([type, eventDay])
@@ -315,19 +333,19 @@ model AnalyticsEvent {
 }
 
 model ProductAnalyticsEvent {
-  id              String   @id @default(cuid())
-  event           String
-  surface         String?
-  userType        String?
-  queryLength     Int?
-  sourceCount     Int?
-  citationCount   Int?
-  citationIndex   Int?
-  sourceDomain    String?
-  conversationId  String?
-  messageId       String?
-  errorCode       String?
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  event          String
+  surface        String?
+  userType       String?
+  queryLength    Int?
+  sourceCount    Int?
+  citationCount  Int?
+  citationIndex  Int?
+  sourceDomain   String?
+  conversationId String?
+  messageId      String?
+  errorCode      String?
+  createdAt      DateTime @default(now())
 
   @@index([createdAt])
   @@index([event, createdAt])

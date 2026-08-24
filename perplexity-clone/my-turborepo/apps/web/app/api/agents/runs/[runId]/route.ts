@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import { AutoGptConfigError } from "@/lib/autogpt/config";
 import { getAgentRun, refreshAgentRun } from "@/lib/autogpt/runs";
@@ -16,6 +17,23 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 		...init,
 		headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) },
 	});
+}
+
+function statusMessage(status: string): string {
+	switch (status) {
+		case "RUNNING":
+			return "The autonomous runtime started executing this task.";
+		case "REVIEW":
+			return "The runtime paused this task for review.";
+		case "COMPLETED":
+			return "The autonomous task completed successfully.";
+		case "TERMINATED":
+			return "The autonomous task stopped before completion.";
+		case "FAILED":
+			return "The autonomous runtime reported that this task failed.";
+		default:
+			return "The task is queued for autonomous execution.";
+	}
 }
 
 export async function GET(_: Request, { params }: Params): Promise<Response> {
@@ -44,6 +62,18 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 				{ status: 404 },
 			);
 		}
+
+		if (run.status !== cached.status) {
+			await recordAgentRunEventBestEffort({
+				runId: run.id,
+				eventKey: `status:${run.status}`,
+				type: "STATUS_CHANGED",
+				status: run.status,
+				message: statusMessage(run.status),
+				metadata: { provider: run.provider },
+			});
+		}
+
 		return noStoreJson({ run });
 	} catch (error) {
 		if (
@@ -59,6 +89,15 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 					{ status: 404 },
 				);
 			}
+			const hourBucket = Math.floor(Date.now() / 3_600_000);
+			await recordAgentRunEventBestEffort({
+				runId: cached.id,
+				eventKey: `sync-warning:${hourBucket}`,
+				type: "SYNC_WARNING",
+				status: cached.status,
+				message: "Live runtime status was temporarily unavailable; AIRA kept the last verified state and will retry.",
+				metadata: { provider: cached.provider },
+			});
 			return noStoreJson({
 				run: cached,
 				syncWarning: "Live status is temporarily unavailable. AIRA will retry automatically.",
