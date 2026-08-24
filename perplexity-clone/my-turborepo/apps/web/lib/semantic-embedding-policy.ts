@@ -58,7 +58,7 @@ export function resolveSemanticEmbeddingRoute(
 		const baseURL = value(env, "AIRA_FREE_EMBEDDING_BASE_URL");
 		const apiKey = value(env, "AIRA_FREE_EMBEDDING_API_KEY");
 		const dimensions = configuredDimensions(env, "AIRA_FREE_EMBEDDING_DIMENSIONS");
-		if (!baseURL || !apiKey || dimensions === null) return null;
+		if (!baseURL || !baseURL.startsWith("https://") || !apiKey || dimensions === null) return null;
 		return {
 			tier,
 			providerId,
