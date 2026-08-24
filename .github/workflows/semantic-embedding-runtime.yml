@@ -1,0 +1,89 @@
+name: Semantic Embedding Runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/semantic-embedding-runtime.yml"
+      - "infra/semantic-embedding/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/semantic-embedding-runtime-assets.test.ts"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/semantic-embedding-runtime.yml"
+      - "infra/semantic-embedding/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/semantic-embedding-runtime-assets.test.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semantic-embedding-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Terraform at the module minimum
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.6"
+
+      - name: Validate shell and Python operator assets
+        run: |
+          bash -n infra/semantic-embedding/scripts/bootstrap-host.sh
+          shellcheck -S warning infra/semantic-embedding/scripts/bootstrap-host.sh
+          python -m py_compile infra/semantic-embedding/scripts/verify_endpoint.py
+          python infra/semantic-embedding/scripts/verify_endpoint.py --help >/dev/null
+
+      - name: Validate OCI Terraform at declared minimum version
+        run: |
+          terraform -chdir=infra/semantic-embedding/terraform-oci fmt -check -recursive
+          terraform -chdir=infra/semantic-embedding/terraform-oci init -backend=false -input=false
+          terraform -chdir=infra/semantic-embedding/terraform-oci validate
+
+      - name: Confirm Always Free resource boundary
+        run: |
+          module=infra/semantic-embedding/terraform-oci
+          if grep -rnE 'oci_core_nat_gateway|oci_load_balancer|oci_network_load_balancer|oci_database_autonomous_database|oci_containerengine_cluster|oci_database_db_system' "$module"; then
+            echo "::error::A billable OCI resource type appears in the FREE embedding module."
+            exit 1
+          fi
+          grep -q 'var.shape == "VM.Standard.A1.Flex"' "$module/variables.tf" \
+            || { echo "::error::The A1 shape lock was removed."; exit 1; }
+          grep -q 'default     = 1' "$module/variables.tf" \
+            || { echo "::error::The conservative 1-OCPU default was removed."; exit 1; }
+          grep -q 'condition     = var.instance_memory_gb <= var.instance_ocpus \* 6' "$module/main.tf" \
+            || { echo "::error::The A1 CPU/RAM ratio precondition was removed."; exit 1; }
+          echo "FREE embedding Terraform contains no known billable managed resource types."
+
+      - name: Confirm no credential or private host state is committed
+        run: |
+          if git ls-files infra/semantic-embedding | grep -E '(^|/)(terraform\.tfvars|\.env($|\.)|.*\.pem$|.*\.key$)'; then
+            echo "::error::A private environment, tfvars, key, or certificate file is tracked."
+            exit 1
+          fi
+          if grep -RnE '(sk-[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' infra/semantic-embedding; then
+            echo "::error::A credential-shaped literal is present in semantic embedding assets."
+            exit 1
+          fi
+          if grep -Rn 'NEXT_PUBLIC_.*EMBEDDING.*KEY' infra/semantic-embedding perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts; then
+            echo "::error::An embedding secret is exposed through a NEXT_PUBLIC variable."
+            exit 1
+          fi
+          echo "No committed semantic-runtime credential or private host state found."
