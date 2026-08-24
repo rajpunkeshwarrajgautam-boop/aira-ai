@@ -30,7 +30,7 @@ AIRA_FREE_EMBEDDING_MODEL=@cf/baai/bge-base-en-v1.5
 AIRA_FREE_EMBEDDING_DIMENSIONS=768
 ```
 
-Never commit the token or expose it through `NEXT_PUBLIC_`. Configure Preview first; Production remains disabled until the Preview gates below pass. After changing Preview environment variables in Vercel, create a fresh Preview deployment before runtime testing so the new values are injected into the server runtime.
+Never commit the token or expose it through `NEXT_PUBLIC_`. Configure Preview first; Production remains disabled until the Preview gates below pass. After changing Preview environment values, environment scopes, or rotating a secret in Vercel, create a fresh Preview deployment before runtime testing so the new values are injected into the server runtime.
 
 The included `scripts/verify_endpoint.py` can repeat the external API compatibility check without printing the token or vector.
 
