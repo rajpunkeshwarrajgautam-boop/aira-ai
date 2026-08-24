@@ -15,7 +15,7 @@ Cloudflare OpenAI-compatible base URL:
 
 `https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1`
 
-Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. The BGE Base model is 768-dimensional. If the free allocation is exhausted, AIRA treats the provider's 429 as a semantic rate-limit failure and remains on lexical memory.
+Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. If the allocation is exhausted, AIRA treats the provider 429 as a semantic rate-limit failure and remains on lexical memory.
 
 A user-run test on 2026-08-24 verified a real Workers AI embedding call for `@cf/baai/bge-base-en-v1.5`: 768 finite values, observed latency 946 ms. The token and raw vector were not shared.
 
