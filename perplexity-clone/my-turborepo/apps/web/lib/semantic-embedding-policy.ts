@@ -93,9 +93,11 @@ export function resolveSemanticEmbeddingRoute(
  * AIRA-side query/document prefixes.
  */
 export function formatSemanticEmbeddingInput(
-	_route: Pick<SemanticEmbeddingRoute, "providerId" | "model">,
+	route: Pick<SemanticEmbeddingRoute, "providerId" | "model">,
 	text: string,
-	_workload: SemanticEmbeddingWorkload,
+	workload: SemanticEmbeddingWorkload,
 ): string {
+	void route;
+	void workload;
 	return text.trim();
 }
