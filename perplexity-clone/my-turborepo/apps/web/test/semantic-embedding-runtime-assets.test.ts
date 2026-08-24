@@ -29,15 +29,27 @@ test("FREE embedding runtime is Cloudflare Workers AI at 768 dimensions", () => 
 
 test("FREE route stays isolated from paid semantic credentials and requires HTTPS", () => {
 	const policy = webSource("lib/semantic-embedding-policy.ts");
-	const freeBlock = policy.slice(policy.indexOf('if (tier === "free")'), policy.indexOf('const providerId = value(env, "AIRA_PRO_EMBEDDING_PROVIDER")'));
+	const freeBlock = policy.slice(
+		policy.indexOf('if (tier === "free")'),
+		policy.indexOf('const providerId = value(env, "AIRA_PRO_EMBEDDING_PROVIDER")'),
+	);
 	assert.doesNotMatch(freeBlock, /AIRA_PRO_EMBEDDING_API_KEY|AIRA_EMBEDDING_API_KEY|OPENAI_API_KEY/);
 	assert.match(freeBlock, /baseURL\.startsWith\("https:\/\/"\)/);
 	assert.match(freeBlock, /!apiKey \|\| dimensions === null/);
 });
 
-test("Cloudflare BGE requests use a conservative input bound and rate-limit classification", () => {
+test("Cloudflare BGE requests use the proven minimal request shape and bounded input", () => {
 	const semantic = webSource("lib/semantic-memory.ts");
 	assert.match(semantic, /route\.providerId === "cloudflare" \? 1_200 : 12_000/);
+	const requestBlock = semantic.slice(
+		semantic.indexOf("clientForRoute(route).embeddings.create"),
+		semantic.indexOf("const vector = response.data[0]?.embedding"),
+	);
+	assert.match(requestBlock, /model: route\.model/);
+	assert.match(requestBlock, /input/);
+	assert.match(requestBlock, /route\.providerId === "openai"/);
+	assert.match(requestBlock, /encoding_format: "float"/);
+	assert.match(requestBlock, /dimensions: route\.dimensions/);
 	assert.match(semantic, /status === 413\) return "request_too_large"/);
 	assert.match(semantic, /status === 429\) return "rate_limit"/);
 });
