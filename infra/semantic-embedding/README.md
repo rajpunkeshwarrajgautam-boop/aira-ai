@@ -15,7 +15,9 @@ Cloudflare documents an OpenAI-compatible base URL of:
 
 `https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1`
 
-The user has already independently verified the real Workers AI endpoint with the dedicated account/token pair: `@cf/baai/bge-base-en-v1.5` returned exactly 768 finite numeric values. That proves provider compatibility, but does not replace the required AIRA Preview write/query and failure-isolation tests.
+Workers AI currently includes a 10,000-neuron daily free allocation. `@cf/baai/bge-base-en-v1.5` is priced at 6,058 neurons per million input tokens, so normal AIRA semantic-memory usage is intended to stay within the free allocation during the initial rollout. If the free allocation is exhausted, Cloudflare returns a rate-limit error and AIRA must degrade to lexical memory rather than cross to the paid semantic route.
+
+The user independently verified the real Workers AI endpoint with the dedicated account/token pair on 2026-08-24: `@cf/baai/bge-base-en-v1.5` returned exactly 768 finite numeric values. That proves provider compatibility, but does not replace the required AIRA Preview write/query and failure-isolation tests.
 
 ## Preview configuration
 
