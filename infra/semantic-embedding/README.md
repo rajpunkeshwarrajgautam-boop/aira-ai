@@ -60,7 +60,7 @@ It requires HTTPS, verifies unauthenticated access is rejected, makes real embed
 Leave Production semantic memory disabled until Preview proves all of the following:
 
 1. Vercel can call the Cloudflare OpenAI-compatible embeddings API;
-2. an authenticated FREE memory write creates `UserMemorySemanticEmbedding` with `tier=free`, `provider=cloudflare`, the BGE model, 768 dimensions, and a non-null vector;
+2. an authenticated FREE memory write creates `UserMemorySemanticEmbedding` with `tier=free`, `provider=cloudflare`, model `@cf/baai/bge-base-en-v1.5`, 768 dimensions, and a non-null vector;
 3. a semantically related FREE query uses the same route and retrieves only the current user's matching vector space;
 4. FREE still works while the rich semantic route is deliberately unusable in Preview;
 5. a controlled Cloudflare FREE-route failure degrades to lexical memory with zero PRO/OpenAI embedding attempts;
