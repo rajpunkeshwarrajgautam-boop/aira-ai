@@ -22,14 +22,20 @@ export interface ToolExecutionOptions {
 	readonly approvalGranted?: boolean;
 }
 
+type ToolExecutionPolicyCode =
+	| "TOOL_UNAVAILABLE"
+	| "TOOL_APPROVAL_REQUIRED"
+	| "TOOL_PLAN_ONLY";
+
 export class ToolExecutionPolicyError extends Error {
-	constructor(
-		readonly code: "TOOL_UNAVAILABLE" | "TOOL_APPROVAL_REQUIRED" | "TOOL_PLAN_ONLY",
-		message: string,
-		readonly toolId: string,
-	) {
+	readonly code: ToolExecutionPolicyCode;
+	readonly toolId: string;
+
+	constructor(code: ToolExecutionPolicyCode, message: string, toolId: string) {
 		super(message);
 		this.name = "ToolExecutionPolicyError";
+		this.code = code;
+		this.toolId = toolId;
 	}
 }
 
