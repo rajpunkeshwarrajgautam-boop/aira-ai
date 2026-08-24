@@ -59,38 +59,59 @@ function descriptorForTool(tool: AgentTool): PublicToolDescriptor {
 	};
 }
 
-const virtualCapabilities: readonly PublicToolDescriptor[] = [
-	{
-		id: "knowledge",
-		label: "Knowledge",
-		description: "Read user-owned uploaded knowledge after ingestion and retrieval.",
-		category: "context",
-		permission: "READ",
-		sideEffecting: false,
-		timeoutMs: 20_000,
-		cancellable: false,
-		audit: "standard",
-		availability:
-			process.env.MULTIMODAL_INGESTION_ENABLED === "true" &&
-			configured(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-			configured(process.env.SUPABASE_SERVICE_ROLE_KEY) &&
-			configured(process.env.AIRA_KNOWLEDGE_WORKER_TOKEN)
+function virtualCapabilities(): readonly PublicToolDescriptor[] {
+	const sandboxConfigured =
+		process.env.PYTHON_SANDBOX_ENABLED === "true" &&
+		configured(process.env.AIRA_SANDBOX_URL) &&
+		configured(process.env.AIRA_SANDBOX_TOKEN);
+	const knowledgeConfigured =
+		process.env.MULTIMODAL_INGESTION_ENABLED === "true" &&
+		configured(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+		configured(process.env.SUPABASE_SERVICE_ROLE_KEY) &&
+		configured(process.env.AIRA_KNOWLEDGE_WORKER_TOKEN);
+	return [
+		{
+			id: "python_sandbox",
+			label: "Python Sandbox",
+			description: "Execute bounded Python code through AIRA's isolated external sandbox gateway.",
+			category: "execution",
+			permission: "CODE_EXECUTION",
+			sideEffecting: true,
+			timeoutMs: 12_000,
+			cancellable: true,
+			audit: "required",
+			availability: sandboxConfigured
+				? { state: "CONFIGURED", detail: "Sandbox endpoint and credentials are configured. Isolation and health must still pass before execution." }
+				: { state: "NOT_CONFIGURED", detail: "The external sandbox runtime is not configured." },
+		},
+		{
+			id: "knowledge",
+			label: "Knowledge",
+			description: "Read user-owned uploaded knowledge after ingestion and retrieval.",
+			category: "context",
+			permission: "READ",
+			sideEffecting: false,
+			timeoutMs: 20_000,
+			cancellable: false,
+			audit: "standard",
+			availability: knowledgeConfigured
 				? { state: "CONFIGURED", detail: "Knowledge ingestion dependencies are configured. Worker health is verified during ingestion." }
 				: { state: "NOT_CONFIGURED", detail: "Knowledge ingestion is disabled or its storage/worker credentials are incomplete." },
-	},
-	{
-		id: "browser",
-		label: "Browser",
-		description: "Isolated browser/computer-use runtime for navigation and interaction.",
-		category: "execution",
-		permission: "BROWSER_ACTION",
-		sideEffecting: true,
-		timeoutMs: 45_000,
-		cancellable: true,
-		audit: "required",
-		availability: { state: "UNAVAILABLE", detail: "No production browser runtime has been activated yet." },
-	},
-];
+		},
+		{
+			id: "browser",
+			label: "Browser",
+			description: "Isolated browser/computer-use runtime for navigation and interaction.",
+			category: "execution",
+			permission: "BROWSER_ACTION",
+			sideEffecting: true,
+			timeoutMs: 45_000,
+			cancellable: true,
+			audit: "required",
+			availability: { state: "UNAVAILABLE", detail: "No production browser runtime has been activated yet." },
+		},
+	];
+}
 
 export class ToolRegistry {
 	private tools = new Map<string, AgentTool<unknown, unknown, unknown>>();
@@ -114,9 +135,11 @@ export class ToolRegistry {
 	}
 
 	publicDescriptors(): PublicToolDescriptor[] {
+		const executable = this.getAllTools().map(descriptorForTool);
+		const executableIds = new Set(executable.map((tool) => tool.id));
 		return [
-			...this.getAllTools().map(descriptorForTool),
-			...virtualCapabilities,
+			...executable,
+			...virtualCapabilities().filter((tool) => !executableIds.has(tool.id)),
 		];
 	}
 
