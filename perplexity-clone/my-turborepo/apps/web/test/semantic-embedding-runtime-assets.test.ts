@@ -38,7 +38,7 @@ test("FREE route stays isolated from paid semantic credentials and requires HTTP
 	assert.match(freeBlock, /!apiKey \|\| dimensions === null/);
 });
 
-test("Cloudflare BGE requests use the proven minimal request shape and bounded input", () => {
+test("Cloudflare BGE requests explicitly request float encoding and bounded input", () => {
 	const semantic = webSource("lib/semantic-memory.ts");
 	assert.match(semantic, /route\.providerId === "cloudflare" \? 1_200 : 12_000/);
 	const requestBlock = semantic.slice(
@@ -47,9 +47,9 @@ test("Cloudflare BGE requests use the proven minimal request shape and bounded i
 	);
 	assert.match(requestBlock, /model: route\.model/);
 	assert.match(requestBlock, /input/);
-	assert.match(requestBlock, /route\.providerId === "openai"/);
 	assert.match(requestBlock, /encoding_format: "float"/);
-	assert.match(requestBlock, /dimensions: route\.dimensions/);
+	assert.match(requestBlock, /route\.providerId === "openai" \? \{ dimensions: route\.dimensions \} : \{\}/);
+	assert.match(semantic, /defaults omitted encoding_format to base64/);
 	assert.match(semantic, /status === 413\) return "request_too_large"/);
 	assert.match(semantic, /status === 429\) return "rate_limit"/);
 });
