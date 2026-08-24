@@ -4,6 +4,7 @@
   "globalEnv": [
     "NODE_ENV",
     "VERCEL_ENV",
+    "VERCEL_BRANCH_URL",
     "NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
     "AUTH_SECRET",
