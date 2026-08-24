@@ -32,7 +32,7 @@ The token must never use a `NEXT_PUBLIC_` variable or be committed. Missing/inva
 
 Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. Exhaustion returns a provider rate-limit failure; AIRA must remain on lexical fallback rather than crossing to the PRO route.
 
-A user-run verification on 2026-08-24 confirmed the real OpenAI-compatible endpoint returned 768 finite values for `@cf/baai/bge-base-en-v1.5` with an observed latency of 946 ms. The token and vector were not shared.
+A user-run verification on 2026-08-24 confirmed the real endpoint returned 768 finite values for `@cf/baai/bge-base-en-v1.5` with observed latency of 946 ms. The token and vector were not shared.
 
 ## PRO / TEAM
 
