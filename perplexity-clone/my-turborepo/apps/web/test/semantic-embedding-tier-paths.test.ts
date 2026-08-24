@@ -46,3 +46,20 @@ test("tier-aware vector migration keeps model spaces separate without changing c
 	assert.doesNotMatch(migration, /drop table/i);
 	assert.doesNotMatch(migration, /alter table public\."UserMemory"/i);
 });
+
+test("follow-up migration removes tier-only ANN indexes and indexes the exact route metadata", () => {
+	const migration = readFileSync(
+		path.join(REPO_ROOT, "prisma/migrations/20260824_semantic_embedding_exact_route_scans/migration.sql"),
+		"utf8",
+	);
+	for (const index of [
+		"UserMemorySemanticEmbedding_free_hnsw_idx",
+		"UserMemorySemanticEmbedding_pro_hnsw_idx",
+		"KnowledgeChunkSemanticEmbedding_free_hnsw_idx",
+		"KnowledgeChunkSemanticEmbedding_pro_hnsw_idx",
+	]) {
+		assert.match(migration, new RegExp(`drop index if exists public\\."${index}"`));
+	}
+	assert.match(migration, /\("userId", tier, provider, model\)/);
+	assert.doesNotMatch(migration, /using hnsw/i);
+});
