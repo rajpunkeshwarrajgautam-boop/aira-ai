@@ -54,6 +54,15 @@ test("Cloudflare BGE requests use the proven minimal request shape and bounded i
 	assert.match(semantic, /status === 429\) return "rate_limit"/);
 });
 
+test("manual memory write awaits the semantic sidecar before returning", () => {
+	const persistent = webSource("lib/persistent-memory.ts");
+	const manualBlock = persistent.slice(persistent.indexOf("export async function createManualMemory"));
+	assert.match(manualBlock, /const route = await resolveSemanticEmbeddingRouteForUser\(args\.userId\)/);
+	assert.match(manualBlock, /await upsertUserMemoryEmbedding\(/);
+	assert.doesNotMatch(manualBlock, /void resolveSemanticEmbeddingRouteForUser/);
+	assert.match(manualBlock, /lexical memory remains available/);
+});
+
 test("Turborepo exposes every tiered semantic environment variable to the web build", () => {
 	const turbo = JSON.parse(repoSource("turbo.json")) as { globalEnv?: string[] };
 	const globalEnv = new Set(turbo.globalEnv ?? []);
