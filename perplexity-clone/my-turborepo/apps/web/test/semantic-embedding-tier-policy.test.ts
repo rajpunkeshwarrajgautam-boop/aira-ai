@@ -51,23 +51,23 @@ test("free embeddings use only the dedicated Cloudflare route", () => {
 });
 
 test("free provider misconfiguration degrades closed instead of inheriting paid credentials", () => {
-	assert.equal(
-		resolveSemanticEmbeddingRoute("free", {
+	for (const env of [
+		{
 			SEMANTIC_MEMORY_ENABLED: "true",
 			AIRA_PRO_EMBEDDING_API_KEY: "pro-test-key",
 			AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
 			OPENAI_API_KEY: "general-generation-test-key",
-		}),
-		null,
-	);
-	assert.equal(
-		resolveSemanticEmbeddingRoute("free", {
+		},
+		{
 			SEMANTIC_MEMORY_ENABLED: "true",
 			AIRA_FREE_EMBEDDING_BASE_URL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
 			AIRA_PRO_EMBEDDING_API_KEY: "pro-test-key",
-		}),
-		null,
-	);
+			AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
+			OPENAI_API_KEY: "general-generation-test-key",
+		},
+	]) {
+		assert.equal(resolveSemanticEmbeddingRoute("free", env), null);
+	}
 });
 
 test("rejects the retired self-hosted FREE provider contract", () => {
