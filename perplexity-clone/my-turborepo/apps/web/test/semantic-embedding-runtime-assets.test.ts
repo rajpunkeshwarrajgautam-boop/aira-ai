@@ -34,10 +34,11 @@ test("FREE route stays isolated from paid semantic credentials", () => {
 	assert.match(freeBlock, /if \(!baseURL \|\| !apiKey \|\| dimensions === null\) return null/);
 });
 
-test("Cloudflare BGE requests use a conservative input bound", () => {
+test("Cloudflare BGE requests use a conservative input bound and rate-limit classification", () => {
 	const semantic = webSource("lib/semantic-memory.ts");
 	assert.match(semantic, /route\.providerId === "cloudflare" \? 1_200 : 12_000/);
-	assert.match(semantic, /request_too_large/);
+	assert.match(semantic, /status === 413\) return "request_too_large"/);
+	assert.match(semantic, /status === 429\) return "rate_limit"/);
 });
 
 test("endpoint verifier requires HTTPS, auth rejection and a 768-dimensional finite vector", () => {
