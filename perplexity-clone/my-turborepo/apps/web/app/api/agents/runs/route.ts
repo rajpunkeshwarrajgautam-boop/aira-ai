@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import {
 	AutoGptConfigError,
@@ -235,6 +236,16 @@ export async function POST(req: Request): Promise<Response> {
 				clientRequestId: parsed.data.clientRequestId,
 				objective: parsed.data.objective,
 			});
+
+		await recordAgentRunEventBestEffort({
+			runId: submitted.run.id,
+			eventKey: "submitted",
+			type: "SUBMITTED",
+			status: submitted.run.status,
+			message: `Task accepted by ${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"}.`,
+			metadata: { provider: submitted.run.provider },
+		});
+
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
 		if (error instanceof PlanEnforcementError) {
