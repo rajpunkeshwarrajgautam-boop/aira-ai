@@ -65,6 +65,7 @@ test("tool status endpoint is authenticated, no-store and returns only public de
 	assert.ok(route.includes("await auth()"));
 	assert.ok(route.includes('code: "UNAUTHENTICATED"'));
 	assert.ok(route.includes('"Cache-Control": "no-store"'));
+	assert.ok(route.includes('from "@/lib/agents/tools/tool-registry"'));
 	assert.ok(route.includes("getPublicToolDescriptors()"));
 	assert.ok(!route.includes("process.env"));
 });
