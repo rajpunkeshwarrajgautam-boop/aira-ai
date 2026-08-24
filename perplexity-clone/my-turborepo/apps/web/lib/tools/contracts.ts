@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export const TOOL_PERMISSION_CLASSES = [
 	"READ",
 	"WRITE",
@@ -31,24 +29,6 @@ export type ToolInvocationDecision = "EXECUTE" | "REQUIRE_APPROVAL" | "PLAN_ONLY
 export interface ToolAvailability {
 	readonly state: ToolAvailabilityState;
 	readonly detail: string;
-}
-
-export interface AgentToolDefinition<
-	TInput extends z.ZodType = z.ZodType,
-	TOutput extends z.ZodType = z.ZodType,
-> {
-	readonly id: string;
-	readonly label: string;
-	readonly description: string;
-	readonly category: string;
-	readonly inputSchema: TInput;
-	readonly outputSchema: TOutput;
-	readonly permission: ToolPermissionClass;
-	readonly sideEffecting: boolean;
-	readonly timeoutMs: number;
-	readonly cancellable: boolean;
-	readonly audit: "required" | "standard";
-	readonly availability: () => ToolAvailability;
 }
 
 export interface PublicToolDescriptor {
