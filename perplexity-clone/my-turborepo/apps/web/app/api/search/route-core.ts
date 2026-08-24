@@ -16,6 +16,7 @@ import {
 	getEffectiveEntitlements,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
+import { providerAccessTierForBillingPlan } from "@/lib/billing/provider-policy";
 import {
 	getAnonymousSearchContext,
 	getFollowUpContext,
@@ -24,6 +25,7 @@ import {
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
+import { ProviderRouter } from "@services/providers/provider-router";
 import {
 	inferSourceQualityLabel,
 	sanitizeSourceExcerpt,
@@ -336,6 +338,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	/** Analytics mode: bypass paths always count as standard (no web retrieval). */
 	let analyticsSearchMode: "standard" | "deep" = parsed.data.mode;
 	try {
+		const providerTier = providerAccessTierForBillingPlan(entitlements?.billingPlan);
 		if (mathAnswer !== null) {
 			analyticsSearchMode = "standard";
 			let resultText = mathAnswer;
@@ -369,6 +372,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 			analyticsSearchMode = "standard";
 			grounded = await streamGroundedAnswer({
 				query: parsed.data.query,
+				router: await ProviderRouter.createDefault(providerTier),
 				abortSignal: abort.signal,
 				chatHistory: context.chatHistory,
 				contextualMemory: context.contextualMemory,
@@ -384,6 +388,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				);
 				grounded = await ResearchOrchestrator.streamAnswer({
 					query: parsed.data.query,
+					router: await ProviderRouter.createDefault(providerTier),
 					abortSignal: abort.signal,
 					chatHistory: context.chatHistory,
 					contextualMemory: context.contextualMemory,
@@ -392,6 +397,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 			} else {
 				grounded = await streamDeepResearchAnswer({
 					query: parsed.data.query,
+					router: await ProviderRouter.createDefault(providerTier),
 					abortSignal: abort.signal,
 					chatHistory: context.chatHistory,
 					contextualMemory: context.contextualMemory,
@@ -401,6 +407,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		} else {
 			grounded = await streamGroundedAnswer({
 				query: parsed.data.query,
+				router: await ProviderRouter.createDefault(providerTier),
 				abortSignal: abort.signal,
 				chatHistory: context.chatHistory,
 				contextualMemory: context.contextualMemory,
