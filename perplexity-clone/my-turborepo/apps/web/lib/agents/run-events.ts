@@ -22,6 +22,15 @@ export interface AgentRunEventDto {
 	readonly createdAt: string;
 }
 
+export interface RecordAgentRunEventOptions {
+	readonly runId: string;
+	readonly eventKey: string;
+	readonly type: string;
+	readonly status?: AgentRunStatus | null;
+	readonly message: string;
+	readonly metadata?: Prisma.InputJsonValue;
+}
+
 function toDto(event: SelectedEvent): AgentRunEventDto {
 	return {
 		id: event.id,
@@ -33,14 +42,9 @@ function toDto(event: SelectedEvent): AgentRunEventDto {
 	};
 }
 
-export async function recordAgentRunEvent(options: {
-	readonly runId: string;
-	readonly eventKey: string;
-	readonly type: string;
-	readonly status?: AgentRunStatus | null;
-	readonly message: string;
-	readonly metadata?: Prisma.InputJsonValue;
-}): Promise<AgentRunEventDto> {
+export async function recordAgentRunEvent(
+	options: RecordAgentRunEventOptions,
+): Promise<AgentRunEventDto> {
 	const event = await prisma.agentRunEvent.upsert({
 		where: {
 			runId_eventKey: {
@@ -60,6 +64,25 @@ export async function recordAgentRunEvent(options: {
 		select: EVENT_SELECT,
 	});
 	return toDto(event);
+}
+
+/**
+ * Lifecycle history must never turn a successfully accepted autonomous task into
+ * a client-visible submission failure. We await the attempt so serverless work is
+ * not abandoned, but degrade to structured server logging if persistence fails.
+ */
+export async function recordAgentRunEventBestEffort(
+	options: RecordAgentRunEventOptions,
+): Promise<void> {
+	try {
+		await recordAgentRunEvent(options);
+	} catch (error) {
+		console.error("[agents:run-events:record]", {
+			runId: options.runId,
+			type: options.type,
+			error: error instanceof Error ? error.message : "unknown event persistence failure",
+		});
+	}
 }
 
 export async function listAgentRunEvents(
