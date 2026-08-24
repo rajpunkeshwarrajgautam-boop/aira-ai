@@ -3,12 +3,20 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { fetchOmniRouteModels, OmniRouteGatewayError } from "@services/omniroute/gateway";
 import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
-import { isAllowedOmniRouteSelection, isOmniRouteRoutingMode, OMNIROUTE_ROUTING_MODES } from "@services/omniroute/routing";
+import {
+	isAllowedOmniRouteSelection,
+	isOmniRouteRoutingMode,
+	OMNIROUTE_ROUTING_MODES,
+} from "@services/omniroute/routing";
 import { NVIDIAProvider } from "@services/providers/nvidia-provider";
 import { OmniRouteProvider } from "@services/providers/omniroute-provider";
 import { OpenAIProvider } from "@services/providers/openai-provider";
 import { ProviderRouter } from "@services/providers/provider-router";
-import { assertSafetyAllowed, SafetyBlockedError, SafetyGatewayError } from "@services/safety/safety-gateway";
+import {
+	assertSafetyAllowed,
+	SafetyBlockedError,
+	SafetyGatewayError,
+} from "@services/safety/safety-gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +24,36 @@ export const maxDuration = 120;
 
 type ProviderId = "openai" | "nvidia" | "omniroute";
 type CompareTarget = { provider: ProviderId; model?: string };
+
+type CompareStreamEvent =
+	| {
+			type: "start";
+			targetId: string;
+			providerId: ProviderId;
+			model: string;
+		}
+	| {
+			type: "delta";
+			targetId: string;
+			delta: string;
+		}
+	| {
+			type: "complete";
+			targetId: string;
+			providerId: ProviderId;
+			model: string;
+			text: string;
+			latencyMs: number;
+		}
+	| {
+			type: "error";
+			targetId: string;
+			providerId: ProviderId;
+			model: string;
+			error: string;
+		};
+
+type PublishCompareEvent = (event: CompareStreamEvent) => void;
 
 const TargetSchema = z.object({
 	provider: z.enum(["openai", "nvidia", "omniroute"]),
@@ -82,24 +120,49 @@ function publicProviderError(error: unknown): string {
 	if (error instanceof SafetyBlockedError) return error.message;
 	if (error instanceof SafetyGatewayError) return "AIRA's safety gateway is unavailable.";
 	if (error instanceof OmniRouteGatewayError) return error.message;
-	const status = typeof error === "object" && error !== null && "status" in error
-		? (error as { readonly status?: unknown }).status
-		: undefined;
+	const status =
+		typeof error === "object" && error !== null && "status" in error
+			? (error as { readonly status?: unknown }).status
+			: undefined;
 	if (status === 401 || status === 403) return "The provider rejected AIRA's credentials.";
 	if (status === 429) return "The provider is temporarily rate limited.";
 	if (status === 404) return "The selected model is unavailable.";
 	return "Provider request failed.";
 }
 
-async function runTarget(target: CompareTarget, prompt: string) {
-	const router = createRouter(target.provider);
+function resolvedTarget(target: CompareTarget): {
+	readonly descriptor: ReturnType<typeof descriptors>[number] | undefined;
+	readonly model: string;
+	readonly targetId: string;
+} {
 	const descriptor = descriptors().find((entry) => entry.id === target.provider);
 	const model = target.model?.trim() || descriptor?.model || "default";
-	const targetId = `${target.provider}:${model}`;
-	if (!router) return { targetId, providerId: target.provider, model, ok: false as const, error: "Provider is not configured." };
+	return { descriptor, model, targetId: `${target.provider}:${model}` };
+}
+
+async function runTarget(
+	target: CompareTarget,
+	prompt: string,
+	publish: PublishCompareEvent,
+): Promise<void> {
+	const router = createRouter(target.provider);
+	const { model, targetId } = resolvedTarget(target);
+	publish({ type: "start", targetId, providerId: target.provider, model });
+
+	if (!router) {
+		publish({
+			type: "error",
+			targetId,
+			providerId: target.provider,
+			model,
+			error: "Provider is not configured.",
+		});
+		return;
+	}
+
+	let text = "";
+	const startedAt = Date.now();
 	try {
-		let text = "";
-		const startedAt = Date.now();
 		for await (const delta of router.streamChat(
 			[
 				{
@@ -112,55 +175,101 @@ async function runTarget(target: CompareTarget, prompt: string) {
 			{ model, temperature: 0.2, maxCompletionTokens: 1600 },
 		)) {
 			text += delta;
+			publish({ type: "delta", targetId, delta });
 		}
-		return { targetId, providerId: target.provider, model, ok: true as const, text, latencyMs: Date.now() - startedAt };
-	} catch (error) {
-		return {
+		publish({
+			type: "complete",
 			targetId,
 			providerId: target.provider,
 			model,
-			ok: false as const,
+			text,
+			latencyMs: Date.now() - startedAt,
+		});
+	} catch (error) {
+		publish({
+			type: "error",
+			targetId,
+			providerId: target.provider,
+			model,
 			error: publicProviderError(error),
-		};
+		});
 	}
 }
 
 export async function GET(): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) {
-		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+		return Response.json(
+			{ error: { code: "UNAUTHENTICATED", message: "Sign in required." } },
+			{ status: 401 },
+		);
 	}
-	return Response.json({ providers: descriptors() }, { headers: { "Cache-Control": "no-store" } });
+	return Response.json(
+		{ providers: descriptors() },
+		{ headers: { "Cache-Control": "no-store" } },
+	);
 }
 
 export async function POST(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) {
-		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+		return Response.json(
+			{ error: { code: "UNAUTHENTICATED", message: "Sign in required." } },
+			{ status: 401 },
+		);
 	}
+
 	let body: unknown;
 	try {
 		body = await req.json();
 	} catch {
-		return Response.json({ error: { code: "INVALID_JSON", message: "Body must be valid JSON." } }, { status: 400 });
-	}
-	const parsed = CompareSchema.safeParse(body);
-	if (!parsed.success) {
-		return Response.json({ error: { code: "VALIDATION_ERROR", message: "Choose two or three configured model targets and enter a prompt." } }, { status: 400 });
+		return Response.json(
+			{ error: { code: "INVALID_JSON", message: "Body must be valid JSON." } },
+			{ status: 400 },
+		);
 	}
 
-	const uniqueKeys = new Set(parsed.data.targets.map((target) => `${target.provider}:${target.model ?? ""}`));
+	const parsed = CompareSchema.safeParse(body);
+	if (!parsed.success) {
+		return Response.json(
+			{
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "Choose two or three configured model targets and enter a prompt.",
+				},
+			},
+			{ status: 400 },
+		);
+	}
+
+	const uniqueKeys = new Set(
+		parsed.data.targets.map((target) => `${target.provider}:${target.model ?? ""}`),
+	);
 	if (uniqueKeys.size !== parsed.data.targets.length) {
-		return Response.json({ error: { code: "DUPLICATE_TARGET", message: "Choose distinct comparison targets." } }, { status: 400 });
+		return Response.json(
+			{ error: { code: "DUPLICATE_TARGET", message: "Choose distinct comparison targets." } },
+			{ status: 400 },
+		);
 	}
 
 	try {
 		await assertSafetyAllowed("input", parsed.data.prompt);
 	} catch (error) {
 		if (error instanceof SafetyBlockedError) {
-			return Response.json({ error: { code: "SAFETY_BLOCKED", message: error.message } }, { status: 400 });
+			return Response.json(
+				{ error: { code: "SAFETY_BLOCKED", message: error.message } },
+				{ status: 400 },
+			);
 		}
-		return Response.json({ error: { code: "SAFETY_UNAVAILABLE", message: "AIRA's safety gateway is unavailable." } }, { status: 503 });
+		return Response.json(
+			{
+				error: {
+					code: "SAFETY_UNAVAILABLE",
+					message: "AIRA's safety gateway is unavailable.",
+				},
+			},
+			{ status: 503 },
+		);
 	}
 
 	const omniTargets = parsed.data.targets.filter((target) => target.provider === "omniroute");
@@ -171,21 +280,68 @@ export async function POST(req: Request): Promise<Response> {
 		try {
 			const snapshot = await fetchOmniRouteModels(req.signal);
 			const discovered = snapshot.models.map((entry) => entry.id);
-			const invalid = fixedOmniModels.find((model) => !isAllowedOmniRouteSelection(model, discovered));
+			const invalid = fixedOmniModels.find(
+				(model) => !isAllowedOmniRouteSelection(model, discovered),
+			);
 			if (invalid) {
 				return Response.json(
-					{ error: { code: "OMNIROUTE_MODEL_NOT_DISCOVERED", message: "One selected OmniRoute model is no longer present in the live registry." } },
+					{
+						error: {
+							code: "OMNIROUTE_MODEL_NOT_DISCOVERED",
+							message:
+								"One selected OmniRoute model is no longer present in the live registry.",
+						},
+					},
 					{ status: 400, headers: { "Cache-Control": "no-store" } },
 				);
 			}
 		} catch (error) {
 			return Response.json(
-				{ error: { code: "OMNIROUTE_REGISTRY_UNAVAILABLE", message: publicProviderError(error) } },
+				{
+					error: {
+						code: "OMNIROUTE_REGISTRY_UNAVAILABLE",
+						message: publicProviderError(error),
+					},
+				},
 				{ status: 502, headers: { "Cache-Control": "no-store" } },
 			);
 		}
 	}
 
-	const results = await Promise.all(parsed.data.targets.map((target) => runTarget(target, parsed.data.prompt)));
-	return Response.json({ results }, { headers: { "Cache-Control": "no-store" } });
+	const encoder = new TextEncoder();
+	let cancelled = false;
+	const stream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			const publish: PublishCompareEvent = (event) => {
+				if (cancelled) return;
+				try {
+					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+				} catch {
+					cancelled = true;
+				}
+			};
+
+			void Promise.all(
+				parsed.data.targets.map((target) => runTarget(target, parsed.data.prompt, publish)),
+			).finally(() => {
+				if (cancelled) return;
+				try {
+					controller.close();
+				} catch {
+					cancelled = true;
+				}
+			});
+		},
+		cancel() {
+			cancelled = true;
+		},
+	});
+
+	return new Response(stream, {
+		headers: {
+			"Cache-Control": "no-store",
+			"Content-Type": "application/x-ndjson; charset=utf-8",
+			"X-Content-Type-Options": "nosniff",
+		},
+	});
 }
