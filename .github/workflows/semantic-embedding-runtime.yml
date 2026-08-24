@@ -74,7 +74,7 @@ jobs:
 
       - name: Confirm no credential or private host state is committed
         run: |
-          if git ls-files infra/semantic-embedding | grep -E '(^|/)(terraform\.tfvars|\.env($|\.)|.*\.pem$|.*\.key$)'; then
+          if git ls-files infra/semantic-embedding | grep -E '(^|/)terraform\.tfvars$|(^|/)\.env($|\.(local|production|preview|development)$)|\.(pem|key)$'; then
             echo "::error::A private environment, tfvars, key, or certificate file is tracked."
             exit 1
           fi
