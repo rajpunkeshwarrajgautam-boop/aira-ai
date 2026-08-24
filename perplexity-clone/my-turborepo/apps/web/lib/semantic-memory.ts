@@ -12,7 +12,7 @@ function embeddingModel(): string {
 }
 
 function embeddingApiKey(): string | undefined {
-	return process.env.AIRA_EMBEDDING_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim();
+	return process.env.AIRA_EMBEDDING_API_KEY?.trim() || undefined;
 }
 
 export function semanticMemoryEnabled(): boolean {
