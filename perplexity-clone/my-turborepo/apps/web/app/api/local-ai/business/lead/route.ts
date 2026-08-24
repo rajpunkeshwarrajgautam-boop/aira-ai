@@ -23,7 +23,7 @@ export async function POST(req: Request): Promise<Response> {
 	}
 	await assertSafetyAllowed("input", `${parsed.data.name}\n${parsed.data.company}\n${parsed.data.role}\n${parsed.data.notes}`);
 	try {
-		const result = await runLeadWorker(parsed.data);
+		const result = await runLeadWorker(parsed.data, session.user.id);
 		await assertSafetyAllowed("output", JSON.stringify(result.data));
 		return Response.json(result, { headers: { "Cache-Control": "no-store" } });
 	} catch (error) {
