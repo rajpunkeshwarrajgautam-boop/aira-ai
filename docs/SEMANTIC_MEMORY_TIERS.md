@@ -33,7 +33,7 @@ Configure the rich route with `AIRA_PRO_EMBEDDING_*`. `AIRA_PRO_EMBEDDING_API_KE
 
 Legacy `AIRA_EMBEDDING_*` variables are accepted only as a temporary PRO/TEAM compatibility alias. The FREE route never reads them.
 
-## Storage
+## Storage and model-space isolation
 
 Tier-aware embeddings are stored in additive derived-index tables:
 
@@ -43,6 +43,8 @@ Tier-aware embeddings are stored in additive derived-index tables:
 Both use 768-dimensional pgvector columns and include `tier`, `provider`, `model`, and content-hash metadata. Canonical memory/document rows are not deleted when embeddings fail.
 
 The legacy 1536-dimensional embedding columns/tables remain untouched by this migration. New tier-aware code does not query them.
+
+AIRA deliberately uses exact vector ordering after filtering the current user's exact `tier + provider + model` route. It does **not** maintain a tier-only HNSW index. During provider/model migrations, a tier can temporarily contain rows from more than one incompatible embedding space; a tier-only approximate index could traverse those mixed vectors before provider/model filtering and weaken retrieval correctness. Route metadata has normal B-tree indexes for filtering, and exact vector scoring is used until AIRA has a provider/model-specific ANN indexing strategy justified by real scale measurements.
 
 ## Rollout gate
 
