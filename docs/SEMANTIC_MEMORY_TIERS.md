@@ -28,7 +28,7 @@ The Workers AI token must remain server-only. Do not use a `NEXT_PUBLIC_` variab
 
 Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. If that allocation is exhausted, the provider returns a rate-limit failure and AIRA remains on lexical fallback rather than crossing into the PRO semantic route.
 
-A real operator verification on 2026-08-24 confirmed the Workers AI OpenAI-compatible `/v1/embeddings` route returned exactly 768 finite values for `@cf/baai/bge-base-en-v1.5`. Runtime activation still requires Preview application-level verification before Production is enabled.
+A user-run operator verification on 2026-08-24 confirmed the Workers AI OpenAI-compatible `/v1/embeddings` route returned exactly 768 finite values for `@cf/baai/bge-base-en-v1.5` with an observed latency of 946 ms. The token and raw vector were not shared. Runtime activation still requires Preview application-level verification before Production is enabled.
 
 ## PRO / TEAM contract
 
