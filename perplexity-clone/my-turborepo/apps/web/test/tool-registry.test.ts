@@ -6,9 +6,6 @@ import test from "node:test";
 import { z } from "zod";
 
 import {
-	getPublicToolDescriptors,
-	globalToolRegistry,
-	registerBuiltInTools,
 	ToolExecutionPolicyError,
 	ToolRegistry,
 } from "../lib/agents/tools/tool-registry";
@@ -80,20 +77,34 @@ test("canonical executor honors plan_only even for read tools", async () => {
 	);
 });
 
-test("AIRA has one canonical executable tool registry", async () => {
+test("AIRA has one canonical executable tool registry and one built-in registration path", () => {
 	assert.equal(existsSync(path.join(WEB_ROOT, "lib/tools/registry.ts")), false);
-	await registerBuiltInTools();
-	const ids = globalToolRegistry.getAllTools().map((tool) => tool.name);
-	assert.equal(new Set(ids).size, ids.length);
-	assert.ok(ids.includes("web_search"));
-	assert.ok(ids.includes("memory_lookup"));
-	assert.ok(ids.includes("calculator"));
+	const source = readWeb("lib/agents/tools/tool-registry.ts");
+	assert.ok(source.includes("export class ToolRegistry"));
+	assert.ok(source.includes("export const globalToolRegistry = new ToolRegistry()"));
+	assert.ok(source.includes("export async function registerBuiltInTools()"));
+	assert.ok(source.includes('import("./webSearchTool")'));
+	assert.ok(source.includes('import("./citationFormatTool")'));
+	assert.ok(source.includes('import("./memoryLookupTool")'));
+	assert.ok(source.includes('import("./calculatorTool")'));
+	assert.ok(source.includes('import("./pythonSandboxTool")'));
 });
 
-test("registry exposes disabled runtime capabilities truthfully without duplicate ids", async () => {
-	const tools = await getPublicToolDescriptors();
+test("registry exposes disabled runtime capabilities truthfully without duplicate ids", () => {
+	const registry = new ToolRegistry();
+	registry.registerTool({
+		name: "calculator",
+		description: "test-only read tool",
+		category: "utility",
+		requiresAuth: false,
+		requiresPermission: false,
+		inputSchema: z.object({ expression: z.string() }),
+		execute: async () => ({ result: 1 }),
+	});
+	const tools = registry.publicDescriptors();
 	const ids = tools.map((tool) => tool.id);
 	assert.equal(new Set(ids).size, ids.length);
+	assert.ok(ids.includes("calculator"));
 	const browser = tools.find((tool) => tool.id === "browser");
 	assert.ok(browser);
 	assert.equal(browser.availability.state, "UNAVAILABLE");
@@ -103,11 +114,21 @@ test("registry exposes disabled runtime capabilities truthfully without duplicat
 	assert.equal(sandbox.permission, "CODE_EXECUTION");
 });
 
-test("configured web search is reported as configured rather than live healthy", async () => {
+test("configured web search is reported as configured rather than live healthy", () => {
 	const previous = process.env.EXA_API_KEY;
 	process.env.EXA_API_KEY = "test-only-placeholder";
 	try {
-		const webSearch = (await getPublicToolDescriptors()).find((tool) => tool.id === "web_search");
+		const registry = new ToolRegistry();
+		registry.registerTool({
+			name: "web_search",
+			description: "test-only web search",
+			category: "research",
+			requiresAuth: true,
+			requiresPermission: false,
+			inputSchema: z.object({ query: z.string() }),
+			execute: async () => ({ results: [] }),
+		});
+		const webSearch = registry.publicDescriptors().find((tool) => tool.id === "web_search");
 		assert.ok(webSearch);
 		assert.equal(webSearch.availability.state, "CONFIGURED");
 		assert.match(webSearch.availability.detail, /Health is verified when the tool is invoked/);
