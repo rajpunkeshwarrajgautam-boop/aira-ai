@@ -19,18 +19,20 @@ test("maps paid searches to the Pro provider tier", () => {
 	assert.equal(providerAccessTierForBillingPlan(BillingPlan.TEAM), "pro");
 });
 
-test("hard-pins NVIDIA for free requests even when deployment configuration is stale", () => {
+test("hard-pins NVIDIA for free requests across stale deployment configuration values", () => {
 	assert.equal(FREE_TIER_PROVIDER_ID, "nvidia");
-	assert.deepEqual(
-		resolveProviderRoute("free", {
-			DEFAULT_FREE_PROVIDER: "openai",
-			DEFAULT_PRO_PROVIDER: "openai",
-		}),
-		{
-			primaryProviderId: "nvidia",
-			fallbackProviderId: "nvidia",
-		},
-	);
+	for (const staleFreeProvider of ["openai", "anthropic", "omniroute", "unknown-provider"]) {
+		assert.deepEqual(
+			resolveProviderRoute("free", {
+				DEFAULT_FREE_PROVIDER: staleFreeProvider,
+				DEFAULT_PRO_PROVIDER: "openai",
+			}),
+			{
+				primaryProviderId: "nvidia",
+				fallbackProviderId: "nvidia",
+			},
+		);
+	}
 });
 
 test("routes paid requests through the configured Pro provider with NVIDIA fallback", () => {
