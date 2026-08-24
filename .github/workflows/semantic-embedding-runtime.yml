@@ -60,7 +60,7 @@ jobs:
       - name: Confirm Always Free resource boundary
         run: |
           module=infra/semantic-embedding/terraform-oci
-          if grep -rnE 'oci_core_nat_gateway|oci_load_balancer|oci_network_load_balancer|oci_database_autonomous_database|oci_containerengine_cluster|oci_database_db_system' "$module"; then
+          if git grep -nE 'oci_core_nat_gateway|oci_load_balancer|oci_network_load_balancer|oci_database_autonomous_database|oci_containerengine_cluster|oci_database_db_system' -- "$module"; then
             echo "::error::A billable OCI resource type appears in the FREE embedding module."
             exit 1
           fi
@@ -78,11 +78,11 @@ jobs:
             echo "::error::A private environment, tfvars, key, or certificate file is tracked."
             exit 1
           fi
-          if grep -RnE '(sk-[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' infra/semantic-embedding; then
+          if git grep -nE '(sk-[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' -- infra/semantic-embedding; then
             echo "::error::A credential-shaped literal is present in semantic embedding assets."
             exit 1
           fi
-          if grep -Rn 'NEXT_PUBLIC_.*EMBEDDING.*KEY' infra/semantic-embedding perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts; then
+          if git grep -nE 'NEXT_PUBLIC_.*EMBEDDING.*KEY' -- infra/semantic-embedding perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts; then
             echo "::error::An embedding secret is exposed through a NEXT_PUBLIC variable."
             exit 1
           fi
