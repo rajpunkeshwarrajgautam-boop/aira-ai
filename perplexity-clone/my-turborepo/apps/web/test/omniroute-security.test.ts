@@ -108,7 +108,8 @@ test("compare supports multiple distinct OmniRoute models or routing modes", () 
 	assert.ok(api.includes("fetchOmniRouteModels"));
 	assert.ok(page.includes("omniroute:auto/smart"));
 	assert.ok(page.includes("omniroute:auto/fast"));
-	assert.ok(page.includes("targets: selectedChoices.map"));
+	assert.ok(page.includes("const targets = selectedChoices.map"));
+	assert.ok(page.includes("body: JSON.stringify({ prompt: prompt.trim(), targets })"));
 });
 
 test("retired self-hosted/local runtime identifiers are absent from repository source", () => {
