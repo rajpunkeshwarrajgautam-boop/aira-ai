@@ -65,11 +65,21 @@ test("manual memory write awaits the semantic sidecar before returning", () => {
 
 test("Preview OAuth stays on Vercel's stable branch URL while Production is untouched", () => {
 	const auth = webSource("auth.ts");
+	const signInPage = webSource("app/signin/page.tsx");
 	assert.match(auth, /process\.env\.VERCEL_ENV !== "preview"/);
 	assert.match(auth, /process\.env\.VERCEL_BRANCH_URL/);
 	assert.match(auth, /process\.env\.AUTH_URL = resolvedPreviewAuthUrl/);
 	assert.match(auth, /process\.env\.NEXTAUTH_URL = resolvedPreviewAuthUrl/);
 	assert.match(auth, /previewAuthUrlOverride: !!resolvedPreviewAuthUrl/);
+	assert.match(signInPage, /function previewCanonicalOrigin\(\)/);
+	assert.match(signInPage, /process\.env\.VERCEL_ENV !== "preview"/);
+	assert.match(signInPage, /process\.env\.VERCEL_BRANCH_URL/);
+	assert.match(signInPage, /const previewOrigin = previewCanonicalOrigin\(\)/);
+	assert.match(signInPage, /if \(previewOrigin\) return previewOrigin/);
+	assert.ok(
+		signInPage.indexOf("if (previewOrigin) return previewOrigin") < signInPage.indexOf("process.env.AUTH_URL"),
+		"Preview branch origin must win before Production AUTH_URL/NEXTAUTH_URL",
+	);
 });
 
 test("Turborepo exposes every tiered semantic and Preview auth environment variable to the web build", () => {
