@@ -22,6 +22,7 @@ test("FREE embedding OCI module is locked to a conservative Always Free A1 shape
 	assert.match(variables, /variable "instance_ocpus"[\s\S]*?default\s+=\s+1/);
 	assert.match(variables, /variable "instance_memory_gb"[\s\S]*?default\s+=\s+6/);
 	assert.match(variables, /variable "boot_volume_gb"[\s\S]*?default\s+=\s+50/);
+	assert.match(main, /condition\s+=\s+var\.instance_memory_gb <= var\.instance_ocpus \* 6/);
 	assert.match(main, /min = 80[\s\S]*?max = 80/);
 	assert.match(main, /min = 443[\s\S]*?max = 443/);
 	assert.doesNotMatch(main, /min = 8080|port\s*=\s*8080/);
