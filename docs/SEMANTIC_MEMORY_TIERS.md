@@ -4,7 +4,7 @@ Semantic memory is a derived retrieval index. `UserMemory` remains canonical and
 
 ## Product policy
 
-- **FREE** uses Cloudflare Workers AI with `@cf/baai/bge-base-en-v1.5`, which returns 768-dimensional embeddings. FREE never falls through to the PRO credential, the legacy `AIRA_EMBEDDING_*` credential, or `OPENAI_API_KEY`.
+- **FREE** uses Cloudflare Workers AI with provider id `cloudflare` and model `@cf/baai/bge-base-en-v1.5`, which returns 768-dimensional embeddings. FREE never falls through to the PRO credential, the legacy `AIRA_EMBEDDING_*` credential, or `OPENAI_API_KEY`.
 - **PRO / TEAM** use the richer dedicated embedding route. The default is OpenAI `text-embedding-3-small` with the response explicitly requested at 768 dimensions.
 - If either tier's embedding route is unavailable, AIRA degrades to lexical memory rather than crossing tiers.
 
@@ -26,7 +26,7 @@ Server-only configuration:
 
 The Workers AI token must remain server-only. Do not use a `NEXT_PUBLIC_` variable and do not commit it. FREE requires its dedicated Cloudflare credential; missing or invalid FREE configuration returns no semantic route and callers degrade to lexical memory. FREE never inherits the paid semantic credential.
 
-Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. If that allocation is exhausted, the provider returns a rate-limit failure and AIRA must remain on lexical fallback rather than crossing into the PRO semantic route.
+Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. If that allocation is exhausted, the provider returns a rate-limit failure and AIRA remains on lexical fallback rather than crossing into the PRO semantic route.
 
 A real operator verification on 2026-08-24 confirmed the Workers AI OpenAI-compatible `/v1/embeddings` route returned exactly 768 finite values for `@cf/baai/bge-base-en-v1.5`. Runtime activation still requires Preview application-level verification before Production is enabled.
 
@@ -55,7 +55,7 @@ Keep `SEMANTIC_MEMORY_ENABLED=false` in Production until all of the following ar
 
 1. the tier-aware migration is applied;
 2. Preview is configured with the dedicated Workers AI FREE route;
-3. an authenticated FREE Preview write creates a Cloudflare/BGE semantic row;
+3. an authenticated FREE Preview write creates a `tier=free`, `provider=cloudflare`, `model=@cf/baai/bge-base-en-v1.5` semantic row;
 4. an authenticated FREE semantic query uses the same route;
 5. Preview proves FREE still works while the PRO semantic route is unusable;
 6. controlled FREE provider failure degrades to lexical memory with zero paid embedding attempts;
