@@ -33,6 +33,7 @@ test("agent lifecycle migration remains closed to the Supabase Data API", () => 
 	assert.ok(migration.includes("with check (false)"));
 	assert.ok(migration.includes("from anon, authenticated, service_role"));
 	assert.ok(migration.includes('on delete cascade on update cascade'));
+	assert.ok(migration.includes("notify pgrst, 'reload schema'"));
 });
 
 test("run event persistence is idempotent and ownership is inherited through AgentRun", () => {
@@ -76,4 +77,5 @@ test("run center renders persisted lifecycle activity and does not synthesize le
 	assert.ok(page.includes("AIRA does not synthesize history that was never persisted"));
 	assert.ok(page.includes("Generated files"));
 	assert.ok(page.includes("artifactHref(selectedRun.id, path)"));
+	assert.ok(page.includes('type="button"'));
 });
