@@ -27,11 +27,12 @@ test("FREE embedding runtime is Cloudflare Workers AI at 768 dimensions", () => 
 	assert.doesNotMatch(policy, /OPENAI_API_KEY/);
 });
 
-test("FREE route stays isolated from paid semantic credentials", () => {
+test("FREE route stays isolated from paid semantic credentials and requires HTTPS", () => {
 	const policy = webSource("lib/semantic-embedding-policy.ts");
 	const freeBlock = policy.slice(policy.indexOf('if (tier === "free")'), policy.indexOf('const providerId = value(env, "AIRA_PRO_EMBEDDING_PROVIDER")'));
 	assert.doesNotMatch(freeBlock, /AIRA_PRO_EMBEDDING_API_KEY|AIRA_EMBEDDING_API_KEY|OPENAI_API_KEY/);
-	assert.match(freeBlock, /if \(!baseURL \|\| !apiKey \|\| dimensions === null\) return null/);
+	assert.match(freeBlock, /baseURL\.startsWith\("https:\/\/"\)/);
+	assert.match(freeBlock, /!apiKey \|\| dimensions === null/);
 });
 
 test("Cloudflare BGE requests use a conservative input bound and rate-limit classification", () => {
