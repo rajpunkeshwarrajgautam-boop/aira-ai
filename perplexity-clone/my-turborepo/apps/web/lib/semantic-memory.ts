@@ -66,6 +66,43 @@ function clientForRoute(route: SemanticEmbeddingRoute): OpenAI {
 	return client;
 }
 
+function semanticEmbeddingFailureClass(error: unknown): string {
+	const status =
+		typeof error === "object" && error !== null && "status" in error
+			? (error as { status?: unknown }).status
+			: undefined;
+	if (status === 401 || status === 403) return "auth";
+	if (status === 429) return "rate_limit";
+	if (typeof status === "number" && status >= 500) return "upstream_5xx";
+	if (error instanceof Error && error.name.toLowerCase().includes("timeout")) return "timeout";
+	return "provider_error";
+}
+
+function logSemanticEmbeddingAttempt(args: {
+	readonly route: SemanticEmbeddingRoute;
+	readonly workload: SemanticEmbeddingWorkload;
+	readonly outcome: "success" | "failure";
+	readonly startedAt: number;
+	readonly error?: unknown;
+}): void {
+	if (process.env.NODE_ENV !== "production") return;
+	const payload = {
+		tier: args.route.tier,
+		providerId: args.route.providerId,
+		model: args.route.model,
+		dimensions: args.route.dimensions,
+		workload: args.workload,
+		outcome: args.outcome,
+		durationMs: Math.max(0, Date.now() - args.startedAt),
+		...(args.outcome === "failure" ? { failureClass: semanticEmbeddingFailureClass(args.error) } : {}),
+	};
+	if (args.outcome === "success") {
+		console.info("[AIRA semantic embedding] request complete", JSON.stringify(payload));
+	} else {
+		console.warn("[AIRA semantic embedding] request failed", JSON.stringify(payload));
+	}
+}
+
 export function semanticEmbeddingVectorLiteral(values: readonly number[]): string {
 	if (values.length !== SEMANTIC_EMBEDDING_DIMENSIONS) {
 		throw new Error(
@@ -85,16 +122,23 @@ export async function embedTextWithRoute(
 ): Promise<SemanticEmbeddingResult> {
 	const input = formatSemanticEmbeddingInput(route, text, workload).slice(0, 12_000);
 	if (!input) throw new Error("Cannot embed empty text.");
-	const response = await clientForRoute(route).embeddings.create({
-		model: route.model,
-		input,
-		encoding_format: "float",
-		...(route.providerId === "openai" ? { dimensions: route.dimensions } : {}),
-	});
-	const vector = response.data[0]?.embedding;
-	if (!vector) throw new Error("Embedding provider returned no vector.");
-	semanticEmbeddingVectorLiteral(vector);
-	return { vector, route };
+	const startedAt = Date.now();
+	try {
+		const response = await clientForRoute(route).embeddings.create({
+			model: route.model,
+			input,
+			encoding_format: "float",
+			...(route.providerId === "openai" ? { dimensions: route.dimensions } : {}),
+		});
+		const vector = response.data[0]?.embedding;
+		if (!vector) throw new Error("Embedding provider returned no vector.");
+		semanticEmbeddingVectorLiteral(vector);
+		logSemanticEmbeddingAttempt({ route, workload, outcome: "success", startedAt });
+		return { vector, route };
+	} catch (error) {
+		logSemanticEmbeddingAttempt({ route, workload, outcome: "failure", startedAt, error });
+		throw error;
+	}
 }
 
 export async function embedTextForUser(
