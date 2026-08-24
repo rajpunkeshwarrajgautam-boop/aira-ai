@@ -68,6 +68,8 @@ Leave Production semantic memory disabled until Preview proves all of the follow
 7. runtime logs contain no token, memory text, document text, query text, user identity, or raw vector;
 8. repository CI and the exact Preview deployment are green.
 
+Production must remain disabled if any one of these gates is missing.
+
 ## Why OCI assets were removed
 
 An earlier version of this rollout prepared an OCI A1 VM, Caddy, llama.cpp, and Nomic. The real Cloudflare Workers AI endpoint was subsequently verified and provides the required hosted 768-dimensional FREE embedding route without a VM, SSH, DNS, TLS, patching, or capacity-management burden. The OCI-specific Terraform/bootstrap assets are therefore intentionally retired from this PR instead of being merged as unused infrastructure.
