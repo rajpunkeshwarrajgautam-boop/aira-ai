@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { getPublicToolDescriptors, globalToolRegistry, registerBuiltInTools } from "../lib/agents/tools/tool-registry";
 import { decideToolInvocation } from "../lib/tools/contracts";
-import { createDefaultToolRegistry } from "../lib/tools/registry";
 
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -23,29 +23,34 @@ test("tool approval modes fail conservative for side effects", () => {
 	assert.equal(decideToolInvocation("plan_only", "HIGH_IMPACT"), "PLAN_ONLY");
 });
 
-test("default registry exposes one canonical definition per current capability", () => {
-	const registry = createDefaultToolRegistry();
-	const tools = registry.list();
-	const ids = tools.map((tool) => tool.id);
+test("AIRA has one canonical executable tool registry", async () => {
+	assert.equal(existsSync(path.join(WEB_ROOT, "lib/tools/registry.ts")), false);
+	await registerBuiltInTools();
+	const ids = globalToolRegistry.getAllTools().map((tool) => tool.name);
 	assert.equal(new Set(ids).size, ids.length);
-	assert.deepEqual(ids, ["web_search", "memory", "knowledge", "code_execution", "browser"]);
-	assert.equal(registry.get("web_search")?.permission, "READ");
-	assert.equal(registry.get("code_execution")?.permission, "CODE_EXECUTION");
-	assert.equal(registry.get("browser")?.permission, "BROWSER_ACTION");
+	assert.ok(ids.includes("web_search"));
+	assert.ok(ids.includes("memory_lookup"));
+	assert.ok(ids.includes("calculator"));
 });
 
-test("registry never claims the browser runtime is active before deployment", () => {
-	const browser = createDefaultToolRegistry().publicDescriptors().find((tool) => tool.id === "browser");
+test("registry exposes disabled runtime capabilities truthfully without duplicate ids", async () => {
+	const tools = await getPublicToolDescriptors();
+	const ids = tools.map((tool) => tool.id);
+	assert.equal(new Set(ids).size, ids.length);
+	const browser = tools.find((tool) => tool.id === "browser");
 	assert.ok(browser);
 	assert.equal(browser.availability.state, "UNAVAILABLE");
 	assert.match(browser.availability.detail, /No production browser runtime/);
+	const sandbox = tools.find((tool) => tool.id === "python_sandbox");
+	assert.ok(sandbox);
+	assert.equal(sandbox.permission, "CODE_EXECUTION");
 });
 
-test("configured credentials are reported as configured rather than live healthy", () => {
+test("configured web search is reported as configured rather than live healthy", async () => {
 	const previous = process.env.EXA_API_KEY;
 	process.env.EXA_API_KEY = "test-only-placeholder";
 	try {
-		const webSearch = createDefaultToolRegistry().publicDescriptors().find((tool) => tool.id === "web_search");
+		const webSearch = (await getPublicToolDescriptors()).find((tool) => tool.id === "web_search");
 		assert.ok(webSearch);
 		assert.equal(webSearch.availability.state, "CONFIGURED");
 		assert.match(webSearch.availability.detail, /Health is verified when the tool is invoked/);
@@ -60,7 +65,7 @@ test("tool status endpoint is authenticated, no-store and returns only public de
 	assert.ok(route.includes("await auth()"));
 	assert.ok(route.includes('code: "UNAUTHENTICATED"'));
 	assert.ok(route.includes('"Cache-Control": "no-store"'));
-	assert.ok(route.includes("defaultToolRegistry.publicDescriptors()"));
+	assert.ok(route.includes("getPublicToolDescriptors()"));
 	assert.ok(!route.includes("process.env"));
 });
 
