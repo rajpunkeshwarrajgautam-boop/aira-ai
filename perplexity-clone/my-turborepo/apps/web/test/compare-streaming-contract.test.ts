@@ -40,7 +40,8 @@ test("compare workspace consumes streaming events independently per target", () 
 	assert.ok(page.includes("applyStreamEvent"));
 	assert.ok(page.includes('event.type === "delta"'));
 	assert.ok(page.includes('event.type === "complete"'));
-	assert.ok(page.includes('event.type === "error"'));
+	assert.ok(page.includes('status: "error"'));
+	assert.ok(page.includes("error: event.error"));
 	assert.ok(page.includes('aria-live="polite"'));
 	assert.ok(
 		page.includes("Completed columns stay visible even if another target fails."),
