@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { BillingPlan } from "@/generated/prisma/enums";
+import {
+  assertMinPlan,
+  PlanEnforcementError,
+} from "@/lib/billing/plan-enforcement";
 import { assertSafetyAllowed } from "@services/safety/safety-gateway";
 import { ProviderRouter } from "@services/providers/provider-router";
 import { OpenAIProvider } from "@services/providers/openai-provider";
@@ -68,6 +73,21 @@ function createRouter(id: ProviderId): ProviderRouter | null {
   return null;
 }
 
+async function requireCompareAccess(userId: string): Promise<Response | null> {
+  try {
+    await assertMinPlan(userId, BillingPlan.PRO);
+    return null;
+  } catch (error) {
+    if (error instanceof PlanEnforcementError) {
+      return Response.json(
+        { error: { code: error.code, message: error.message } },
+        { status: error.status },
+      );
+    }
+    throw error;
+  }
+}
+
 async function runProvider(providerId: ProviderId, prompt: string) {
   const router = createRouter(providerId);
   if (!router) return { providerId, ok: false as const, error: "Provider is not configured." };
@@ -102,6 +122,8 @@ export async function GET(): Promise<Response> {
   if (!session?.user?.id) {
     return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
   }
+  const accessError = await requireCompareAccess(session.user.id);
+  if (accessError) return accessError;
   return Response.json({ providers: descriptors() }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -110,6 +132,8 @@ export async function POST(req: Request): Promise<Response> {
   if (!session?.user?.id) {
     return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
   }
+  const accessError = await requireCompareAccess(session.user.id);
+  if (accessError) return accessError;
   let body: unknown;
   try {
     body = await req.json();
