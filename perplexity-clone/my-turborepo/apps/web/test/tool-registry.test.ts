@@ -3,8 +3,15 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { z } from "zod";
 
-import { getPublicToolDescriptors, globalToolRegistry, registerBuiltInTools } from "../lib/agents/tools/tool-registry";
+import {
+	getPublicToolDescriptors,
+	globalToolRegistry,
+	registerBuiltInTools,
+	ToolExecutionPolicyError,
+	ToolRegistry,
+} from "../lib/agents/tools/tool-registry";
 import { decideToolInvocation } from "../lib/tools/contracts";
 
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -21,6 +28,56 @@ test("tool approval modes fail conservative for side effects", () => {
 	assert.equal(decideToolInvocation("ask", "READ"), "REQUIRE_APPROVAL");
 	assert.equal(decideToolInvocation("plan_only", "READ"), "PLAN_ONLY");
 	assert.equal(decideToolInvocation("plan_only", "HIGH_IMPACT"), "PLAN_ONLY");
+});
+
+test("canonical executor blocks privileged tools unless approval is explicit", async () => {
+	const registry = new ToolRegistry();
+	let executions = 0;
+	registry.registerTool({
+		name: "write_test",
+		description: "test-only mutation",
+		category: "test",
+		requiresAuth: true,
+		requiresPermission: true,
+		inputSchema: z.object({ value: z.string() }),
+		execute: async ({ value }) => {
+			executions += 1;
+			return { value };
+		},
+	});
+
+	await assert.rejects(
+		registry.executeTool("write_test", { value: "blocked" }),
+		(error: unknown) =>
+			error instanceof ToolExecutionPolicyError && error.code === "TOOL_APPROVAL_REQUIRED",
+	);
+	assert.equal(executions, 0);
+
+	const approved = await registry.executeTool<{ value: string }>(
+		"write_test",
+		{ value: "approved" },
+		undefined,
+		{ mode: "auto", approvalGranted: true },
+	);
+	assert.equal(approved.value, "approved");
+	assert.equal(executions, 1);
+});
+
+test("canonical executor honors plan_only even for read tools", async () => {
+	const registry = new ToolRegistry();
+	registry.registerTool({
+		name: "read_test",
+		description: "test-only read",
+		category: "test",
+		requiresAuth: true,
+		requiresPermission: false,
+		inputSchema: z.object({}),
+		execute: async () => ({ ok: true }),
+	});
+	await assert.rejects(
+		registry.executeTool("read_test", {}, undefined, { mode: "plan_only" }),
+		(error: unknown) => error instanceof ToolExecutionPolicyError && error.code === "TOOL_PLAN_ONLY",
+	);
 });
 
 test("AIRA has one canonical executable tool registry", async () => {
