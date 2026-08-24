@@ -4,28 +4,29 @@ Semantic memory is a derived retrieval index. `UserMemory` remains canonical and
 
 ## Product policy
 
-- **FREE** uses a dedicated self-hosted/low-cost OpenAI-compatible embedding endpoint. The default model contract is `nomic-embed-text-v1.5` at its native 768 dimensions. FREE never falls through to the PRO credential or to `OPENAI_API_KEY`.
+- **FREE** uses Cloudflare Workers AI with `@cf/baai/bge-base-en-v1.5`, which returns 768-dimensional embeddings. FREE never falls through to the PRO credential, the legacy `AIRA_EMBEDDING_*` credential, or `OPENAI_API_KEY`.
 - **PRO / TEAM** use the richer dedicated embedding route. The default is OpenAI `text-embedding-3-small` with the response explicitly requested at 768 dimensions.
 - If either tier's embedding route is unavailable, AIRA degrades to lexical memory rather than crossing tiers.
 
-The two models do **not** share an embedding space even though both routes use 768-dimensional storage. AIRA stores tier/provider/model metadata and queries only rows matching the user's current server-side route. A plan upgrade/downgrade therefore never compares a FREE vector against a PRO query vector or vice versa.
+The FREE and PRO models do **not** share an embedding space even though both routes use 768-dimensional storage. AIRA stores tier/provider/model metadata and queries only rows matching the user's current server-side route. A plan upgrade/downgrade therefore never compares a FREE vector against a PRO query vector or vice versa.
 
-## FREE endpoint topology
+## FREE Cloudflare Workers AI contract
 
-`AIRA_FREE_EMBEDDING_BASE_URL` must be reachable from the AIRA server process and expose an OpenAI-compatible `/v1/embeddings` API. `llama.cpp` supports an OpenAI-compatible embeddings route when an embedding-capable model is served in embedding mode.
+Configure the FREE route with the OpenAI-compatible Workers AI base URL for the AIRA Cloudflare account:
 
-A public Vercel deployment cannot reach a user's Windows `localhost` or `127.0.0.1`. A production FREE embedding service must therefore run on infrastructure reachable by Vercel, normally an AIRA-controlled HTTPS host/private gateway or another explicitly approved low-cost endpoint.
+`https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1`
 
-The FREE API key is optional for self-hosted endpoints that do not require authentication. If the service requires authentication, configure `AIRA_FREE_EMBEDDING_API_KEY` server-side.
+Server-only configuration:
 
-## Nomic retrieval contract
+- `AIRA_FREE_EMBEDDING_PROVIDER=cloudflare`
+- `AIRA_FREE_EMBEDDING_BASE_URL=https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1`
+- `AIRA_FREE_EMBEDDING_API_KEY=<dedicated Workers AI token>`
+- `AIRA_FREE_EMBEDDING_MODEL=@cf/baai/bge-base-en-v1.5`
+- `AIRA_FREE_EMBEDDING_DIMENSIONS=768`
 
-`nomic-embed-text-v1.5` requires task prefixes for retrieval. AIRA emits:
+The Workers AI token must remain server-only. Do not use a `NEXT_PUBLIC_` variable and do not commit it. FREE requires its dedicated Cloudflare credential; missing or invalid FREE configuration returns no semantic route and callers degrade to lexical memory. FREE never inherits the paid semantic credential.
 
-- `search_document: ...` for memory/document vectors
-- `search_query: ...` for retrieval queries
-
-The model's native 768-dimensional representation is used; vectors are not padded, truncated, duplicated, or projected.
+A real operator verification on 2026-08-24 confirmed the Workers AI OpenAI-compatible `/v1/embeddings` route returned exactly 768 finite values for `@cf/baai/bge-base-en-v1.5`. Runtime activation still requires Preview application-level verification before Production is enabled.
 
 ## PRO / TEAM contract
 
@@ -42,18 +43,19 @@ Tier-aware embeddings are stored in additive derived-index tables:
 
 Both use 768-dimensional pgvector columns and include `tier`, `provider`, `model`, and content-hash metadata. Canonical memory/document rows are not deleted when embeddings fail.
 
-The legacy 1536-dimensional embedding columns/tables remain untouched by this migration. New tier-aware code does not query them.
+The legacy 1536-dimensional embedding columns/tables remain untouched. New tier-aware code does not query them.
 
-AIRA deliberately uses exact vector ordering after filtering the current user's exact `tier + provider + model` route. It does **not** maintain a tier-only HNSW index. During provider/model migrations, a tier can temporarily contain rows from more than one incompatible embedding space; a tier-only approximate index could traverse those mixed vectors before provider/model filtering and weaken retrieval correctness. Route metadata has normal B-tree indexes for filtering, and exact vector scoring is used until AIRA has a provider/model-specific ANN indexing strategy justified by real scale measurements.
+AIRA deliberately uses exact vector ordering after filtering the current user's exact `tier + provider + model` route. It does **not** maintain a tier-only HNSW index. Route metadata has normal B-tree indexes for filtering, and exact vector scoring is used until AIRA has a provider/model-specific ANN indexing strategy justified by real scale measurements.
 
 ## Rollout gate
 
 Keep `SEMANTIC_MEMORY_ENABLED=false` in Production until all of the following are true:
 
 1. the tier-aware migration is applied;
-2. a real FREE embedding endpoint exists and is reachable from Production;
-3. the FREE model contract is verified;
-4. the PRO/TEAM embedding credential is configured if paid semantic memory will be enabled;
-5. Preview proves FREE never consumes the PRO credential;
-6. provider failure degrades to lexical memory;
-7. runtime logs contain no secrets or memory/document content.
+2. Preview is configured with the dedicated Workers AI FREE route;
+3. an authenticated FREE Preview write creates a Cloudflare/BGE semantic row;
+4. an authenticated FREE semantic query uses the same route;
+5. Preview proves FREE still works while the PRO semantic route is unusable;
+6. controlled FREE provider failure degrades to lexical memory with zero paid embedding attempts;
+7. runtime logs contain no secrets or memory/document content;
+8. CI and the exact Preview deployment are green.
