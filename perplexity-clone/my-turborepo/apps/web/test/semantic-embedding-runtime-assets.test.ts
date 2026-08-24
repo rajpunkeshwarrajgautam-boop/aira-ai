@@ -63,10 +63,20 @@ test("manual memory write awaits the semantic sidecar before returning", () => {
 	assert.match(manualBlock, /lexical memory remains available/);
 });
 
-test("Turborepo exposes every tiered semantic environment variable to the web build", () => {
+test("Preview OAuth stays on Vercel's stable branch URL while Production is untouched", () => {
+	const auth = webSource("auth.ts");
+	assert.match(auth, /process\.env\.VERCEL_ENV !== "preview"/);
+	assert.match(auth, /process\.env\.VERCEL_BRANCH_URL/);
+	assert.match(auth, /process\.env\.AUTH_URL = resolvedPreviewAuthUrl/);
+	assert.match(auth, /process\.env\.NEXTAUTH_URL = resolvedPreviewAuthUrl/);
+	assert.match(auth, /previewAuthUrlOverride: !!resolvedPreviewAuthUrl/);
+});
+
+test("Turborepo exposes every tiered semantic and Preview auth environment variable to the web build", () => {
 	const turbo = JSON.parse(repoSource("turbo.json")) as { globalEnv?: string[] };
 	const globalEnv = new Set(turbo.globalEnv ?? []);
 	for (const name of [
+		"VERCEL_BRANCH_URL",
 		"SEMANTIC_MEMORY_ENABLED",
 		"AIRA_FREE_EMBEDDING_PROVIDER",
 		"AIRA_FREE_EMBEDDING_BASE_URL",
