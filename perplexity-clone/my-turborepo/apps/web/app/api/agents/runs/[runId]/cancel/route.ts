@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
 import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
 import { DeerFlowConfigError } from "@/lib/deerflow/config";
@@ -14,6 +15,16 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 		...init,
 		headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) },
 	});
+}
+
+function terminalStatusMessage(status: string): string {
+	return status === "COMPLETED"
+		? "The autonomous task completed before cancellation took effect."
+		: status === "TERMINATED"
+			? "The autonomous runtime confirmed that this task stopped."
+			: status === "FAILED"
+				? "The autonomous task ended in a failed state while cancellation was being processed."
+				: "The cancellation request is still being processed by the runtime.";
 }
 
 export async function POST(_: Request, { params }: Params): Promise<Response> {
@@ -45,6 +56,15 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 		);
 	}
 
+	await recordAgentRunEventBestEffort({
+		runId: cached.id,
+		eventKey: "cancel-requested",
+		type: "CANCEL_REQUESTED",
+		status: cached.status,
+		message: "You requested that AIRA stop this autonomous task.",
+		metadata: { provider: cached.provider },
+	});
+
 	try {
 		const run = await cancelDeerFlowAgentRun(session.user.id, runId);
 		if (!run) {
@@ -52,6 +72,16 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
 				{ status: 404 },
 			);
+		}
+		if (run.status !== cached.status) {
+			await recordAgentRunEventBestEffort({
+				runId: run.id,
+				eventKey: `status:${run.status}`,
+				type: "STATUS_CHANGED",
+				status: run.status,
+				message: terminalStatusMessage(run.status),
+				metadata: { provider: run.provider },
+			});
 		}
 		return noStoreJson({ run, cancelRequested: true }, { status: 202 });
 	} catch (error) {
