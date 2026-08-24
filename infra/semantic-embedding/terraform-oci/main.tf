@@ -17,9 +17,9 @@ data "oci_core_images" "ubuntu_arm" {
 
 resource "oci_core_vcn" "embedding" {
   compartment_id = var.compartment_ocid
-  cidr_blocks     = [var.vcn_cidr]
-  display_name    = "${var.name_prefix}-vcn"
-  dns_label       = "airasem"
+  cidr_blocks    = [var.vcn_cidr]
+  display_name   = "${var.name_prefix}-vcn"
+  dns_label      = "airasem"
 }
 
 resource "oci_core_internet_gateway" "embedding" {
