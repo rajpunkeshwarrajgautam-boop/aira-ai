@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
+import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
+import { providerAccessTierForBillingPlan } from "@/lib/billing/provider-policy";
 import { prisma } from "@/lib/prisma";
 import { UserMemoryKind } from "@/generated/prisma/enums";
 import { ProviderRouter } from "@services/providers/provider-router";
@@ -191,7 +193,9 @@ async function curateLatestTurn(args: {
 		},
 	];
 
-	const router = await ProviderRouter.createDefault();
+	const entitlements = await getEffectiveEntitlements(args.userId);
+	const providerTier = providerAccessTierForBillingPlan(entitlements.billingPlan);
+	const router = await ProviderRouter.createDefault(providerTier);
 	const raw = await collectRouterText(router, messages, 1600);
 	try {
 		return parseMemoryExtraction(raw);
