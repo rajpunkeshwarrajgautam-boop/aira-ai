@@ -29,11 +29,6 @@ variable "instance_memory_gb" {
     condition     = var.instance_memory_gb >= 1 && var.instance_memory_gb <= 12
     error_message = "instance_memory_gb must be between 1 and 12 GB."
   }
-
-  validation {
-    condition     = var.instance_memory_gb <= var.instance_ocpus * 6
-    error_message = "Keep RAM at or below 6 GB per OCPU so this module cannot exceed the current Always Free A1 CPU/RAM ratio."
-  }
 }
 
 variable "boot_volume_gb" {
