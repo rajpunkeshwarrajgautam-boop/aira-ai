@@ -88,6 +88,7 @@ export async function POST(req: Request): Promise<Response> {
 		}
 
 		const result = await runHybridTextTask({
+			userId: session.user.id,
 			system: contextSystemPrefix(),
 			prompt: parsed.data.prompt,
 			taskKind: routing.taskKind,
