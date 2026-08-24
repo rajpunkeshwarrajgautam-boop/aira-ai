@@ -136,8 +136,9 @@ export async function embedTextWithRoute(
 		const response = await clientForRoute(route).embeddings.create({
 			model: route.model,
 			input,
-			encoding_format: "float",
-			...(route.providerId === "openai" ? { dimensions: route.dimensions } : {}),
+			...(route.providerId === "openai"
+				? { encoding_format: "float" as const, dimensions: route.dimensions }
+				: {}),
 		});
 		const vector = response.data[0]?.embedding;
 		if (!vector) throw new Error("Embedding provider returned no vector.");
