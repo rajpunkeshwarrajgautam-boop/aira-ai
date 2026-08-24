@@ -127,6 +127,11 @@ resource "oci_core_instance" "embedding" {
     prevent_destroy = true
 
     precondition {
+      condition     = var.instance_memory_gb <= var.instance_ocpus * 6
+      error_message = "Keep RAM at or below 6 GB per OCPU so this module cannot exceed the current Always Free A1 CPU/RAM ratio."
+    }
+
+    precondition {
       condition     = length(data.oci_core_images.ubuntu_arm.images) > 0
       error_message = "No Canonical Ubuntu 24.04 ARM image was found for VM.Standard.A1.Flex in this region. Verify the tenancy home region and compartment."
     }
