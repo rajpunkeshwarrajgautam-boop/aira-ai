@@ -136,9 +136,11 @@ export async function embedTextWithRoute(
 		const response = await clientForRoute(route).embeddings.create({
 			model: route.model,
 			input,
-			...(route.providerId === "openai"
-				? { encoding_format: "float" as const, dimensions: route.dimensions }
-				: {}),
+			// openai-node defaults omitted encoding_format to base64 and then
+			// decodes the response client-side. Workers AI returns float vectors,
+			// so request float explicitly to prevent SDK-side mis-decoding.
+			encoding_format: "float",
+			...(route.providerId === "openai" ? { dimensions: route.dimensions } : {}),
 		});
 		const vector = response.data[0]?.embedding;
 		if (!vector) throw new Error("Embedding provider returned no vector.");
