@@ -17,7 +17,7 @@ Cloudflare documents an OpenAI-compatible base URL of:
 
 Workers AI currently includes a 10,000-neuron daily free allocation. `@cf/baai/bge-base-en-v1.5` is priced at 6,058 neurons per million input tokens. When the free allocation is exhausted, Cloudflare returns HTTP 429; AIRA classifies that as a rate-limit failure and degrades to lexical memory instead of crossing to the paid semantic route.
 
-A real operator verification on 2026-08-24 called the Workers AI OpenAI-compatible embeddings endpoint using the dedicated AIRA token and confirmed:
+A user-run operator verification on 2026-08-24 called the Workers AI OpenAI-compatible embeddings endpoint using the dedicated AIRA token and reported:
 
 - model: `@cf/baai/bge-base-en-v1.5`
 - vector length: 768
