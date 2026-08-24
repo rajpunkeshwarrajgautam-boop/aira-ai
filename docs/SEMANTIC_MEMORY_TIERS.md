@@ -26,6 +26,8 @@ Server-only configuration:
 
 The Workers AI token must remain server-only. Do not use a `NEXT_PUBLIC_` variable and do not commit it. FREE requires its dedicated Cloudflare credential; missing or invalid FREE configuration returns no semantic route and callers degrade to lexical memory. FREE never inherits the paid semantic credential.
 
+Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. If that allocation is exhausted, the provider returns a rate-limit failure and AIRA must remain on lexical fallback rather than crossing into the PRO semantic route.
+
 A real operator verification on 2026-08-24 confirmed the Workers AI OpenAI-compatible `/v1/embeddings` route returned exactly 768 finite values for `@cf/baai/bge-base-en-v1.5`. Runtime activation still requires Preview application-level verification before Production is enabled.
 
 ## PRO / TEAM contract
