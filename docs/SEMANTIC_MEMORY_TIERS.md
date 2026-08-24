@@ -61,3 +61,5 @@ Keep `SEMANTIC_MEMORY_ENABLED=false` in Production until all of the following ar
 6. controlled FREE provider failure degrades to lexical memory with zero paid embedding attempts;
 7. runtime logs contain no secrets or memory/document content;
 8. CI and the exact Preview deployment are green.
+
+If any gate is missing, Production semantic memory remains disabled.
