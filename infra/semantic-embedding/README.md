@@ -15,7 +15,7 @@ Cloudflare documents an OpenAI-compatible base URL of:
 
 `https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1`
 
-Workers AI currently includes a 10,000-neuron daily free allocation. `@cf/baai/bge-base-en-v1.5` is priced at 6,058 neurons per million input tokens. When the free allocation is exhausted, Cloudflare returns HTTP 429; AIRA classifies that as a rate-limit failure and must degrade to lexical memory instead of crossing to the paid semantic route.
+Workers AI currently includes a 10,000-neuron daily free allocation. `@cf/baai/bge-base-en-v1.5` is priced at 6,058 neurons per million input tokens. When the free allocation is exhausted, Cloudflare returns HTTP 429; AIRA classifies that as a rate-limit failure and degrades to lexical memory instead of crossing to the paid semantic route.
 
 A real operator verification on 2026-08-24 called the Workers AI OpenAI-compatible embeddings endpoint using the dedicated AIRA token and confirmed:
 
@@ -41,7 +41,7 @@ AIRA_FREE_EMBEDDING_DIMENSIONS=768
 
 Never commit the Account token. The account ID is not a secret, but keeping it in environment configuration avoids coupling source code to one Cloudflare account.
 
-Do not use `NEXT_PUBLIC_` for any embedding credential.
+Do not use `NEXT_PUBLIC_` for any embedding credential. After changing Preview variables, redeploy the current PR head and verify that exact deployment before testing semantic runtime behavior.
 
 ## Endpoint verification
 
