@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import type { PublicToolDescriptor, ToolPermissionClass } from "@/lib/tools/contracts";
+import {
+	decideToolInvocation,
+	type PublicToolDescriptor,
+	type ToolApprovalMode,
+	type ToolPermissionClass,
+} from "@/lib/tools/contracts";
 
 export interface AgentTool<TInput = unknown, TOutput = unknown, TContext = unknown> {
 	name: string;
@@ -10,6 +15,22 @@ export interface AgentTool<TInput = unknown, TOutput = unknown, TContext = unkno
 	requiresPermission: boolean;
 	inputSchema: z.ZodType<TInput>;
 	execute: (input: TInput, context?: TContext) => Promise<TOutput>;
+}
+
+export interface ToolExecutionOptions {
+	readonly mode?: ToolApprovalMode;
+	readonly approvalGranted?: boolean;
+}
+
+export class ToolExecutionPolicyError extends Error {
+	constructor(
+		readonly code: "TOOL_UNAVAILABLE" | "TOOL_APPROVAL_REQUIRED" | "TOOL_PLAN_ONLY",
+		message: string,
+		readonly toolId: string,
+	) {
+		super(message);
+		this.name = "ToolExecutionPolicyError";
+	}
 }
 
 function configured(value: string | undefined): boolean {
@@ -113,6 +134,34 @@ function virtualCapabilities(): readonly PublicToolDescriptor[] {
 	];
 }
 
+function assertExecutionAllowed(
+	descriptor: PublicToolDescriptor,
+	options: ToolExecutionOptions,
+): void {
+	if (descriptor.availability.state === "NOT_CONFIGURED" || descriptor.availability.state === "UNAVAILABLE" || descriptor.availability.state === "AUTH_REQUIRED") {
+		throw new ToolExecutionPolicyError(
+			"TOOL_UNAVAILABLE",
+			`${descriptor.label} is not available for execution: ${descriptor.availability.detail}`,
+			descriptor.id,
+		);
+	}
+	const decision = decideToolInvocation(options.mode ?? "auto", descriptor.permission);
+	if (decision === "PLAN_ONLY") {
+		throw new ToolExecutionPolicyError(
+			"TOOL_PLAN_ONLY",
+			`${descriptor.label} cannot execute while tool mode is plan_only.`,
+			descriptor.id,
+		);
+	}
+	if (decision === "REQUIRE_APPROVAL" && options.approvalGranted !== true) {
+		throw new ToolExecutionPolicyError(
+			"TOOL_APPROVAL_REQUIRED",
+			`${descriptor.label} requires explicit approval before execution.`,
+			descriptor.id,
+		);
+	}
+}
+
 export class ToolRegistry {
 	private tools = new Map<string, AgentTool<unknown, unknown, unknown>>();
 
@@ -147,11 +196,13 @@ export class ToolRegistry {
 		name: string,
 		input: unknown,
 		context?: TContext,
+		options: ToolExecutionOptions = {},
 	): Promise<TOutput> {
 		const tool = this.tools.get(name);
 		if (!tool) {
 			throw new Error(`Tool ${name} not found in registry.`);
 		}
+		assertExecutionAllowed(descriptorForTool(tool), options);
 
 		const parsedInput = tool.inputSchema.safeParse(input);
 		if (!parsedInput.success) {
