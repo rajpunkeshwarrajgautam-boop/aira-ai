@@ -65,6 +65,11 @@ test("free provider misconfiguration degrades closed instead of inheriting paid 
 			AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
 			OPENAI_API_KEY: "general-generation-test-key",
 		},
+		{
+			SEMANTIC_MEMORY_ENABLED: "true",
+			AIRA_FREE_EMBEDDING_BASE_URL: "http://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+			AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
+		},
 	]) {
 		assert.equal(resolveSemanticEmbeddingRoute("free", env), null);
 	}
