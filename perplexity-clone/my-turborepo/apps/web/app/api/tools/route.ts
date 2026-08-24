@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { defaultToolRegistry } from "@/lib/tools/registry";
+import { getPublicToolDescriptors } from "@/lib/agents/tools/tool-registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function GET(): Promise<Response> {
 
 	return Response.json(
 		{
-			tools: defaultToolRegistry.publicDescriptors(),
+			tools: await getPublicToolDescriptors(),
 			permissionPolicy: {
 				modes: ["auto", "ask", "plan_only"],
 				auto: "Read-only tools may run automatically; side-effecting and privileged tools still require approval.",
