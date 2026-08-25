@@ -6,14 +6,17 @@ on:
       - feature/omniroute-gateway
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   regenerate-lock:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out head branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,8 +29,18 @@ jobs:
       - name: Regenerate lockfile only
         run: pnpm install --lockfile-only --no-frozen-lockfile
 
-      - name: Show exact lockfile delta
-        run: git diff -- pnpm-lock.yaml
-
       - name: Verify production audit without exception
         run: pnpm audit --prod
+
+      - name: Commit exact lockfile delta
+        shell: bash
+        run: |
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already matches the patched override."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "security: regenerate lockfile for deepmerge override"
+          git push origin HEAD:${{ github.head_ref }}
