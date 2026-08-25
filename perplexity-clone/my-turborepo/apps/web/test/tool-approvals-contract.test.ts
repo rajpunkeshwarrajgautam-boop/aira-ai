@@ -49,6 +49,23 @@ test("approval persistence is server-internal, idempotent, sanitized and race-aw
 	assert.ok(store.includes('status: "APPROVED"'));
 });
 
+test("approval lifecycle feeds durable steps from persisted status without reopening resolved approvals", () => {
+	const store = readWeb("lib/agents/tool-approvals.ts");
+
+	assert.ok(store.includes("recordAgentRunStepBestEffort"));
+	assert.ok(store.includes("approvalStatusToStepStatus"));
+	assert.ok(store.includes('case "PENDING":\n\t\t\treturn "WAITING_FOR_APPROVAL"'));
+	assert.ok(store.includes('case "APPROVED":\n\t\t\treturn "COMPLETED"'));
+	assert.ok(store.includes('case "EXPIRED":\n\t\t\treturn "TIMED_OUT"'));
+	assert.ok(store.includes('case "DENIED":'));
+	assert.ok(store.includes('case "CANCELLED":\n\t\t\treturn "CANCELLED"'));
+	assert.ok(store.includes('stepKey: `approval:${approval.id}`'));
+	assert.ok(store.includes('type: "TOOL_APPROVAL"'));
+	assert.ok(store.includes("status: approvalStatusToStepStatus(approval.status)"));
+	assert.ok(store.includes("recordApprovalStepBestEffort(approval)"));
+	assert.ok(store.includes("recordApprovalStepBestEffort(result)"));
+});
+
 test("approval APIs authenticate, scope by run ownership and expose no request-creation endpoint", () => {
 	const listRoute = readWeb("app/api/agents/runs/[runId]/approvals/route.ts");
 	const resolveRoute = readWeb("app/api/agents/runs/[runId]/approvals/[approvalId]/route.ts");
