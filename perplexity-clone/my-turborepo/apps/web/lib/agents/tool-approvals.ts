@@ -70,6 +70,7 @@ function bounded(value: string, max: number): string {
 }
 
 const SECRET_KEY_PATTERN = /(authorization|api[-_]?key|secret|token|password|cookie|private[-_]?key|credential)/i;
+const TERMINAL_RUN_STATUSES = new Set(["COMPLETED", "FAILED", "TERMINATED"]);
 
 function sanitizeApprovalValue(value: unknown, depth = 0): Prisma.InputJsonValue | undefined {
 	if (depth > 4) return "[truncated]";
@@ -112,6 +113,23 @@ function toDto(approval: SelectedApproval): AgentToolApprovalDto {
 	};
 }
 
+function assertSameApprovalAction(
+	approval: SelectedApproval,
+	expected: { toolId: string; permission: string; mode: string },
+): void {
+	if (
+		approval.toolId !== expected.toolId ||
+		approval.permission !== expected.permission ||
+		approval.mode !== expected.mode
+	) {
+		throw new ToolApprovalError(
+			"APPROVAL_CONFLICT",
+			"This approval key is already bound to a different tool action.",
+			409,
+		);
+	}
+}
+
 export async function requestToolApproval(
 	options: RequestToolApprovalOptions,
 ): Promise<AgentToolApprovalDto> {
@@ -121,6 +139,13 @@ export async function requestToolApproval(
 	});
 	if (!run) {
 		throw new ToolApprovalError("RUN_NOT_FOUND", "Agent task not found.", 404);
+	}
+	if (TERMINAL_RUN_STATUSES.has(run.status)) {
+		throw new ToolApprovalError(
+			"APPROVAL_CONFLICT",
+			"This agent task is already finished and cannot request a new tool approval.",
+			409,
+		);
 	}
 
 	const approvalKey = bounded(options.approvalKey, 200);
@@ -147,6 +172,7 @@ export async function requestToolApproval(
 		update: {},
 		select: APPROVAL_SELECT,
 	});
+	assertSameApprovalAction(approval, { toolId, permission, mode });
 
 	await recordAgentRunEventBestEffort({
 		runId: run.id,
@@ -199,15 +225,27 @@ export async function resolveToolApproval(
 			);
 		}
 
-		return tx.agentToolApproval.update({
-			where: { id: current.id },
+		const changed = await tx.agentToolApproval.updateMany({
+			where: { id: current.id, status: "PENDING" },
 			data: {
 				status: desiredStatus,
 				resolvedAt: now,
 				resolverUserId: userId,
 			},
+		});
+		const latest = await tx.agentToolApproval.findUnique({
+			where: { id: current.id },
 			select: APPROVAL_SELECT,
 		});
+		if (!latest) {
+			throw new ToolApprovalError("APPROVAL_NOT_FOUND", "Approval request not found.", 404);
+		}
+		if (changed.count === 1 || latest.status === desiredStatus) return latest;
+		throw new ToolApprovalError(
+			"APPROVAL_CONFLICT",
+			`Approval was already resolved as ${latest.status.toLowerCase()}.`,
+			409,
+		);
 	});
 
 	await recordAgentRunEventBestEffort({
@@ -222,7 +260,7 @@ export async function resolveToolApproval(
 
 /**
  * Server-side proof used before resuming a privileged tool action. Client input
- * must never be converted directly into `approvalGranted: true`.
+ * must never be converted directly into a trusted execution flag.
  */
 export async function hasApprovedToolAction(
 	userId: string,
