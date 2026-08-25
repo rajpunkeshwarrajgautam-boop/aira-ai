@@ -100,10 +100,24 @@ export class McpRuntimeError extends Error {
 
 const discoveryCache = new Map<string, { expiresAt: number; discovery: McpDiscovery }>();
 
+function stripControlCharacters(value: string): string {
+	let result = "";
+	for (const character of value) {
+		const code = character.charCodeAt(0);
+		const blocked =
+			(code >= 0 && code <= 8) ||
+			code === 11 ||
+			code === 12 ||
+			(code >= 14 && code <= 31) ||
+			code === 127;
+		result += blocked ? " " : character;
+	}
+	return result;
+}
+
 function safeText(value: unknown, maxLength = SAFE_TEXT_LIMIT): string {
 	if (typeof value !== "string") return "";
-	return value
-		.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, " ")
+	return stripControlCharacters(value)
 		.replace(/\s+/g, " ")
 		.trim()
 		.slice(0, maxLength);
@@ -224,6 +238,7 @@ function createTool(
 ): AgentTool<Record<string, unknown>, unknown, McpExecutionContext> {
 	return {
 		name: discovered.id,
+		label: discovered.label,
 		description: discovered.description,
 		category: "mcp",
 		requiresAuth: true,
