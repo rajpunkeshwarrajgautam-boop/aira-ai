@@ -1,5 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { AgentRunStatus } from "@/generated/prisma/enums";
+import {
+	recordRemoteAcceptedCheckpoint,
+	recoverRemoteExecutionIdFromCheckpoint,
+} from "@/lib/agents/run-checkpoints";
 import { classifyStaleRun } from "@/lib/agents/run-reconciliation";
 import type { AgentRunDto } from "@/lib/autogpt/runs";
 import {
@@ -152,25 +156,16 @@ export async function submitDeerFlowAgentRun(options: {
 	}
 
 	const threadId = `aira_${pendingRun.id}`;
+	let remoteRun: Awaited<ReturnType<typeof createDeerFlowRun>>;
 	try {
 		await createDeerFlowThread(config, options.userId, threadId, pendingRun.id);
-		const remoteRun = await createDeerFlowRun(
+		remoteRun = await createDeerFlowRun(
 			config,
 			options.userId,
 			threadId,
 			options.objective,
 			pendingRun.id,
 		);
-		const remoteExecutionId = encodeRemoteExecution(remoteRun.thread_id, remoteRun.run_id);
-		const submitted = await prisma.agentRun.update({
-			where: { id: pendingRun.id },
-			data: {
-				remoteExecutionId,
-				status: statusFromDeerFlow(remoteRun.status),
-			},
-			select: RUN_SELECT,
-		});
-		return { run: toDto(submitted), agentRunsRemaining: remaining };
 	} catch (error) {
 		const outcomeUnknown =
 			error instanceof DeerFlowRequestError && error.submissionOutcomeUnknown;
@@ -189,6 +184,53 @@ export async function submitDeerFlowAgentRun(options: {
 		]);
 		throw error;
 	}
+
+	const remoteExecutionId = encodeRemoteExecution(remoteRun.thread_id, remoteRun.run_id);
+	const remoteStatus = statusFromDeerFlow(remoteRun.status);
+	let checkpointSaved = false;
+	try {
+		await recordRemoteAcceptedCheckpoint({
+			runId: pendingRun.id,
+			provider: PROVIDER,
+			remoteExecutionId,
+			status: remoteStatus,
+		});
+		checkpointSaved = true;
+	} catch (error) {
+		console.error("[agents:deerflow:checkpoint]", {
+			runId: pendingRun.id,
+			error: error instanceof Error ? error.message : "checkpoint persistence failed",
+		});
+	}
+
+	const persistRemoteId = () =>
+		prisma.agentRun.update({
+			where: { id: pendingRun.id },
+			data: { remoteExecutionId, status: remoteStatus },
+			select: RUN_SELECT,
+		});
+	let submitted: SelectedRun;
+	try {
+		submitted = await persistRemoteId();
+	} catch {
+		if (!checkpointSaved) {
+			try {
+				await recordRemoteAcceptedCheckpoint({
+					runId: pendingRun.id,
+					provider: PROVIDER,
+					remoteExecutionId,
+					status: remoteStatus,
+				});
+				checkpointSaved = true;
+			} catch {
+				// The local row retry below remains safe and never resubmits remote work.
+			}
+		}
+		// A local persistence retry is idempotent. Do not mark a confirmed remote
+		// run failed or refund quota merely because this database write was interrupted.
+		submitted = await persistRemoteId();
+	}
+	return { run: toDto(submitted), agentRunsRemaining: remaining };
 }
 
 /** Moves a run that outlived its reconciliation bound into a terminal state. */
@@ -214,16 +256,23 @@ export async function refreshDeerFlowAgentRun(
 	if (!row) return null;
 	if (isTerminal(row.status)) return toDto(row);
 
+	const remoteExecutionId =
+		row.remoteExecutionId ??
+		(await recoverRemoteExecutionIdFromCheckpoint({
+			userId,
+			runId: row.id,
+			provider: PROVIDER,
+		}));
 	const stale = classifyStaleRun({
-		remoteExecutionId: row.remoteExecutionId,
+		remoteExecutionId,
 		createdAt: row.createdAt,
 	});
 	if (stale) return toDto(await closeStaleRun(row.id, stale.errorMessage));
 
-	if (!row.remoteExecutionId) return toDto(row);
-	if (Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) return toDto(row);
+	if (!remoteExecutionId) return toDto(row);
+	if (row.remoteExecutionId && Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) return toDto(row);
 
-	const { threadId, runId: remoteRunId } = decodeRemoteExecution(row.remoteExecutionId);
+	const { threadId, runId: remoteRunId } = decodeRemoteExecution(remoteExecutionId);
 	const config = getDeerFlowConfig();
 	let remote: Awaited<ReturnType<typeof getDeerFlowRun>>;
 	try {
@@ -277,9 +326,18 @@ export async function cancelDeerFlowAgentRun(
 		where: { id: runId, userId, provider: PROVIDER },
 	});
 	if (!row) return null;
-	if (isTerminal(row.status) || !row.remoteExecutionId) return toDto(row);
+	if (isTerminal(row.status)) return toDto(row);
 
-	const { threadId, runId: remoteRunId } = decodeRemoteExecution(row.remoteExecutionId);
+	const remoteExecutionId =
+		row.remoteExecutionId ??
+		(await recoverRemoteExecutionIdFromCheckpoint({
+			userId,
+			runId: row.id,
+			provider: PROVIDER,
+		}));
+	if (!remoteExecutionId) return toDto(row);
+
+	const { threadId, runId: remoteRunId } = decodeRemoteExecution(remoteExecutionId);
 	const config = getDeerFlowConfig();
 	await cancelDeerFlowRun(config, userId, threadId, remoteRunId);
 
