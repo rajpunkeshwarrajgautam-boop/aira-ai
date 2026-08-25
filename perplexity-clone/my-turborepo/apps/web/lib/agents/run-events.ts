@@ -31,13 +31,21 @@ export interface RecordAgentRunEventOptions {
 	readonly metadata?: Prisma.InputJsonValue;
 }
 
+function publicEventMetadata(event: SelectedEvent): unknown | null {
+	// Remote provider handles are restart-recovery state, not client-facing data.
+	// Keep the checkpoint event itself visible in the lifecycle while withholding
+	// its private metadata from the authenticated events API.
+	if (event.type === "CHECKPOINT_REMOTE_ACCEPTED") return null;
+	return event.metadata;
+}
+
 function toDto(event: SelectedEvent): AgentRunEventDto {
 	return {
 		id: event.id,
 		type: event.type,
 		status: event.status,
 		message: event.message,
-		metadata: event.metadata,
+		metadata: publicEventMetadata(event),
 		createdAt: event.createdAt.toISOString(),
 	};
 }
