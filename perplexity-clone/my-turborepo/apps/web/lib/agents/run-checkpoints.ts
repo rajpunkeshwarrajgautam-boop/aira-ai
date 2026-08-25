@@ -7,16 +7,10 @@ import { recordAgentRunEvent, recordAgentRunEventBestEffort } from "./run-events
 const REMOTE_ACCEPTED_EVENT = "CHECKPOINT_REMOTE_ACCEPTED";
 const CHECKPOINT_VERSION = 1;
 
-interface RemoteCheckpointMetadata {
-	readonly checkpointVersion: number;
-	readonly provider: string;
-	readonly remoteExecutionId: string;
-}
-
 function metadataForRemoteCheckpoint(
 	provider: string,
 	remoteExecutionId: string,
-): RemoteCheckpointMetadata {
+): Prisma.InputJsonObject {
 	return {
 		checkpointVersion: CHECKPOINT_VERSION,
 		provider,
