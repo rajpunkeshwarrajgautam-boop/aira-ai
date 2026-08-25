@@ -58,22 +58,14 @@ AIRA_RECONCILE_MAX_BACKOFF_SECONDS=300
 
 ## Verify
 
+Use systemd rather than expanding the secret environment into a shell command:
+
 ```bash
 systemctl status aira-reconciler --no-pager
 journalctl -u aira-reconciler -n 100 --no-pager
 ```
 
-A healthy pass logs only the HTTP success status. Logs must not contain tokens, user IDs, run IDs, provider request bodies, or provider credentials.
-
-A one-shot diagnostic is also available:
-
-```bash
-sudo -u aira-reconciler \
-  env $(cat /etc/aira/reconciler.env | xargs) \
-  /usr/local/lib/aira/reconciler-worker.sh --once
-```
-
-For routine operations prefer `systemctl`/`journalctl`; do not copy the environment file into shell history or support transcripts.
+A healthy pass logs only the HTTP success status. Logs must not contain tokens, user IDs, run IDs, provider request bodies, or provider credentials. The worker has a `--once` mode for automated contract tests, but operators should not copy `/etc/aira/reconciler.env` into command arguments or support transcripts.
 
 ## Rollback
 
