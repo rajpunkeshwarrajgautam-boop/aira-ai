@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { BillingPlan } from "@/generated/prisma/enums";
+import {
+	assertMinPlan,
+	PlanEnforcementError,
+} from "@/lib/billing/plan-enforcement";
 import { fetchOmniRouteModels, OmniRouteGatewayError } from "@services/omniroute/gateway";
 import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
 import {
@@ -130,6 +135,21 @@ function publicProviderError(error: unknown): string {
 	return "Provider request failed.";
 }
 
+async function requireCompareAccess(userId: string): Promise<Response | null> {
+	try {
+		await assertMinPlan(userId, BillingPlan.PRO);
+		return null;
+	} catch (error) {
+		if (error instanceof PlanEnforcementError) {
+			return Response.json(
+				{ error: { code: error.code, message: error.message } },
+				{ status: error.status },
+			);
+		}
+		throw error;
+	}
+}
+
 function resolvedTarget(target: CompareTarget): {
 	readonly descriptor: ReturnType<typeof descriptors>[number] | undefined;
 	readonly model: string;
@@ -204,6 +224,8 @@ export async function GET(): Promise<Response> {
 			{ status: 401 },
 		);
 	}
+	const accessError = await requireCompareAccess(session.user.id);
+	if (accessError) return accessError;
 	return Response.json(
 		{ providers: descriptors() },
 		{ headers: { "Cache-Control": "no-store" } },
@@ -218,6 +240,8 @@ export async function POST(req: Request): Promise<Response> {
 			{ status: 401 },
 		);
 	}
+	const accessError = await requireCompareAccess(session.user.id);
+	if (accessError) return accessError;
 
 	let body: unknown;
 	try {
