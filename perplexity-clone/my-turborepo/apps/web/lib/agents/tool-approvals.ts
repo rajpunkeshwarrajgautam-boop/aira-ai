@@ -74,7 +74,7 @@ const TERMINAL_RUN_STATUSES = new Set(["COMPLETED", "FAILED", "TERMINATED"]);
 
 function sanitizeApprovalValue(value: unknown, depth = 0): Prisma.InputJsonValue | undefined {
 	if (depth > 4) return "[truncated]";
-	if (value === null) return null;
+	if (value === null) return undefined;
 	if (typeof value === "boolean" || typeof value === "number") return value;
 	if (typeof value === "string") return value.slice(0, 1_000);
 	if (Array.isArray(value)) {
