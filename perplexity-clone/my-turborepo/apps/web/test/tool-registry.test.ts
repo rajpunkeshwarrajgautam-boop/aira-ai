@@ -22,6 +22,7 @@ test("tool approval modes fail conservative for side effects", () => {
 	assert.equal(decideToolInvocation("auto", "WRITE"), "REQUIRE_APPROVAL");
 	assert.equal(decideToolInvocation("auto", "CODE_EXECUTION"), "REQUIRE_APPROVAL");
 	assert.equal(decideToolInvocation("auto", "BROWSER_ACTION"), "REQUIRE_APPROVAL");
+	assert.equal(decideToolInvocation("auto", "HIGH_IMPACT"), "REQUIRE_APPROVAL");
 	assert.equal(decideToolInvocation("ask", "READ"), "REQUIRE_APPROVAL");
 	assert.equal(decideToolInvocation("plan_only", "READ"), "PLAN_ONLY");
 	assert.equal(decideToolInvocation("plan_only", "HIGH_IMPACT"), "PLAN_ONLY");
@@ -85,6 +86,8 @@ test("AIRA has one canonical executable tool registry and one built-in registrat
 	assert.ok(source.includes('import("./memoryLookupTool")'));
 	assert.ok(source.includes('import("./calculatorTool")'));
 	assert.ok(source.includes('import("./pythonSandboxTool")'));
+	assert.ok(source.includes('import("../../mcp/runtime")'));
+	assert.ok(source.includes("ensureMcpToolRegistered(this, name"));
 });
 
 test("registry exposes disabled runtime capabilities truthfully without duplicate ids", () => {
@@ -135,21 +138,23 @@ test("configured web search is reported as configured rather than live healthy",
 	}
 });
 
-test("tool status endpoint is authenticated, no-store and returns only public descriptors", () => {
+test("tool status endpoint is authenticated, no-store and returns user-scoped canonical descriptors", () => {
 	const route = readWeb("app/api/tools/route.ts");
 	assert.ok(route.includes("await auth()"));
 	assert.ok(route.includes('code: "UNAUTHENTICATED"'));
 	assert.ok(route.includes('"Cache-Control": "no-store"'));
 	assert.ok(route.includes('from "@/lib/agents/tools/tool-registry"'));
-	assert.ok(route.includes("getPublicToolDescriptors()"));
+	assert.ok(route.includes("getPublicToolDescriptors(session.user.id)"));
 	assert.ok(!route.includes("process.env"));
 });
 
 test("settings distinguishes configured tools from live-connected services", () => {
 	const page = readWeb("app/settings/page.tsx");
 	assert.ok(page.includes('fetch("/api/tools"'));
+	assert.ok(page.includes('fetch("/api/mcp"'));
 	assert.ok(page.includes("Agent tool registry"));
 	assert.ok(page.includes("Configured"));
 	assert.ok(page.includes("does not claim live health"));
 	assert.ok(page.includes("Auto mode only auto-executes read tools"));
+	assert.ok(page.includes("Unknown remote MCP tools default to"));
 });
