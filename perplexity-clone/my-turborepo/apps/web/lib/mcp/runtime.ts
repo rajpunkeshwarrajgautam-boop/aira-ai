@@ -489,8 +489,9 @@ export async function ensureMcpToolRegistered(
 ): Promise<void> {
 	if (!userId) throw new McpRuntimeError("MCP_CONTEXT_REQUIRED", "MCP execution requires an authenticated AIRA user context.");
 	const match = canonicalId.match(/^mcp:([a-z0-9][a-z0-9_-]{0,47}):(.+)$/);
-	if (!match) throw new McpRuntimeError("MCP_TOOL_NOT_FOUND", "MCP tool identifier is invalid.");
-	const server = getConfiguredMcpServer(match[1]);
+	const serverId = match?.[1];
+	if (!serverId) throw new McpRuntimeError("MCP_TOOL_NOT_FOUND", "MCP tool identifier is invalid.");
+	const server = getConfiguredMcpServer(serverId);
 	if (!server || !isMcpEnabled() || !(await preferenceEnabled(userId, server))) {
 		throw new McpRuntimeError("MCP_SERVER_DISABLED", "MCP server is unavailable for this account.");
 	}
