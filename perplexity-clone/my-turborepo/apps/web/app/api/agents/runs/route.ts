@@ -2,6 +2,10 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
+import {
+	agentRunStatusToStepStatus,
+	recordAgentRunStepBestEffort,
+} from "@/lib/agents/run-steps";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import {
 	AutoGptConfigError,
@@ -237,14 +241,30 @@ export async function POST(req: Request): Promise<Response> {
 				objective: parsed.data.objective,
 			});
 
-		await recordAgentRunEventBestEffort({
-			runId: submitted.run.id,
-			eventKey: "submitted",
-			type: "SUBMITTED",
-			status: submitted.run.status,
-			message: `Task accepted by ${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"}.`,
-			metadata: { provider: submitted.run.provider },
-		});
+		await Promise.all([
+			recordAgentRunEventBestEffort({
+				runId: submitted.run.id,
+				eventKey: "submitted",
+				type: "SUBMITTED",
+				status: submitted.run.status,
+				message: `Task accepted by ${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"}.`,
+				metadata: { provider: submitted.run.provider },
+			}),
+			recordAgentRunStepBestEffort({
+				runId: submitted.run.id,
+				stepKey: "provider-submission",
+				type: "PROVIDER_SUBMISSION",
+				label: `Submit task to ${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"}`,
+				status: "COMPLETED",
+			}),
+			recordAgentRunStepBestEffort({
+				runId: submitted.run.id,
+				stepKey: "provider-execution",
+				type: "PROVIDER_EXECUTION",
+				label: `${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"} execution`,
+				status: agentRunStatusToStepStatus(submitted.run.status),
+			}),
+		]);
 
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
