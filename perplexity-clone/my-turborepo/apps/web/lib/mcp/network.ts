@@ -53,7 +53,6 @@ export function isUnsafeMcpAddress(address: string): boolean {
 
 export function validateMcpEndpoint(
 	value: string,
-	_nodeEnv = process.env.NODE_ENV ?? "development",
 	options: { allowPath?: boolean } = {},
 ): URL {
 	let url: URL;
@@ -89,7 +88,7 @@ export function validateMcpEndpoint(
 export async function assertMcpEndpointSafe(url: URL): Promise<void> {
 	validateMcpEndpoint(url.toString());
 	if (isIP(url.hostname)) return;
-	let addresses: Awaited<ReturnType<typeof lookup>>;
+	let addresses: Array<{ address: string; family: number }>;
 	try {
 		addresses = await lookup(url.hostname, { all: true, verbatim: true });
 	} catch {
