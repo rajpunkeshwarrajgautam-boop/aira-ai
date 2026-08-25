@@ -1,0 +1,46 @@
+name: MCP lock probe
+
+on:
+  pull_request:
+    branches:
+      - feature/omniroute-gateway
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-lock:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out head branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Regenerate lockfile only
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+
+      - name: Verify production audit
+        run: pnpm audit --prod
+
+      - name: Commit exact lockfile delta
+        shell: bash
+        run: |
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already matches package manifests."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: regenerate lockfile for MCP v2 client"
+          git push origin HEAD:${{ github.head_ref }}
