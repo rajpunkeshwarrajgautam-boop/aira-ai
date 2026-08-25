@@ -16,7 +16,6 @@ test("durable run steps reuse the immutable run-owned event ledger", () => {
 	assert.ok(source.includes('type: "RUN_STEP"'));
 	assert.ok(source.includes('eventKey: `step:${stepKey}:${attempt}:${options.status}`'));
 	assert.ok(source.includes('run: { userId }'));
-	assert.ok(source.includes('type: "RUN_STEP"'));
 	assert.ok(source.includes("const steps = new Map<string, AgentRunStepDto>()"));
 	assert.ok(!source.includes("executeAutoGptGraph"));
 	assert.ok(!source.includes("createDeerFlowRun"));
@@ -24,11 +23,10 @@ test("durable run steps reuse the immutable run-owned event ledger", () => {
 
 test("run status mapping does not misrepresent provider review as human approval", () => {
 	const source = readWeb("lib/agents/run-steps.ts");
+	const reviewCase = source.match(/case "REVIEW":\s*return "([A-Z_]+)"/);
 
-	assert.ok(source.includes('case "REVIEW":'));
-	assert.ok(source.includes('return "WAITING_FOR_REVIEW"'));
+	assert.equal(reviewCase?.[1], "WAITING_FOR_REVIEW");
 	assert.ok(source.includes('"WAITING_FOR_APPROVAL"'));
-	assert.ok(source.indexOf('return "WAITING_FOR_REVIEW"') < source.indexOf('"WAITING_FOR_APPROVAL"', source.indexOf("export interface")) || source.includes('case "REVIEW":\n\t\t\treturn "WAITING_FOR_REVIEW"'));
 });
 
 test("step API authenticates and scopes reads through run ownership", () => {
