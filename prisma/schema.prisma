@@ -76,22 +76,23 @@ enum UserMemoryKind {
 }
 
 model User {
-  id                  String                 @id @default(cuid())
-  name                String?
-  email               String?                @unique
-  emailVerified       DateTime?
-  image               String?
+  id                   String                @id @default(cuid())
+  name                 String?
+  email                String?               @unique
+  emailVerified        DateTime?
+  image                String?
   /** E.164 or local digits — required for Cashfree subscription checkout when absent. */
-  billingPhone        String?
-  billingPlan         BillingPlan            @default(FREE)
-  accounts            Account[]
-  sessions            Session[]
-  billingSubscription BillingSubscription?
-  usageRecords        UsageRecord[]
-  agentRuns           AgentRun[]
-  conversations       Conversation[]
-  researchHistory     ResearchHistory[]
-  memories            UserMemory[]
+  billingPhone         String?
+  billingPlan          BillingPlan           @default(FREE)
+  accounts             Account[]
+  sessions             Session[]
+  billingSubscription  BillingSubscription?
+  usageRecords         UsageRecord[]
+  agentRuns            AgentRun[]
+  conversations        Conversation[]
+  researchHistory      ResearchHistory[]
+  memories             UserMemory[]
+  mcpServerPreferences McpServerPreference[]
 }
 
 model Account {
@@ -228,6 +229,21 @@ model AgentToolApproval {
   @@unique([runId, approvalKey])
   @@index([runId, status, requestedAt])
   @@index([resolverUserId, resolvedAt])
+}
+
+/// User-owned activation preference for deployment-approved MCP servers.
+/// Endpoints and credentials remain deployment/server configuration and are never stored here.
+model McpServerPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, serverId])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 /// Cashfree PG webhook idempotency (SHA-256 hex of raw body after signature verification).
