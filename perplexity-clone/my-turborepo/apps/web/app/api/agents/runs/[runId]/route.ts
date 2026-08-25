@@ -1,5 +1,9 @@
 import { auth } from "@/auth";
 import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
+import {
+	agentRunStatusToStepStatus,
+	recordAgentRunStepBestEffort,
+} from "@/lib/agents/run-steps";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import { AutoGptConfigError } from "@/lib/autogpt/config";
 import { getAgentRun, refreshAgentRun } from "@/lib/autogpt/runs";
@@ -64,14 +68,23 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 		}
 
 		if (run.status !== cached.status) {
-			await recordAgentRunEventBestEffort({
-				runId: run.id,
-				eventKey: `status:${run.status}`,
-				type: "STATUS_CHANGED",
-				status: run.status,
-				message: statusMessage(run.status),
-				metadata: { provider: run.provider },
-			});
+			await Promise.all([
+				recordAgentRunEventBestEffort({
+					runId: run.id,
+					eventKey: `status:${run.status}`,
+					type: "STATUS_CHANGED",
+					status: run.status,
+					message: statusMessage(run.status),
+					metadata: { provider: run.provider },
+				}),
+				recordAgentRunStepBestEffort({
+					runId: run.id,
+					stepKey: "provider-execution",
+					type: "PROVIDER_EXECUTION",
+					label: `${run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"} execution`,
+					status: agentRunStatusToStepStatus(run.status),
+				}),
+			]);
 		}
 
 		return noStoreJson({ run });
