@@ -53,8 +53,6 @@ const STEP_EVENT_SELECT = {
 	createdAt: true,
 } satisfies Prisma.AgentRunEventSelect;
 
-type SelectedStepEvent = Prisma.AgentRunEventGetPayload<{ select: typeof STEP_EVENT_SELECT }>;
-
 const TERMINAL_STEP_STATUSES = new Set<AgentRunStepStatus>([
 	"COMPLETED",
 	"FAILED",
