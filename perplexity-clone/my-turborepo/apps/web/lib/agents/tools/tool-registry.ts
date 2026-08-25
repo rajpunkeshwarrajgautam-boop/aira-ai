@@ -17,9 +17,24 @@ export interface AgentTool<TInput = unknown, TOutput = unknown, TContext = unkno
 	execute: (input: TInput, context?: TContext) => Promise<TOutput>;
 }
 
+export interface ToolApprovalProof {
+	readonly userId: string;
+	readonly runId: string;
+	readonly approvalId: string;
+}
+
+export interface ToolApprovalRequestContext {
+	readonly userId: string;
+	readonly runId: string;
+	readonly approvalKey: string;
+	readonly summary: string;
+	readonly request?: unknown;
+}
+
 export interface ToolExecutionOptions {
 	readonly mode?: ToolApprovalMode;
-	readonly approvalGranted?: boolean;
+	readonly approval?: ToolApprovalProof;
+	readonly approvalRequest?: ToolApprovalRequestContext;
 }
 
 type ToolExecutionPolicyCode =
@@ -30,12 +45,19 @@ type ToolExecutionPolicyCode =
 export class ToolExecutionPolicyError extends Error {
 	readonly code: ToolExecutionPolicyCode;
 	readonly toolId: string;
+	readonly approvalId: string | null;
 
-	constructor(code: ToolExecutionPolicyCode, message: string, toolId: string) {
+	constructor(
+		code: ToolExecutionPolicyCode,
+		message: string,
+		toolId: string,
+		approvalId: string | null = null,
+	) {
 		super(message);
 		this.name = "ToolExecutionPolicyError";
 		this.code = code;
 		this.toolId = toolId;
+		this.approvalId = approvalId;
 	}
 }
 
@@ -140,10 +162,10 @@ function virtualCapabilities(): readonly PublicToolDescriptor[] {
 	];
 }
 
-function assertExecutionAllowed(
+async function assertExecutionAllowed(
 	descriptor: PublicToolDescriptor,
 	options: ToolExecutionOptions,
-): void {
+): Promise<void> {
 	if (descriptor.availability.state === "NOT_CONFIGURED" || descriptor.availability.state === "UNAVAILABLE" || descriptor.availability.state === "AUTH_REQUIRED") {
 		throw new ToolExecutionPolicyError(
 			"TOOL_UNAVAILABLE",
@@ -151,7 +173,8 @@ function assertExecutionAllowed(
 			descriptor.id,
 		);
 	}
-	const decision = decideToolInvocation(options.mode ?? "auto", descriptor.permission);
+	const mode = options.mode ?? "auto";
+	const decision = decideToolInvocation(mode, descriptor.permission);
 	if (decision === "PLAN_ONLY") {
 		throw new ToolExecutionPolicyError(
 			"TOOL_PLAN_ONLY",
@@ -159,13 +182,44 @@ function assertExecutionAllowed(
 			descriptor.id,
 		);
 	}
-	if (decision === "REQUIRE_APPROVAL" && options.approvalGranted !== true) {
+	if (decision !== "REQUIRE_APPROVAL") return;
+
+	if (options.approval) {
+		const { hasApprovedToolAction } = await import("../tool-approvals");
+		const approved = await hasApprovedToolAction(
+			options.approval.userId,
+			options.approval.runId,
+			options.approval.approvalId,
+			descriptor.id,
+		);
+		if (approved) return;
+	}
+
+	if (options.approvalRequest) {
+		const { requestToolApproval } = await import("../tool-approvals");
+		const approval = await requestToolApproval({
+			userId: options.approvalRequest.userId,
+			runId: options.approvalRequest.runId,
+			approvalKey: options.approvalRequest.approvalKey,
+			toolId: descriptor.id,
+			permission: descriptor.permission,
+			mode,
+			summary: options.approvalRequest.summary,
+			request: options.approvalRequest.request,
+		});
 		throw new ToolExecutionPolicyError(
 			"TOOL_APPROVAL_REQUIRED",
 			`${descriptor.label} requires explicit approval before execution.`,
 			descriptor.id,
+			approval.id,
 		);
 	}
+
+	throw new ToolExecutionPolicyError(
+		"TOOL_APPROVAL_REQUIRED",
+		`${descriptor.label} requires explicit approval before execution.`,
+		descriptor.id,
+	);
 }
 
 export class ToolRegistry {
@@ -208,7 +262,7 @@ export class ToolRegistry {
 		if (!tool) {
 			throw new Error(`Tool ${name} not found in registry.`);
 		}
-		assertExecutionAllowed(descriptorForTool(tool), options);
+		await assertExecutionAllowed(descriptorForTool(tool), options);
 
 		const parsedInput = tool.inputSchema.safeParse(input);
 		if (!parsedInput.success) {
