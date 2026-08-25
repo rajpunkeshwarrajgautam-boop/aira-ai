@@ -1,5 +1,9 @@
 import { auth } from "@/auth";
 import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
+import {
+	agentRunStatusToStepStatus,
+	recordAgentRunStepBestEffort,
+} from "@/lib/agents/run-steps";
 import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
 import { DeerFlowConfigError } from "@/lib/deerflow/config";
@@ -56,14 +60,23 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 		);
 	}
 
-	await recordAgentRunEventBestEffort({
-		runId: cached.id,
-		eventKey: "cancel-requested",
-		type: "CANCEL_REQUESTED",
-		status: cached.status,
-		message: "You requested that AIRA stop this autonomous task.",
-		metadata: { provider: cached.provider },
-	});
+	await Promise.all([
+		recordAgentRunEventBestEffort({
+			runId: cached.id,
+			eventKey: "cancel-requested",
+			type: "CANCEL_REQUESTED",
+			status: cached.status,
+			message: "You requested that AIRA stop this autonomous task.",
+			metadata: { provider: cached.provider },
+		}),
+		recordAgentRunStepBestEffort({
+			runId: cached.id,
+			stepKey: "provider-cancellation",
+			type: "PROVIDER_CANCELLATION",
+			label: "Cancel DeerFlow execution",
+			status: "RUNNING",
+		}),
+	]);
 
 	try {
 		const run = await cancelDeerFlowAgentRun(session.user.id, runId);
@@ -73,18 +86,45 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 				{ status: 404 },
 			);
 		}
+		await recordAgentRunStepBestEffort({
+			runId: run.id,
+			stepKey: "provider-cancellation",
+			type: "PROVIDER_CANCELLATION",
+			label: "Cancel DeerFlow execution",
+			status: run.status === "TERMINATED" ? "COMPLETED" : agentRunStatusToStepStatus(run.status),
+		});
 		if (run.status !== cached.status) {
-			await recordAgentRunEventBestEffort({
-				runId: run.id,
-				eventKey: `status:${run.status}`,
-				type: "STATUS_CHANGED",
-				status: run.status,
-				message: terminalStatusMessage(run.status),
-				metadata: { provider: run.provider },
-			});
+			await Promise.all([
+				recordAgentRunEventBestEffort({
+					runId: run.id,
+					eventKey: `status:${run.status}`,
+					type: "STATUS_CHANGED",
+					status: run.status,
+					message: terminalStatusMessage(run.status),
+					metadata: { provider: run.provider },
+				}),
+				recordAgentRunStepBestEffort({
+					runId: run.id,
+					stepKey: "provider-execution",
+					type: "PROVIDER_EXECUTION",
+					label: "DeerFlow 2.0 execution",
+					status: agentRunStatusToStepStatus(run.status),
+				}),
+			]);
 		}
 		return noStoreJson({ run, cancelRequested: true }, { status: 202 });
 	} catch (error) {
+		await recordAgentRunStepBestEffort({
+			runId: cached.id,
+			stepKey: "provider-cancellation",
+			type: "PROVIDER_CANCELLATION",
+			label: "Cancel DeerFlow execution",
+			status: "FAILED",
+			errorCode:
+				error instanceof DeerFlowRequestError || error instanceof DeerFlowConfigError
+					? error.code
+					: "AGENT_CANCEL_FAILED",
+		});
 		if (error instanceof DeerFlowRequestError || error instanceof DeerFlowConfigError) {
 			return noStoreJson(
 				{ error: { code: error.code, message: error.message } },
