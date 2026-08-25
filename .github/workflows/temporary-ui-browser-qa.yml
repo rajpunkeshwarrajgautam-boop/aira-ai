@@ -1,0 +1,177 @@
+name: Temporary UI Browser QA
+
+on:
+  push:
+    branches:
+      - feature/claude-style-workspace
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install repository dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start AIRA web app
+        env:
+          AUTH_SECRET: browser-qa-local-secret-not-production
+          NEXTAUTH_SECRET: browser-qa-local-secret-not-production
+          AUTH_URL: http://127.0.0.1:3000
+          NEXTAUTH_URL: http://127.0.0.1:3000
+        run: |
+          pnpm --filter web dev > /tmp/aira-browser-qa.log 2>&1 &
+          echo $! > /tmp/aira-browser-qa.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/aira-browser-qa.log
+          exit 1
+
+      - name: Install isolated Playwright Chromium
+        run: |
+          mkdir -p /tmp/aira-playwright
+          cd /tmp/aira-playwright
+          npm init -y >/dev/null
+          npm install playwright@1.55.0 --no-save
+          npx playwright install --with-deps chromium
+
+      - name: Run viewport, overflow, accessibility-name and interaction smoke QA
+        run: |
+          mkdir -p browser-qa-artifacts
+          cd /tmp/aira-playwright
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const { chromium } = require('playwright');
+
+          const output = path.resolve(process.env.GITHUB_WORKSPACE, 'browser-qa-artifacts');
+          const viewports = [
+            { name: '390', width: 390, height: 844 },
+            { name: '768', width: 768, height: 1024 },
+            { name: '1440', width: 1440, height: 900 },
+            { name: '1536', width: 1536, height: 960 },
+            { name: '1920', width: 1920, height: 1080 },
+          ];
+          const routes = ['/', '/signin', '/compare', '/knowledge', '/memory', '/agents', '/runs', '/omniroute', '/settings', '/workspace-search', '/local-ai', '/pricing'];
+          const failures = [];
+          const results = [];
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            for (const viewport of viewports) {
+              const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: 'light', reducedMotion: 'no-preference' });
+              for (const route of routes) {
+                const page = await context.newPage();
+                const pageErrors = [];
+                page.on('pageerror', error => pageErrors.push(String(error)));
+                let response;
+                try {
+                  response = await page.goto(`http://127.0.0.1:3000${route}`, { waitUntil: 'networkidle', timeout: 30000 });
+                } catch (error) {
+                  failures.push(`${viewport.name} ${route}: navigation failed: ${error.message}`);
+                  await page.close();
+                  continue;
+                }
+                await page.waitForTimeout(300);
+                const finalUrl = page.url();
+                const metrics = await page.evaluate(() => {
+                  const root = document.documentElement;
+                  const visible = el => {
+                    const rect = el.getBoundingClientRect();
+                    const style = getComputedStyle(el);
+                    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                  };
+                  const unnamed = [...document.querySelectorAll('button,a[href]')].filter(visible).filter(el => {
+                    const text = (el.textContent || '').trim();
+                    const aria = (el.getAttribute('aria-label') || '').trim();
+                    const title = (el.getAttribute('title') || '').trim();
+                    return !text && !aria && !title;
+                  }).length;
+                  const tinyTargets = [...document.querySelectorAll('button,a[href],input,select,textarea')].filter(visible).filter(el => {
+                    const r = el.getBoundingClientRect();
+                    return r.width < 24 || r.height < 24;
+                  }).length;
+                  return {
+                    viewportWidth: innerWidth,
+                    scrollWidth: root.scrollWidth,
+                    bodyScrollWidth: document.body.scrollWidth,
+                    unnamed,
+                    tinyTargets,
+                    title: document.title,
+                  };
+                });
+                const overflow = Math.max(metrics.scrollWidth, metrics.bodyScrollWidth) > viewport.width + 1;
+                if (overflow) failures.push(`${viewport.name} ${route}: horizontal overflow ${Math.max(metrics.scrollWidth, metrics.bodyScrollWidth)} > ${viewport.width}`);
+                if (metrics.unnamed) failures.push(`${viewport.name} ${route}: ${metrics.unnamed} visible unnamed button/link controls`);
+                if (pageErrors.length) failures.push(`${viewport.name} ${route}: page errors: ${pageErrors.join(' | ')}`);
+                const slug = route === '/' ? 'home' : route.replaceAll('/', '-').replace(/^-/, '');
+                await page.screenshot({ path: path.join(output, `${viewport.name}-${slug}.png`), fullPage: true });
+                results.push({ viewport: viewport.name, route, status: response?.status() ?? null, finalUrl, ...metrics, pageErrors });
+                await page.close();
+              }
+              await context.close();
+            }
+
+            const interactionContext = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: 'light' });
+            const interactionPage = await interactionContext.newPage();
+            const interactionErrors = [];
+            interactionPage.on('pageerror', error => interactionErrors.push(String(error)));
+            await interactionPage.goto('http://127.0.0.1:3000/', { waitUntil: 'networkidle' });
+            await interactionPage.keyboard.press('Control+K');
+            await interactionPage.waitForTimeout(200);
+            await interactionPage.screenshot({ path: path.join(output, '1440-command-palette.png'), fullPage: true });
+            await interactionPage.keyboard.press('Escape');
+            await interactionPage.keyboard.press('Tab');
+            const focused = await interactionPage.evaluate(() => ({ tag: document.activeElement?.tagName, label: document.activeElement?.getAttribute('aria-label'), text: document.activeElement?.textContent?.trim().slice(0, 80) }));
+            results.push({ interaction: 'ctrl-k-escape-tab', focused, pageErrors: interactionErrors });
+            if (interactionErrors.length) failures.push(`interaction smoke: page errors: ${interactionErrors.join(' | ')}`);
+            await interactionContext.close();
+
+            for (const scheme of ['light', 'dark']) {
+              const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme, reducedMotion: 'reduce' });
+              const page = await context.newPage();
+              await page.goto('http://127.0.0.1:3000/', { waitUntil: 'networkidle' });
+              await page.screenshot({ path: path.join(output, `1440-home-${scheme}-reduced-motion.png`), fullPage: true });
+              await context.close();
+            }
+
+            await browser.close();
+            fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ results, failures }, null, 2));
+            console.log(JSON.stringify({ routes: routes.length, viewports: viewports.length, screenshots: viewports.length * routes.length + 3, failures }, null, 2));
+            if (failures.length) process.exitCode = 1;
+          })().catch(error => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          NODE
+
+      - name: Print app log on failure
+        if: failure()
+        run: cat /tmp/aira-browser-qa.log || true
+
+      - name: Upload browser QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aira-ui-browser-qa
+          path: browser-qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
