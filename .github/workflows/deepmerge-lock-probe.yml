@@ -1,9 +1,9 @@
 name: Deepmerge lock probe
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/deepmerge-security
+      - feature/omniroute-gateway
 
 permissions:
   contents: read
