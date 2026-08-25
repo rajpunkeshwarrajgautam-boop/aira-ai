@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
+import { ToolApprovalPanel } from "@/components/ToolApprovalPanel";
 
 type AgentRunStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "TERMINATED" | "REVIEW";
 type AgentRun = {
@@ -333,6 +334,11 @@ export default function RunsPage() {
                           {selectedRun.completedAt ? <span>Finished {new Date(selectedRun.completedAt).toLocaleString()}</span> : null}
                           <span>Runtime {selectedRun.provider}</span>
                         </div>
+
+                        <ToolApprovalPanel
+                          runId={selectedRun.id}
+                          active={ACTIVE_STATUSES.has(selectedRun.status)}
+                        />
 
                         <div>
                           <div className="mb-3 flex items-center justify-between gap-3">
