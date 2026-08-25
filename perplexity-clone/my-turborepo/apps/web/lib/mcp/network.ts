@@ -22,7 +22,9 @@ export class McpNetworkError extends Error {
 function isUnsafeIpv4(address: string): boolean {
 	const octets = address.split(".").map(Number);
 	if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) return true;
-	const [a, b] = octets;
+	const a = octets[0];
+	const b = octets[1];
+	if (a === undefined || b === undefined) return true;
 	return (
 		a === 0 ||
 		a === 10 ||
@@ -41,7 +43,8 @@ function isUnsafeIpv6(address: string): boolean {
 	if (value === "::" || value === "::1") return true;
 	if (value.startsWith("fc") || value.startsWith("fd") || value.startsWith("fe8") || value.startsWith("fe9") || value.startsWith("fea") || value.startsWith("feb")) return true;
 	const mapped = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-	return mapped ? isUnsafeIpv4(mapped[1]) : false;
+	const mappedIpv4 = mapped?.[1];
+	return mappedIpv4 ? isUnsafeIpv4(mappedIpv4) : false;
 }
 
 export function isUnsafeMcpAddress(address: string): boolean {
