@@ -3,6 +3,10 @@ import type { AgentToolApprovalStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 import { recordAgentRunEventBestEffort } from "./run-events";
+import {
+	type AgentRunStepStatus,
+	recordAgentRunStepBestEffort,
+} from "./run-steps";
 
 const APPROVAL_SELECT = {
 	id: true,
@@ -113,6 +117,31 @@ function toDto(approval: SelectedApproval): AgentToolApprovalDto {
 	};
 }
 
+function approvalStatusToStepStatus(status: AgentToolApprovalStatus): AgentRunStepStatus {
+	switch (status) {
+		case "PENDING":
+			return "WAITING_FOR_APPROVAL";
+		case "APPROVED":
+			return "COMPLETED";
+		case "EXPIRED":
+			return "TIMED_OUT";
+		case "DENIED":
+		case "CANCELLED":
+			return "CANCELLED";
+	}
+}
+
+async function recordApprovalStepBestEffort(approval: SelectedApproval): Promise<void> {
+	await recordAgentRunStepBestEffort({
+		runId: approval.runId,
+		stepKey: `approval:${approval.id}`,
+		type: "TOOL_APPROVAL",
+		label: `Human approval for ${approval.toolId}`,
+		status: approvalStatusToStepStatus(approval.status),
+		toolId: approval.toolId,
+	});
+}
+
 function assertSameApprovalAction(
 	approval: SelectedApproval,
 	expected: { toolId: string; permission: string; mode: string },
@@ -174,14 +203,17 @@ export async function requestToolApproval(
 	});
 	assertSameApprovalAction(approval, { toolId, permission, mode });
 
-	await recordAgentRunEventBestEffort({
-		runId: run.id,
-		eventKey: `approval-requested:${approval.id}`,
-		type: "APPROVAL_REQUESTED",
-		status: run.status,
-		message: `Approval requested for ${toolId}.`,
-		metadata: { approvalId: approval.id, toolId, permission, mode },
-	});
+	await Promise.all([
+		recordAgentRunEventBestEffort({
+			runId: run.id,
+			eventKey: `approval-requested:${approval.id}`,
+			type: "APPROVAL_REQUESTED",
+			status: run.status,
+			message: `Approval requested for ${toolId}.`,
+			metadata: { approvalId: approval.id, toolId, permission, mode },
+		}),
+		recordApprovalStepBestEffort(approval),
+	]);
 	return toDto(approval);
 }
 
@@ -248,13 +280,16 @@ export async function resolveToolApproval(
 		);
 	});
 
-	await recordAgentRunEventBestEffort({
-		runId,
-		eventKey: `approval-${desiredStatus.toLowerCase()}:${result.id}`,
-		type: desiredStatus === "APPROVED" ? "APPROVAL_APPROVED" : "APPROVAL_DENIED",
-		message: desiredStatus === "APPROVED" ? `Approved ${result.toolId}.` : `Denied ${result.toolId}.`,
-		metadata: { approvalId: result.id, toolId: result.toolId, permission: result.permission },
-	});
+	await Promise.all([
+		recordAgentRunEventBestEffort({
+			runId,
+			eventKey: `approval-${desiredStatus.toLowerCase()}:${result.id}`,
+			type: desiredStatus === "APPROVED" ? "APPROVAL_APPROVED" : "APPROVAL_DENIED",
+			message: desiredStatus === "APPROVED" ? `Approved ${result.toolId}.` : `Denied ${result.toolId}.`,
+			metadata: { approvalId: result.id, toolId: result.toolId, permission: result.permission },
+		}),
+		recordApprovalStepBestEffort(result),
+	]);
 	return toDto(result);
 }
 
