@@ -41,8 +41,10 @@ test("MCP server config is bounded, deployment-owned and references only dedicat
 		},
 	]));
 	assert.equal(parsed.length, 1);
-	assert.deepEqual(parsed[0].readOnlyTools, ["search"]);
-	assert.equal(parsed[0].auth.mode, "bearer");
+	const server = parsed[0];
+	assert.ok(server);
+	assert.deepEqual(server.readOnlyTools, ["search"]);
+	assert.equal(server.auth.mode, "bearer");
 
 	assert.throws(() => parseMcpServers(JSON.stringify([
 		{ id: "bad", label: "Bad", endpoint: "https://mcp.example.com/mcp", auth: { mode: "bearer", tokenEnv: "DATABASE_URL" } },
@@ -68,10 +70,12 @@ test("MCP OAuth client credentials preserve explicit scopes and issuer pinning",
 			},
 		},
 	]));
-	assert.equal(parsed[0].auth.mode, "oauth_client_credentials");
-	if (parsed[0].auth.mode === "oauth_client_credentials") {
-		assert.deepEqual(parsed[0].auth.scopes, ["tools.read", "tools.execute"]);
-		assert.equal(parsed[0].auth.expectedIssuer, "https://auth.example.com/");
+	const server = parsed[0];
+	assert.ok(server);
+	assert.equal(server.auth.mode, "oauth_client_credentials");
+	if (server.auth.mode === "oauth_client_credentials") {
+		assert.deepEqual(server.auth.scopes, ["tools.read", "tools.execute"]);
+		assert.equal(server.auth.expectedIssuer, "https://auth.example.com/");
 	}
 });
 
@@ -160,7 +164,7 @@ test("Settings exposes truthful MCP health and user enable controls without rend
 	const page = readWeb("app/settings/page.tsx");
 	assert.ok(page.includes('fetch("/api/mcp"'));
 	assert.ok(page.includes("Model Context Protocol"));
-	assert.ok(page.includes("Live MCP discovery succeeded" ) || page.includes("verified MCP discovery"));
+	assert.ok(page.includes("Live MCP discovery succeeded") || page.includes("verified MCP discovery"));
 	assert.ok(page.includes("Disable"));
 	assert.ok(page.includes("Enable"));
 	assert.ok(page.includes("HIGH_IMPACT"));
