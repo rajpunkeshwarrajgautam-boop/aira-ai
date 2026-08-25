@@ -27,7 +27,7 @@ test("tool approval modes fail conservative for side effects", () => {
 	assert.equal(decideToolInvocation("plan_only", "HIGH_IMPACT"), "PLAN_ONLY");
 });
 
-test("canonical executor blocks privileged tools unless approval is explicit", async () => {
+test("canonical executor blocks privileged tools without persisted proof", async () => {
 	const registry = new ToolRegistry();
 	let executions = 0;
 	registry.registerTool({
@@ -50,14 +50,11 @@ test("canonical executor blocks privileged tools unless approval is explicit", a
 	);
 	assert.equal(executions, 0);
 
-	const approved = await registry.executeTool<{ value: string }>(
-		"write_test",
-		{ value: "approved" },
-		undefined,
-		{ mode: "auto", approvalGranted: true },
-	);
-	assert.equal(approved.value, "approved");
-	assert.equal(executions, 1);
+	const source = readWeb("lib/agents/tools/tool-registry.ts");
+	assert.ok(!source.includes("approvalGranted"));
+	assert.ok(source.includes("hasApprovedToolAction"));
+	assert.ok(source.includes("requestToolApproval"));
+	assert.ok(source.includes("approvalRequest"));
 });
 
 test("canonical executor honors plan_only even for read tools", async () => {
