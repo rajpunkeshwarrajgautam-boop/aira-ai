@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 
 const DEFAULT_BATCH_SIZE = 20;
 const MAX_BATCH_SIZE = 25;
+const DEFAULT_CONCURRENCY = 4;
+const MAX_CONCURRENCY = 6;
 const DEFAULT_MIN_AGE_MS = 5_000;
 const MAX_MIN_AGE_MS = 5 * 60_000;
 const ACTIVE_STATUSES = [
@@ -30,6 +32,7 @@ function boundedInteger(value: string | undefined, fallback: number, min: number
 
 export function getAgentRunReconcilerConfig(): {
 	readonly batchSize: number;
+	readonly concurrency: number;
 	readonly minAgeMs: number;
 } {
 	return {
@@ -38,6 +41,12 @@ export function getAgentRunReconcilerConfig(): {
 			DEFAULT_BATCH_SIZE,
 			1,
 			MAX_BATCH_SIZE,
+		),
+		concurrency: boundedInteger(
+			process.env.AIRA_AGENT_RECONCILE_CONCURRENCY,
+			DEFAULT_CONCURRENCY,
+			1,
+			MAX_CONCURRENCY,
 		),
 		minAgeMs: boundedInteger(
 			process.env.AIRA_AGENT_RECONCILE_MIN_AGE_MS,
@@ -77,6 +86,30 @@ async function reconcileOne(run: {
 	}
 }
 
+async function reconcileWithBoundedConcurrency(
+	runs: readonly { id: string; userId: string; provider: string }[],
+	concurrency: number,
+): Promise<ReconcileOutcome[]> {
+	if (runs.length === 0) return [];
+	const outcomes = new Array<ReconcileOutcome>(runs.length);
+	let nextIndex = 0;
+
+	async function worker(): Promise<void> {
+		while (true) {
+			const index = nextIndex;
+			nextIndex += 1;
+			if (index >= runs.length) return;
+			const run = runs[index];
+			if (!run) return;
+			outcomes[index] = await reconcileOne(run);
+		}
+	}
+
+	const workerCount = Math.min(concurrency, runs.length);
+	await Promise.all(Array.from({ length: workerCount }, () => worker()));
+	return outcomes;
+}
+
 /**
  * Bounded provider-neutral reconciliation pass for accepted/pending autonomous runs.
  *
@@ -98,7 +131,7 @@ export async function reconcileActiveAgentRuns(): Promise<AgentRunReconcileSumma
 		select: { id: true, userId: true, provider: true },
 	});
 
-	const outcomes = await Promise.all(runs.map(reconcileOne));
+	const outcomes = await reconcileWithBoundedConcurrency(runs, config.concurrency);
 	return {
 		scanned: runs.length,
 		refreshed: outcomes.filter((outcome) => outcome === "refreshed").length,
