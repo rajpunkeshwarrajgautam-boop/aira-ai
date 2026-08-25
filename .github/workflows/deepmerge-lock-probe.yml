@@ -1,0 +1,33 @@
+name: Deepmerge lock probe
+
+on:
+  push:
+    branches:
+      - fix/deepmerge-security
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Regenerate lockfile only
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+
+      - name: Show exact lockfile delta
+        run: git diff -- pnpm-lock.yaml
+
+      - name: Verify production audit without exception
+        run: pnpm audit --prod
