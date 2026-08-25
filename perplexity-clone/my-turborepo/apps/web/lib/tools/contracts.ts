@@ -21,6 +21,7 @@ export const TOOL_AVAILABILITY_STATES = [
 	"AUTH_REQUIRED",
 	"UNAVAILABLE",
 	"PERMISSION_REQUIRED",
+	"DEGRADED",
 ] as const;
 export type ToolAvailabilityState = (typeof TOOL_AVAILABILITY_STATES)[number];
 
@@ -29,6 +30,11 @@ export type ToolInvocationDecision = "EXECUTE" | "REQUIRE_APPROVAL" | "PLAN_ONLY
 export interface ToolAvailability {
 	readonly state: ToolAvailabilityState;
 	readonly detail: string;
+}
+
+export interface ToolProvenance {
+	readonly kind: "builtin" | "mcp";
+	readonly serverId?: string;
 }
 
 export interface PublicToolDescriptor {
@@ -42,6 +48,8 @@ export interface PublicToolDescriptor {
 	readonly cancellable: boolean;
 	readonly audit: "required" | "standard";
 	readonly availability: ToolAvailability;
+	readonly inputSchema?: unknown;
+	readonly provenance?: ToolProvenance;
 }
 
 const AUTO_EXECUTABLE_PERMISSIONS = new Set<ToolPermissionClass>(["READ"]);

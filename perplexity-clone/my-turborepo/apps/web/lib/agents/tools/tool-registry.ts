@@ -4,15 +4,25 @@ import {
 	decideToolInvocation,
 	type PublicToolDescriptor,
 	type ToolApprovalMode,
+	type ToolAvailability,
 	type ToolPermissionClass,
+	type ToolProvenance,
 } from "@/lib/tools/contracts";
 
 export interface AgentTool<TInput = unknown, TOutput = unknown, TContext = unknown> {
 	name: string;
+	label?: string;
 	description: string;
 	category: string;
 	requiresAuth: boolean;
 	requiresPermission: boolean;
+	permission?: ToolPermissionClass;
+	timeoutMs?: number;
+	cancellable?: boolean;
+	audit?: "required" | "standard";
+	availability?: ToolAvailability;
+	publicInputSchema?: unknown;
+	provenance?: ToolProvenance;
 	inputSchema: z.ZodType<TInput>;
 	execute: (input: TInput, context?: TContext) => Promise<TOutput>;
 }
@@ -66,11 +76,13 @@ function configured(value: string | undefined): boolean {
 }
 
 function permissionForTool(tool: AgentTool): ToolPermissionClass {
+	if (tool.permission) return tool.permission;
 	if (tool.name === "python_sandbox") return "CODE_EXECUTION";
 	return tool.requiresPermission ? "WRITE" : "READ";
 }
 
 function availabilityForTool(tool: AgentTool): PublicToolDescriptor["availability"] {
+	if (tool.availability) return tool.availability;
 	if (tool.name === "web_search") {
 		return configured(process.env.EXA_API_KEY)
 			? { state: "CONFIGURED", detail: "Exa credentials are configured. Health is verified when the tool is invoked." }
@@ -93,7 +105,7 @@ function descriptorForTool(tool: AgentTool): PublicToolDescriptor {
 	const permission = permissionForTool(tool);
 	return {
 		id: tool.name,
-		label: tool.name
+		label: tool.label ?? tool.name
 			.split("_")
 			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 			.join(" "),
@@ -101,10 +113,12 @@ function descriptorForTool(tool: AgentTool): PublicToolDescriptor {
 		category: tool.category,
 		permission,
 		sideEffecting: permission !== "READ",
-		timeoutMs: tool.name === "python_sandbox" ? 12_000 : tool.name === "web_search" ? 60_000 : 10_000,
-		cancellable: tool.name === "python_sandbox" || tool.name === "web_search",
-		audit: permission === "READ" ? "standard" : "required",
+		timeoutMs: tool.timeoutMs ?? (tool.name === "python_sandbox" ? 12_000 : tool.name === "web_search" ? 60_000 : 10_000),
+		cancellable: tool.cancellable ?? (tool.name === "python_sandbox" || tool.name === "web_search"),
+		audit: tool.audit ?? (permission === "READ" ? "standard" : "required"),
 		availability: availabilityForTool(tool),
+		...(tool.publicInputSchema !== undefined ? { inputSchema: tool.publicInputSchema } : {}),
+		...(tool.provenance ? { provenance: tool.provenance } : {}),
 	};
 }
 
@@ -166,7 +180,7 @@ async function assertExecutionAllowed(
 	descriptor: PublicToolDescriptor,
 	options: ToolExecutionOptions,
 ): Promise<void> {
-	if (descriptor.availability.state === "NOT_CONFIGURED" || descriptor.availability.state === "UNAVAILABLE" || descriptor.availability.state === "AUTH_REQUIRED") {
+	if (["NOT_CONFIGURED", "UNAVAILABLE", "AUTH_REQUIRED", "PERMISSION_REQUIRED", "DEGRADED"].includes(descriptor.availability.state)) {
 		throw new ToolExecutionPolicyError(
 			"TOOL_UNAVAILABLE",
 			`${descriptor.label} is not available for execution: ${descriptor.availability.detail}`,
@@ -222,6 +236,12 @@ async function assertExecutionAllowed(
 	);
 }
 
+function contextUserId(context: unknown): string | null {
+	if (!context || typeof context !== "object") return null;
+	const userId = (context as Record<string, unknown>).userId;
+	return typeof userId === "string" && userId.trim() ? userId : null;
+}
+
 export class ToolRegistry {
 	private tools = new Map<string, AgentTool<unknown, unknown, unknown>>();
 
@@ -258,6 +278,10 @@ export class ToolRegistry {
 		context?: TContext,
 		options: ToolExecutionOptions = {},
 	): Promise<TOutput> {
+		if (name.startsWith("mcp:")) {
+			const { ensureMcpToolRegistered } = await import("../../mcp/runtime");
+			await ensureMcpToolRegistered(this, name, contextUserId(context));
+		}
 		const tool = this.tools.get(name);
 		if (!tool) {
 			throw new Error(`Tool ${name} not found in registry.`);
@@ -302,7 +326,19 @@ export async function registerBuiltInTools() {
 	builtInsRegistered = true;
 }
 
-export async function getPublicToolDescriptors(): Promise<PublicToolDescriptor[]> {
+export async function getPublicToolDescriptors(userId?: string): Promise<PublicToolDescriptor[]> {
 	await registerBuiltInTools();
-	return globalToolRegistry.publicDescriptors();
+	const builtIn = globalToolRegistry.publicDescriptors().filter((tool) => !tool.id.startsWith("mcp:"));
+	if (!userId || process.env.AIRA_MCP_ENABLED !== "true") return builtIn;
+	try {
+		const { registerConfiguredMcpToolsForUser } = await import("../../mcp/runtime");
+		const mcpTools = await registerConfiguredMcpToolsForUser(globalToolRegistry, userId);
+		const seen = new Set(builtIn.map((tool) => tool.id));
+		return [...builtIn, ...mcpTools.filter((tool) => !seen.has(tool.id))];
+	} catch (error) {
+		console.error("[mcp:registry]", {
+			code: error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "MCP_REGISTRY_FAILED",
+		});
+		return builtIn;
+	}
 }

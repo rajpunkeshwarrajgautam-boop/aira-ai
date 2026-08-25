@@ -15,7 +15,7 @@ export async function GET(): Promise<Response> {
 
 	return Response.json(
 		{
-			tools: await getPublicToolDescriptors(),
+			tools: await getPublicToolDescriptors(session.user.id),
 			permissionPolicy: {
 				modes: ["auto", "ask", "plan_only"],
 				auto: "Read-only tools may run automatically; side-effecting and privileged tools still require approval.",
