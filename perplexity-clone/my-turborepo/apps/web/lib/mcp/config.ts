@@ -50,10 +50,7 @@ function dedupe(values: readonly string[]): string[] {
 	return Array.from(new Set(values));
 }
 
-export function parseMcpServers(
-	raw: string | undefined,
-	nodeEnv = process.env.NODE_ENV ?? "development",
-): McpServerConfig[] {
+export function parseMcpServers(raw: string | undefined): McpServerConfig[] {
 	if (!raw?.trim()) return [];
 
 	let decoded: unknown;
@@ -70,9 +67,9 @@ export function parseMcpServers(
 	return parsed.data.map((server) => {
 		if (ids.has(server.id)) throw new McpConfigError("MCP server IDs must be unique.");
 		ids.add(server.id);
-		validateMcpEndpoint(server.endpoint, nodeEnv);
+		validateMcpEndpoint(server.endpoint);
 		if (server.auth.mode === "oauth_client_credentials" && server.auth.expectedIssuer) {
-			validateMcpEndpoint(server.auth.expectedIssuer, nodeEnv, { allowPath: false });
+			validateMcpEndpoint(server.auth.expectedIssuer, { allowPath: false });
 		}
 		return {
 			...server,
