@@ -44,6 +44,7 @@ __pycache__/
 
 # AIRA model-lab generated/private working data. Keep recipes/manifests/eval fixtures tracked.
 .venv-model-lab/
+model-lab/cache/
 model-lab/artifacts/
 model-lab/runs/
 model-lab/eval/reports/
