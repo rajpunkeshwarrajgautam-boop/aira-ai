@@ -17,6 +17,7 @@ import os
 import shutil
 import sys
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,21 @@ def _load_inference_template(path: Path) -> str:
     return template
 
 
+def _unwrap_chat_template_output(rendered: Any) -> tuple[Any, Any | None]:
+    """Return input_ids and optional attention_mask from HF chat-template output.
+
+    Transformers may return either a bare tensor or a BatchEncoding/mapping when
+    ``return_tensors='pt'`` is requested. Never treat the mapping itself as a tensor.
+    """
+    if isinstance(rendered, Mapping) or hasattr(rendered, "get"):
+        input_ids = rendered.get("input_ids")
+        attention_mask = rendered.get("attention_mask")
+        if input_ids is None:
+            raise ValueError("chat-template mapping did not contain input_ids")
+        return input_ids, attention_mask
+    return rendered, None
+
+
 def validate_report(report: dict[str, Any]) -> None:
     if report.get("status") != "RECORDED":
         raise ValueError("baseline status must be RECORDED")
@@ -131,7 +147,28 @@ def self_test() -> dict[str, Any]:
         "cases": [{}, {}],
     }
     validate_report(sample)
-    return {"status": "PASS", "contract": "qwen35-9b-frozen-baseline"}
+
+    ids = object()
+    mask = object()
+    got_ids, got_mask = _unwrap_chat_template_output({"input_ids": ids, "attention_mask": mask})
+    if got_ids is not ids or got_mask is not mask:
+        raise RuntimeError("BatchEncoding/mapping unwrap self-test failed")
+    bare = object()
+    got_ids, got_mask = _unwrap_chat_template_output(bare)
+    if got_ids is not bare or got_mask is not None:
+        raise RuntimeError("bare tensor unwrap self-test failed")
+    try:
+        _unwrap_chat_template_output({"attention_mask": mask})
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("mapping without input_ids did not fail closed")
+
+    return {
+        "status": "PASS",
+        "contract": "qwen35-9b-frozen-baseline",
+        "batchencoding_unwrap": True,
+    }
 
 
 def run_baseline(
@@ -208,12 +245,23 @@ def run_baseline(
             tokenize=True,
             add_generation_prompt=True,
             return_tensors="pt",
+            return_dict=True,
         )
-        if hasattr(rendered, "to"):
-            input_ids = rendered.to("cuda")
+        input_ids, attention_mask = _unwrap_chat_template_output(rendered)
+        if not hasattr(input_ids, "to"):
+            input_ids = torch.tensor([input_ids], dtype=torch.long)
+        input_ids = input_ids.to("cuda")
+        if attention_mask is None:
+            attention_mask = torch.ones_like(input_ids)
         else:
-            input_ids = torch.tensor([rendered], dtype=torch.long, device="cuda")
-        attention_mask = torch.ones_like(input_ids)
+            if not hasattr(attention_mask, "to"):
+                attention_mask = torch.tensor([attention_mask], dtype=torch.long)
+            attention_mask = attention_mask.to("cuda")
+        if input_ids.ndim != 2 or attention_mask.shape != input_ids.shape:
+            raise RuntimeError(
+                f"invalid tokenized baseline batch shapes: input_ids={tuple(input_ids.shape)}, "
+                f"attention_mask={tuple(attention_mask.shape)}"
+            )
 
         torch.cuda.synchronize()
         started = time.perf_counter()
