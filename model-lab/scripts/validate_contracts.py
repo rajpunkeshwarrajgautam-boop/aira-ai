@@ -94,6 +94,28 @@ def main() -> None:
     assert "scoring: exact" in gate
     assert "core-v0-sanity.jsonl" in gate
 
+    backend_probe = read("model-lab/scripts/verify_amd_backend.py")
+    assert 'EXPECTED_GFX = "gfx1201"' in backend_probe
+    assert '"PARTIALLY_VERIFIED"' in backend_probe
+    assert '["soup", "doctor"]' in backend_probe
+    assert "torch.version" in backend_probe
+    assert "bitsandbytes" in backend_probe
+
+    adapter_probe = read("model-lab/scripts/verify_smoke_adapter.py")
+    assert SMOKE_BASE in adapter_probe
+    assert "PeftModel.from_pretrained" in adapter_probe
+    assert '"adapter_active"' in adapter_probe
+    assert '".inner."' in adapter_probe
+
+    windows_operator = read("model-lab/scripts/windows/run-rx9070xt-smoke.ps1")
+    assert "device-gfx1201" in windows_operator
+    assert "2.12.0+rocm7.14.0" in windows_operator
+    assert "soup-pin.txt" in windows_operator
+    assert "sft-smoke.yaml" in windows_operator
+    assert "verify_amd_backend.py" in windows_operator
+    assert "verify_smoke_adapter.py" in windows_operator
+    assert "AIRA RX 9070 XT SOUP SMOKE = VERIFIED" in windows_operator
+
     registry = read(
         "perplexity-clone/my-turborepo/apps/web/src/services/models/aira-model-registry.ts"
     )
@@ -101,13 +123,12 @@ def main() -> None:
         assert f'id: "{model_id}"' in registry, f"missing registry id {model_id}"
     assert registry.count('evidenceState: "NOT_TESTED"') == 5
     assert registry.count('releaseState: "experiment"') == 5
-    # Count concrete object-property lines only; the interface also declares the
-    # same literal type and must not be mistaken for a sixth registry entry.
     assert registry.count('\t\texposure: "omniroute-discovered-only"') == 5
     assert CORE_BASE in registry
 
     ignore = read(".gitignore")
     for generated_path in (
+        ".venv-model-lab/",
         "model-lab/artifacts/",
         "model-lab/runs/",
         "model-lab/eval/reports/",
@@ -117,7 +138,8 @@ def main() -> None:
 
     print(
         f"AIRA model-lab contracts pass: Soup {SOUP_SHA[:8]}, "
-        f"{smoke_rows} smoke rows, {eval_rows} eval rows, Core training fail-closed."
+        f"{smoke_rows} smoke rows, {eval_rows} eval rows, Core training fail-closed, "
+        "RX 9070 XT operator path present."
     )
 
 
