@@ -8,6 +8,7 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
       - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
       - ".github/workflows/model-lab-contracts.yml"
+      - ".github/workflows/model-lab-rx9070xt-smoke.yml"
       - ".gitignore"
   push:
     paths:
@@ -16,6 +17,7 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
       - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
       - ".github/workflows/model-lab-contracts.yml"
+      - ".github/workflows/model-lab-rx9070xt-smoke.yml"
       - ".gitignore"
 
 permissions:
@@ -77,6 +79,9 @@ jobs:
 
       - name: Self-test Core manifest promotion gate
         run: python model-lab/scripts/promote_core_manifest.py --self-test
+
+      - name: Self-test sanitized RX smoke evidence exporter
+        run: python model-lab/scripts/sanitize_smoke_evidence.py --self-test
 
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
