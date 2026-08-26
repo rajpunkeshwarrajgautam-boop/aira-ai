@@ -83,6 +83,9 @@ jobs:
       - name: Self-test sanitized RX smoke evidence exporter
         run: python model-lab/scripts/sanitize_smoke_evidence.py --self-test
 
+      - name: Self-test RX 9070 XT NF4 preflight contract
+        run: python model-lab/scripts/verify_bnb_4bit_backend.py --self-test
+
       - name: Self-test strict Qwen3.5 masking preflight
         run: python model-lab/scripts/validate_qwen35_text_contract.py --self-test
 
