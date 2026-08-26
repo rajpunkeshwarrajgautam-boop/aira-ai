@@ -131,7 +131,7 @@ def run_gate(materialization_path: Path) -> dict[str, Any]:
         local_files_only=True,
         trust_remote_code=False,
         device_map={"": 0},
-        torch_dtype=torch.bfloat16,
+        dtype=torch.bfloat16,
         quantization_config=quantization_config,
     )
     model.eval()
