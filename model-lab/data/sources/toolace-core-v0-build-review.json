@@ -17,6 +17,9 @@
     "exact_dedup": true,
     "high_confidence_secret_filter": true,
     "frozen_eval_exact_prompt_overlap_removed": true,
+    "manifest_token_count": 6138380,
+    "freeze_gate": "PASS",
+    "next_gate": "core_manifest_proposal",
     "splits": {
       "train": {
         "examples": 10311,
@@ -47,6 +50,6 @@
       }
     }
   },
-  "training_manifest_promotion": "BLOCKED_PENDING_EXACT_TRAIN_TOKEN_ACCOUNTING",
+  "training_manifest_promotion": "READY_FOR_PROPOSAL",
   "training_execution": "NOT_STARTED"
 }
