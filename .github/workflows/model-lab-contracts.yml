@@ -119,6 +119,9 @@ jobs:
       - name: Self-test ToolACE context-preserving review candidate
         run: python model-lab/scripts/materialize_toolace_context_candidate.py --self-test
 
+      - name: Self-test AIRA-normalized ToolACE review candidate
+        run: python model-lab/scripts/materialize_toolace_aira_candidate.py --self-test
+
       - name: Validate Core source decisions
         run: python model-lab/scripts/validate_core_source_decisions.py
 
