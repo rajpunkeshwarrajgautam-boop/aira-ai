@@ -63,6 +63,9 @@ jobs:
           print("Python operator literal guard passed.")
           PY
 
+      - name: Self-test OpenAI-compatible inference probe
+        run: python model-lab/scripts/verify_openai_endpoint.py --self-test
+
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
 
