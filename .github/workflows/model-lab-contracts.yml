@@ -42,6 +42,27 @@ jobs:
       - name: Compile model-lab Python operators
         run: python -m py_compile model-lab/scripts/*.py
 
+      - name: Reject accidental JSON literals in Python operators
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          failures = []
+          for path in sorted(Path("model-lab/scripts").glob("*.py")):
+              tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+              bad = sorted({
+                  node.id
+                  for node in ast.walk(tree)
+                  if isinstance(node, ast.Name) and node.id in {"true", "false", "null"}
+              })
+              if bad:
+                  failures.append(f"{path}: {', '.join(bad)}")
+          if failures:
+              raise SystemExit("JSON literals used as Python names:\n" + "\n".join(failures))
+          print("Python operator literal guard passed.")
+          PY
+
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
 
