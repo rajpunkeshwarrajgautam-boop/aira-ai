@@ -23,6 +23,7 @@ DEFAULT_MANIFEST = ROOT / "model-lab/data/manifests/core-v0.json"
 DEFAULT_OUTPUT = ROOT / "model-lab/data/core-v0/core-v0.promoted-manifest.json"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+TOOL_DOMAINS = {"tool_use", "function_calling", "agentic_execution"}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -67,9 +68,13 @@ def collect_blockers(
                 continue
             if source.get("approved_for_training") is not True:
                 blockers.append(f"source {source_id!r} is not approved_for_training")
-            for review in ("license_review", "provenance_review", "contamination_review"):
+            for review in ("license_review", "provenance_review", "contamination_review", "context_fit_review"):
                 if source.get(review) != "approved":
                     blockers.append(f"source {source_id!r} requires {review}=approved")
+            domains = source.get("domains")
+            if isinstance(domains, list) and TOOL_DOMAINS.intersection(item for item in domains if isinstance(item, str)):
+                if source.get("tool_format_review") != "approved":
+                    blockers.append(f"tool source {source_id!r} requires tool_format_review=approved")
             catalog_revision = source.get("revision")
             if not isinstance(catalog_revision, str) or not SHA40.fullmatch(catalog_revision):
                 blockers.append(f"source {source_id!r} lacks an exact catalog revision")
@@ -124,6 +129,8 @@ def proposal(
     by_id = {source["id"]: source for source in catalog["sources"]}
     source_ids = sorted(build["source_revisions"])
     provenance = []
+    languages: set[str] = set()
+    domains: set[str] = set()
     for source_id in source_ids:
         source = by_id[source_id]
         provenance.append({
@@ -132,9 +139,21 @@ def proposal(
             "revision": source["revision"],
             "notes": f"license={source['license']}; approved by model-lab source catalog",
         })
+        raw_languages = source.get("languages")
+        if isinstance(raw_languages, list):
+            languages.update(item for item in raw_languages if isinstance(item, str) and item)
+        raw_domains = source.get("domains")
+        if isinstance(raw_domains, list):
+            domains.update(item for item in raw_domains if isinstance(item, str) and item)
+    if not languages:
+        raise ValueError("approved build sources do not declare languages")
+    if not domains:
+        raise ValueError("approved build sources do not declare domains")
+
     dataset_hashes = {split: build["outputs"][split]["sha256"] for split in ("train", "validation", "holdout")}
     result = dict(manifest)
     result.update({
+        "purpose": "Provenance contract for the reviewed AIRA Core v0 SFT dataset candidate.",
         "status": "candidate",
         "source": "AIRA Core v0 provenance-approved public/synthetic mixture",
         "version": "core-v0-candidate-1",
@@ -143,6 +162,8 @@ def proposal(
         "collection_date": collection_date,
         "example_count": build["total_examples"],
         "token_count": token_count,
+        "languages": sorted(languages),
+        "domains": sorted(domains),
         "deduplication": "Exact normalized-message deduplication plus frozen-eval exact prompt removal; see build evidence and contamination report.",
         "training_allowed": True,
         "contamination_check": {
@@ -151,14 +172,11 @@ def proposal(
         },
         "provenance": provenance,
     })
-    # Additional evidence is intentionally not embedded because the committed schema
-    # disallows extra properties. Hashes remain in the ignored build evidence; print them
-    # alongside the proposal so reviewers can bind the two artifacts.
     result["inclusion_rationale"] = (
-        str(manifest.get("inclusion_rationale") or "")
-        + " Exact split hashes: "
+        "Current Core-v0 candidate capabilities are limited to the reviewed source domains above. "
+        "Exact split hashes: "
         + ", ".join(f"{name}={digest}" for name, digest in sorted(dataset_hashes.items()))
-    ).strip()
+    )
     return result
 
 
@@ -168,9 +186,13 @@ def self_test() -> dict[str, Any]:
         "repository": "org/source",
         "revision": "a" * 40,
         "license": "apache-2.0",
+        "languages": ["en", "zh"],
+        "domains": ["tool_use"],
         "license_review": "approved",
         "provenance_review": "approved",
         "contamination_review": "approved",
+        "context_fit_review": "approved",
+        "tool_format_review": "approved",
         "approved_for_training": True,
     }]}
     build = {
@@ -182,14 +204,23 @@ def self_test() -> dict[str, Any]:
         "high_confidence_secret_filter": True,
     }
     contamination = {"status": "PASS", "exact_overlap_count": 0, "semantic_overlap_count": 0, "method": "self-test"}
-    manifest = {"id": "aira-core-v0", "private_data": False, "training_allowed": False, "inclusion_rationale": "self-test"}
+    manifest = {"id": "aira-core-v0", "private_data": False, "training_allowed": False, "inclusion_rationale": "placeholder"}
     blockers = collect_blockers(catalog=catalog, build=build, contamination=contamination, manifest=manifest, token_count=42)
     if blockers:
         raise RuntimeError(f"promotion self-test unexpectedly blocked: {blockers}")
     proposed = proposal(catalog=catalog, build=build, contamination=contamination, manifest=manifest, token_count=42, collection_date="2026-08-26")
     if proposed.get("training_allowed") is not True or proposed.get("contamination_check", {}).get("status") != "pass":
         raise RuntimeError("promotion self-test produced invalid proposal")
-    return {"status": "PASS", "proposal_training_allowed": True, "source_count": 1}
+    if proposed.get("languages") != ["en", "zh"] or proposed.get("domains") != ["tool_use"]:
+        raise RuntimeError("promotion self-test did not derive languages/domains from approved source")
+    if "not assembled" in str(proposed.get("purpose", "")).lower():
+        raise RuntimeError("promotion self-test retained stale placeholder purpose")
+    return {
+        "status": "PASS",
+        "proposal_training_allowed": True,
+        "source_count": 1,
+        "claims_derived_from_approved_sources": True,
+    }
 
 
 def main() -> int:
@@ -229,14 +260,18 @@ def main() -> int:
         print(json.dumps({"status": "BLOCKED", "blockers": blockers}, indent=2, sort_keys=True))
         return 3
 
-    promoted = proposal(
-        catalog=catalog,
-        build=build,
-        contamination=contamination,
-        manifest=manifest,
-        token_count=args.token_count,
-        collection_date=args.collection_date,
-    )
+    try:
+        promoted = proposal(
+            catalog=catalog,
+            build=build,
+            contamination=contamination,
+            manifest=manifest,
+            token_count=args.token_count,
+            collection_date=args.collection_date,
+        )
+    except ValueError as exc:
+        print(json.dumps({"status": "BLOCKED", "blockers": [str(exc)]}, indent=2, sort_keys=True))
+        return 3
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(promoted, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({
@@ -245,6 +280,8 @@ def main() -> int:
         "example_count": promoted["example_count"],
         "token_count": promoted["token_count"],
         "source_count": len(promoted["provenance"]),
+        "languages": promoted["languages"],
+        "domains": promoted["domains"],
         "note": "Proposal generated only; committed manifest was not modified.",
     }, indent=2, sort_keys=True))
     return 0
