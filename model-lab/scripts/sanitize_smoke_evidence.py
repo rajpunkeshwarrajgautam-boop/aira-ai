@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,22 @@ def require_sha(value: Any, field: str, pattern: re.Pattern[str]) -> str:
     return value
 
 
+def require_logit_deltas(value: Any) -> list[float]:
+    if not isinstance(value, list) or not value:
+        raise ValueError("max_abs_logit_deltas must be a non-empty list")
+    deltas: list[float] = []
+    for index, item in enumerate(value):
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise ValueError(f"max_abs_logit_deltas[{index}] must be numeric")
+        delta = float(item)
+        if not math.isfinite(delta) or delta < 0:
+            raise ValueError(f"max_abs_logit_deltas[{index}] must be finite and non-negative")
+        deltas.append(delta)
+    if not any(delta > 0 for delta in deltas):
+        raise ValueError("max_abs_logit_deltas contains no positive adapter effect")
+    return deltas
+
+
 def build_sanitized(host: dict[str, Any], probe: dict[str, Any], run: dict[str, Any], adapter: dict[str, Any]) -> dict[str, Any]:
     if run.get("status") != "VERIFIED":
         raise ValueError("run status is not VERIFIED")
@@ -49,6 +66,7 @@ def build_sanitized(host: dict[str, Any], probe: dict[str, Any], run: dict[str, 
     adapter_active = require_bool(adapter.get("adapter_active"), "adapter_active")
     if not adapter_active:
         raise ValueError("adapter verification says adapter_active=false")
+    logit_deltas = require_logit_deltas(adapter.get("max_abs_logit_deltas"))
 
     return {
         "schema_version": 1,
@@ -87,7 +105,8 @@ def build_sanitized(host: dict[str, Any], probe: dict[str, Any], run: dict[str, 
             "deterministic_generation_changed": require_bool(
                 adapter.get("deterministic_generation_changed"), "deterministic_generation_changed"
             ),
-            "max_logit_delta": adapter.get("max_logit_delta"),
+            "max_abs_logit_deltas": logit_deltas,
+            "max_logit_delta": max(logit_deltas),
         },
         "redactions": [
             "computer hostname omitted",
@@ -109,11 +128,17 @@ def self_test() -> dict[str, Any]:
         "base_revision": "b" * 40, "seed": 3407, "dataset_sha256": "c" * 64,
         "config_sha256": "d" * 64, "runtime_config_sha256": "e" * 64, "duration_seconds": 1.0,
     }
-    adapter = {"adapter_active": True, "deterministic_generation_changed": True, "max_logit_delta": 0.1}
+    adapter = {
+        "adapter_active": True,
+        "deterministic_generation_changed": False,
+        "max_abs_logit_deltas": [0.1, 0.08, 0.09],
+    }
     result = build_sanitized(host, probe, run, adapter)
+    if result["adapter"]["max_logit_delta"] != 0.1:
+        raise RuntimeError("sanitizer self-test lost max adapter logit delta")
     if "computer" in json.dumps(result).casefold() and "hostname omitted" not in json.dumps(result).casefold():
         raise RuntimeError("sanitizer self-test leaked host identity")
-    return {"status": "PASS", "evidence_status": result["status"]}
+    return {"status": "PASS", "evidence_status": result["status"], "max_logit_delta": result["adapter"]["max_logit_delta"]}
 
 
 def main() -> int:
