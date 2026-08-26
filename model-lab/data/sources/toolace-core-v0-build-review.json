@@ -9,7 +9,7 @@
     "sha256": "768bffd674cb9114340aeab4682bb18d5fc76608da182939ca6c211cb279aa12"
   },
   "build": {
-    "status": "BUILT_CONTAMINATION_PENDING",
+    "status": "FROZEN_SPLITS_CONTAMINATION_PASS",
     "catalog_sha256": "dddb5a3198d6df4240ffec1f46a7870fdb7a606817d753e66efa7e786e07bc9c",
     "frozen_eval_sha256": "9885c9c49ca2048be3739f782048aa5b84813970834bbfc33db23adff1ea0cc8",
     "total_examples": 10509,
@@ -21,20 +21,32 @@
       "train": {
         "examples": 10311,
         "sha256": "89890cc7c5b017bd88c91d427921b7cc31dd9e2b211c4ff72ef20331c78654d2",
-        "contamination_gate": "PENDING"
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 10311
       },
       "validation": {
         "examples": 104,
         "sha256": "426667615d75673108d776b7d269a2b67ce8290bd4526e295829d8e6186031cc",
-        "contamination_gate": "PENDING"
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 104
       },
       "holdout": {
         "examples": 94,
         "sha256": "8b580a22fde7adb68f861810a21c45f85d1fd1b03822482a95bb07e8dde21025",
-        "contamination_gate": "PENDING"
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 94
       }
     }
   },
-  "training_manifest_promotion": "BLOCKED_PENDING_SPLIT_CONTAMINATION",
+  "training_manifest_promotion": "BLOCKED_PENDING_EXACT_TRAIN_TOKEN_ACCOUNTING",
   "training_execution": "NOT_STARTED"
 }
