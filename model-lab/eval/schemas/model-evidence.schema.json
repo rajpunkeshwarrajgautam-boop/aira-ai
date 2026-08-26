@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aira.local/model-lab/model-evidence.schema.json",
+  "title": "AIRA model release evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_id",
+    "release_state",
+    "evidence_state",
+    "base_model",
+    "base_revision",
+    "soup_commit",
+    "training_run_id",
+    "dataset_manifest_id",
+    "dataset_hashes",
+    "adapter_verified",
+    "inference_verified",
+    "evaluation_complete",
+    "regression_gate_passed",
+    "license_clear",
+    "known_limitations",
+    "serving"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "model_id": { "type": "string", "pattern": "^aira/(edge|core|pro|ultra|apex)$" },
+    "release_state": {
+      "enum": ["experiment", "candidate", "release-candidate", "production", "retired"]
+    },
+    "evidence_state": {
+      "enum": ["NOT_TESTED", "BASELINE", "IMPROVED", "CLASS_LEADING", "FRONTIER_COMPETITIVE", "FRONTIER_LEADING"]
+    },
+    "base_model": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 7 },
+    "soup_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "training_run_id": { "type": "string", "minLength": 1 },
+    "dataset_manifest_id": { "type": "string", "minLength": 1 },
+    "dataset_hashes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "adapter_verified": { "type": "boolean" },
+    "inference_verified": { "type": "boolean" },
+    "evaluation_complete": { "type": "boolean" },
+    "regression_gate_passed": { "type": "boolean" },
+    "license_clear": { "type": "boolean" },
+    "known_limitations": { "type": "array", "items": { "type": "string" } },
+    "benchmark_report": { "type": ["string", "null"] },
+    "serving": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["persistent", "authenticated", "health_verified", "streaming_verified", "omniroute_discovered", "rollback_ready"],
+      "properties": {
+        "persistent": { "type": "boolean" },
+        "authenticated": { "type": "boolean" },
+        "health_verified": { "type": "boolean" },
+        "streaming_verified": { "type": "boolean" },
+        "omniroute_discovered": { "type": "boolean" },
+        "rollback_ready": { "type": "boolean" }
+      }
+    }
+  }
+}
