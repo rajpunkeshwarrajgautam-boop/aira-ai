@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Bounded, non-training audit for exact pinned AIRA Core source revisions.
+"""Bounded/full non-training audit for exact pinned AIRA Core source revisions.
 
 This operator is deliberately separate from prepare_core_dataset.py. It may inspect sources
 that are still blocked for training, but it never flips approvals, writes training splits,
-or emits raw prompts. It streams only a bounded sample and records hashes/statistics.
+or emits raw prompts. Reports use redacted hashes/statistics only.
 """
 
 from __future__ import annotations
@@ -136,13 +136,21 @@ def audit_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any]]
             sample_prompt_hashes.append(prompt_hash)
 
     normalized = counts["normalized"]
+    declared_examples = source.get("declared_examples")
+    if isinstance(declared_examples, bool) or not isinstance(declared_examples, int) or declared_examples <= 0:
+        declared_examples = None
+    seen = counts["seen"]
+    full_declared_coverage = declared_examples is not None and seen >= declared_examples
+    coverage_fraction = min(1.0, seen / declared_examples) if declared_examples else None
+
     return {
         "source_id": source["id"],
         "repository": source["repository"],
         "revision": source["revision"],
         "declared_license": source.get("license"),
+        "declared_examples": declared_examples,
         "approved_for_training_before_audit": source.get("approved_for_training") is True,
-        "audit_scope": "bounded_streaming_sample_only",
+        "audit_scope": "full_declared_source" if full_declared_coverage else "bounded_streaming_sample_only",
         "max_rows": max_rows,
         "counts": dict(sorted(counts.items())),
         "roles": dict(sorted(roles.items())),
@@ -150,7 +158,9 @@ def audit_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any]]
             "mean": round(sum(message_chars) / len(message_chars), 2) if message_chars else 0.0,
             "max": max(message_chars) if message_chars else 0,
         },
-        "normalization_rate": (normalized / counts["seen"]) if counts["seen"] else 0.0,
+        "normalization_rate": (normalized / seen) if seen else 0.0,
+        "declared_coverage_fraction": coverage_fraction,
+        "full_declared_coverage": full_declared_coverage,
         "secret_hit_evidence": secret_hits,
         "secret_hit_evidence_truncated": counts.get("high_confidence_secret_hit", 0) > len(secret_hits),
         "sample_row_hashes": sample_row_hashes,
@@ -166,6 +176,7 @@ def self_test() -> dict[str, Any]:
         "repository": "example/self-test",
         "revision": "a" * 40,
         "license": "apache-2.0",
+        "declared_examples": 4,
         "approved_for_training": False,
     }
     rows = [
@@ -183,23 +194,30 @@ def self_test() -> dict[str, Any]:
         ]}),
         ("train", {"garbage": True}),
     ]
-    report = audit_rows(source, rows, max_rows=4)
+    report = audit_rows(source, rows, max_rows=10)
     counts = report["counts"]
     if counts.get("seen") != 4 or counts.get("normalized") != 3:
-        raise RuntimeError("bounded audit self-test counts are wrong")
+        raise RuntimeError("source audit self-test counts are wrong")
     if counts.get("exact_duplicate") != 1:
-        raise RuntimeError("bounded audit self-test did not detect exact duplicate")
+        raise RuntimeError("source audit self-test did not detect exact duplicate")
     if counts.get("high_confidence_secret_hit") != 1:
-        raise RuntimeError("bounded audit self-test did not detect secret-like row")
+        raise RuntimeError("source audit self-test did not detect secret-like row")
     hits = report.get("secret_hit_evidence")
     if not isinstance(hits, list) or not hits or hits[0].get("pattern") != "generic_secret_assignment":
-        raise RuntimeError("bounded audit self-test did not classify redacted secret evidence")
+        raise RuntimeError("source audit self-test did not classify redacted secret evidence")
+    if report.get("full_declared_coverage") is not True or report.get("audit_scope") != "full_declared_source":
+        raise RuntimeError("source audit self-test did not prove full declared coverage")
     rendered = json.dumps(report)
     if "ABCDEFGHIJKLMNOPQRSTUVWX" in rendered:
-        raise RuntimeError("bounded audit leaked matched secret text")
+        raise RuntimeError("source audit leaked matched secret text")
     if report.get("training_approval_changed") is not False or report.get("raw_content_emitted") is not False:
-        raise RuntimeError("bounded audit violated fail-closed evidence policy")
-    return {"status": "PASS", "contract": "bounded-core-source-audit", "redacted_secret_evidence": True}
+        raise RuntimeError("source audit violated fail-closed evidence policy")
+    return {
+        "status": "PASS",
+        "contract": "bounded-core-source-audit",
+        "redacted_secret_evidence": True,
+        "full_declared_coverage": True,
+    }
 
 
 def main() -> int:
@@ -241,19 +259,19 @@ def main() -> int:
             failures.append({"source_id": source["id"], "error": str(exc)})
 
     result = {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "PASS" if not failures else "PARTIAL",
-        "purpose": "bounded non-training review evidence",
+        "purpose": "non-training source review evidence",
         "sources_requested": [source["id"] for source in selected],
         "sources_audited": [report["source_id"] for report in reports],
         "failures": failures,
         "reports": reports,
         "training_approval_changed": False,
         "limitations": [
-            "bounded samples do not prove full-corpus cleanliness",
-            "exact frozen-eval overlap does not detect paraphrased/semantic contamination",
-            "secret evidence is deliberately redacted and requires source-row classification before approval",
-            "license/provenance decisions require human review of source documentation",
+            "declared-example coverage is bound to the catalog's pinned declared_examples value",
+            "exact frozen-eval overlap does not detect all paraphrased/semantic contamination",
+            "secret evidence is deliberately redacted and matched rows require filtering before approval",
+            "license/provenance decisions require review of source documentation",
         ],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
