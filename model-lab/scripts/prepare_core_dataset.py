@@ -6,6 +6,7 @@ The script is intentionally fail-closed:
 - no private/user data source is accepted;
 - rows with high-confidence secret patterns are rejected;
 - exact duplicate and frozen-eval prompt collisions are rejected;
+- reviewed prepared candidates are bound by exact SHA256, row count, source revision and representation;
 - outputs and build evidence stay under ignored model-lab/data/core-v0/.
 
 It never flips the committed core-v0 manifest to training_allowed=true. Promotion remains
@@ -18,6 +19,7 @@ import argparse
 import hashlib
 import json
 import re
+import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
@@ -26,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = ROOT / "model-lab/data/sources/core-v0-candidates.json"
 OUTPUT_DIR = ROOT / "model-lab/data/core-v0"
 FROZEN_EVAL = ROOT / "model-lab/eval/data/core-v0-sanity.jsonl"
+PREPARED_CANDIDATE_KIND = "prepared_candidate_jsonl"
 
 SECRET_PATTERNS = [
     re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
@@ -35,6 +38,7 @@ SECRET_PATTERNS = [
     re.compile(r"(?i)\b(?:api[_ -]?key|password|secret)\s*[:=]\s*['\"]?[A-Za-z0-9_+./=-]{20,}"),
 ]
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def load_json(path: Path) -> Any:
@@ -55,6 +59,30 @@ def file_sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def validate_training_input(source: dict[str, Any], prefix: str) -> list[str]:
+    training_input = source.get("training_input")
+    if training_input is None:
+        return []
+    if not isinstance(training_input, dict):
+        return [f"{prefix}.training_input must be an object"]
+    errors: list[str] = []
+    if training_input.get("kind") != PREPARED_CANDIDATE_KIND:
+        errors.append(f"{prefix}.training_input.kind must be {PREPARED_CANDIDATE_KIND!r}")
+    path = training_input.get("path")
+    if not isinstance(path, str) or not path.strip():
+        errors.append(f"{prefix}.training_input.path is required")
+    expected_sha256 = training_input.get("expected_sha256")
+    if not isinstance(expected_sha256, str) or not SHA256_RE.fullmatch(expected_sha256):
+        errors.append(f"{prefix}.training_input.expected_sha256 must be a 64-character SHA256")
+    representation = training_input.get("representation")
+    if not isinstance(representation, str) or not representation.strip():
+        errors.append(f"{prefix}.training_input.representation is required")
+    expected_examples = training_input.get("expected_examples")
+    if not isinstance(expected_examples, int) or isinstance(expected_examples, bool) or expected_examples <= 0:
+        errors.append(f"{prefix}.training_input.expected_examples must be a positive integer")
+    return errors
 
 
 def validate_catalog(catalog: dict[str, Any]) -> list[str]:
@@ -82,6 +110,7 @@ def validate_catalog(catalog: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix}.repository is required")
         if not source.get("license"):
             errors.append(f"{prefix}.license is required")
+        errors.extend(validate_training_input(source, prefix))
         if source.get("approved_for_training") is True:
             if source.get("license_review") != "approved":
                 errors.append(f"{prefix} is training-approved without license_review=approved")
@@ -200,19 +229,143 @@ def iter_source_rows(source: dict[str, Any]) -> Iterable[dict[str, Any]]:
         yield dict(row)
 
 
+def resolve_prepared_candidate(source: dict[str, Any], root: Path = ROOT) -> tuple[Path, dict[str, Any]] | None:
+    training_input = source.get("training_input")
+    if not isinstance(training_input, dict) or training_input.get("kind") != PREPARED_CANDIDATE_KIND:
+        return None
+    path = (root / str(training_input["path"])).resolve()
+    root_resolved = root.resolve()
+    if not path.is_relative_to(root_resolved):
+        raise RuntimeError(f"{source['id']} prepared candidate path escapes repository root")
+    return path, training_input
+
+
+def load_prepared_candidate_rows(
+    source: dict[str, Any], root: Path = ROOT
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    resolved = resolve_prepared_candidate(source, root)
+    if resolved is None:
+        raise RuntimeError(f"{source['id']} does not declare a prepared candidate training_input")
+    path, training_input = resolved
+    if not path.is_file():
+        raise RuntimeError(f"{source['id']} prepared candidate is missing: {path}")
+    actual_sha256 = file_sha256(path)
+    expected_sha256 = str(training_input["expected_sha256"])
+    if actual_sha256 != expected_sha256:
+        raise RuntimeError(
+            f"{source['id']} prepared candidate SHA256 mismatch: expected {expected_sha256}, got {actual_sha256}"
+        )
+
+    representation = str(training_input["representation"])
+    expected_examples = int(training_input["expected_examples"])
+    rows: list[dict[str, Any]] = []
+    for line_number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw.strip():
+            continue
+        item = json.loads(raw)
+        if not isinstance(item, dict):
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} is not an object")
+        if item.get("source_id") != source["id"]:
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} has wrong source_id")
+        if item.get("source_repository") != source["repository"] or item.get("source_revision") != source["revision"]:
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} has wrong provenance")
+        if item.get("representation") != representation:
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} has wrong representation")
+        messages = parse_messages(item.get("messages"))
+        if not messages:
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} has invalid messages")
+        canonical = json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        row_hash = sha256_text(canonical)
+        if item.get("row_hash") != row_hash:
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} row_hash mismatch")
+        prompt_hash = sha256_text(first_user_prompt(messages))
+        if item.get("prompt_hash") != prompt_hash:
+            raise RuntimeError(f"{source['id']} prepared candidate line {line_number} prompt_hash mismatch")
+        rows.append(
+            {
+                "messages": messages,
+                "row_hash": row_hash,
+                "prompt_hash": prompt_hash,
+                "representation": representation,
+            }
+        )
+
+    if len(rows) != expected_examples:
+        raise RuntimeError(
+            f"{source['id']} prepared candidate row count mismatch: expected {expected_examples}, got {len(rows)}"
+        )
+    return rows, {
+        "kind": PREPARED_CANDIDATE_KIND,
+        "path": str(path.relative_to(root.resolve())),
+        "sha256": actual_sha256,
+        "examples": len(rows),
+        "representation": representation,
+    }
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def self_test() -> dict[str, Any]:
+    messages = [
+        {"role": "system", "content": "AIRA tool-use contract"},
+        {"role": "user", "content": "Find it"},
+        {"role": "assistant", "content": '{"type":"tool_calls","calls":[{"tool":"search","args":{}}]}'},
+    ]
+    canonical = json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    row_hash = sha256_text(canonical)
+    prompt_hash = sha256_text(first_user_prompt(messages))
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        path = root / "candidate.jsonl"
+        item = {
+            "messages": messages,
+            "source_id": "fixture",
+            "source_repository": "example/fixture",
+            "source_revision": "a" * 40,
+            "representation": "aira_tool_calls_json_v1",
+            "row_hash": row_hash,
+            "prompt_hash": prompt_hash,
+        }
+        path.write_text(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+        source = {
+            "id": "fixture",
+            "repository": "example/fixture",
+            "revision": "a" * 40,
+            "training_input": {
+                "kind": PREPARED_CANDIDATE_KIND,
+                "path": "candidate.jsonl",
+                "expected_sha256": file_sha256(path),
+                "expected_examples": 1,
+                "representation": "aira_tool_calls_json_v1",
+            },
+        }
+        rows, evidence = load_prepared_candidate_rows(source, root)
+        if len(rows) != 1 or evidence["sha256"] != source["training_input"]["expected_sha256"]:
+            raise RuntimeError("prepared candidate binding self-test failed")
+    return {
+        "status": "PASS",
+        "contract": "prepared-core-training-input",
+        "exact_candidate_sha_required": True,
+        "row_and_prompt_hashes_reverified": True,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--source", action="append", dest="source_ids")
     parser.add_argument("--max-per-source", type=int, default=None)
     args = parser.parse_args()
+
+    if args.self_test:
+        print(json.dumps(self_test(), indent=2, sort_keys=True))
+        return 0
 
     catalog = load_json(args.catalog)
     if not isinstance(catalog, dict):
@@ -256,10 +409,46 @@ def main() -> int:
     seen_rows: set[str] = set()
     accepted: list[dict[str, Any]] = []
     per_source: dict[str, Counter[str]] = {}
+    training_inputs: dict[str, Any] = {}
 
     for source in approved:
         source_counts: Counter[str] = Counter()
         per_source[source["id"]] = source_counts
+        prepared = resolve_prepared_candidate(source)
+        if prepared is not None:
+            prepared_rows, prepared_evidence = load_prepared_candidate_rows(source)
+            training_inputs[source["id"]] = prepared_evidence
+            for prepared_row in prepared_rows:
+                if args.max_per_source is not None and source_counts["accepted"] >= args.max_per_source:
+                    break
+                source_counts["seen"] += 1
+                messages = prepared_row["messages"]
+                if contains_secret(messages):
+                    raise RuntimeError(f"{source['id']} reviewed prepared candidate contains a secret-pattern row")
+                prompt_hash = prepared_row["prompt_hash"]
+                if prompt_hash in eval_hashes:
+                    raise RuntimeError(f"{source['id']} reviewed prepared candidate overlaps frozen eval exactly")
+                row_hash = prepared_row["row_hash"]
+                if row_hash in seen_rows:
+                    source_counts["rejected_exact_duplicate"] += 1
+                    continue
+                seen_rows.add(row_hash)
+                split_bucket = int(row_hash[:8], 16) % 1000
+                split_name = "train" if split_bucket < 980 else "validation" if split_bucket < 990 else "holdout"
+                accepted.append({
+                    "messages": messages,
+                    "source_id": source["id"],
+                    "source_repository": source["repository"],
+                    "source_revision": source["revision"],
+                    "representation": prepared_row["representation"],
+                    "row_hash": row_hash,
+                    "prompt_hash": prompt_hash,
+                    "split": split_name,
+                })
+                source_counts["accepted"] += 1
+                source_counts[f"split_{split_name}"] += 1
+            continue
+
         for row in iter_source_rows(source):
             if args.max_per_source is not None and source_counts["accepted"] >= args.max_per_source:
                 break
@@ -309,16 +498,18 @@ def main() -> int:
         }
 
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "catalog_sha256": file_sha256(args.catalog),
         "frozen_eval_sha256": file_sha256(FROZEN_EVAL) if FROZEN_EVAL.is_file() else None,
         "source_revisions": {source["id"]: source["revision"] for source in approved},
         "source_counts": {key: dict(value) for key, value in per_source.items()},
+        "training_inputs": training_inputs,
         "outputs": outputs,
         "total_examples": len(accepted),
         "exact_dedup": True,
         "frozen_eval_exact_prompt_overlap_removed": True,
         "high_confidence_secret_filter": True,
+        "prepared_candidate_hash_binding": True,
         "broader_semantic_contamination_check": "REQUIRED_BEFORE_MANIFEST_PROMOTION",
         "training_manifest_promotion": "NOT_AUTOMATIC",
     }
