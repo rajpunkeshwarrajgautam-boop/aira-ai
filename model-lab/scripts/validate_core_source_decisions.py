@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from prepare_core_dataset import DEFAULT_CATALOG, load_json
+from prepare_core_dataset import DEFAULT_CATALOG, PREPARED_CANDIDATE_KIND, load_json
 
 ALLOWED_DECISIONS = {"hold", "candidate_filtered", "exclude_context_mismatch", "include"}
 TOOL_DOMAINS = {"tool_use", "function_calling", "agentic_execution"}
@@ -41,6 +41,14 @@ def validate(catalog: dict[str, Any]) -> list[str]:
             errors.append(f"{source_id}: training approval requires context_fit_review='approved'")
         if approved and is_tool_source and source.get("tool_format_review") != "approved":
             errors.append(f"{source_id}: tool-source training approval requires tool_format_review='approved'")
+        if approved and source.get("requires_prepared_training_input") is True:
+            training_input = source.get("training_input")
+            if not isinstance(training_input, dict) or training_input.get("kind") != PREPARED_CANDIDATE_KIND:
+                errors.append(
+                    f"{source_id}: training approval requires a bound {PREPARED_CANDIDATE_KIND} training_input"
+                )
+            elif not training_input.get("expected_sha256") or not training_input.get("representation"):
+                errors.append(f"{source_id}: prepared training input must bind expected_sha256 and representation")
         if decision == "candidate_filtered":
             filters = source.get("required_filters")
             if not isinstance(filters, list) or not filters or not all(isinstance(item, str) and item for item in filters):
@@ -107,10 +115,41 @@ def self_test() -> dict[str, Any]:
     if not any("tool_format_review='approved'" in item for item in tool_errors):
         raise RuntimeError("tool-source approval without tool-format parity was not rejected")
 
+    prepared_good = {
+        "sources": [
+            {
+                "id": "prepared-tool",
+                "domains": ["tool_use"],
+                "core_v0_decision": "candidate_filtered",
+                "required_filters": ["reject_bad_rows"],
+                "requires_prepared_training_input": True,
+                "training_input": {
+                    "kind": PREPARED_CANDIDATE_KIND,
+                    "expected_sha256": "a" * 64,
+                    "representation": "aira_tool_calls_json_v1",
+                },
+                "approved_for_training": True,
+                "license_review": "approved",
+                "provenance_review": "approved",
+                "contamination_review": "approved",
+                "context_fit_review": "approved",
+                "tool_format_review": "approved",
+            }
+        ]
+    }
+    if validate(prepared_good):
+        raise RuntimeError("valid prepared training input approval was rejected")
+
+    prepared_bad = json.loads(json.dumps(prepared_good))
+    prepared_bad["sources"][0].pop("training_input")
+    if not any("prepared_candidate_jsonl" in item for item in validate(prepared_bad)):
+        raise RuntimeError("approval without bound prepared training input was not rejected")
+
     return {
         "status": "PASS",
         "contract": "core-v0-source-decisions",
         "tool_format_approval_required": True,
+        "prepared_training_input_required_when_declared": True,
     }
 
 
