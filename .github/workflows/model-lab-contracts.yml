@@ -98,6 +98,9 @@ jobs:
       - name: Self-test exact Core token accounting
         run: python model-lab/scripts/count_core_tokens.py --self-test
 
+      - name: Self-test Core token failure diagnostic
+        run: python model-lab/scripts/diagnose_core_token_failures.py --self-test
+
       - name: Self-test bounded Core source audit
         run: python model-lab/scripts/audit_core_sources.py --self-test
 
