@@ -59,20 +59,42 @@ The accompanying ToolACE work documents an automatic agentic synthetic-data pipe
 - frozen AIRA exact-prompt overlap count: 0
 - raw source content and matched secret text were not emitted
 
-The seven secret-bearing rows and all exact duplicates are disallowed from the candidate corpus. Because duplicate and secret filters may overlap, the final accepted candidate count must be measured by deterministic materialization rather than estimated from the aggregate counts.
+### Filtered review candidate — MATERIALIZED
+
+The review-only materializer applied the required exact filters to the full pinned source and did not change training approval.
+
+- source rows seen/normalized: 11,300 / 11,300
+- rejected secret-like rows: 7
+- rejected exact duplicates: 18
+- accepted candidate rows: 11,275
+- accepted candidate SHA256: `61e936fa5487c5cdb22aca370fc266b99866beaa2ce2be9d7bfb8d3ff4d3206c`
+- status: `MATERIALIZED_REVIEW_ONLY`
+- `approved_for_training=false`
+
+The exact accepted count demonstrates that the secret-row and duplicate filters did not overlap for this materialization; no frozen exact-prompt rejection was recorded.
+
+### Full filtered-candidate token accounting (max_length=2048)
+
+- rows: 11,275
+- raw tokens: 1,987,379
+- kept tokens: 1,974,839
+- raw supervised tokens: 898,237
+- kept supervised tokens: 889,693
+- supervised retention: 99.0488%
+- truncated rows: 16 / 11,275 = 0.1419%
+- raw/kept length p50: 107 / 107
+- raw/kept length p95: 543 / 543
+- supervised length p50: 42
+- supervised length p95: 283
+- zero-supervision rows: 0
+
+This confirms excellent context fit for the filtered ToolACE corpus. The token report is valid review evidence even though it was run before the near-overlap contamination gate; it does not approve or train the source.
 
 ### Decision
 
 `CANDIDATE_FILTERED`
 
-ToolACE has strong Core-v0 context fit and full declared-source audit coverage, but direct inclusion remains forbidden. The next review-only operator, `materialize_filtered_core_candidate.py`, streams the exact pinned source and applies the same fail-closed filters used by the real builder:
-
-1. reject high-confidence secret-pattern rows;
-2. reject exact duplicates;
-3. reject frozen-eval exact-prompt overlaps;
-4. write a review-only candidate JSONL and build evidence;
-5. keep `approved_for_training=false`;
-6. require the existing exact + word-trigram near-overlap contamination gate before approval.
+ToolACE has strong Core-v0 context fit and full declared-source audit coverage. The filtered review candidate is materialized and token-fit is verified, but direct inclusion remains forbidden until the candidate passes the existing exact + word-trigram near-overlap contamination gate against the frozen AIRA eval. Only after a clean contamination report may the source-review fields be deliberately promoted for the real deterministic Core build.
 
 ## OpenR1-Math-220k
 
@@ -119,8 +141,8 @@ The public-web seed provenance is not enumerated at the granularity needed for t
 No source is training-approved yet.
 
 - Hermes-3: `hold`
-- ToolACE: `candidate_filtered`
+- ToolACE: `candidate_filtered` — filtered candidate and exact token accounting complete; near-overlap contamination pending
 - OpenR1-Math-220k: `exclude_context_mismatch`
 - Orca AgentInstruct 1M: `hold`
 
-The next executable gate is **review-only filtered ToolACE materialization**, followed by the existing exact + near-overlap contamination gate and exact token accounting. Only after those pass may ToolACE's review fields be deliberately promoted; the production dataset builder remains blocked until then.
+The next executable gate is the existing exact + near-overlap contamination check over `toolace-review-candidate.jsonl`. Only if that passes may ToolACE's source-review fields be deliberately promoted; the production dataset builder remains blocked until then.
