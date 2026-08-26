@@ -39,8 +39,35 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Compile model-lab Python operators
+        run: python -m py_compile model-lab/scripts/*.py
+
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
+
+      - name: Validate fail-closed Core source catalog
+        run: python model-lab/scripts/prepare_core_dataset.py --validate-only
+
+  windows-operator-contract:
+    runs-on: windows-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Parse RX 9070 XT PowerShell operator without executing it
+        shell: pwsh
+        run: |
+          $path = Resolve-Path "model-lab/scripts/windows/run-rx9070xt-smoke.ps1"
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          Write-Host "RX 9070 XT operator syntax is valid; hardware execution is intentionally not attempted on GitHub-hosted runners."
 
   web-quality:
     runs-on: ubuntu-latest
