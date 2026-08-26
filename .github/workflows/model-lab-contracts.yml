@@ -1,0 +1,43 @@
+name: AIRA Model Lab Contracts
+
+on:
+  pull_request:
+    paths:
+      - "model-lab/**"
+      - "docs/models/**"
+      - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
+      - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
+      - ".github/workflows/model-lab-contracts.yml"
+      - ".gitignore"
+  push:
+    paths:
+      - "model-lab/**"
+      - "docs/models/**"
+      - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
+      - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
+      - ".github/workflows/model-lab-contracts.yml"
+      - ".gitignore"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-lab-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate model-lab contracts without downloading weights
+        run: python model-lab/scripts/validate_contracts.py

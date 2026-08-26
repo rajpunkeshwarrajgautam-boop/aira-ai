@@ -1,0 +1,26 @@
+# AIRA Core v0 candidate recipe.
+# This is a research configuration, not a production model declaration.
+base: Qwen/Qwen3.5-9B-Base
+task: sft
+modality: text
+
+data:
+  # Deliberately absent from git until a provenance-reviewed production dataset is assembled.
+  train: ./model-lab/data/core-v0/train.jsonl
+  format: alpaca
+  val_split: 0.1
+
+training:
+  epochs: 1
+  lr: 0.00002
+  batch_size: auto
+  seed: 3407
+  lora:
+    r: 32
+    alpha: 64
+  quantization: 4bit
+  # Start resident on the 16 GiB target. Enable streaming only after the exact
+  # Qwen3.5 + ROCm/CUDA backend passes Soup's correctness/smoke gates.
+  stream_layers: false
+
+output: ./model-lab/artifacts/aira-core-v0

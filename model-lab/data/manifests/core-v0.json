@@ -1,0 +1,40 @@
+{
+  "$schema": "../schemas/dataset-manifest.schema.json",
+  "id": "aira-core-v0",
+  "purpose": "Provenance contract for the first AIRA Core SFT dataset. The production train set is not assembled yet; the committed smoke corpus is excluded from capability claims.",
+  "status": "planned",
+  "source": "AIRA model-lab curated mixture (to be assembled)",
+  "version": "0",
+  "license": "MIXED_REQUIRES_PER_SOURCE_REVIEW",
+  "permitted_use": "Training is forbidden until every source entry is recorded with commercial/derivative permissions and the manifest is promoted from planned.",
+  "collection_date": null,
+  "example_count": null,
+  "token_count": null,
+  "languages": ["en", "hi", "hinglish"],
+  "domains": [
+    "instruction_following",
+    "reasoning",
+    "coding",
+    "tool_use",
+    "research",
+    "rag",
+    "business"
+  ],
+  "quality_score": null,
+  "deduplication": null,
+  "private_data": false,
+  "training_allowed": false,
+  "contamination_check": {
+    "status": "not_run",
+    "method": "Exact and semantic overlap against the frozen public/private evaluation suites before training is enabled."
+  },
+  "provenance": [
+    {
+      "kind": "internal_authored",
+      "reference": "model-lab/data/manifests/core-v0.json",
+      "revision": "0",
+      "notes": "Placeholder provenance root only. Add one provenance item per real source before enabling training."
+    }
+  ],
+  "inclusion_rationale": "Core v0 must emphasize grounded research, tool correctness, coding, multilingual Indian usage, structured outputs and low-hallucination behavior while retaining broad general capability."
+}
