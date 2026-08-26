@@ -101,6 +101,9 @@ jobs:
       - name: Self-test bounded Core source audit
         run: python model-lab/scripts/audit_core_sources.py --self-test
 
+      - name: Self-test bounded Core source token profile
+        run: python model-lab/scripts/profile_core_source_tokens.py --self-test
+
       - name: Validate strict Core training template markers
         run: |
           grep -Fq '{% generation %}' model-lab/soup/core/sft.yaml
