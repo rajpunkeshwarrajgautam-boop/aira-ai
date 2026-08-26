@@ -41,3 +41,25 @@ jobs:
 
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
+
+  web-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run existing AIRA quality gates
+        run: pnpm run ci
