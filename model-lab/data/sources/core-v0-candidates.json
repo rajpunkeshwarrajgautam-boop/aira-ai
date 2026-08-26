@@ -48,11 +48,11 @@
       "known_file_sha256": {
         "data.json": "ba12c083fca7e8da48c67ad5b895e495447da7c66e39a2e19742c082e6cb537e"
       },
-      "license_review": "metadata_clear",
-      "provenance_review": "synthetic_pipeline_documented",
-      "contamination_review": "final_normalized_candidate_pass_pending_source_approval",
-      "context_fit_review": "final_normalized_candidate_pass",
-      "tool_format_review": "runtime_parity_implemented_pending_operator_gate",
+      "license_review": "approved",
+      "provenance_review": "approved",
+      "contamination_review": "approved",
+      "context_fit_review": "approved",
+      "tool_format_review": "approved",
       "core_v0_decision": "candidate_filtered",
       "requires_prepared_training_input": true,
       "required_filters": [
@@ -173,10 +173,12 @@
         "training_prompts_scanned": 10509,
         "runtime_contract": "tool_calls",
         "runtime_parity_implementation_head": "af5c73e298133c5beb6b2d9479bd23ecc2282549",
-        "runtime_operator_gate": "PENDING"
+        "runtime_operator_gate": "PASS",
+        "runtime_operator_verified_head": "e8dcc7502e88453b3f914e9776bd227c1b75d430",
+        "prepared_input_operator_gate": "PASS"
       },
-      "approved_for_training": false,
-      "reason": "ToolACE's final AIRA-normalized candidate retains 10,509 reviewed examples and passes strict 2048-token accounting plus exact/near contamination checks. The exact candidate SHA is now bound as the only permitted production training input. Desktop multi-call runtime support and a CI parity gate are implemented, but operator verification of the prepared-input builder and runtime parity gate is still required before deliberate training approval."
+      "approved_for_training": true,
+      "reason": "Approved for Core-v0 training only through the exact prepared candidate bound above. The 10,509-row AIRA-normalized artifact passes strict 2048-token accounting, exact/near contamination checks, prepared-input hash/provenance verification, and backward-compatible AIRA runtime multi-call parity. Required filtering and the exact prepared candidate SHA remain mandatory production constraints."
     },
     {
       "id": "openr1-math-220k",
