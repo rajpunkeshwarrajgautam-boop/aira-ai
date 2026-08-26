@@ -69,6 +69,9 @@ jobs:
       - name: Self-test AIRA OmniRoute multi-mode gate
         run: python model-lab/scripts/verify_omniroute_live.py --self-test
 
+      - name: Self-test deterministic endpoint evaluator
+        run: python model-lab/scripts/run_exact_eval.py --self-test
+
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
 
