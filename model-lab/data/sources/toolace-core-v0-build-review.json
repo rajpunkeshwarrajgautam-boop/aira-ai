@@ -19,7 +19,6 @@
     "frozen_eval_exact_prompt_overlap_removed": true,
     "manifest_token_count": 6138380,
     "freeze_gate": "PASS",
-    "next_gate": "core_manifest_proposal",
     "splits": {
       "train": {
         "examples": 10311,
@@ -50,6 +49,57 @@
       }
     }
   },
-  "training_manifest_promotion": "READY_FOR_PROPOSAL",
-  "training_execution": "NOT_STARTED"
+  "training_manifest_promotion": "PROPOSAL_PASS_REVIEW_ONLY",
+  "manifest_proposal": {
+    "status": "PASS",
+    "example_count": 10509,
+    "token_count": 6138380,
+    "source_count": 1,
+    "languages": [
+      "en",
+      "zh"
+    ],
+    "domains": [
+      "agentic_execution",
+      "function_calling",
+      "tool_use"
+    ]
+  },
+  "physical_canary": {
+    "status": "VERIFIED",
+    "rows": 8,
+    "base": "Qwen/Qwen3.5-9B-Base",
+    "base_revision": "68c46c4b3498877f3ef123c856ecfde50c39f404",
+    "soup_run_id": "run_20260826_225205_d8ede358",
+    "run_record": "model-lab/runs/core-v0-canary-20260826-171911.json",
+    "lora_trainable_parameters": 20185088,
+    "total_parameters": 8973988352,
+    "optimizer_steps": 2,
+    "train_runtime_seconds": 115.4,
+    "train_loss": 0.3708,
+    "mean_token_accuracy": 0.8943,
+    "optimized_tokens": 3524,
+    "reported_gpu_used_gib": 11.2,
+    "adapter_verification": {
+      "status": "VERIFIED",
+      "adapter_active": true,
+      "quantization": "nf4",
+      "compute_dtype": "bfloat16",
+      "double_quant": true,
+      "linear4bit_modules": 248,
+      "max_abs_logit_deltas": [
+        0.1328125,
+        0.125,
+        0.1875
+      ],
+      "peak_allocated_gib": 7.4235,
+      "peak_reserved_gib": 7.4961,
+      "tensor_count": 128,
+      "finite": true,
+      "nonzero": true,
+      "stale_inner_keys": []
+    }
+  },
+  "training_execution": "CANARY_VERIFIED_FULL_PENDING",
+  "next_gate": "full_9b_qlora"
 }
