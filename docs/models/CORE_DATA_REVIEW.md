@@ -31,16 +31,10 @@ The accompanying ToolACE work documents an automatic agentic synthetic-data pipe
 ### Bounded content audit (500 rows)
 
 - 500/500 normalized
-- user roles: 1,643
-- assistant roles: 2,379
-- tool roles: 741
 - one high-confidence secret-like row
 - redacted classification: `generic_secret_assignment`
 - hit occurred in an assistant message
-- matched length: 31 characters
 - no raw matched value was emitted
-
-This evidence does not prove a live credential leak, but the row is contaminated for training purposes and must be rejected deterministically.
 
 ### Exact 9B tokenizer/context profile (500 rows, max_length=2048)
 
@@ -53,20 +47,32 @@ This evidence does not prove a live credential leak, but the row is contaminated
 - zero shifted-target rows after truncation: 0
 - tokenization errors: 0
 
+### Full declared source audit (11,300 rows)
+
+- audit scope: `full_declared_source`
+- declared coverage: 11,300/11,300 = 100%
+- normalization: 11,300/11,300 = 100%
+- exact duplicate rows: 18
+- high-confidence secret-like rows: 7
+- all recorded secret-like matches are `generic_secret_assignment`
+- the redacted evidence covers 7 unique row hashes; some rows contain repeated matches
+- frozen AIRA exact-prompt overlap count: 0
+- raw source content and matched secret text were not emitted
+
+The seven secret-bearing rows and all exact duplicates are disallowed from the candidate corpus. Because duplicate and secret filters may overlap, the final accepted candidate count must be measured by deterministic materialization rather than estimated from the aggregate counts.
+
 ### Decision
 
 `CANDIDATE_FILTERED`
 
-ToolACE has strong Core-v0 context fit, but direct inclusion is forbidden. Before approval:
+ToolACE has strong Core-v0 context fit and full declared-source audit coverage, but direct inclusion remains forbidden. The next review-only operator, `materialize_filtered_core_candidate.py`, streams the exact pinned source and applies the same fail-closed filters used by the real builder:
 
-1. scan the full declared 11,300-row exact revision;
-2. reject every high-confidence secret-pattern row;
-3. reject exact duplicate rows;
-4. build a sanitized local subset only after source review;
-5. run exact + word-trigram near-overlap contamination checks against the frozen AIRA eval;
-6. record content/build hashes and token accounting.
-
-`approved_for_training` remains `false`.
+1. reject high-confidence secret-pattern rows;
+2. reject exact duplicates;
+3. reject frozen-eval exact-prompt overlaps;
+4. write a review-only candidate JSONL and build evidence;
+5. keep `approved_for_training=false`;
+6. require the existing exact + word-trigram near-overlap contamination gate before approval.
 
 ## OpenR1-Math-220k
 
@@ -117,4 +123,4 @@ No source is training-approved yet.
 - OpenR1-Math-220k: `exclude_context_mismatch`
 - Orca AgentInstruct 1M: `hold`
 
-The next executable gate is a **full declared ToolACE source audit**. `audit_core_sources.py` can now report `full_declared_coverage=true` only when the scan reaches the catalog's pinned `declared_examples` count. Passing that scan is necessary but still not sufficient for approval; the sanitized build and contamination gate remain separate.
+The next executable gate is **review-only filtered ToolACE materialization**, followed by the existing exact + near-overlap contamination gate and exact token accounting. Only after those pass may ToolACE's review fields be deliberately promoted; the production dataset builder remains blocked until then.
