@@ -26,9 +26,15 @@ export interface AgentReply {
   plan?: string[]
 }
 
+export interface AgentToolCall {
+  tool: string
+  args?: Record<string, unknown>
+}
+
 export type AgentDecision =
   | { type: 'final'; content: string; plan?: string[] }
   | { type: 'tool'; tool: string; args?: Record<string, unknown>; reasoning?: string; plan?: string[] }
+  | { type: 'tool_calls'; calls: AgentToolCall[]; reasoning?: string; plan?: string[] }
 
 export interface ApprovalRequest {
   id: string
