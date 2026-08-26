@@ -50,16 +50,25 @@
       },
       "license_review": "metadata_clear",
       "provenance_review": "synthetic_pipeline_documented",
-      "contamination_review": "v1_filtered_candidate_pass_superseded_representation",
-      "context_fit_review": "v2_raw_system_context_small_zero_target_tail",
-      "tool_format_review": "pending_normalization_parity",
+      "contamination_review": "final_normalized_candidate_pass_pending_source_approval",
+      "context_fit_review": "final_normalized_candidate_pass",
+      "tool_format_review": "runtime_parity_implemented_pending_operator_gate",
       "core_v0_decision": "candidate_filtered",
+      "requires_prepared_training_input": true,
       "required_filters": [
         "reject_high_confidence_secret_patterns",
         "deduplicate_exact_rows",
         "reject_frozen_eval_exact_and_near_overlap",
+        "reject_unparseable_or_ambiguous_tool_schema_or_call",
         "reject_zero_shifted_target_after_truncation_at_2048"
       ],
+      "training_input": {
+        "kind": "prepared_candidate_jsonl",
+        "path": "model-lab/data/core-v0/toolace-aira-review-candidate.jsonl",
+        "expected_sha256": "768bffd674cb9114340aeab4682bb18d5fc76608da182939ca6c211cb279aa12",
+        "expected_examples": 10509,
+        "representation": "aira_tool_calls_json_v1"
+      },
       "bounded_evidence": {
         "rows_profiled": 500,
         "normalization_rate": 1.0,
@@ -125,8 +134,49 @@
           "training_authorization": false
         }
       },
+      "format_analysis_evidence": {
+        "parser_revision": "balanced_safe_literal_sanitized_names_v2_1",
+        "schema_parse_success_fraction": 0.9373451327433628,
+        "call_parse_success_fraction": 0.9930083899320815,
+        "schema_parse_failure": 708,
+        "call_parse_failure": 70,
+        "parsed_calls": 18077,
+        "calls_missing_from_row_schema": 18,
+        "multi_call_messages": 4103,
+        "observed_max_calls_per_message": 12,
+        "training_authorization": false
+      },
+      "normalized_candidate_evidence": {
+        "representation": "aira_tool_calls_json_v1",
+        "rows_accepted": 10509,
+        "candidate_sha256": "768bffd674cb9114340aeab4682bb18d5fc76608da182939ca6c211cb279aa12",
+        "rows_rejected_secret": 9,
+        "rows_rejected_tool_format": 778,
+        "rows_rejected_exact_duplicate_after_normalization": 3,
+        "rows_rejected_zero_shifted_target_after_truncation": 1,
+        "assistant_tool_call_messages_normalized": 9904,
+        "tool_calls_normalized": 18012,
+        "multi_call_messages_normalized": 4088,
+        "raw_tokens": 6293848,
+        "kept_tokens": 6264104,
+        "raw_supervised_tokens": 996444,
+        "kept_supervised_tokens": 975841,
+        "supervised_retention_fraction": 0.9793234744822559,
+        "truncated_rows": 55,
+        "truncated_row_fraction": 0.005233609287277572,
+        "zero_supervision_rows": 0,
+        "max_length": 2048,
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 10509,
+        "runtime_contract": "tool_calls",
+        "runtime_parity_implementation_head": "af5c73e298133c5beb6b2d9479bd23ecc2282549",
+        "runtime_operator_gate": "PENDING"
+      },
       "approved_for_training": false,
-      "reason": "ToolACE remains a strong synthetic tool-use candidate. V1 omitted top-level tool definitions and is superseded. V2 preserves raw tool context; a complete diagnostic shows 96.49% supervised-token retention, only 1.04% truncated rows, and 27/11,288 rows (0.239%) losing every shifted assistant target. The small zero-target tail can be rejected deterministically rather than compressing every schema. More than 82% of rows still use ToolACE bracket-call syntax, so AIRA-specific tool-call/system-instruction normalization and serving parity remain mandatory before approval."
+      "reason": "ToolACE's final AIRA-normalized candidate retains 10,509 reviewed examples and passes strict 2048-token accounting plus exact/near contamination checks. The exact candidate SHA is now bound as the only permitted production training input. Desktop multi-call runtime support and a CI parity gate are implemented, but operator verification of the prepared-input builder and runtime parity gate is still required before deliberate training approval."
     },
     {
       "id": "openr1-math-220k",
