@@ -5,6 +5,7 @@ on:
     paths:
       - "model-lab/**"
       - "docs/models/**"
+      - "desktop-agent/**"
       - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
       - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
       - ".github/workflows/model-lab-contracts.yml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "model-lab/**"
       - "docs/models/**"
+      - "desktop-agent/**"
       - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
       - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
       - ".github/workflows/model-lab-contracts.yml"
@@ -121,6 +123,12 @@ jobs:
 
       - name: Self-test AIRA-normalized ToolACE review candidate
         run: python model-lab/scripts/materialize_toolace_aira_candidate.py --self-test
+
+      - name: Self-test AIRA tool_calls runtime parity gate
+        run: python model-lab/scripts/verify_aira_tool_runtime_parity.py --self-test
+
+      - name: Validate AIRA tool_calls training/runtime parity
+        run: python model-lab/scripts/verify_aira_tool_runtime_parity.py
 
       - name: Validate Core source decisions
         run: python model-lab/scripts/validate_core_source_decisions.py
