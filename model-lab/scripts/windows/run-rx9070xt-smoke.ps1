@@ -50,7 +50,6 @@ if (-not $SkipDependencyInstall) {
     }
 
     $python = Join-Path $repoRoot "$VenvPath\Scripts\python.exe"
-    $pip = @($python, "-m", "pip")
 
     Invoke-Checked -Label "Upgrade pip tooling" -Command {
         & $python -m pip install --upgrade pip setuptools wheel
@@ -88,12 +87,31 @@ if ($ProbeOnly) {
     exit 0
 }
 
+Invoke-Checked -Label "Materialize exact Qwen3.5-0.8B revision" -Command {
+    & $python "model-lab\scripts\materialize_hf_model.py" core-smoke
+}
+$materialized = Get-Content "model-lab\runs\materialized-core-smoke.json" -Raw | ConvertFrom-Json
+$materializedBase = [string]$materialized.local_dir
+$resolvedRevision = [string]$materialized.resolved_revision
+if (-not (Test-Path $materializedBase)) {
+    throw "Materialized smoke model path does not exist: $materializedBase"
+}
+
+$runtimeConfig = "model-lab\runs\sft-smoke.runtime.yaml"
+Invoke-Checked -Label "Generate runtime Soup config pinned to local model snapshot" -Command {
+    & $python "model-lab\scripts\make_runtime_soup_config.py" `
+        --template "model-lab\soup\core\sft-smoke.yaml" `
+        --base $materializedBase `
+        --output $runtimeConfig
+}
+
 Invoke-Checked -Label "Validate smoke dataset through Soup" -Command {
     & (Join-Path $venvScripts "soup.exe") data inspect "model-lab\data\smoke\core-smoke.jsonl"
 }
 
 $datasetHash = (Get-FileHash "model-lab\data\smoke\core-smoke.jsonl" -Algorithm SHA256).Hash.ToLowerInvariant()
 $configHash = (Get-FileHash "model-lab\soup\core\sft-smoke.yaml" -Algorithm SHA256).Hash.ToLowerInvariant()
+$runtimeConfigHash = (Get-FileHash $runtimeConfig -Algorithm SHA256).Hash.ToLowerInvariant()
 $runId = "core-smoke-" + [DateTime]::UtcNow.ToString("yyyyMMdd-HHmmss")
 $started = [DateTime]::UtcNow
 
@@ -101,12 +119,14 @@ if (Test-Path "model-lab\artifacts\aira-core-smoke") {
     Remove-Item -Recurse -Force "model-lab\artifacts\aira-core-smoke"
 }
 
-Invoke-Checked -Label "Run Qwen3.5-0.8B Soup smoke training" -Command {
-    & (Join-Path $venvScripts "soup.exe") train --config "model-lab\soup\core\sft-smoke.yaml"
+Invoke-Checked -Label "Run exact-revision Qwen3.5-0.8B Soup smoke training" -Command {
+    & (Join-Path $venvScripts "soup.exe") train --config $runtimeConfig
 }
 
 Invoke-Checked -Label "Verify adapter tensors, loading and deterministic activation" -Command {
-    & $python "model-lab\scripts\verify_smoke_adapter.py" --adapter "model-lab\artifacts\aira-core-smoke"
+    & $python "model-lab\scripts\verify_smoke_adapter.py" `
+        --adapter "model-lab\artifacts\aira-core-smoke" `
+        --base $materializedBase
 }
 
 $ended = [DateTime]::UtcNow
@@ -118,10 +138,13 @@ $summary = [ordered]@{
     run_id = $runId
     status = "VERIFIED"
     base = "Qwen/Qwen3.5-0.8B"
+    base_revision = $resolvedRevision
+    materialized_base = $materializedBase
     soup_commit = "6c13c44f5eb6bef67bbd39d83ec7269ac3c31dbf"
     seed = 3407
     dataset_sha256 = $datasetHash
     config_sha256 = $configHash
+    runtime_config_sha256 = $runtimeConfigHash
     started_at_utc = $started.ToString("o")
     ended_at_utc = $ended.ToString("o")
     duration_seconds = [Math]::Round(($ended - $started).TotalSeconds, 3)
@@ -139,4 +162,5 @@ $summary | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 "model-lab\runs\
 
 Write-Host "`nAIRA RX 9070 XT SOUP SMOKE = VERIFIED" -ForegroundColor Green
 Write-Host "Run record: model-lab/runs/$runId.json"
+Write-Host "Base revision: $resolvedRevision"
 Write-Host "Next gate: real AIRA Core dataset provenance + frozen 9B baseline."
