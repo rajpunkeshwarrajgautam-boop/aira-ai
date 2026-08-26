@@ -4,6 +4,16 @@ Status: `PARTIALLY_VERIFIED`
 
 This runbook is the only path that may promote the workstation backend to `VERIFIED`. Vendor support matrices and successful imports are necessary but insufficient; the host must complete a real Soup training step and prove the resulting adapter changes base-model logits.
 
+## Pinned inputs
+
+- Soup commit: `6c13c44f5eb6bef67bbd39d83ec7269ac3c31dbf` (`soup-cli 0.73.3`).
+- Smoke model: `Qwen/Qwen3.5-0.8B`.
+- Smoke model revision: `2fc06364715b967f1860aea9cf38778875588b17`.
+- Core candidate: `Qwen/Qwen3.5-9B-Base`.
+- Core candidate revision: `68c46c4b3498877f3ef123c856ecfde50c39f404`.
+
+The operator resolves the requested Hub revision, refuses a mismatched resolved SHA, downloads that exact snapshot into the ignored model cache, and generates an ignored runtime Soup YAML pointing at the local immutable snapshot. A moving Hugging Face `main` therefore cannot silently change the experiment weights.
+
 ## Preconditions
 
 - Windows 11 workstation with AMD Radeon RX 9070 XT (`gfx1201`).
@@ -40,12 +50,14 @@ powershell -ExecutionPolicy Bypass -File .\model-lab\scripts\windows\run-rx9070x
 3. Installs AMD's gfx1201-targeted ROCm PyTorch wheels rather than a CUDA build.
 4. Installs the exact Soup commit pinned by `model-lab/requirements/soup-pin.txt`.
 5. Runs `verify_amd_backend.py`, including HIP, AMD device, bitsandbytes, Transformers, PEFT, TRL, datasets, accelerate and `soup doctor` checks.
-6. Validates the smoke JSONL through Soup.
-7. Hashes the smoke dataset and training config.
-8. Runs the Qwen3.5-0.8B Soup SFT recipe.
-9. Rejects an adapter with the historical stale `.inner.` key pattern, non-finite tensors or all-zero tensors.
-10. Loads base and tuned models on the accelerator and requires a deterministic non-zero logit delta.
-11. Writes an ignored machine-readable run record.
+6. Resolves and materializes the exact reviewed Qwen3.5-0.8B Hub revision.
+7. Generates a runtime Soup config whose `base:` points at that immutable local snapshot.
+8. Validates the smoke JSONL through Soup.
+9. Hashes the smoke dataset, committed recipe and generated runtime config.
+10. Runs the Qwen3.5-0.8B Soup SFT recipe.
+11. Rejects an adapter with the historical stale `.inner.` key pattern, non-finite tensors or all-zero tensors.
+12. Loads base and tuned models on the accelerator and requires a deterministic non-zero logit delta.
+13. Writes an ignored machine-readable run record including the exact resolved base revision.
 
 ## Promotion rule
 
@@ -75,4 +87,4 @@ Repair the smallest causal defect and rerun the same gate. Do not replace AMD wi
 
 ## Evidence hygiene
 
-`.venv-model-lab/`, `model-lab/runs/` and `model-lab/artifacts/` are ignored. Do not commit model weights, machine-specific caches, private data, tokens or provider credentials.
+`.venv-model-lab/`, `model-lab/cache/`, `model-lab/runs/` and `model-lab/artifacts/` are ignored. Do not commit model weights, machine-specific caches, private data, tokens or provider credentials.
