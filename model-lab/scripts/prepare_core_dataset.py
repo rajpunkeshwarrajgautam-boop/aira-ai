@@ -255,13 +255,12 @@ def main() -> int:
     eval_hashes = frozen_prompt_hashes()
     seen_rows: set[str] = set()
     accepted: list[dict[str, Any]] = []
-    counters: Counter[str] = Counter()
     per_source: dict[str, Counter[str]] = {}
 
     for source in approved:
         source_counts: Counter[str] = Counter()
         per_source[source["id"]] = source_counts
-        for index, row in enumerate(iter_source_rows(source)):
+        for row in iter_source_rows(source):
             if args.max_per_source is not None and source_counts["accepted"] >= args.max_per_source:
                 break
             source_counts["seen"] += 1
@@ -297,8 +296,6 @@ def main() -> int:
             source_counts[f"split_{split_name}"] += 1
 
     accepted.sort(key=lambda row: row["row_hash"])
-    for row in accepted:
-        counters[row["split"]] += 1
 
     outputs: dict[str, Any] = {}
     for split_name in ("train", "validation", "holdout"):
@@ -319,7 +316,7 @@ def main() -> int:
         "source_counts": {key: dict(value) for key, value in per_source.items()},
         "outputs": outputs,
         "total_examples": len(accepted),
-        "exact_dedup": true if False else True,
+        "exact_dedup": True,
         "frozen_eval_exact_prompt_overlap_removed": True,
         "high_confidence_secret_filter": True,
         "broader_semantic_contamination_check": "REQUIRED_BEFORE_MANIFEST_PROMOTION",
