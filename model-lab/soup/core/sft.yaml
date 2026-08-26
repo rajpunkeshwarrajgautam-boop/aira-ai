@@ -6,8 +6,9 @@ modality: text
 
 data:
   # Deliberately absent from git until a provenance-reviewed production dataset is assembled.
+  # prepare_core_dataset.py emits normalized ChatML-style {"messages": [...]} rows.
   train: ./model-lab/data/core-v0/train.jsonl
-  format: alpaca
+  format: chatml
   val_split: 0.1
 
 training:
