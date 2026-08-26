@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node --import tsx --test tests/policy.test.ts tests/openai-compatible.test.ts",
+    "test": "node --import tsx --test tests/policy.test.ts tests/openai-compatible.test.ts tests/decision-contract.test.ts",
     "build": "npm run typecheck && npm test && electron-vite build",
     "start": "electron-vite preview",
     "dist:win": "npm run build && electron-builder --win nsis --publish never",
@@ -25,7 +25,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react-dom": "^18.3.12",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^43.4.0",
     "electron-builder": "^25.1.8",
