@@ -1,0 +1,75 @@
+name: AIRA Core Physical Contracts
+
+on:
+  pull_request:
+    paths:
+      - "model-lab/scripts/windows/run-rx9070xt-core.ps1"
+      - "model-lab/scripts/verify_core_9b_adapter.py"
+      - "model-lab/soup/core/sft.yaml"
+      - ".github/workflows/model-lab-core-physical-contracts.yml"
+  push:
+    paths:
+      - "model-lab/scripts/windows/run-rx9070xt-core.ps1"
+      - "model-lab/scripts/verify_core_9b_adapter.py"
+      - "model-lab/soup/core/sft.yaml"
+      - ".github/workflows/model-lab-core-physical-contracts.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  core-physical-contracts:
+    runs-on: windows-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Parse Core RX 9070 XT operator without executing hardware work
+        shell: pwsh
+        run: |
+          $path = Resolve-Path "model-lab/scripts/windows/run-rx9070xt-core.ps1"
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          Write-Host "Core RX 9070 XT operator syntax is valid; GPU execution is intentionally not attempted on GitHub-hosted runners."
+
+      - name: Compile and self-test 9B adapter verifier
+        shell: pwsh
+        run: |
+          python -m py_compile model-lab/scripts/verify_core_9b_adapter.py
+          python model-lab/scripts/verify_core_9b_adapter.py --self-test
+
+      - name: Validate first physical Core recipe invariants
+        shell: pwsh
+        run: |
+          $text = Get-Content "model-lab/soup/core/sft.yaml" -Raw
+          foreach ($required in @(
+            "base: Qwen/Qwen3.5-9B-Base",
+            "train: ./model-lab/data/core-v0/train.jsonl",
+            "val_split: 0.0",
+            "max_length: 2048",
+            "train_on_responses_only: true",
+            "epochs: 1",
+            "batch_size: 1",
+            "seed: 3407",
+            "r: 32",
+            "alpha: 64",
+            "quantization: 4bit",
+            "stream_layers: false"
+          )) {
+            if (-not $text.Contains($required)) {
+              Write-Error "Missing reviewed Core recipe invariant: $required"
+              exit 1
+            }
+          }
