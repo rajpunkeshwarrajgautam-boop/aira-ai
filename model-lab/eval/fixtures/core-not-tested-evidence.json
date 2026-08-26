@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "model_id": "aira/core",
+  "release_state": "experiment",
+  "evidence_state": "NOT_TESTED",
+  "base_model": "Qwen/Qwen3.5-9B-Base",
+  "base_revision": "UNRESOLVED_UNTIL_MODEL_DOWNLOAD",
+  "soup_commit": "6c13c44f5eb6bef67bbd39d83ec7269ac3c31dbf",
+  "training_run_id": "NOT_RUN",
+  "dataset_manifest_id": "aira-core-v0",
+  "dataset_hashes": {
+    "placeholder": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "adapter_verified": false,
+  "inference_verified": false,
+  "evaluation_complete": false,
+  "regression_gate_passed": false,
+  "license_clear": false,
+  "known_limitations": [
+    "AIRA Core has not been trained.",
+    "The real Core dataset has not been approved for training.",
+    "No persistent AIRA Core inference endpoint exists."
+  ],
+  "benchmark_report": null,
+  "serving": {
+    "persistent": false,
+    "authenticated": false,
+    "health_verified": false,
+    "streaming_verified": false,
+    "omniroute_discovered": false,
+    "rollback_ready": false
+  }
+}
