@@ -1,9 +1,9 @@
 import { getSettings } from './config'
-import { decisionToolCalls } from './decision-contract'
 import { searchMemory } from './memory'
 import { callDecision } from './model'
 import { searchWorkspace } from './rag'
 import { skillCatalog } from './skills'
+import { executeDecisionToolCalls } from './tool-call-runtime'
 import { executeTool, toolCatalog } from './tools'
 import type { AgentReply, AgentRequest, ChatMessage, ToolContext } from './types'
 
@@ -118,28 +118,24 @@ export async function runAgent(request: AgentRequest, context: ToolContext): Pro
     if (decision.plan?.length && !plan) plan = decision.plan.slice(0, 12)
     if (decision.type === 'final') return { text: decision.content || 'Done.', steps, plan }
 
-    const calls = decisionToolCalls(decision)
     messages.push({ role: 'assistant', content: JSON.stringify(decision) })
+    const executions = await executeDecisionToolCalls(decision, (tool, args) =>
+      executeTool(tool, args, {
+        ...context,
+        unattended: request.unattended || context.unattended
+      })
+    )
 
-    for (const call of calls) {
-      const args = call.args || {}
-      let result: unknown
-      let ok = true
-      try {
-        result = await executeTool(call.tool, args, {
-          ...context,
-          unattended: request.unattended || context.unattended
-        })
-        if (typeof result === 'object' && result && 'denied' in result) ok = false
-      } catch (error) {
-        ok = false
-        result = { error: error instanceof Error ? error.message : String(error) }
-      }
-
-      steps.push({ tool: call.tool, summary: decision.reasoning || (ok ? 'Executed' : 'Failed or denied'), ok })
-      messages.push({ role: 'tool', content: JSON.stringify({ tool: call.tool, result }).slice(0, 40_000) })
-
-      if (!ok) break
+    for (const execution of executions) {
+      steps.push({
+        tool: execution.tool,
+        summary: decision.reasoning || (execution.ok ? 'Executed' : 'Failed or denied'),
+        ok: execution.ok
+      })
+      messages.push({
+        role: 'tool',
+        content: JSON.stringify({ tool: execution.tool, result: execution.result }).slice(0, 40_000)
+      })
     }
   }
 
