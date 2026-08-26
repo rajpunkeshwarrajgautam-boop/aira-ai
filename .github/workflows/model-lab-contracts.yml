@@ -72,6 +72,12 @@ jobs:
       - name: Self-test deterministic endpoint evaluator
         run: python model-lab/scripts/run_exact_eval.py --self-test
 
+      - name: Self-test dataset contamination gate
+        run: python model-lab/scripts/check_dataset_contamination.py --self-test
+
+      - name: Self-test Core manifest promotion gate
+        run: python model-lab/scripts/promote_core_manifest.py --self-test
+
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
 
