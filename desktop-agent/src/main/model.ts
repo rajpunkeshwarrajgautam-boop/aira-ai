@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import type { AppSettings } from './config'
+import { AGENT_DECISION_SCHEMA, parseAgentDecision } from './decision-contract'
 import {
   chooseOpenAICompatibleModel,
   isLoopbackOpenAICompatibleUrl,
@@ -9,19 +10,6 @@ import {
 } from './openai-compatible'
 import { getSecret } from './secrets'
 import type { AgentDecision, ChatMessage } from './types'
-
-const DECISION_SCHEMA = {
-  type: 'object',
-  properties: {
-    type: { type: 'string', enum: ['final', 'tool'] },
-    content: { type: 'string' },
-    tool: { type: 'string' },
-    args: { type: 'object' },
-    reasoning: { type: 'string' },
-    plan: { type: 'array', items: { type: 'string' } }
-  },
-  required: ['type']
-}
 
 function withTimeout(ms = 180_000): { controller: AbortController; done: () => void } {
   const controller = new AbortController()
@@ -43,15 +31,6 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
   } finally {
     done()
   }
-}
-
-function parseDecision(text: string): AgentDecision {
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  const json = start >= 0 && end > start ? text.slice(start, end + 1) : text
-  const parsed = JSON.parse(json) as AgentDecision
-  if (parsed.type !== 'tool' && parsed.type !== 'final') throw new Error('Unsupported agent decision.')
-  return parsed
 }
 
 function compatibleHeaders(settings: AppSettings): Record<string, string> {
@@ -112,17 +91,17 @@ export async function callDecision(settings: AppSettings, messages: ChatMessage[
       }
       data = await postJson(openAICompatibleChatUrl(settings.remoteBaseUrl), fallbackBody, compatibleHeaders(settings))
     }
-    return parseDecision(String(data?.choices?.[0]?.message?.content || ''))
+    return parseAgentDecision(String(data?.choices?.[0]?.message?.content || ''))
   }
 
   const data = await postJson(`${settings.ollamaUrl}/api/chat`, {
     model: settings.model,
     stream: false,
-    format: DECISION_SCHEMA,
+    format: AGENT_DECISION_SCHEMA,
     messages: messages.map(({ role, content }) => ({ role, content })),
     options: { temperature: 0.2 }
   })
-  return parseDecision(String(data?.message?.content || ''))
+  return parseAgentDecision(String(data?.message?.content || ''))
 }
 
 export async function chatText(settings: AppSettings, messages: ChatMessage[]): Promise<string> {
@@ -153,7 +132,7 @@ export async function visionText(settings: AppSettings, imagePath: string, promp
   const data = await postJson(`${settings.ollamaUrl}/api/chat`, {
     model: settings.visionModel,
     stream: false,
-    messages: [{ role: 'user', content: prompt, images: [base64] }],
+    messages: [{ role: 'user', content: prompt, images: base64 }],
     options: { temperature: 0.1 }
   })
   return String(data?.message?.content || '')
