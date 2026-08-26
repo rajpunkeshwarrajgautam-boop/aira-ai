@@ -132,7 +132,7 @@ export async function visionText(settings: AppSettings, imagePath: string, promp
   const data = await postJson(`${settings.ollamaUrl}/api/chat`, {
     model: settings.visionModel,
     stream: false,
-    messages: [{ role: 'user', content: prompt, images: base64 }],
+    messages: [{ role: 'user', content: prompt, images: [base64] }],
     options: { temperature: 0.1 }
   })
   return String(data?.message?.content || '')
