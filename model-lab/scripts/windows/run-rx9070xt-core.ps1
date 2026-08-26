@@ -6,6 +6,7 @@ param(
     [string]$HipVisibleDevices = "0",
     [ValidateRange(2, 64)]
     [int]$CanaryRows = 8,
+    [switch]$Resume,
     [switch]$OverwriteOutput
 )
 
@@ -66,6 +67,13 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($targetPath, $Text, $encoding)
 }
 
+if ($Resume -and $Mode -ne "Full") {
+    throw "-Resume is supported only with -Mode Full."
+}
+if ($Resume -and $OverwriteOutput) {
+    throw "-Resume and -OverwriteOutput are mutually exclusive. Resume must preserve the existing checkpoints."
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 Set-Location $repoRoot
 
@@ -87,6 +95,9 @@ $configPath = "model-lab\soup\core\sft.yaml"
 $materializedPath = "model-lab\runs\materialized-core-base.json"
 
 Write-Host "AIRA Core physical-run gate: $Mode" -ForegroundColor Green
+if ($Resume) {
+    Write-Host "Resume mode: latest saved Full checkpoint will be restored." -ForegroundColor Yellow
+}
 
 $trainSha = Assert-FileHash $trainPath $ExpectedTrainSha
 $null = Assert-FileHash $validationPath $ExpectedValidationSha
@@ -186,6 +197,7 @@ $preflight = [ordered]@{
     schema_version = 1
     status = "PASS"
     mode = $Mode
+    resume = [bool]$Resume
     git_head = $gitHead
     train_sha256 = $trainSha
     train_examples = $ExpectedTrainRows
@@ -287,16 +299,37 @@ Invoke-Checked -Label "Generate exact local-base Soup runtime config" -Command {
         --output $runtimeConfig
 }
 
+$resumeCheckpoint = $null
 if (Test-Path $adapterOutput) {
-    if ($Mode -eq "Full" -and -not $OverwriteOutput) {
-        throw "Full Core output already exists at $adapterOutput. Refusing to overwrite. Re-run with -OverwriteOutput only after reviewing the existing artifact."
+    if ($Mode -eq "Full") {
+        if ($Resume) {
+            $resumeCheckpoint = Get-ChildItem $adapterOutput -Directory -Filter "checkpoint-*" -Recurse -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTimeUtc -Descending |
+                Select-Object -First 1
+            if ($null -eq $resumeCheckpoint) {
+                throw "-Resume requested, but no checkpoint-* directory exists under $adapterOutput. Nothing can be resumed safely."
+            }
+            Write-Host "Latest saved checkpoint: $($resumeCheckpoint.FullName)" -ForegroundColor Green
+            Write-Host "Existing Core output is being preserved." -ForegroundColor Green
+        } elseif (-not $OverwriteOutput) {
+            throw "Full Core output already exists at $adapterOutput. Refusing to overwrite. Use -Resume to continue from its latest checkpoint, or -OverwriteOutput only after reviewing the existing artifact."
+        } else {
+            Remove-Item -Recurse -Force $adapterOutput
+        }
+    } else {
+        Remove-Item -Recurse -Force $adapterOutput
     }
-    Remove-Item -Recurse -Force $adapterOutput
+} elseif ($Resume) {
+    throw "-Resume requested, but Full Core output does not exist at $adapterOutput. Start the first session with -Mode Full (without -Resume)."
 }
 
 $started = [DateTime]::UtcNow
 Invoke-Checked -Label "Run AIRA Core 9B $Mode QLoRA" -Command {
-    & $soup train --config $runtimeConfig
+    if ($Resume) {
+        & $soup train --config $runtimeConfig --resume auto
+    } else {
+        & $soup train --config $runtimeConfig
+    }
 }
 $ended = [DateTime]::UtcNow
 
@@ -315,6 +348,8 @@ $summary = [ordered]@{
     run_id = $runId
     status = if ($adapterVerification.status -eq "VERIFIED") { "VERIFIED" } else { "FAILED" }
     mode = $Mode
+    resumed = [bool]$Resume
+    resumed_from_checkpoint = if ($Resume -and $null -ne $resumeCheckpoint) { $resumeCheckpoint.FullName } else { $null }
     started_at_utc = $started.ToString("o")
     ended_at_utc = $ended.ToString("o")
     duration_seconds = [Math]::Round(($ended - $started).TotalSeconds, 3)
