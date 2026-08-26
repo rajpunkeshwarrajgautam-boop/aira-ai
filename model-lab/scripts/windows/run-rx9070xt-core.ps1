@@ -214,6 +214,54 @@ if ($Mode -eq "Verify") {
     exit 0
 }
 
+$verifiedCanaryPath = $null
+if ($Mode -eq "Full") {
+    $canaryFiles = Get-ChildItem "model-lab\runs\core-v0-canary-*.json" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notmatch '\.adapter-verification\.json$' } |
+        Sort-Object LastWriteTimeUtc -Descending
+    $verifiedCanary = $null
+    foreach ($file in $canaryFiles) {
+        try {
+            $candidate = Get-Content $file.FullName -Raw | ConvertFrom-Json
+            if (
+                [string]$candidate.status -eq "VERIFIED" -and
+                [string]$candidate.mode -eq "Canary" -and
+                [int]$candidate.canary_rows -eq 8 -and
+                [string]$candidate.train_sha256 -eq $ExpectedTrainSha -and
+                [string]$candidate.base_revision -eq $ExpectedBaseRevision -and
+                [string]$candidate.config_normalized_sha256 -eq $ExpectedConfigNormalizedSha -and
+                [string]$candidate.soup_version -eq $ExpectedSoupVersion -and
+                $candidate.adapter_active -eq $true
+            ) {
+                $verifiedCanary = $candidate
+                $verifiedCanaryPath = $file.FullName
+                break
+            }
+        } catch {
+            continue
+        }
+    }
+    if ($null -eq $verifiedCanary) {
+        throw "Full Core training requires a VERIFIED 8-row canary bound to the reviewed train/config/base/Soup contract. Run -Mode Canary first."
+    }
+    $verifiedCanaryAdapter = [string]$verifiedCanary.adapter
+    if (-not (Test-Path $verifiedCanaryAdapter -PathType Container)) {
+        throw "Verified canary record points to a missing adapter: $verifiedCanaryAdapter"
+    }
+    $canaryRecheckOutput = "model-lab\runs\core-v0-full-canary-recheck.json"
+    Invoke-Checked -Label "Re-verify required 8-row canary adapter through NF4" -Command {
+        & $python "model-lab\scripts\verify_core_9b_adapter.py" `
+            --adapter $verifiedCanaryAdapter `
+            --base $materializedBase `
+            --output $canaryRecheckOutput
+    }
+    $canaryRecheck = Get-Content $canaryRecheckOutput -Raw | ConvertFrom-Json
+    if ([string]$canaryRecheck.status -ne "VERIFIED" -or $canaryRecheck.adapter_active -ne $true) {
+        throw "The required 8-row canary failed NF4 adapter re-verification. Full training remains blocked."
+    }
+    Write-Host "Verified canary gate: $verifiedCanaryPath" -ForegroundColor Green
+}
+
 $runId = "core-v0-$($Mode.ToLowerInvariant())-" + [DateTime]::UtcNow.ToString("yyyyMMdd-HHmmss")
 $runtimeConfig = "model-lab\runs\$runId.runtime.yaml"
 $adapterOutput = if ($Mode -eq "Canary") { "model-lab\artifacts\aira-core-v0-canary" } else { "model-lab\artifacts\aira-core-v0" }
@@ -275,6 +323,7 @@ $summary = [ordered]@{
     train_examples = $ExpectedTrainRows
     canary_rows = if ($Mode -eq "Canary") { $CanaryRows } else { $null }
     canary_sha256 = if ($Mode -eq "Canary") { (Get-FileHash $canaryPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+    required_canary_record = if ($Mode -eq "Full") { $verifiedCanaryPath } else { $null }
     manifest_token_count = $ExpectedManifestTokens
     manifest_sha256 = $manifestSha
     frozen_build_sha256 = $freezeSha
