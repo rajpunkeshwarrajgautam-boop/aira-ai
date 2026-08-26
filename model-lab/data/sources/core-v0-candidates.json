@@ -51,13 +51,14 @@
       "license_review": "metadata_clear",
       "provenance_review": "synthetic_pipeline_documented",
       "contamination_review": "v1_filtered_candidate_pass_superseded_representation",
-      "context_fit_review": "v2_raw_system_context_failed_zero_target",
+      "context_fit_review": "v2_raw_system_context_small_zero_target_tail",
       "tool_format_review": "pending_normalization_parity",
       "core_v0_decision": "candidate_filtered",
       "required_filters": [
         "reject_high_confidence_secret_patterns",
         "deduplicate_exact_rows",
-        "reject_frozen_eval_exact_and_near_overlap"
+        "reject_frozen_eval_exact_and_near_overlap",
+        "reject_zero_shifted_target_after_truncation_at_2048"
       ],
       "bounded_evidence": {
         "rows_profiled": 500,
@@ -107,10 +108,25 @@
         "assistant_bracket_tool_call_messages": 10012,
         "candidate_sha256": "5cdf46c1266e40b5458057d4ff35cfb4d6aa1f543aba07f1dcb4cbf2cf5736dd",
         "strict_token_accounting": "FAIL_ZERO_SHIFTED_TARGET_AT_LINE_9",
-        "diagnostic_scan": "PENDING"
+        "diagnostic_scan": {
+          "rows": 11288,
+          "raw_tokens": 8420091,
+          "kept_tokens": 8368673,
+          "raw_supervised_tokens": 898839,
+          "kept_supervised_tokens": 867272,
+          "supervised_retention_fraction": 0.9648802510794481,
+          "truncated_rows": 117,
+          "truncated_row_fraction": 0.010364989369241672,
+          "zero_shifted_target_after_truncation": 27,
+          "zero_shifted_target_fraction": 0.002391920623671155,
+          "first_assistant_token_offset_p50": 597,
+          "first_assistant_token_offset_p95": 1176,
+          "tokenization_errors": 0,
+          "training_authorization": false
+        }
       },
       "approved_for_training": false,
-      "reason": "ToolACE remains a strong synthetic tool-use candidate, but neither prior representation is training-ready: v1 omitted top-level tool definitions, while v2 preserves raw system/tool context and already fails strict 2048-token accounting because at least one row loses every shifted assistant target. More than 82% of source rows contain bracket-style assistant tool calls. AIRA-specific tool-schema compaction and tool-call normalization/parity are required before source approval."
+      "reason": "ToolACE remains a strong synthetic tool-use candidate. V1 omitted top-level tool definitions and is superseded. V2 preserves raw tool context; a complete diagnostic shows 96.49% supervised-token retention, only 1.04% truncated rows, and 27/11,288 rows (0.239%) losing every shifted assistant target. The small zero-target tail can be rejected deterministically rather than compressing every schema. More than 82% of rows still use ToolACE bracket-call syntax, so AIRA-specific tool-call/system-instruction normalization and serving parity remain mandatory before approval."
     },
     {
       "id": "openr1-math-220k",
