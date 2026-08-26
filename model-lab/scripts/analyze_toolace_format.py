@@ -54,7 +54,7 @@ def percentile(values: list[int], q: float) -> int:
 
 
 def sanitize_name(name: str) -> str:
-    """Deterministic comparison-only normalization for known ToolACE name defects."""
+    """Comparison-only normalization for known ToolACE function-name defects."""
     value = name.strip().lower()
     value = re.sub(r"\([^)]*\)", "", value)
     value = re.sub(r"[^a-z0-9]+", "_", value)
@@ -156,14 +156,15 @@ def parse_argument_value(text: str) -> tuple[Any, str]:
 
 
 def find_argument_open(text: str) -> int:
+    """Return the '(' paired with the final ')' while allowing parentheses in tool names."""
     stripped = text.rstrip()
     if not stripped.endswith(")"):
         raise ValueError("call must end with closing parenthesis")
-    depth = 0
+    stack: list[int] = []
     quote: str | None = None
     escape = False
-    for index in range(len(stripped) - 1, -1, -1):
-        char = stripped[index]
+    final_open: int | None = None
+    for index, char in enumerate(stripped):
         if quote is not None:
             if escape:
                 escape = False
@@ -175,23 +176,28 @@ def find_argument_open(text: str) -> int:
         if char in {"'", '"'}:
             quote = char
             continue
-        if char == ")":
-            depth += 1
-        elif char == "(":
-            depth -= 1
-            if depth == 0:
-                return index
-            if depth < 0:
-                break
-    raise ValueError("could not locate argument-list opening parenthesis")
+        if char == "(":
+            stack.append(index)
+        elif char == ")":
+            if not stack:
+                raise ValueError("unbalanced closing parenthesis")
+            opening = stack.pop()
+            if index == len(stripped) - 1:
+                final_open = opening
+    if quote is not None or stack:
+        raise ValueError("unbalanced quote or parenthesis")
+    if final_open is None:
+        raise ValueError("could not locate argument-list opening parenthesis")
+    return final_open
 
 
 def parse_one_call(text: str) -> tuple[dict[str, Any], Counter[str]]:
     open_index = find_argument_open(text)
-    name = text[:open_index].strip()
+    stripped = text.rstrip()
+    name = stripped[:open_index].strip()
     if not name:
         raise ValueError("empty tool name")
-    inner = text[open_index + 1 : text.rstrip().rfind(")")].strip()
+    inner = stripped[open_index + 1 : -1].strip()
     args: dict[str, Any] = {}
     modes: Counter[str] = Counter()
     if inner:
@@ -380,7 +386,7 @@ def analyze_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any
     parse_failures = counts["schema_parse_failure"] + counts["call_parse_failure"]
     result = {
         "schema_version": 2,
-        "parser_revision": "balanced_safe_literal_sanitized_names_v2",
+        "parser_revision": "balanced_safe_literal_sanitized_names_v2_1",
         "status": "RECORDED_DIAGNOSTIC",
         "training_authorization": False,
         "source_id": source["id"],
@@ -399,7 +405,11 @@ def analyze_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any
         "failure_evidence_truncated": parse_failures > len(failure_evidence),
         "raw_content_emitted": False,
         "tool_names_emitted": False,
-        "next_gate": "aira_tool_contract_normalizer_with_deterministic_rejections" if parse_failures == 0 else "classify_remaining_format_failures_before_normalization",
+        "next_gate": (
+            "aira_tool_contract_normalizer_with_deterministic_rejections"
+            if parse_failures == 0
+            else "classify_remaining_format_failures_before_normalization"
+        ),
     }
     return result
 
@@ -430,7 +440,7 @@ def self_test() -> dict[str, Any]:
                 "system": "Instruction. Here is a list of functions [{'name':'A (legacy)','arguments':{}},{'name':'B','arguments':{}}]",
                 "conversations": [
                     {"from": "user", "value": "Do both"},
-                    {"from": "assistant", "value": '[A (legacy)(x=true), B(y=[1, 2])]'},
+                    {"from": "assistant", "value": '[A(x=true), B(y=[1, 2])]'},
                     {"from": "tool", "value": '{}'},
                     {"from": "assistant", "value": "Done"},
                 ],
@@ -457,11 +467,13 @@ def self_test() -> dict[str, Any]:
         raise RuntimeError("tool/schema parity self-test failed")
     if counts.get("calls_sanitized_name_match", 0) < 1:
         raise RuntimeError("sanitized name matching self-test failed")
+    if sanitize_name("A (legacy)") != sanitize_name("A"):
+        raise RuntimeError("sanitized helper equivalence self-test failed")
     if report["raw_content_emitted"] is not False or report["training_authorization"] is not False:
         raise RuntimeError("format analyzer violated fail-closed contract")
     return {
         "status": "PASS",
-        "contract": "toolace-format-analysis-v2",
+        "contract": "toolace-format-analysis-v2.1",
         "balanced_schema_parser": True,
         "safe_literal_parser": True,
         "sanitized_name_matching": True,
