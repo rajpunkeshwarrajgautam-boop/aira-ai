@@ -3,7 +3,8 @@ param(
     [switch]$ProbeOnly,
     [switch]$SkipDependencyInstall,
     [string]$PythonLauncher = "",
-    [string]$VenvPath = ".venv-model-lab"
+    [string]$VenvPath = ".venv-model-lab",
+    [string]$HipVisibleDevices = "0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -120,6 +121,7 @@ $hostRecord = [ordered]@{
     adapter_ram_bytes = if ($gpu) { [int64]$gpu.AdapterRAM } else { $null }
     expected_gpu = "AMD Radeon RX 9070 XT"
     expected_arch = "gfx1201"
+    hip_visible_devices = $HipVisibleDevices
 }
 $hostRecord | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 "model-lab\runs\windows-host.json"
 
@@ -167,6 +169,24 @@ if (-not $SkipDependencyInstall) {
 $env:PYTHONUTF8 = "1"
 $venvScripts = Join-Path $repoRoot "$VenvPath\Scripts"
 $env:PATH = "$venvScripts;$env:PATH"
+
+# Ryzen desktops can expose both the iGPU and discrete Radeon through HIP. On
+# Windows ROCm this has produced native 0xC0000005 failures on gfx1201 systems.
+# Isolate the known-good discrete device before the first Torch process starts.
+$env:HIP_VISIBLE_DEVICES = $HipVisibleDevices
+Write-Host "HIP_VISIBLE_DEVICES=$HipVisibleDevices" -ForegroundColor Cyan
+
+Invoke-Checked -Label "Verify isolated HIP device is RX 9070 XT" -Command {
+    & $python -c "import torch; assert torch.cuda.is_available(); assert torch.cuda.device_count() == 1, torch.cuda.device_count(); name=torch.cuda.get_device_name(0); print('device=', name); print('hip=', torch.version.hip); assert '9070 XT' in name, name"
+}
+
+# The first failed physical smoke crashed in amdhip64_7.dll while PEFT was
+# initializing LoRA weights through a GPU uniform_ kernel. Exercise that primitive
+# independently so a driver/runtime defect is classified below Soup rather than
+# looking like a trainer/configuration failure.
+Invoke-Checked -Label "Verify ROCm GPU RNG / LoRA-init primitive" -Command {
+    & $python -c "import math, torch; torch.manual_seed(3407); x=torch.empty((4096, 4096), device='cuda', dtype=torch.float32); torch.nn.init.kaiming_uniform_(x, a=math.sqrt(5)); torch.cuda.synchronize(); print('rng_uniform_ok=', bool(torch.isfinite(x).all().item()), 'mean=', float(x.mean().item()))"
+}
 
 Invoke-Checked -Label "Verify AMD ROCm + Soup backend" -Command {
     & $python "model-lab\scripts\verify_amd_backend.py"
@@ -241,6 +261,7 @@ $summary = [ordered]@{
     backend_status_before_training = $probe.status
     device_name = $probe.accelerator.device_name
     hip = $probe.accelerator.torch_version_hip
+    hip_visible_devices = $HipVisibleDevices
     torch = $probe.packages.torch
     bitsandbytes = $probe.packages.bitsandbytes
     soup_cli = $probe.packages.'soup-cli'
