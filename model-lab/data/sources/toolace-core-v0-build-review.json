@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "program": "aira-core-v0",
+  "source_id": "toolace",
+  "source_revision": "e0db1bccf18d6d02cbb03b1ecb63fafb21525311",
+  "prepared_input": {
+    "representation": "aira_tool_calls_json_v1",
+    "examples": 10509,
+    "sha256": "768bffd674cb9114340aeab4682bb18d5fc76608da182939ca6c211cb279aa12"
+  },
+  "build": {
+    "status": "BUILT_CONTAMINATION_PENDING",
+    "catalog_sha256": "dddb5a3198d6df4240ffec1f46a7870fdb7a606817d753e66efa7e786e07bc9c",
+    "frozen_eval_sha256": "9885c9c49ca2048be3739f782048aa5b84813970834bbfc33db23adff1ea0cc8",
+    "total_examples": 10509,
+    "prepared_candidate_hash_binding": true,
+    "exact_dedup": true,
+    "high_confidence_secret_filter": true,
+    "frozen_eval_exact_prompt_overlap_removed": true,
+    "splits": {
+      "train": {
+        "examples": 10311,
+        "sha256": "89890cc7c5b017bd88c91d427921b7cc31dd9e2b211c4ff72ef20331c78654d2",
+        "contamination_gate": "PENDING"
+      },
+      "validation": {
+        "examples": 104,
+        "sha256": "426667615d75673108d776b7d269a2b67ce8290bd4526e295829d8e6186031cc",
+        "contamination_gate": "PENDING"
+      },
+      "holdout": {
+        "examples": 94,
+        "sha256": "8b580a22fde7adb68f861810a21c45f85d1fd1b03822482a95bb07e8dde21025",
+        "contamination_gate": "PENDING"
+      }
+    }
+  },
+  "training_manifest_promotion": "BLOCKED_PENDING_SPLIT_CONTAMINATION",
+  "training_execution": "NOT_STARTED"
+}
