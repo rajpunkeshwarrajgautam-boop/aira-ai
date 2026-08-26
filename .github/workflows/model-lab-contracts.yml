@@ -83,6 +83,18 @@ jobs:
       - name: Self-test sanitized RX smoke evidence exporter
         run: python model-lab/scripts/sanitize_smoke_evidence.py --self-test
 
+      - name: Self-test strict Qwen3.5 masking preflight
+        run: python model-lab/scripts/validate_qwen35_text_contract.py --self-test
+
+      - name: Self-test exact Core token accounting
+        run: python model-lab/scripts/count_core_tokens.py --self-test
+
+      - name: Validate strict Core training template markers
+        run: |
+          grep -Fq '{% generation %}' model-lab/soup/core/sft.yaml
+          grep -Fq '{% endgeneration %}' model-lab/soup/core/sft.yaml
+          grep -Fq 'train_on_responses_only: true' model-lab/soup/core/sft.yaml
+
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
 
