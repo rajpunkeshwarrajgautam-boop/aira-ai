@@ -55,15 +55,8 @@
     "example_count": 10509,
     "token_count": 6138380,
     "source_count": 1,
-    "languages": [
-      "en",
-      "zh"
-    ],
-    "domains": [
-      "agentic_execution",
-      "function_calling",
-      "tool_use"
-    ]
+    "languages": ["en", "zh"],
+    "domains": ["agentic_execution", "function_calling", "tool_use"]
   },
   "physical_canary": {
     "status": "VERIFIED",
@@ -87,11 +80,7 @@
       "compute_dtype": "bfloat16",
       "double_quant": true,
       "linear4bit_modules": 248,
-      "max_abs_logit_deltas": [
-        0.1328125,
-        0.125,
-        0.1875
-      ],
+      "max_abs_logit_deltas": [0.1328125, 0.125, 0.1875],
       "peak_allocated_gib": 7.4235,
       "peak_reserved_gib": 7.4961,
       "tensor_count": 128,
@@ -100,6 +89,12 @@
       "stale_inner_keys": []
     }
   },
-  "training_execution": "CANARY_VERIFIED_FULL_PENDING",
+  "full_training_gate": {
+    "status": "AUTHORIZED",
+    "requires_verified_canary_record": true,
+    "requires_nf4_canary_reverification": true,
+    "operator_commit": "279eef59302838804c2afece8cb981e7a7815886"
+  },
+  "training_execution": "CANARY_VERIFIED_FULL_AUTHORIZED_NOT_STARTED",
   "next_gate": "full_9b_qlora"
 }
