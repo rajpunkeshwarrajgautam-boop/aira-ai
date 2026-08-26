@@ -9,6 +9,28 @@ data:
   # prepare_core_dataset.py emits normalized ChatML-style {"messages": [...]} rows.
   train: ./model-lab/data/core-v0/train.jsonl
   format: chatml
+  # Training-only template for normalized AIRA text messages. Qwen3.5's shipped
+  # conversational template does not currently expose Hugging Face {% generation %}
+  # blocks, so response-only SFT would otherwise use Soup's looser incremental
+  # fallback. Keep role/control tokens outside the generation block and supervise
+  # assistant content only. This template is not the serving/inference template.
+  chat_template: |-
+    {%- for message in messages %}
+    {%- if message['role'] == 'system' %}
+    {{- '<|im_start|>system\n' + message['content'] + '<|im_end|>\n' }}
+    {%- elif message['role'] == 'user' %}
+    {{- '<|im_start|>user\n' + message['content'] + '<|im_end|>\n' }}
+    {%- elif message['role'] == 'assistant' %}
+    {{- '<|im_start|>assistant\n' }}{% generation %}{{- message['content'] }}{% endgeneration %}{{- '<|im_end|>\n' }}
+    {%- elif message['role'] == 'tool' %}
+    {{- '<|im_start|>tool\n' + message['content'] + '<|im_end|>\n' }}
+    {%- else %}
+    {{- raise_exception('Unexpected message role: ' + message['role']) }}
+    {%- endif %}
+    {%- endfor %}
+    {%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+    {%- endif %}
   # Soup 0.73.3 has no separate local validation-file field. This trainer split is
   # deterministic on the frozen train JSONL; model-lab validation/holdout files remain
   # separate external evaluation evidence.
