@@ -1,0 +1,81 @@
+name: AIRA RX 9070 XT Soup Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe_only:
+        description: "Verify ROCm/Soup environment only; do not train"
+        required: true
+        type: boolean
+        default: false
+      skip_dependency_install:
+        description: "Reuse an existing .venv-model-lab on the self-hosted runner"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aira-rx9070xt-model-smoke
+  cancel-in-progress: false
+
+jobs:
+  rx9070xt-smoke:
+    # This workflow is intentionally impossible to schedule on a GitHub-hosted GPU.
+    # Register the designated workstation with the custom label `aira-rx9070xt`.
+    runs-on: [self-hosted, Windows, X64, aira-rx9070xt]
+    timeout-minutes: 240
+
+    env:
+      PYTHONUTF8: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+
+    steps:
+      - name: Check out the exact requested model-program revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Refuse execution outside the AIRA model branch
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_name }}" -ne "feature/aira-model-family-soup") {
+            throw "This hardware workflow must run from feature/aira-model-family-soup, not ${{ github.ref_name }}."
+          }
+          Write-Host "AIRA model branch: ${{ github.sha }}"
+
+      - name: Verify workstation identity without exposing host secrets
+        shell: pwsh
+        run: |
+          $gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match "Radeon|AMD" } | Select-Object -First 1
+          if (-not $gpu) { throw "No AMD/Radeon GPU was found." }
+          if ($gpu.Name -notmatch "RX 9070 XT") { throw "Expected RX 9070 XT; found $($gpu.Name)." }
+          Write-Host "GPU class verified: AMD Radeon RX 9070 XT"
+
+      - name: Run isolated ROCm/Soup operator
+        shell: pwsh
+        run: |
+          $args = @()
+          if ("${{ inputs.probe_only }}" -eq "true") { $args += "-ProbeOnly" }
+          if ("${{ inputs.skip_dependency_install }}" -eq "true") { $args += "-SkipDependencyInstall" }
+          & powershell -NoProfile -ExecutionPolicy Bypass -File ".\model-lab\scripts\windows\run-rx9070xt-smoke.ps1" @args
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Produce sanitized evidence
+        if: ${{ success() && !inputs.probe_only }}
+        shell: pwsh
+        run: |
+          & ".\.venv-model-lab\Scripts\python.exe" "model-lab\scripts\sanitize_smoke_evidence.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload sanitized proof only
+        if: ${{ success() && !inputs.probe_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aira-rx9070xt-soup-smoke-${{ github.sha }}
+          path: model-lab/runs/sanitized-rx9070xt-smoke.json
+          if-no-files-found: error
+          retention-days: 14
