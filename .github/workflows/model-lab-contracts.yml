@@ -58,6 +58,8 @@ jobs:
                   for node in ast.walk(tree)
                   if isinstance(node, ast.Name) and node.id in {"true", "false", "null"}
               })
+              if bad:
+                  failures.append(f"{path}: {', '.join(bad)}")
           if failures:
               raise SystemExit("JSON literals used as Python names:\n" + "\n".join(failures))
           print("Python operator literal guard passed.")
