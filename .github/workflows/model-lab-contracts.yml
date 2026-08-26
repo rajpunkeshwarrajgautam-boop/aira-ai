@@ -107,6 +107,9 @@ jobs:
       - name: Self-test Core source decision guard
         run: python model-lab/scripts/validate_core_source_decisions.py --self-test
 
+      - name: Self-test filtered Core review candidate
+        run: python model-lab/scripts/materialize_filtered_core_candidate.py --self-test
+
       - name: Validate Core source decisions
         run: python model-lab/scripts/validate_core_source_decisions.py
 
