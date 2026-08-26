@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SOUP_SHA = "6c13c44f5eb6bef67bbd39d83ec7269ac3c31dbf"
 CORE_BASE = "Qwen/Qwen3.5-9B-Base"
 SMOKE_BASE = "Qwen/Qwen3.5-0.8B"
+CORE_REVISION = "68c46c4b3498877f3ef123c856ecfde50c39f404"
+SMOKE_REVISION = "2fc06364715b967f1860aea9cf38778875588b17"
 
 
 def read(relative: str) -> str:
@@ -48,14 +50,28 @@ def main() -> None:
     assert "soup-cli[train,eval,data,serve]" in pin, "required Soup extras changed"
     assert "@ git+https://github.com/MakazhanAlpamys/Soup.git@" in pin
 
+    base_models = load_json("model-lab/models/base-models.json")
+    assert isinstance(base_models, dict)
+    assert base_models.get("schema_version") == 1
+    models = base_models.get("models")
+    assert isinstance(models, dict)
+    assert models["core-base"]["repo_id"] == CORE_BASE
+    assert models["core-base"]["revision"] == CORE_REVISION
+    assert models["core-base"]["license"] == "apache-2.0"
+    assert models["core-smoke"]["repo_id"] == SMOKE_BASE
+    assert models["core-smoke"]["revision"] == SMOKE_REVISION
+    assert models["core-smoke"]["license"] == "apache-2.0"
+
     core_config = read("model-lab/soup/core/sft.yaml")
     assert f"base: {CORE_BASE}" in core_config
     assert "task: sft" in core_config
     assert "modality: text" in core_config
+    assert "format: chatml" in core_config, "Core intake emits messages and must train as ChatML"
     assert "stream_layers: false" in core_config, "streaming must be opt-in after backend proof"
 
     smoke_config = read("model-lab/soup/core/sft-smoke.yaml")
     assert f"base: {SMOKE_BASE}" in smoke_config
+    assert "format: alpaca" in smoke_config, "committed smoke fixture is Alpaca instruction/input/output"
     assert "quantization: none" in smoke_config
     assert "stream_layers: false" in smoke_config
 
@@ -85,6 +101,28 @@ def main() -> None:
     assert manifest["private_data"] is False
     assert manifest["contamination_check"]["status"] == "not_run"
 
+    source_catalog = load_json("model-lab/data/sources/core-v0-candidates.json")
+    assert isinstance(source_catalog, dict)
+    assert source_catalog.get("schema_version") == 1
+    sources = source_catalog.get("sources")
+    assert isinstance(sources, list) and len(sources) >= 4
+    for source in sources:
+        assert isinstance(source, dict)
+        assert source.get("approved_for_training") is False, (
+            f"source {source.get('id')} became training-approved without an explicit reviewed manifest change"
+        )
+        assert isinstance(source.get("revision"), str) and len(source["revision"]) == 40
+        assert source.get("license_review") in {"metadata_clear", "needs_review", "approved"}
+        assert source.get("provenance_review") in {"needs_review", "approved"}
+        assert source.get("contamination_review") in {"not_run", "needs_review", "approved"}
+
+    dataset_builder = read("model-lab/scripts/prepare_core_dataset.py")
+    assert '"messages": messages' in dataset_builder
+    assert "approved_for_training" in dataset_builder
+    assert "frozen_eval_exact_prompt_overlap_removed" in dataset_builder
+    assert "high_confidence_secret_filter" in dataset_builder
+    assert '"training_manifest_promotion": "NOT_AUTOMATIC"' in dataset_builder
+
     smoke_rows = validate_jsonl("model-lab/data/smoke/core-smoke.jsonl")
     eval_rows = validate_jsonl("model-lab/eval/data/core-v0-sanity.jsonl")
     assert smoke_rows >= 8
@@ -101,6 +139,15 @@ def main() -> None:
     assert "torch.version" in backend_probe
     assert "bitsandbytes" in backend_probe
 
+    materializer = read("model-lab/scripts/materialize_hf_model.py")
+    assert "snapshot_download" in materializer
+    assert "requested_revision" in materializer
+    assert "resolved_revision != requested_revision" in materializer
+
+    runtime_config = read("model-lab/scripts/make_runtime_soup_config.py")
+    assert "expected exactly one base: line" in runtime_config
+    assert "args.base.resolve()" in runtime_config
+
     adapter_probe = read("model-lab/scripts/verify_smoke_adapter.py")
     assert SMOKE_BASE in adapter_probe
     assert "PeftModel.from_pretrained" in adapter_probe
@@ -112,9 +159,19 @@ def main() -> None:
     assert "2.12.0+rocm7.14.0" in windows_operator
     assert "soup-pin.txt" in windows_operator
     assert "sft-smoke.yaml" in windows_operator
+    assert "materialize_hf_model.py" in windows_operator
+    assert "make_runtime_soup_config.py" in windows_operator
     assert "verify_amd_backend.py" in windows_operator
     assert "verify_smoke_adapter.py" in windows_operator
     assert "AIRA RX 9070 XT SOUP SMOKE = VERIFIED" in windows_operator
+
+    evidence_schema = load_json("model-lab/eval/schemas/model-evidence.schema.json")
+    assert isinstance(evidence_schema, dict)
+    assert evidence_schema.get("title") == "AIRA model release evidence"
+    release_gate = read("model-lab/scripts/check_release_gate.py")
+    assert "release_candidate_failures" in release_gate
+    assert "production_failures" in release_gate
+    assert "omniroute_discovered" in release_gate
 
     registry = read(
         "perplexity-clone/my-turborepo/apps/web/src/services/models/aira-model-registry.ts"
@@ -129,6 +186,7 @@ def main() -> None:
     ignore = read(".gitignore")
     for generated_path in (
         ".venv-model-lab/",
+        "model-lab/cache/",
         "model-lab/artifacts/",
         "model-lab/runs/",
         "model-lab/eval/reports/",
@@ -139,7 +197,7 @@ def main() -> None:
     print(
         f"AIRA model-lab contracts pass: Soup {SOUP_SHA[:8]}, "
         f"{smoke_rows} smoke rows, {eval_rows} eval rows, Core training fail-closed, "
-        "RX 9070 XT operator path present."
+        "exact base revisions pinned, RX 9070 XT operator path present."
     )
 
 
