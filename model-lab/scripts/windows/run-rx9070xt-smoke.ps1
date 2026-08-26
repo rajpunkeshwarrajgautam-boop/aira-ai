@@ -2,7 +2,7 @@
 param(
     [switch]$ProbeOnly,
     [switch]$SkipDependencyInstall,
-    [string]$PythonLauncher = "py",
+    [string]$PythonLauncher = "",
     [string]$VenvPath = ".venv-model-lab"
 )
 
@@ -16,6 +16,87 @@ function Invoke-Checked {
     if ($LASTEXITCODE -ne 0) {
         throw "$Label failed with exit code $LASTEXITCODE"
     }
+}
+
+function Test-DirectPython312 {
+    param([Parameter(Mandatory=$true)][string]$Executable)
+    try {
+        if (-not (Test-Path $Executable -PathType Leaf) -and -not (Get-Command $Executable -ErrorAction SilentlyContinue)) {
+            return $null
+        }
+        $version = & $Executable -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if ($LASTEXITCODE -eq 0 -and (($version | Select-Object -Last 1).Trim() -eq "3.12")) {
+            $resolved = & $Executable -c "import sys; print(sys.executable)" 2>$null
+            return [pscustomobject]@{
+                Executable = (($resolved | Select-Object -Last 1).Trim())
+                UsePyLauncher = $false
+            }
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
+function Test-PyLauncher312 {
+    param([Parameter(Mandatory=$true)][string]$Executable)
+    try {
+        if (-not (Get-Command $Executable -ErrorAction SilentlyContinue)) {
+            return $null
+        }
+        $version = & $Executable -3.12 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if ($LASTEXITCODE -eq 0 -and (($version | Select-Object -Last 1).Trim() -eq "3.12")) {
+            return [pscustomobject]@{
+                Executable = $Executable
+                UsePyLauncher = $true
+            }
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
+function Resolve-Python312 {
+    param([string]$Requested = "")
+
+    if ($Requested) {
+        if ($Requested -eq "py" -or $Requested.EndsWith("py.exe", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $candidate = Test-PyLauncher312 -Executable $Requested
+        } else {
+            $candidate = Test-DirectPython312 -Executable $Requested
+        }
+        if ($candidate) {
+            return $candidate
+        }
+        throw "The requested Python launcher '$Requested' does not resolve to Python 3.12."
+    }
+
+    $candidate = Test-PyLauncher312 -Executable "py"
+    if ($candidate) {
+        return $candidate
+    }
+
+    $directCandidates = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"),
+        (Join-Path $env:ProgramFiles "Python312\python.exe"),
+        "python",
+        "python3"
+    ) | Select-Object -Unique
+
+    foreach ($entry in $directCandidates) {
+        $candidate = Test-DirectPython312 -Executable $entry
+        if ($candidate) {
+            return $candidate
+        }
+    }
+
+    throw @"
+Python 3.12 was not found. Soup 0.73.3 requires Python 3.10-3.12 and this operator intentionally requires 3.12.
+Install the official Python 3.12 package, then rerun:
+  winget install --exact --id Python.Python.3.12
+After installation, close/reopen PowerShell and rerun this script.
+"@
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
@@ -43,13 +124,22 @@ $hostRecord = [ordered]@{
 $hostRecord | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 "model-lab\runs\windows-host.json"
 
 if (-not $SkipDependencyInstall) {
+    $python312 = Resolve-Python312 -Requested $PythonLauncher
     Write-Host "Creating isolated Python 3.12 environment at $VenvPath" -ForegroundColor Cyan
-    & $PythonLauncher -3.12 -m venv $VenvPath
+    if ($python312.UsePyLauncher) {
+        & $python312.Executable -3.12 -m venv $VenvPath
+    } else {
+        & $python312.Executable -m venv $VenvPath
+    }
     if ($LASTEXITCODE -ne 0) {
-        throw "Python 3.12 is required by the pinned Soup release. Install Python 3.12 and rerun."
+        throw "Python 3.12 was detected but failed to create the isolated venv at $VenvPath."
     }
 
     $python = Join-Path $repoRoot "$VenvPath\Scripts\python.exe"
+
+    Invoke-Checked -Label "Verify isolated Python 3.12" -Command {
+        & $python -c "import sys; assert sys.version_info[:2] == (3, 12), sys.version; print(sys.version)"
+    }
 
     Invoke-Checked -Label "Upgrade pip tooling" -Command {
         & $python -m pip install --upgrade pip setuptools wheel
