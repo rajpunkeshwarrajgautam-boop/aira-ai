@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-08-26",
+  "models": {
+    "core-smoke": {
+      "repo_id": "Qwen/Qwen3.5-0.8B",
+      "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+      "license": "apache-2.0",
+      "purpose": "Small post-trained checkpoint used only to prove the Soup/ROCm/PEFT pipeline and adapter activation. It is not an AIRA capability baseline."
+    },
+    "core-base": {
+      "repo_id": "Qwen/Qwen3.5-9B-Base",
+      "revision": "68c46c4b3498877f3ef123c856ecfde50c39f404",
+      "license": "apache-2.0",
+      "purpose": "AIRA Core v0 candidate base. Pre-trained/base checkpoint selected for measured PEFT/SFT experiments; no AIRA capability claim exists before baseline and tuned evaluations."
+    }
+  }
+}
