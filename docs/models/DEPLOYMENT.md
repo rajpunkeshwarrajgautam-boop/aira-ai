@@ -49,6 +49,62 @@ Routing aliases such as `auto`, `auto/smart`, `auto/coding`, `auto/fast`, `auto/
 
 Local training and local inference are separate compatibility questions. The RX 9070 XT path remains `PARTIALLY_VERIFIED` for Soup training until the pinned smoke run succeeds. GGUF/llama.cpp deployment should be evaluated independently after a candidate artifact exists.
 
+## Executable post-training verification
+
+After a candidate checkpoint is served by an authenticated OpenAI-compatible endpoint, use the committed model-lab probes rather than ad-hoc curl checks.
+
+### 1. Verify the native inference endpoint
+
+PowerShell example:
+
+```powershell
+$env:AIRA_INFERENCE_API_KEY = "<server-only-key>"
+python model-lab/scripts/verify_openai_endpoint.py `
+  --base-url "https://<native-inference-host>/v1" `
+  --api-key-env AIRA_INFERENCE_API_KEY `
+  --model aira/core `
+  --require-streaming `
+  --output model-lab/eval/reports/core-inference.json
+```
+
+This gate requires bounded `/v1/models`, non-streaming chat completion, streaming content and a terminating `[DONE]` event. For `aira/*` selections it also requires exact live model discovery.
+
+### 2. Run the deterministic AIRA Core sanity evaluation
+
+```powershell
+python model-lab/scripts/run_exact_eval.py `
+  --base-url "https://<native-inference-host>/v1" `
+  --api-key-env AIRA_INFERENCE_API_KEY `
+  --model aira/core `
+  --output model-lab/eval/reports/core-v0-sanity.json
+```
+
+The current sanity suite is a pipeline/regression gate, not a frontier benchmark. It checks exact tool selection, evidence discipline and structured output behavior.
+
+### 3. Verify OmniRoute discovery and all current routing selections
+
+```powershell
+$env:OMNIROUTE_API_KEY = "<server-only-key>"
+python model-lab/scripts/verify_omniroute_live.py `
+  --base-url "https://<omniroute-host>/v1" `
+  --api-key-env OMNIROUTE_API_KEY `
+  --output model-lab/eval/reports/core-omniroute-live.json
+```
+
+The default live gate exercises:
+
+- `aira/core`
+- `auto`
+- `auto/smart`
+- `auto/coding`
+- `auto/fast`
+- `auto/cheap`
+- `auto/offline`
+
+Every selection must complete a bounded streaming request. The gate fails if `aira/core` is not present in live model discovery.
+
+The generated reports are intentionally under ignored `model-lab/eval/reports/` and must be reviewed/sanitized before any evidence is committed.
+
 ## Promotion gate
 
 A model is not production-deployed until:
