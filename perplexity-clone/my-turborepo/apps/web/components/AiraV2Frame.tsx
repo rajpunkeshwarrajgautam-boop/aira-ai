@@ -9,6 +9,7 @@ import {
   CreditCard,
   FolderOpen,
   History,
+  Layers,
   Network,
   Search,
   Settings2,
@@ -28,6 +29,7 @@ const PRIMARY_NAV = [
   { href: "/omniroute", label: "OmniRoute", description: "Smart multi-provider gateway", icon: Network },
   { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
   { href: "/agents", label: "Agents", description: "Design autonomous work", icon: Bot },
+  { href: "/prompts", label: "Prompt Studio", description: "Author, version and test prompts", icon: Layers },
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
 ] as const;
 
