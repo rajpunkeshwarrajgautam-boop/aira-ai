@@ -16,8 +16,8 @@ from typing import Any, Iterable
 
 from prepare_core_dataset import (
     DEFAULT_CATALOG,
+    SECRET_PATTERNS,
     canonical_text,
-    contains_secret,
     first_user_prompt,
     frozen_prompt_hashes,
     load_json,
@@ -28,6 +28,14 @@ from prepare_core_dataset import (
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / "model-lab/data/core-v0/source-audit.json"
+SECRET_PATTERN_NAMES = [
+    "openai_style_token",
+    "nvidia_api_token",
+    "github_token",
+    "private_key_header",
+    "generic_secret_assignment",
+]
+MAX_SECRET_EVIDENCE = 20
 
 
 def iter_streaming_rows(source: dict[str, Any]) -> Iterable[tuple[str, dict[str, Any]]]:
@@ -55,6 +63,29 @@ def iter_streaming_rows(source: dict[str, Any]) -> Iterable[tuple[str, dict[str,
         yield split_name, dict(row)
 
 
+def _secret_evidence(messages: list[dict[str, str]], row_hash: str) -> list[dict[str, Any]]:
+    """Return redacted evidence for matched secret patterns without emitting matched text."""
+    evidence: list[dict[str, Any]] = []
+    for message_index, message in enumerate(messages):
+        content = message["content"]
+        for pattern_index, pattern in enumerate(SECRET_PATTERNS):
+            for match in pattern.finditer(content):
+                matched = match.group(0)
+                evidence.append(
+                    {
+                        "row_sha256": row_hash,
+                        "message_index": message_index,
+                        "role": message["role"],
+                        "pattern": SECRET_PATTERN_NAMES[pattern_index],
+                        "match_sha256": sha256_text(matched),
+                        "match_length": len(matched),
+                    }
+                )
+                if len(evidence) >= MAX_SECRET_EVIDENCE:
+                    return evidence
+    return evidence
+
+
 def audit_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any]]], max_rows: int) -> dict[str, Any]:
     if max_rows <= 0:
         raise ValueError("max_rows must be positive")
@@ -66,6 +97,7 @@ def audit_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any]]
     sample_row_hashes: list[str] = []
     sample_prompt_hashes: list[str] = []
     message_chars: list[int] = []
+    secret_hits: list[dict[str, Any]] = []
 
     for split_name, row in rows:
         if counts["seen"] >= max_rows:
@@ -82,16 +114,18 @@ def audit_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any]]
             roles[message["role"]] += 1
         message_chars.append(sum(len(message["content"]) for message in messages))
 
-        if contains_secret(messages):
+        canonical = json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        row_hash = sha256_text(canonical)
+        row_secret_hits = _secret_evidence(messages, row_hash)
+        if row_secret_hits:
             counts["high_confidence_secret_hit"] += 1
+            secret_hits.extend(row_secret_hits[: max(0, MAX_SECRET_EVIDENCE - len(secret_hits))])
 
         prompt = canonical_text(first_user_prompt(messages))
         prompt_hash = sha256_text(prompt)
         if prompt_hash in eval_hashes:
             counts["frozen_eval_exact_prompt_overlap"] += 1
 
-        canonical = json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        row_hash = sha256_text(canonical)
         if row_hash in seen_rows:
             counts["exact_duplicate"] += 1
         else:
@@ -117,6 +151,8 @@ def audit_rows(source: dict[str, Any], rows: Iterable[tuple[str, dict[str, Any]]
             "max": max(message_chars) if message_chars else 0,
         },
         "normalization_rate": (normalized / counts["seen"]) if counts["seen"] else 0.0,
+        "secret_hit_evidence": secret_hits,
+        "secret_hit_evidence_truncated": counts.get("high_confidence_secret_hit", 0) > len(secret_hits),
         "sample_row_hashes": sample_row_hashes,
         "sample_prompt_hashes": sample_prompt_hashes,
         "raw_content_emitted": False,
@@ -141,17 +177,29 @@ def self_test() -> dict[str, Any]:
             {"role": "user", "content": "Alpha request"},
             {"role": "assistant", "content": "Alpha response"},
         ]}),
+        ("train", {"messages": [
+            {"role": "user", "content": "Use api_key=ABCDEFGHIJKLMNOPQRSTUVWX for this synthetic example"},
+            {"role": "assistant", "content": "Acknowledged"},
+        ]}),
         ("train", {"garbage": True}),
     ]
-    report = audit_rows(source, rows, max_rows=3)
+    report = audit_rows(source, rows, max_rows=4)
     counts = report["counts"]
-    if counts.get("seen") != 3 or counts.get("normalized") != 2:
+    if counts.get("seen") != 4 or counts.get("normalized") != 3:
         raise RuntimeError("bounded audit self-test counts are wrong")
     if counts.get("exact_duplicate") != 1:
         raise RuntimeError("bounded audit self-test did not detect exact duplicate")
+    if counts.get("high_confidence_secret_hit") != 1:
+        raise RuntimeError("bounded audit self-test did not detect secret-like row")
+    hits = report.get("secret_hit_evidence")
+    if not isinstance(hits, list) or not hits or hits[0].get("pattern") != "generic_secret_assignment":
+        raise RuntimeError("bounded audit self-test did not classify redacted secret evidence")
+    rendered = json.dumps(report)
+    if "ABCDEFGHIJKLMNOPQRSTUVWX" in rendered:
+        raise RuntimeError("bounded audit leaked matched secret text")
     if report.get("training_approval_changed") is not False or report.get("raw_content_emitted") is not False:
         raise RuntimeError("bounded audit violated fail-closed evidence policy")
-    return {"status": "PASS", "contract": "bounded-core-source-audit"}
+    return {"status": "PASS", "contract": "bounded-core-source-audit", "redacted_secret_evidence": True}
 
 
 def main() -> int:
@@ -193,7 +241,7 @@ def main() -> int:
             failures.append({"source_id": source["id"], "error": str(exc)})
 
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "PASS" if not failures else "PARTIAL",
         "purpose": "bounded non-training review evidence",
         "sources_requested": [source["id"] for source in selected],
@@ -204,6 +252,7 @@ def main() -> int:
         "limitations": [
             "bounded samples do not prove full-corpus cleanliness",
             "exact frozen-eval overlap does not detect paraphrased/semantic contamination",
+            "secret evidence is deliberately redacted and requires source-row classification before approval",
             "license/provenance decisions require human review of source documentation",
         ],
     }
