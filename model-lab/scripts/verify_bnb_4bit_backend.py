@@ -10,10 +10,34 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
+import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
 DEFAULT_OUTPUT = Path("model-lab/runs/bnb-4bit-backend.json")
+
+
+def _expose_windows_hipinfo() -> None:
+    """Let bitsandbytes find AMD's hipInfo.exe when Python is run directly.
+
+    AMD's Windows ROCm PyTorch wheels place hipInfo.exe beside python.exe in the
+    virtual environment Scripts directory.  bitsandbytes launches the utility
+    through subprocess during import, so DLL search-path changes are insufficient:
+    the executable directory itself must be present on PATH.
+
+    This is a no-op on non-Windows hosts and when hipInfo.exe is absent.
+    """
+    if os.name != "nt":
+        return
+    scripts_dir = Path(sys.executable).resolve().parent
+    hipinfo = scripts_dir / "hipInfo.exe"
+    if not hipinfo.is_file():
+        return
+    if shutil.which("hipinfo.exe") or shutil.which("hipInfo.exe"):
+        return
+    os.environ["PATH"] = str(scripts_dir) + os.pathsep + os.environ.get("PATH", "")
 
 
 def validate_report(report: dict[str, Any]) -> None:
@@ -44,6 +68,8 @@ def self_test() -> dict[str, Any]:
 
 
 def run_probe() -> dict[str, Any]:
+    _expose_windows_hipinfo()
+
     import torch
     import bitsandbytes as bnb
 
