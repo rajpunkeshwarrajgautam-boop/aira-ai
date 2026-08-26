@@ -53,8 +53,17 @@ function Assert-FileHash {
 
 function Write-Utf8NoBom {
     param([string]$Path, [string]$Text)
+    $targetPath = if ([System.IO.Path]::IsPathRooted($Path)) {
+        [System.IO.Path]::GetFullPath($Path)
+    } else {
+        Join-Path (Get-Location).Path $Path
+    }
+    $parent = Split-Path -Parent $targetPath
+    if ($parent) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
     $encoding = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($Path, $Text, $encoding)
+    [System.IO.File]::WriteAllText($targetPath, $Text, $encoding)
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
