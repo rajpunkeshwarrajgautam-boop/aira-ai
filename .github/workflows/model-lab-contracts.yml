@@ -45,6 +45,18 @@ jobs:
       - name: Validate model-lab contracts without downloading weights
         run: python model-lab/scripts/validate_contracts.py
 
+      - name: Validate exact base-model catalog without downloading weights
+        run: python model-lab/scripts/materialize_hf_model.py --validate-only
+
+      - name: Validate runtime Soup config materialization without downloading weights
+        run: |
+          python model-lab/scripts/make_runtime_soup_config.py \
+            --template model-lab/soup/core/sft-smoke.yaml \
+            --base . \
+            --output /tmp/aira-sft-smoke.runtime.yaml
+          grep -q 'base: "/home/runner/work/' /tmp/aira-sft-smoke.runtime.yaml
+          grep -q 'format: alpaca' /tmp/aira-sft-smoke.runtime.yaml
+
       - name: Validate fail-closed Core source catalog
         run: python model-lab/scripts/prepare_core_dataset.py --validate-only
 
