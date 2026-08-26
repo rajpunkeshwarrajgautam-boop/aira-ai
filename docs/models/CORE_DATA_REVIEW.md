@@ -2,95 +2,119 @@
 
 Date: 2026-08-26
 
-This review is evidence for deciding what may enter the AIRA Core v0 training mixture. It does **not** approve any source for training by itself. The committed catalog remains fail-closed until license, provenance, contamination, schema, and local-content checks all pass for the exact pinned revision.
+This review is evidence for deciding what may enter the AIRA Core v0 training mixture. It does **not** approve any source for training by itself. The committed catalog remains fail-closed until license, provenance, contamination, schema, context-fit, and local-content checks pass for the exact pinned revision.
 
 ## Decision policy
 
-A source can move to `approved_for_training=true` only when all of the following are true for the exact pinned revision:
+A source can move to `approved_for_training=true` only when all applicable gates are explicitly approved for the exact pinned revision. Held/excluded sources cannot be training-approved. A `candidate_filtered` source must define deterministic filters and later prove that the filtered corpus passes contamination and context-fit review.
 
-1. license terms are reviewed and compatible with the intended AIRA training/release use;
-2. origin/provenance is sufficiently documented to understand what the prompts and targets came from;
-3. local bounded audit passes normalization/schema/secret/exact-eval checks;
-4. full selected corpus passes the committed contamination gate before manifest promotion;
-5. exact local file/split hashes and build evidence are recorded;
-6. no review relies on a moving `main` revision.
-
-## Source: Hermes-3
+## Hermes-3
 
 - Repository: `NousResearch/Hermes-3-Dataset`
 - Pinned revision: `b1fddbdcae4e6714889365d1e6ce266a45289cc9`
-- Declared license: Apache-2.0
-- Approximate scale: 959k rows / 1.7 GB JSONL
-- Candidate value: broad instruction following, coding, tool use, and general assistance.
+- License: Apache-2.0
+- Decision: `HOLD — provenance insufficient`
 
-### Review
+The card remains too sparse to establish component-level provenance. No training approval.
 
-The exact repository exposes the dataset and Apache-2.0 metadata, but the dataset card at the pinned/current revision is extremely sparse and does not provide enough component-level provenance to establish where the constituent prompts/answers originated or whether upstream datasets impose additional constraints.
-
-### Decision
-
-`HOLD — provenance insufficient`
-
-Do not mark training-approved until upstream component provenance is documented and a bounded local audit succeeds.
-
-## Source: ToolACE
+## ToolACE
 
 - Repository: `Team-ACE/ToolACE`
 - Pinned revision: `e0db1bccf18d6d02cbb03b1ecb63fafb21525311`
-- Declared license: Apache-2.0
-- Exact pinned data SHA256: `ba12c083fca7e8da48c67ad5b895e495447da7c66e39a2e19742c082e6cb537e`
-- Approximate scale: 11.3k rows
-- Candidate value: function calling and multi-step tool use.
+- License: Apache-2.0
+- Declared examples: 11,300
+- Pinned data SHA256: `ba12c083fca7e8da48c67ad5b895e495447da7c66e39a2e19742c082e6cb537e`
+- Candidate value: function calling and multi-step tool use
 
-### Review
+The accompanying ToolACE work documents an automatic agentic synthetic-data pipeline with self-evolution API synthesis, multi-agent dialog generation, and dual-layer verification. The released Hugging Face data is tagged synthetic tool data.
 
-The released corpus is explicitly synthetic tool-use data and is tied to the ToolACE work. The exact pinned README contains only license metadata, so provenance/process evidence must be bound to the accompanying paper/project evidence rather than inferred from the tiny README alone. The corpus contains synthetic APIs/tool outputs, so schema normalization and behavior-fit review are required before treating it as AIRA-native tool data.
+### Bounded content audit (500 rows)
+
+- 500/500 normalized
+- user roles: 1,643
+- assistant roles: 2,379
+- tool roles: 741
+- one high-confidence secret-like row
+- redacted classification: `generic_secret_assignment`
+- hit occurred in an assistant message
+- matched length: 31 characters
+- no raw matched value was emitted
+
+This evidence does not prove a live credential leak, but the row is contaminated for training purposes and must be rejected deterministically.
+
+### Exact 9B tokenizer/context profile (500 rows, max_length=2048)
+
+- raw tokens: 475,991
+- kept tokens: 463,451
+- truncated rows: 16/500 = 3.2%
+- raw supervised tokens: 276,750
+- kept supervised tokens: 268,206
+- supervised retention: 96.9127%
+- zero shifted-target rows after truncation: 0
+- tokenization errors: 0
 
 ### Decision
 
-`CONDITIONAL — audit first`
+`CANDIDATE_FILTERED`
 
-License metadata is clear enough for continued evaluation, but keep `approved_for_training=false` until bounded schema/content audit and contamination review pass.
+ToolACE has strong Core-v0 context fit, but direct inclusion is forbidden. Before approval:
 
-## Source: OpenR1-Math-220k
+1. scan the full declared 11,300-row exact revision;
+2. reject every high-confidence secret-pattern row;
+3. reject exact duplicate rows;
+4. build a sanitized local subset only after source review;
+5. run exact + word-trigram near-overlap contamination checks against the frozen AIRA eval;
+6. record content/build hashes and token accounting.
+
+`approved_for_training` remains `false`.
+
+## OpenR1-Math-220k
 
 - Repository: `open-r1/OpenR1-Math-220k`
 - Pinned revision: `dc748648036c1ed619b020e056dc4b603eb39817`
-- Declared license: Apache-2.0
+- License: Apache-2.0
 - Selected config/split: `default` / `train`
-- Approximate selected scale: 93.7k problems
-- Candidate value: mathematical reasoning and verifiable answer discipline.
 
-### Review
+The dataset card documents NuminaMath 1.5 problems with multiple DeepSeek R1 reasoning traces and verification. The upstream generation process deliberately allows very long reasoning trajectories.
 
-The pinned dataset card documents a clear generation chain: problems originate from NuminaMath 1.5; DeepSeek R1 generates multiple reasoning traces; Math Verify validates most samples, with Llama-3.3-70B-Instruct judging a subset. This is materially stronger provenance than Hermes. However, NuminaMath aggregates competition/problem sources, so benchmark overlap and source-family contamination remain material release risks. Long chain-of-thought traces also require deliberate policy on whether AIRA should train on full hidden reasoning-style text versus concise answer behavior.
+### Exact 9B tokenizer/context profile (500 rows, max_length=2048)
+
+- raw tokens: 3,159,694
+- kept tokens: 1,002,200
+- truncated rows: 452/500 = 90.4%
+- raw supervised tokens: 3,107,512
+- kept supervised tokens: 950,922
+- supervised retention: 30.6008%
+- raw length p50: 5,082 tokens
+- raw length p95: 15,234 tokens
+- raw length max: 20,079 tokens
+- zero shifted-target rows after truncation: 0
+- tokenization errors: 0
 
 ### Decision
 
-`CONDITIONAL — provenance clear, contamination/policy review required`
+`EXCLUDE_CONTEXT_MISMATCH` for Core-v0.
 
-Keep training approval false until source-family contamination and reasoning-target policy are resolved.
+The 2,048-token Core-v0 recipe would discard roughly 69.4% of assistant-supervised tokens in the bounded sample and truncate 90.4% of rows. Raw inclusion would train primarily on chopped reasoning traces. Reconsider OpenR1 only for a deliberately long-context reasoning recipe with its own contamination and reasoning-target policy.
 
-## Source: Orca AgentInstruct 1M
+`approved_for_training` remains `false`.
+
+## Orca AgentInstruct 1M
 
 - Repository: `microsoft/orca-agentinstruct-1M-v1`
 - Pinned revision: `a85c5999fb80d333b50c1104dbd770725c545bbe`
-- Declared license: CDLA-Permissive-2.0
-- Approximate scale: ~1M synthetic instruction pairs
-- Candidate value: general instruction following, coding, reading comprehension, and creative work.
+- License: CDLA-Permissive-2.0
+- Decision: `HOLD — production-use/provenance review required`
 
-### Review
+The public-web seed provenance is not enumerated at the granularity needed for this production-oriented training decision. No training approval.
 
-Microsoft documents this as fully synthetic prompt/response data generated through AgentInstruct using publicly available web text as seeds. The dataset card frames direct use around research/instruction-tuning experimentation, recommends additional validation for real-world tasks, and identifies synthetic-data inaccuracies/generalization limits. The seed-level public-web provenance is not enumerated at the granularity needed for a production training decision.
+## Current Core-v0 mixture decision
 
-### Decision
+No source is training-approved yet.
 
-`HOLD — production-use/provenance review required`
+- Hermes-3: `hold`
+- ToolACE: `candidate_filtered`
+- OpenR1-Math-220k: `exclude_context_mismatch`
+- Orca AgentInstruct 1M: `hold`
 
-Do not train AIRA Core on this source yet. A permissive dataset license does not substitute for seed provenance, intended-use review, and contamination evidence.
-
-## Current mixture decision
-
-No source is approved for the real Core build yet.
-
-The next executable step is a bounded, non-training local audit using `model-lab/scripts/audit_core_sources.py`. That operator streams only a limited number of rows from exact pinned revisions, records hashes/statistics instead of raw prompts, checks normalization, high-confidence secret patterns, exact duplicates, and exact collisions with the frozen AIRA sanity prompts. Passing the bounded audit is necessary but not sufficient for training approval.
+The next executable gate is a **full declared ToolACE source audit**. `audit_core_sources.py` can now report `full_declared_coverage=true` only when the scan reaches the catalog's pinned `declared_examples` count. Passing that scan is necessary but still not sufficient for approval; the sanitized build and contamination gate remain separate.
