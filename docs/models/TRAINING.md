@@ -16,25 +16,67 @@ For diagnostics without training:
 powershell -ExecutionPolicy Bypass -File .\model-lab\scripts\windows\run-rx9070xt-smoke.ps1 -ProbeOnly
 ```
 
+After the environment is already installed, reuse it rather than reinstalling ROCm/Soup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\model-lab\scripts\windows\run-rx9070xt-smoke.ps1 -SkipDependencyInstall
+```
+
 Do not replace the pinned Soup commit with `main` during a recorded run.
 
-## 2. Prove the backend before any 9B work
+## 2. Physical AMD backend proof
 
-The host is `PARTIALLY_VERIFIED`, not `VERIFIED`, until Soup itself completes a train/load test on the physical RX 9070 XT.
+The designated RX 9070 XT path reached the operator's terminal verification marker on 2026-08-26 after isolating the discrete GPU with `HIP_VISIBLE_DEVICES=0`.
 
-The smoke operator owns this proof chain:
+The verified proof chain is:
 
-1. ROCm-enabled PyTorch imports and identifies the AMD accelerator/HIP runtime.
-2. bitsandbytes and Soup import in the same isolated environment.
-3. the exact `Qwen/Qwen3.5-0.8B` revision is materialized.
-4. the smoke JSONL is inspected by Soup.
-5. `soup train` completes against the locally pinned snapshot.
-6. adapter tensors load.
-7. deterministic base-vs-adapter logits differ, proving the adapter is active.
+1. ROCm-enabled PyTorch imports and identifies exactly one `AMD Radeon RX 9070 XT` / `gfx1201` accelerator.
+2. a standalone HIP `uniform_` RNG primitive succeeds.
+3. bitsandbytes and Soup import in the same isolated environment.
+4. the exact `Qwen/Qwen3.5-0.8B` revision is materialized.
+5. the smoke JSONL is inspected by Soup.
+6. `soup train` completes 2/2 steps against the locally pinned snapshot.
+7. adapter tensors are finite and non-zero and reload successfully.
+8. deterministic base-vs-adapter logits differ, proving the adapter is active.
+9. the operator prints `AIRA RX 9070 XT SOUP SMOKE = VERIFIED`.
 
-If the AMD path fails for a backend-specific reason, keep the failure evidence and reproduce the same pinned recipe on a supported NVIDIA Linux host only after the compute path is authorized. Do not silently switch recipes and call the environments equivalent.
+Therefore `LOCAL_AMD_TRAINING=VERIFIED`. This proves the local training path only; it does not promote AIRA Core or any `aira/*` model tier.
 
-## 3. Build the real Core dataset
+## 3. Prove strict Qwen3.5 assistant-only supervision before 9B work
+
+The Qwen3.5 tokenizer template observed during the smoke accepts Hugging Face's assistant-mask request but does not expose `{% generation %}` blocks. Soup correctly falls back to incremental turn masking, which is acceptable for the infrastructure smoke but is intentionally not accepted for the real Core corpus because role/control tokens can enter the supervised span.
+
+The committed Core recipe therefore carries a training-only ChatML template with explicit `{% generation %}` / `{% endgeneration %}` blocks around assistant content. Before any 9B baseline/SFT work, prove that contract with the already-cached 0.8B tokenizer:
+
+```powershell
+.\.venv-model-lab\Scripts\python.exe .\model-lab\scripts\validate_qwen35_text_contract.py `
+  --model .\model-lab\cache\models\Qwen--Qwen3.5-0.8B@2fc06364715b `
+  --config .\model-lab\soup\core\sft.yaml `
+  --output .\model-lab\runs\qwen35-0.8b-text-contract.json
+```
+
+Then validate the exact pinned Core tokenizer without downloading the 9B weights. `AutoTokenizer` downloads tokenizer assets only:
+
+```powershell
+.\.venv-model-lab\Scripts\python.exe .\model-lab\scripts\validate_qwen35_text_contract.py `
+  --model Qwen/Qwen3.5-9B-Base `
+  --revision 68c46c4b3498877f3ef123c856ecfde50c39f404 `
+  --allow-download `
+  --config .\model-lab\soup\core\sft.yaml `
+  --output .\model-lab\runs\qwen35-9b-text-contract.json
+```
+
+A passing report must prove all of the following:
+
+- system/user sentinels are masked;
+- assistant-content sentinels are supervised;
+- assistant role/control tokens are not supervised;
+- the HF assistant mask is non-empty and not all-token;
+- Soup's `build_assistant_only_labels` output exactly matches the strict HF mask.
+
+Do not start Core training if this gate fails.
+
+## 4. Build the real Core dataset
 
 `model-lab/data/manifests/core-v0.json` remains `training_allowed=false` until the evidence gates pass.
 
@@ -69,11 +111,25 @@ python model-lab/scripts/check_dataset_contamination.py `
 
 This gate checks normalized exact hashes plus indexed word-trigram Jaccard overlap. Passing it is necessary but not sufficient: source-specific/public-benchmark provenance checks are still required for release review.
 
-Count real training tokens with the exact base tokenizer. Then generate a reviewable manifest proposal:
+Count exact training and supervised tokens using the same pinned 9B tokenizer, strict assistant mask and `max_length=2048` policy used by the Core recipe:
+
+```powershell
+.\.venv-model-lab\Scripts\python.exe .\model-lab\scripts\count_core_tokens.py `
+  --dataset .\model-lab\data\core-v0\train.jsonl `
+  --model Qwen/Qwen3.5-9B-Base `
+  --revision 68c46c4b3498877f3ef123c856ecfde50c39f404 `
+  --allow-download `
+  --config .\model-lab\soup\core\sft.yaml `
+  --output .\model-lab\data\core-v0\token-count.json
+```
+
+The report records raw/kept tokens, raw/kept assistant-supervised tokens, truncation count/fraction and p50/p95 lengths. Any row with zero assistant supervision or no shifted causal target after truncation fails closed.
+
+Use `kept_tokens` from the reviewed token-count report as the manifest's tokenizer-derived training token count, then generate a reviewable manifest proposal:
 
 ```powershell
 python model-lab/scripts/promote_core_manifest.py `
-  --token-count <EXACT_TOKEN_COUNT> `
+  --token-count <KEPT_TOKENS_FROM_TOKEN_COUNT_REPORT> `
   --output model-lab/data/core-v0/core-v0.promoted-manifest.json
 ```
 
@@ -81,7 +137,7 @@ The promotion operator never edits the committed manifest in place. It requires 
 
 Only after reviewing that proposal and its evidence should the committed manifest be deliberately promoted.
 
-## 4. Baseline before tuning
+## 5. Baseline before tuning
 
 Evaluate the untouched exact `Qwen/Qwen3.5-9B-Base` revision on the frozen AIRA suite before SFT. Save raw generations, model revision, sampling parameters, latency, token counts and scorer outputs.
 
@@ -108,7 +164,7 @@ python model-lab/scripts/run_exact_eval.py `
 
 The six-item sanity suite is a pipeline/regression gate only; it is not evidence of frontier capability.
 
-## 5. Core SFT
+## 6. Core SFT
 
 After the real manifest is explicitly promoted and the exact dataset exists:
 
@@ -120,7 +176,7 @@ The initial recipe is a hypothesis: 1 epoch, LoRA r=32/alpha=64, 4-bit quantizat
 
 Track training/validation loss, throughput, peak memory, wall time, checkpoint/adapter size and any backend fallback. Abort/recover on NaNs, exploding loss, data corruption, label-mask defects, unexpected CPU execution or memory thrashing.
 
-## 6. Regression and release gates
+## 7. Regression and release gates
 
 Run the frozen AIRA suites against both the untouched base and candidate. The initial exact suite must be expanded with adjacent-skill, coding, tool-calling, research/RAG, factuality, multilingual and catastrophic-forgetting coverage before release-candidate promotion.
 
@@ -138,13 +194,13 @@ python model-lab/scripts/check_release_gate.py <EVIDENCE_JSON> --gate production
 
 These gates fail closed when adapter activity, inference, evaluation, regression, license or production-serving evidence is missing.
 
-## 7. Preference optimization
+## 8. Preference optimization
 
 Use DPO/ORPO/SimPO/KTO/IPO only when SFT failure analysis identifies a preference problem and a high-quality pair dataset exists. Do not run algorithms merely because Soup supports them.
 
 Preference data should favor verifiable behaviors such as correct citations over fabricated citations, real tool calls over pretend calls, valid structured output over malformed output and working patches over plausible broken code.
 
-## 8. Export and serve
+## 9. Export and serve
 
 After a candidate passes:
 
