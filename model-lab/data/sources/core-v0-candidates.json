@@ -49,7 +49,7 @@
       },
       "license_review": "metadata_clear",
       "provenance_review": "synthetic_pipeline_documented",
-      "contamination_review": "bounded_only",
+      "contamination_review": "full_source_exact_audit_pass_candidate_near_overlap_pending",
       "context_fit_review": "bounded_pass",
       "core_v0_decision": "candidate_filtered",
       "required_filters": [
@@ -66,8 +66,18 @@
         "supervised_retention_fraction": 0.9691273712737127,
         "zero_shifted_target_after_truncation": 0
       },
+      "full_audit_evidence": {
+        "rows_seen": 11300,
+        "rows_normalized": 11300,
+        "full_declared_coverage": true,
+        "exact_duplicate_rows": 18,
+        "secret_pattern_rows": 7,
+        "secret_pattern_type": "generic_secret_assignment",
+        "frozen_eval_exact_prompt_overlap_rows": 0,
+        "raw_content_emitted": false
+      },
       "approved_for_training": false,
-      "reason": "Strong Core-v0 context fit for tool-use SFT, but direct inclusion is forbidden. A full exact-revision scan must complete and every secret-like, duplicate, or frozen-eval-overlap row must be deterministically filtered before approval."
+      "reason": "Strong Core-v0 context fit and full exact-revision source coverage. Direct inclusion is forbidden: review-only materialization must reject every secret-like row, exact duplicate, and frozen-eval overlap; the filtered candidate must then pass the exact/near-overlap contamination gate and exact token accounting before approval."
     },
     {
       "id": "openr1-math-220k",
