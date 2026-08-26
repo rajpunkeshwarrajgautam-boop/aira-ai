@@ -48,6 +48,22 @@ jobs:
       - name: Validate fail-closed Core source catalog
         run: python model-lab/scripts/prepare_core_dataset.py --validate-only
 
+      - name: Prove NOT_TESTED Core cannot pass release-candidate gate
+        run: |
+          if python model-lab/scripts/check_release_gate.py model-lab/eval/fixtures/core-not-tested-evidence.json --gate release-candidate; then
+            echo "::error::NOT_TESTED Core incorrectly passed the release-candidate gate."
+            exit 1
+          fi
+          echo "Release-candidate gate correctly failed closed."
+
+      - name: Prove NOT_TESTED Core cannot pass production gate
+        run: |
+          if python model-lab/scripts/check_release_gate.py model-lab/eval/fixtures/core-not-tested-evidence.json --gate production; then
+            echo "::error::NOT_TESTED Core incorrectly passed the production gate."
+            exit 1
+          fi
+          echo "Production gate correctly failed closed."
+
   windows-operator-contract:
     runs-on: windows-latest
     timeout-minutes: 5
