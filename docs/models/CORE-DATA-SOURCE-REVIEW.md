@@ -37,7 +37,7 @@ The context-preserving materializer produced:
 
 Strict 2,048-token accounting on v2 **failed closed at line 9** because right truncation left no shifted assistant target. This proves that preserving the raw ToolACE system/tool block verbatim is also not an acceptable Core-v0 training representation.
 
-A diagnostic-only scanner now exists to measure the full-corpus zero-target/truncation distribution without weakening the strict training counter. Its output is evidence only and cannot authorize training.
+A diagnostic-only scanner now measures the complete zero-target/truncation distribution without weakening the strict training counter. It emits hash-only failure evidence, never raw source content, never returns training authorization, and is covered by the model-lab CI self-test contract.
 
 ### Tool-format parity
 
