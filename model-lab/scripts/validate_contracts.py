@@ -101,7 +101,9 @@ def main() -> None:
         assert f'id: "{model_id}"' in registry, f"missing registry id {model_id}"
     assert registry.count('evidenceState: "NOT_TESTED"') == 5
     assert registry.count('releaseState: "experiment"') == 5
-    assert registry.count('exposure: "omniroute-discovered-only"') == 5
+    # Count concrete object-property lines only; the interface also declares the
+    # same literal type and must not be mistaken for a sixth registry entry.
+    assert registry.count('\t\texposure: "omniroute-discovered-only"') == 5
     assert CORE_BASE in registry
 
     ignore = read(".gitignore")
