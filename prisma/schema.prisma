@@ -630,4 +630,5 @@ model PromptEvaluationRun {
   @@index([userId, startedAt(sort: Desc)])
   @@index([promptId, startedAt(sort: Desc)])
   @@index([suiteId, startedAt(sort: Desc)])
+  @@index([promptVersionId])
 }
