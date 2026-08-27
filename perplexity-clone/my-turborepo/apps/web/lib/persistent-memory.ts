@@ -5,6 +5,7 @@ import {
 	refreshPersistentMemory as refreshCorePersistentMemory,
 } from "./persistent-memory-core";
 import {
+	EmbeddingCircuitOpenError,
 	getSemanticMemoryScores,
 	semanticMemoryConfigured,
 	upsertUserMemoryEmbedding,
@@ -43,10 +44,12 @@ export async function refreshPersistentMemory(
 			),
 		);
 	} catch (error) {
-		console.warn(
-			"[AIRA semantic memory] Embedding refresh failed; lexical memory remains available:",
-			error instanceof Error ? error.message : String(error),
-		);
+		if (!(error instanceof EmbeddingCircuitOpenError)) {
+			console.warn(
+				"[AIRA semantic memory] Embedding refresh failed; lexical memory remains available:",
+				error instanceof Error ? error.message : String(error),
+			);
+		}
 	}
 	return result;
 }
@@ -86,10 +89,14 @@ export async function getRelevantPersistentMemories(
 		}
 		return merged;
 	} catch (error) {
-		console.warn(
-			"[AIRA semantic memory] Vector recall failed; using lexical memory:",
-			error instanceof Error ? error.message : String(error),
-		);
+		// While the circuit is open the reason was already logged once, when it
+		// opened. Repeating it per request buries the signal it was meant to give.
+		if (!(error instanceof EmbeddingCircuitOpenError)) {
+			console.warn(
+				"[AIRA semantic memory] Vector recall failed; using lexical memory:",
+				error instanceof Error ? error.message : String(error),
+			);
+		}
 		return lexical;
 	}
 }
