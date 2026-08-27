@@ -195,7 +195,9 @@ export type PromptRunEvent =
 			readonly error: string;
 		};
 
-export function resolveTargetModel(target: PromptRunTarget): string {
+export function resolveTargetModel(
+	target: Pick<PromptRunTarget, "providerId" | "model">,
+): string {
 	const descriptor = promptProviderDescriptors().find((entry) => entry.id === target.providerId);
 	const requested = target.model?.trim();
 	if (requested) return requested;

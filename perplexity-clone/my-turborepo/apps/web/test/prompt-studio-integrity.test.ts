@@ -195,6 +195,21 @@ test("observability records identifiers, never prompt text or secrets", () => {
 	}
 });
 
+test("an evaluation run records the model it really used, not a placeholder", () => {
+	// Regression: the run row stored `input.model || "default"`, so a run that
+	// accepted the provider default recorded the string "default" — unreproducible
+	// the moment that default moves.
+	const service = read("lib/prompts/prompt-evaluation-service.ts");
+	assert.ok(
+		service.includes("resolveTargetModel("),
+		"the run must resolve the model through the same path execution uses",
+	);
+	assert.ok(
+		!/model:\s*input\.model\?\.trim\(\)\s*\|\|\s*"default"/.test(service),
+		"the run must not persist a placeholder model",
+	);
+});
+
 test("starter templates are AIRA-native, compact and self-consistent", () => {
 	assert.ok(AIRA_STARTER_TEMPLATES.length >= 12, "a useful starter set");
 	assert.ok(AIRA_STARTER_TEMPLATES.length <= 24, "quality over quantity — not a bulk dump");

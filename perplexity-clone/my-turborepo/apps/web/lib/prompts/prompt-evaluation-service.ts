@@ -23,6 +23,7 @@ import { parseVariableDefinitions } from "@services/prompt/prompt-variables";
 
 import {
 	completePromptTarget,
+	resolveTargetModel,
 	type PromptProviderId,
 } from "./prompt-execution";
 import { PromptRegistryError } from "./prompt-registry";
@@ -204,7 +205,10 @@ export async function runSuite(input: RunSuiteInput) {
 			promptId: prompt.id,
 			promptVersionId: version.id,
 			providerId: input.provider,
-			model: input.model?.trim() || "default",
+			// Record the model the run will really use, not the placeholder the
+			// caller omitted: a run whose model reads "default" cannot be reproduced
+			// once that default moves.
+			model: resolveTargetModel({ providerId: input.provider, model: input.model }),
 			routingMode,
 			status: PromptEvaluationRunStatus.RUNNING,
 		},
