@@ -13,7 +13,7 @@ import {
 	isOmniRouteRoutingMode,
 	OMNIROUTE_ROUTING_MODES,
 } from "@services/omniroute/routing";
-import { NVIDIAProvider } from "@services/providers/nvidia-provider";
+import { DEFAULT_NVIDIA_MODEL, NVIDIAProvider } from "@services/providers/nvidia-provider";
 import { OmniRouteProvider } from "@services/providers/omniroute-provider";
 import { OpenAIProvider } from "@services/providers/openai-provider";
 import { ProviderRouter } from "@services/providers/provider-router";
@@ -90,7 +90,7 @@ function descriptors() {
 			id: "nvidia" as const,
 			label: "NVIDIA",
 			configured: Boolean(process.env.NVIDIA_API_KEY),
-			model: process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct",
+			model: process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
 		},
 	];
 }

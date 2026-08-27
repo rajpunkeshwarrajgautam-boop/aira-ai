@@ -298,7 +298,7 @@ export function PromptEditorPanel({
 					<input
 						className="ps-input"
 						value={state.modelCompatibility}
-						placeholder="auto/smart, meta/llama-3.1-70b-instruct"
+						placeholder="auto/smart, nvidia/nemotron-3-nano-30b-a3b"
 						onChange={(event) => setState({ ...state, modelCompatibility: event.target.value })}
 					/>
 				</label>

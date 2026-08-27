@@ -20,7 +20,7 @@ import { isOmniRouteRoutingMode, OMNIROUTE_ROUTING_MODES } from "@services/omnir
 import { AIRA_CORE_SYSTEM_PROMPT } from "@services/answer";
 import { compilePrompt, type CompiledPrompt } from "@services/prompt/prompt-compiler";
 import type { PromptVariableDefinition } from "@services/prompt/prompt-variables";
-import { NVIDIAProvider } from "@services/providers/nvidia-provider";
+import { DEFAULT_NVIDIA_MODEL, NVIDIAProvider } from "@services/providers/nvidia-provider";
 import { OmniRouteProvider } from "@services/providers/omniroute-provider";
 import { OpenAIProvider } from "@services/providers/openai-provider";
 import { ProviderRouter } from "@services/providers/provider-router";
@@ -77,7 +77,7 @@ export function promptProviderDescriptors(): readonly PromptProviderDescriptor[]
 			id: "nvidia",
 			label: "NVIDIA",
 			configured: Boolean(process.env.NVIDIA_API_KEY),
-			model: process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct",
+			model: process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
 		},
 	];
 }

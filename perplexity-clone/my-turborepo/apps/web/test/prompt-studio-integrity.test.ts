@@ -255,6 +255,35 @@ test("existing AIRA runtime surfaces were extended, not replaced", () => {
 	assert.ok(existsSync(path.join(WEB_ROOT, "app", "omniroute", "page.tsx")));
 });
 
+test("the model a provider picker advertises is the model the provider will really use", () => {
+	// Regression: Prompt Studio, Compare and the integrations readout each carried
+	// their own hardcoded NVIDIA model string. It had gone stale, so the picker
+	// named a model NVIDIA no longer serves and every explicit-model run failed
+	// with "Provider request failed." while chat — which passes no model and lets
+	// the provider choose — kept working. The literal now has exactly one home.
+	const provider = read("src/services/providers/nvidia-provider.ts");
+	assert.ok(
+		/export const DEFAULT_NVIDIA_MODEL\s*=/.test(provider),
+		"the provider must export the default model it will actually request",
+	);
+
+	for (const relative of [
+		"lib/prompts/prompt-execution.ts",
+		"app/api/compare/route.ts",
+		"app/api/integrations/status/route.ts",
+	]) {
+		const source = read(relative);
+		assert.ok(
+			source.includes("DEFAULT_NVIDIA_MODEL"),
+			`${relative} must name NVIDIA's model from the provider, not a local copy`,
+		);
+		assert.ok(
+			!/NVIDIA_CHAT_MODEL\s*\?\?\s*["'`]/.test(source),
+			`${relative} must not fall back to a hardcoded NVIDIA model string`,
+		);
+	}
+});
+
 test("no Cashfree billing surface was modified by Prompt Studio", () => {
 	const promptSources = [
 		"lib/prompts/prompt-registry.ts",
