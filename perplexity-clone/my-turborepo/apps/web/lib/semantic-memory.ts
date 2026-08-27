@@ -2,6 +2,12 @@ import { createHash } from "node:crypto";
 
 import OpenAI from "openai";
 
+import {
+	EmbeddingCircuitOpenError,
+	embeddingCircuitStatus,
+	noteEmbeddingFailure,
+	resetEmbeddingCircuit,
+} from "@/lib/embedding-circuit";
 import { prisma } from "@/lib/prisma";
 
 export const AIRA_EMBEDDING_DIMENSIONS = 1536;
@@ -54,14 +60,27 @@ export async function embedText(text: string): Promise<readonly number[]> {
 	if (!semanticMemoryConfigured()) throw new Error("Semantic memory is not configured.");
 	const input = text.trim();
 	if (!input) throw new Error("Cannot embed empty text.");
-	const response = await getEmbeddingClient().embeddings.create({
-		model: embeddingModel(),
-		input: input.slice(0, 12_000),
-		encoding_format: "float",
-	});
+	const breaker = embeddingCircuitStatus();
+	if (breaker.state === "open") {
+		throw new EmbeddingCircuitOpenError(breaker.kind ?? "transient", breaker.retryAfterMs);
+	}
+
+	let response;
+	try {
+		response = await getEmbeddingClient().embeddings.create({
+			model: embeddingModel(),
+			input: input.slice(0, 12_000),
+			encoding_format: "float",
+		});
+	} catch (error) {
+		noteEmbeddingFailure(error);
+		throw error;
+	}
+
 	const embedding = response.data[0]?.embedding;
 	if (!embedding) throw new Error("Embedding provider returned no vector.");
 	vectorLiteral(embedding);
+	resetEmbeddingCircuit();
 	return embedding;
 }
 
@@ -115,3 +134,10 @@ export async function getSemanticMemoryScores(
 			.map((row) => [row.memoryId, Math.max(-1, Math.min(1, row.similarity))]),
 	);
 }
+
+export {
+	EmbeddingCircuitOpenError,
+	embeddingCircuitStatus,
+	resetEmbeddingCircuit,
+	type EmbeddingFailureKind,
+} from "@/lib/embedding-circuit";
