@@ -93,6 +93,11 @@ model User {
   researchHistory      ResearchHistory[]
   memories             UserMemory[]
   mcpServerPreferences McpServerPreference[]
+  prompts                Prompt[]
+  promptExternalSources  PromptExternalSource[]
+  promptAssignments      PromptAssignment[]
+  promptEvaluationSuites PromptEvaluationSuite[]
+  promptEvaluationRuns   PromptEvaluationRun[]
 }
 
 model Account {
@@ -398,4 +403,232 @@ model ProductAnalyticsEvent {
   @@index([event, createdAt])
   @@index([userType, createdAt])
   @@index([surface, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// AIRA Prompt Intelligence
+//
+// Prompt templates are *authored content*, never a privileged instruction
+// channel. Compilation always places a template below AIRA's protected core,
+// runtime invariants and mode policy (see src/services/prompt/prompt-layers.ts).
+// External prompt material is stored as untrusted reference data with
+// provenance and is never executed directly.
+// ---------------------------------------------------------------------------
+
+enum PromptStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PromptVisibility {
+  PRIVATE
+  WORKSPACE
+}
+
+enum PromptOrigin {
+  AIRA_NATIVE
+  USER
+  EXTERNAL_DERIVED
+}
+
+enum PromptAssignmentScope {
+  WORKSPACE
+  CONVERSATION
+  AGENT
+}
+
+enum PromptExternalTransformStatus {
+  UNREVIEWED
+  REVIEWED
+  TRANSFORMED
+  REJECTED
+}
+
+enum PromptEvaluationRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// User-owned prompt template. The body always lives on an immutable
+/// PromptVersion; this row carries identity, lifecycle and the published pointer.
+model Prompt {
+  id                 String             @id @default(cuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String
+  description        String?            @db.Text
+  category           String             @default("general")
+  tags               String[]           @default([])
+  status             PromptStatus       @default(DRAFT)
+  visibility         PromptVisibility   @default(PRIVATE)
+  origin             PromptOrigin       @default(USER)
+  /// Points at the immutable version currently allowed to execute.
+  publishedVersionId String?            @unique
+  publishedVersion   PromptVersion?     @relation("PromptPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  externalSourceId   String?
+  externalSource     PromptExternalSource? @relation(fields: [externalSourceId], references: [id], onDelete: SetNull)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  archivedAt         DateTime?
+  versions           PromptVersion[]    @relation("PromptVersions")
+  assignments        PromptAssignment[]
+  evaluationSuites   PromptEvaluationSuite[]
+  evaluationRuns     PromptEvaluationRun[]
+
+  @@unique([userId, slug])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, status, updatedAt(sort: Desc)])
+  @@index([externalSourceId])
+}
+
+/// Immutable prompt body snapshot. Rows are never rewritten after creation;
+/// "restoring" an old version creates a new version from its body.
+model PromptVersion {
+  id                     String    @id @default(cuid())
+  promptId               String
+  prompt                 Prompt    @relation("PromptVersions", fields: [promptId], references: [id], onDelete: Cascade)
+  userId                 String
+  version                Int
+  body                   String    @db.Text
+  /// Declared variables: [{ name, label, description, required, default }]
+  variables              Json      @default("[]")
+  providerCompatibility  String[]  @default([])
+  modelCompatibility     String[]  @default([])
+  toolRequirements       String[]  @default([])
+  /// Static analyzer output captured at save time.
+  securityFindings       Json?
+  securityMaxSeverity    String?
+  notes                  String?   @db.Text
+  /// sha256 of the normalized body; identifies identical content across versions.
+  contentHash            String
+  createdAt              DateTime  @default(now())
+  publishedFor           Prompt?   @relation("PromptPublishedVersion")
+  assignments            PromptAssignment[]
+  evaluationRuns         PromptEvaluationRun[]
+
+  @@unique([promptId, version])
+  @@index([promptId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+/// Untrusted external prompt material kept as reference data with provenance.
+/// Bodies here are never compiled into a system layer.
+model PromptExternalSource {
+  id                   String                        @id @default(cuid())
+  userId               String
+  user                 User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository           String
+  path                 String
+  url                  String
+  commitSha            String
+  contentHash          String
+  title                String
+  category             String                        @default("uncategorized")
+  sourceLabel          String                        @default("external")
+  licenseNotice        String?                       @db.Text
+  tags                 String[]                      @default([])
+  body                 String                        @db.Text
+  analysis             Json?
+  securityNotes        String?                       @db.Text
+  transformationStatus PromptExternalTransformStatus @default(UNREVIEWED)
+  retrievedAt          DateTime                      @default(now())
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+  derivedPrompts       Prompt[]
+
+  @@unique([userId, contentHash])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, category])
+}
+
+/// Binds a published prompt version to a runtime surface (workspace default,
+/// a single conversation, or an agent graph).
+model PromptAssignment {
+  id              String                @id @default(cuid())
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope           PromptAssignmentScope
+  /// Conversation id, agent graph id, or "workspace" for the workspace default.
+  targetKey       String
+  promptId        String
+  prompt          Prompt                @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  promptVersionId String
+  promptVersion   PromptVersion         @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+  /// When true the assignment stays on this exact version across publishes.
+  pinnedVersion   Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([userId, scope, targetKey])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([promptId])
+  @@index([promptVersionId])
+}
+
+model PromptEvaluationSuite {
+  id          String                  @id @default(cuid())
+  userId      String
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promptId    String?
+  prompt      Prompt?                 @relation(fields: [promptId], references: [id], onDelete: SetNull)
+  name        String
+  description String?                 @db.Text
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  cases       PromptEvaluationCase[]
+  runs        PromptEvaluationRun[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([promptId])
+}
+
+model PromptEvaluationCase {
+  id        String                @id @default(cuid())
+  suiteId   String
+  suite     PromptEvaluationSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  userId    String
+  name      String
+  input     String                @db.Text
+  /// Deterministic checks: [{ type, value, flags? }]
+  checks    Json                  @default("[]")
+  tags      String[]              @default([])
+  position  Int                   @default(0)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([suiteId, position])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+/// One reproducible execution of a suite against a specific prompt version.
+model PromptEvaluationRun {
+  id              String                    @id @default(cuid())
+  suiteId         String
+  suite           PromptEvaluationSuite     @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promptId        String
+  prompt          Prompt                    @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  promptVersionId String
+  promptVersion   PromptVersion             @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+  providerId      String
+  model           String
+  routingMode     String?
+  status          PromptEvaluationRunStatus @default(RUNNING)
+  passCount       Int                       @default(0)
+  failCount       Int                       @default(0)
+  errorCount      Int                       @default(0)
+  /// Per-case measured outcome: [{ caseId, name, input, output, checks, durationMs, usage, error }]
+  results         Json                      @default("[]")
+  startedAt       DateTime                  @default(now())
+  finishedAt      DateTime?
+  durationMs      Int?
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@index([promptId, startedAt(sort: Desc)])
+  @@index([suiteId, startedAt(sort: Desc)])
+  @@index([promptVersionId])
 }

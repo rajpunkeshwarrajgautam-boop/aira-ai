@@ -50,6 +50,12 @@ const FEEDBACK_MAILTO_HREF = FEEDBACK_EMAIL
 	? `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent("Research app feedback")}`
 	: null;
 
+/** Compact chat-side view of a published Prompt Studio template. */
+interface PromptTemplateOption {
+	readonly id: string;
+	readonly name: string;
+}
+
 interface ApiErrorBody {
 	readonly error?: {
 		readonly code?: string;
@@ -159,6 +165,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [limitErrorAction, setLimitErrorAction] = useState<"quota" | "plan" | null>(null);
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
 	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
+	/** Published Prompt Studio templates available to this user, if any. */
+	const [promptTemplates, setPromptTemplates] = useState<readonly PromptTemplateOption[]>([]);
+	/** Empty string = AIRA default composition. Scoped to this request only. */
+	const [selectedPromptId, setSelectedPromptId] = useState("");
 	const [billing, setBilling] = useState<BillingStatusPayload | null>(null);
 	const [statusText, setStatusText] = useState("Searching the web...");
 
@@ -605,6 +615,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								continueResearch: Boolean(parentMessageId),
 								mode: currentMode,
 								presetId: selectedPresetId,
+								...(selectedPromptId ? { promptId: selectedPromptId } : {}),
 							},
 				),
 				signal: controller.signal,
@@ -938,12 +949,36 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		query,
 		selectedConversationId,
 		selectedPresetId,
+		selectedPromptId,
 		researchMode,
 		refreshBilling,
 		router,
 		sessionStatus,
 		phase,
 	]);
+
+	// Published templates for the compact composer selector. Failure is silent:
+	// the composer simply keeps AIRA's default composition.
+	useEffect(() => {
+		if (!isAuthed) {
+			setPromptTemplates([]);
+			setSelectedPromptId("");
+			return;
+		}
+		let cancelled = false;
+		void fetch("/api/prompts?status=PUBLISHED", { credentials: "include", cache: "no-store" })
+			.then(async (response) => (response.ok ? await response.json() : { prompts: [] }))
+			.then((body: { prompts?: readonly { id: string; name: string }[] }) => {
+				if (cancelled) return;
+				setPromptTemplates((body.prompts ?? []).map((p) => ({ id: p.id, name: p.name })));
+			})
+			.catch(() => {
+				if (!cancelled) setPromptTemplates([]);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [isAuthed]);
 
 	const onSelectConversation = useCallback(
 		async (id: string) => {
@@ -1223,6 +1258,25 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										))}
 									</select>
 								</div>
+
+							{isAuthed && promptTemplates.length > 0 ? (
+									<div className="flex w-full overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 shadow-panel backdrop-blur-sm ring-1 ring-white/40 sm:max-w-[220px] md:backdrop-blur-md">
+										<select
+											className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
+											value={selectedPromptId}
+											onChange={(event) => setSelectedPromptId(event.target.value)}
+											disabled={busy}
+											aria-label="Prompt template for this request"
+										>
+											<option value="">Default prompt</option>
+											{promptTemplates.map((template) => (
+												<option key={template.id} value={template.id}>
+													{template.name}
+												</option>
+											))}
+										</select>
+									</div>
+								) : null}
 
 								{isAuthed ? (
 									<div

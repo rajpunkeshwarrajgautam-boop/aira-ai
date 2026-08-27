@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Brain, CreditCard, Search } from "lucide-react";
+import { Bot, Brain, CreditCard, Layers, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +10,7 @@ const LINKS = [
 	{ href: "/", label: "Research", icon: Search },
 	{ href: "/memory", label: "Memory", icon: Brain },
 	{ href: "/agents", label: "Agents", icon: Bot },
+	{ href: "/prompts", label: "Prompts", icon: Layers },
 	{ href: "/pricing", label: "Pricing", icon: CreditCard },
 ] as const;
 

@@ -3,6 +3,7 @@ import { isAutoGptConfigured, isAutoGptEnabled } from "@/lib/autogpt/config";
 import { isDeerFlowConfigured, isDeerFlowEnabled } from "@/lib/deerflow/config";
 import { knowledgeStorageConfigured } from "@/lib/foundation-storage";
 import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
+import { DEFAULT_NVIDIA_MODEL } from "@services/providers/nvidia-provider";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export async function GET(): Promise<Response> {
       omniRoute.model,
     ),
     item("openai", "OpenAI", Boolean(process.env.OPENAI_API_KEY), "Direct cloud model provider", process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini"),
-    item("nvidia", "NVIDIA", Boolean(process.env.NVIDIA_API_KEY), "Direct cloud fallback/provider", process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct"),
+    item("nvidia", "NVIDIA", Boolean(process.env.NVIDIA_API_KEY), "Direct cloud fallback/provider", process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL),
     item("exa", "Exa Search", Boolean(process.env.EXA_API_KEY), "Live web retrieval and citations"),
     item(
       "knowledge",

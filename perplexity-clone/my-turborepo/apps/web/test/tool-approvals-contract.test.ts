@@ -7,12 +7,16 @@ import test from "node:test";
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(WEB_ROOT, "../../../..");
 
+function normalizeSource(text: string): string {
+	return text.replace(/\r\n/g, "\n");
+}
+
 function readWeb(relative: string): string {
-	return readFileSync(path.join(WEB_ROOT, relative), "utf8");
+	return normalizeSource(readFileSync(path.join(WEB_ROOT, relative), "utf8"));
 }
 
 function readRepo(relative: string): string {
-	return readFileSync(path.join(REPO_ROOT, relative), "utf8");
+	return normalizeSource(readFileSync(path.join(REPO_ROOT, relative), "utf8"));
 }
 
 test("tool approvals are run-owned durable records with deny-by-default Data API access", () => {

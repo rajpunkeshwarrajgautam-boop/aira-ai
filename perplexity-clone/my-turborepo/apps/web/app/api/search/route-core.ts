@@ -22,6 +22,7 @@ import {
 	getFollowUpContext,
 	persistConversationTurn,
 } from "@/lib/conversation-memory";
+import { resolveRuntimeTemplate } from "@/lib/prompts/runtime-template";
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
@@ -51,6 +52,12 @@ const SearchRequestSchema = z.object({
 	continueResearch: z.boolean().optional(),
 	mode: z.enum(["standard", "deep"]).optional().default("standard"),
 	presetId: z.string().optional().default("general"),
+	/**
+	 * Explicit per-request prompt template. When absent, the conversation or
+	 * workspace assignment applies. Selecting a template here never changes a
+	 * stored default — scope changes go through /api/prompts/assignments.
+	 */
+	promptId: z.string().min(3).max(128).optional(),
 });
 
 type CitationPayload = {
@@ -332,6 +339,18 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	}
 
 
+	/**
+	 * Prompt Studio template for this request, resolved server-side and scoped
+	 * to the signed-in user. It compiles into the low-trust `template` layer, so
+	 * it can shape voice and structure but cannot weaken AIRA's grounding,
+	 * citation or safety policy.
+	 */
+	const promptTemplate = await resolveRuntimeTemplate({
+		userId,
+		promptId: parsed.data.promptId,
+		conversationId: parsed.data.conversationId ?? context.resolvedConversationId ?? null,
+	});
+
 	let grounded:
 		| Awaited<ReturnType<typeof streamGroundedAnswer>>
 		| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
@@ -378,6 +397,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				contextualMemory: context.contextualMemory,
 				disableSearch: true,
 				presetId: parsed.data.presetId,
+				promptTemplate,
 			});
 		} else if (parsed.data.mode === "deep") {
 			const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
@@ -412,6 +432,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				chatHistory: context.chatHistory,
 				contextualMemory: context.contextualMemory,
 				presetId: parsed.data.presetId,
+				promptTemplate,
 			});
 		}
 	} catch (e) {
