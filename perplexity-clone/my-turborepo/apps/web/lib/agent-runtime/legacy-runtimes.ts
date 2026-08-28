@@ -55,7 +55,9 @@ export const autoGptRuntime: AgentRuntime = {
 			enabled,
 			configured,
 			healthy: configured ? null : false,
-			ready: enabled && configured,
+			// Preserve the pre-runtime-registry route semantics: AutoGPT was
+			// considered runnable whenever its server configuration was present.
+			ready: configured,
 			capabilities: AUTOGPT_CAPABILITIES,
 		};
 	},
@@ -84,7 +86,9 @@ export const deerFlowRuntime: AgentRuntime = {
 			enabled,
 			configured,
 			healthy,
-			ready: enabled && configured && healthy,
+			// The previous selector ignored the product flag once the runtime was
+			// configured. Keep that behavior during this isolation refactor.
+			ready: configured && healthy,
 			capabilities: DEERFLOW_CAPABILITIES,
 		};
 	},
