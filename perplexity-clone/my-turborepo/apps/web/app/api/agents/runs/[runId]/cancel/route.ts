@@ -1,8 +1,9 @@
 import { auth } from "@/auth";
+import { getAgentRuntime } from "@/lib/agent-runtime/registry";
+import { AgentRuntimeError } from "@/lib/agent-runtime/types";
 import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
 import { DeerFlowConfigError } from "@/lib/deerflow/config";
-import { cancelDeerFlowAgentRun } from "@/lib/deerflow/runs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,20 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 			{ status: 404 },
 		);
 	}
-	if (cached.provider !== "DEERFLOW") {
+
+	let selectedRuntime;
+	try {
+		selectedRuntime = getAgentRuntime(cached.provider);
+	} catch (error) {
+		if (error instanceof AgentRuntimeError) {
+			return noStoreJson(
+				{ error: { code: error.code, message: error.message } },
+				{ status: error.status },
+			);
+		}
+		throw error;
+	}
+	if (!selectedRuntime.capabilities.cancel || !selectedRuntime.cancelRun) {
 		return noStoreJson(
 			{
 				error: {
@@ -46,7 +60,7 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 	}
 
 	try {
-		const run = await cancelDeerFlowAgentRun(session.user.id, runId);
+		const run = await selectedRuntime.cancelRun(session.user.id, runId);
 		if (!run) {
 			return noStoreJson(
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
@@ -55,6 +69,12 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 		}
 		return noStoreJson({ run, cancelRequested: true }, { status: 202 });
 	} catch (error) {
+		if (error instanceof AgentRuntimeError) {
+			return noStoreJson(
+				{ error: { code: error.code, message: error.message, retryable: error.retryable } },
+				{ status: error.status },
+			);
+		}
 		if (error instanceof DeerFlowRequestError || error instanceof DeerFlowConfigError) {
 			return noStoreJson(
 				{ error: { code: error.code, message: error.message } },
