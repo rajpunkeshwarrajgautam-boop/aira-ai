@@ -1,0 +1,62 @@
+name: Browser Worker CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/browser-worker/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/browser-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/app/api/browser/**"
+      - ".github/workflows/browser-worker-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/browser-worker/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/browser-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/app/api/browser/**"
+      - ".github/workflows/browser-worker-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AIRA_BROWSER_RUNTIME_TOKEN: contract-browser-runtime-token-contract
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python source
+        run: python -m py_compile infra/browser-worker/server.py
+
+      - name: Validate Compose security profile
+        working-directory: infra/browser-worker
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Confirm worker image and package pins match
+        run: |
+          grep -q 'mcr.microsoft.com/playwright/python:v1.61.0-noble' infra/browser-worker/Dockerfile
+          grep -q '^playwright==1.61.0$' infra/browser-worker/requirements.txt
+          grep -q '^fastapi==0.141.1$' infra/browser-worker/requirements.txt
+          grep -q '^uvicorn==0.52.4$' infra/browser-worker/requirements.txt
+
+      - name: Confirm dangerous defaults are absent
+        run: |
+          if grep -RnE '(--no-sandbox|AIRA_BROWSER_RUNTIME_TOKEN=.+|0\.0\.0\.0:[0-9]+:8080)' infra/browser-worker; then
+            echo "::error::Unsafe browser worker configuration detected."
+            exit 1
+          fi
+          grep -q 'cap_drop: \["ALL"\]' infra/browser-worker/compose.yml
+          grep -q 'no-new-privileges:true' infra/browser-worker/compose.yml
+          grep -q '127.0.0.1:' infra/browser-worker/compose.yml
+
+      - name: Build browser worker image
+        run: docker build -t aira-browser-worker:ci infra/browser-worker
