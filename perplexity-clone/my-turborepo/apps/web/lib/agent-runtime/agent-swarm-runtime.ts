@@ -305,6 +305,7 @@ async function persistTaskState(row: SelectedRun, task: SwarmTask): Promise<Agen
 
 async function submitAgentSwarmRun(input: CreateAgentRunInput): Promise<AgentRunSubmission> {
 	const config = getAgentSwarmConfig();
+	const billable = input.billingMode !== "DELEGATED";
 	const existing = await prisma.agentRun.findUnique({
 		where: { userId_clientRequestId: { userId: input.userId, clientRequestId: input.clientRequestId } },
 		select: RUN_SELECT,
@@ -339,7 +340,10 @@ async function submitAgentSwarmRun(input: CreateAgentRunInput): Promise<AgentRun
 
 	let remaining: number;
 	try {
-		remaining = (await consumeAgentRunQuota(input.userId)).agentRunsRemaining;
+		remaining = (billable
+			? await consumeAgentRunQuota(input.userId)
+			: await getEffectiveEntitlements(input.userId)
+		).agentRunsRemaining;
 	} catch (error) {
 		await prisma.agentRun.delete({ where: { id: pending.id } }).catch(() => undefined);
 		throw error;
@@ -366,7 +370,7 @@ async function submitAgentSwarmRun(input: CreateAgentRunInput): Promise<AgentRun
 					completedAt: new Date(),
 				},
 			}),
-			...(outcomeUnknown ? [] : [refundAgentRunQuota(input.userId)]),
+			...(billable && !outcomeUnknown ? [refundAgentRunQuota(input.userId)] : []),
 		]);
 		throw error;
 	}
