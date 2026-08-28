@@ -65,6 +65,7 @@ export interface PlatformRun {
 	readonly id: string;
 	readonly projectId: string;
 	readonly userId: string;
+	readonly clientRequestId: string;
 	readonly status: PlatformRunStatus;
 	readonly runtime: string | null;
 	readonly managerRole: string;
