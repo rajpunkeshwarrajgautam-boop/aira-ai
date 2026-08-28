@@ -74,9 +74,19 @@ export async function getProjectForUser(userId: string, projectId: string): Prom
 	return rows[0] ? projectRow(rows[0]) : null;
 }
 
+export async function getRunByClientRequestId(userId: string, clientRequestId: string): Promise<PlatformRun | null> {
+	const rows = await prisma.$queryRaw<PlatformRun[]>`
+		select * from "AgentPlatformRun"
+		where "userId"=${userId} and "clientRequestId"=${clientRequestId}
+		limit 1
+	`;
+	return rows[0] ? runRow(rows[0]) : null;
+}
+
 export async function createPlatformRun(input: {
 	readonly userId: string;
 	readonly projectId: string;
+	readonly clientRequestId: string;
 	readonly runtime: string | null;
 	readonly budgets: RunBudgets;
 	readonly tasks: readonly TaskSpec[];
@@ -86,8 +96,8 @@ export async function createPlatformRun(input: {
 	const budgets = JSON.stringify(input.budgets);
 	const operations = [
 		prisma.$executeRaw`
-			insert into "AgentPlatformRun" ("id", "projectId", "userId", "status", "runtime", "budgets", "startedAt")
-			values (${runId}, ${input.projectId}, ${input.userId}, 'RUNNING', ${input.runtime}, ${budgets}::jsonb, current_timestamp)
+			insert into "AgentPlatformRun" ("id", "projectId", "userId", "clientRequestId", "status", "runtime", "budgets", "startedAt")
+			values (${runId}, ${input.projectId}, ${input.userId}, ${input.clientRequestId}, 'RUNNING', ${input.runtime}, ${budgets}::jsonb, current_timestamp)
 		`,
 		...input.tasks.map((task) => {
 			const id = taskIds.get(task.key)!;
@@ -166,6 +176,16 @@ export async function listEvents(runId: string, after?: Date): Promise<PlatformE
 	return rows.map((row) => ({ ...row, payload: jsonObject(row.payload) }));
 }
 
+export async function recoverExpiredClaims(runId: string): Promise<number> {
+	return prisma.$executeRaw`
+		update "AgentTask"
+		set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+			"lastError"=coalesce("lastError", 'Worker claim expired before remote execution started.'),
+			"updatedAt"=current_timestamp
+		where "runId"=${runId} and "status"='CLAIMED' and "leaseExpiresAt" < current_timestamp
+	`;
+}
+
 export async function claimTask(taskId: string, workerId: string, leaseSeconds = 90): Promise<PlatformTask | null> {
 	const rows = await prisma.$queryRaw<PlatformTask[]>`
 		update "AgentTask"
@@ -207,16 +227,32 @@ export async function createAgentInstance(input: {
 }
 
 export async function completeTask(taskId: string, outputArtifacts: readonly string[] = []): Promise<void> {
-	await prisma.$executeRaw`
-		update "AgentTask" set "status"='COMPLETED', "outputArtifacts"=${JSON.stringify(outputArtifacts)}::jsonb, "leaseOwner"=null, "leaseExpiresAt"=null, "completedAt"=current_timestamp, "updatedAt"=current_timestamp where "id"=${taskId}
-	`;
+	const operations = [
+		prisma.$executeRaw`
+			update "AgentTask" set "status"='COMPLETED', "outputArtifacts"=${JSON.stringify(outputArtifacts)}::jsonb, "leaseOwner"=null, "leaseExpiresAt"=null, "completedAt"=current_timestamp, "updatedAt"=current_timestamp where "id"=${taskId}
+		`,
+		prisma.$executeRaw`
+			update "AgentInstance" set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp where "currentTaskId"=${taskId}
+		`,
+		...outputArtifacts.slice(0, 50).map((uri) => prisma.$executeRaw`
+			insert into "AgentArtifact" ("id", "projectId", "runId", "taskId", "kind", "name", "uri", "metadata")
+			select ${crypto.randomUUID()}, "projectId", "runId", "id", 'runtime-output', ${uri.split('/').filter(Boolean).pop() ?? "artifact"}, ${uri}, '{}'::jsonb
+			from "AgentTask" where "id"=${taskId}
+		`),
+	];
+	await prisma.$transaction(operations);
 }
 
 export async function failTask(task: PlatformTask, message: string): Promise<PlatformTaskStatus> {
 	const nextStatus: PlatformTaskStatus = task.attempt < task.maxAttempts ? "QUEUED" : "FAILED";
-	await prisma.$executeRaw`
-		update "AgentTask" set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null, "lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp, "completedAt"=${nextStatus === "FAILED" ? new Date() : null} where "id"=${task.id}
-	`;
+	await prisma.$transaction([
+		prisma.$executeRaw`
+			update "AgentTask" set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null, "lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp, "completedAt"=${nextStatus === "FAILED" ? new Date() : null} where "id"=${task.id}
+		`,
+		prisma.$executeRaw`
+			update "AgentInstance" set "status"=${nextStatus === "FAILED" ? "FAILED" : "STOPPED"}, "currentTaskId"=null, "updatedAt"=current_timestamp where "currentTaskId"=${task.id}
+		`,
+	]);
 	return nextStatus;
 }
 
@@ -274,6 +310,13 @@ export async function createBrowserSession(input: {
 	`;
 	const row = rows[0]!;
 	return { ...row, allowedDomains: stringArray(row.allowedDomains), permissions: stringArray(row.permissions) };
+}
+
+export async function listBrowserSessions(userId: string): Promise<BrowserSessionRecord[]> {
+	const rows = await prisma.$queryRaw<BrowserSessionRecord[]>`
+		select * from "BrowserSession" where "userId"=${userId} order by "updatedAt" desc limit 50
+	`;
+	return rows.map((row) => ({ ...row, allowedDomains: stringArray(row.allowedDomains), permissions: stringArray(row.permissions) }));
 }
 
 export async function getBrowserSession(userId: string, sessionId: string): Promise<BrowserSessionRecord | null> {
