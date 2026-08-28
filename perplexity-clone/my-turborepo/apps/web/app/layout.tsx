@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 
-import { isOmniRoutePreviewTestAccessEnabled } from "../lib/omniroute-preview-access";
 import { Providers } from "./providers";
 import "./globals.css";
 import "./best-of-premium.css";
@@ -27,13 +26,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const previewTestAccess = isOmniRoutePreviewTestAccessEnabled();
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <Providers disableAuth={previewTestAccess}>{children}</Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

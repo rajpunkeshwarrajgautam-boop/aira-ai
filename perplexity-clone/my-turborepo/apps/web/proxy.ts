@@ -2,7 +2,6 @@ import NextAuth from "next-auth";
 import { NextResponse, type NextFetchEvent, type NextMiddleware, type NextRequest } from "next/server";
 
 import { authConfig } from "./auth.config";
-import { isOmniRoutePreviewTestAccessEnabled } from "./lib/omniroute-preview-access";
 
 /**
  * Edge-safe Auth.js instance (no Prisma). Validates JWT session cookie only.
@@ -125,21 +124,7 @@ const authenticatedProxy = auth((req) => {
 	return NextResponse.next();
 });
 
-/**
- * The OmniRoute preview test gate must run before Auth.js. Preview deployments
- * can intentionally omit OAuth/session secrets while the gateway integration is
- * being validated, and invoking Auth.js first would fail with MissingSecret.
- * This path is impossible in production because the helper requires
- * VERCEL_ENV=preview and the explicit preview-only flag.
- */
 export default function proxy(req: NextRequest, event: NextFetchEvent) {
-	const { pathname } = req.nextUrl;
-	if (
-		isOmniRoutePreviewTestAccessEnabled() &&
-		(pathname === "/omniroute" || pathname.startsWith("/api/omniroute/"))
-	) {
-		return NextResponse.next();
-	}
 	return (authenticatedProxy as unknown as NextMiddleware)(req, event);
 }
 

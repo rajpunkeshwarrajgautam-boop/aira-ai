@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -33,46 +33,111 @@ function collectTextFiles(root: string): string[] {
 	return results;
 }
 
-test("OmniRoute API routes require an authenticated AIRA session outside preview test mode", () => {
-	for (const route of [
+test("OmniRoute API routes always require an authenticated AIRA session", () => {
+	const routes = [
 		"app/api/omniroute/status/route.ts",
 		"app/api/omniroute/models/route.ts",
 		"app/api/omniroute/test/route.ts",
-	]) {
+	];
+
+	for (const route of routes) {
 		const source = read(route);
-		assert.ok(source.includes("isOmniRoutePreviewTestAccessEnabled()"), `${route} must gate preview access explicitly`);
-		assert.ok(source.includes("await auth()"), `${route} must authenticate outside preview test mode`);
-		assert.ok(source.includes("UNAUTHENTICATED"), `${route} must fail closed for signed-out users`);
-		assert.ok(source.includes("status: 401"), `${route} must return HTTP 401 when signed out`);
+
+		const authIndex = source.indexOf("await auth()");
+		const unauthorizedIndex = source.indexOf("UNAUTHENTICATED");
+
+		assert.ok(authIndex >= 0, `${route} must authenticate with Auth.js`);
 		assert.ok(
-			source.indexOf("isOmniRoutePreviewTestAccessEnabled()") < source.indexOf("await auth()"),
-			`${route} must evaluate the preview gate before invoking Auth.js`,
+			source.includes("status: 401"),
+			`${route} must return HTTP 401 for a signed-out request`,
+		);
+		assert.ok(
+			unauthorizedIndex > authIndex,
+			`${route} must fail closed after evaluating the authenticated session`,
+		);
+
+		const protectedWorkMarker = route.endsWith("/test/route.ts")
+			? "checkRateLimit(userId)"
+			: "getOmniRouteConfigOrDisabled()";
+
+		const protectedWorkIndex = source.indexOf(protectedWorkMarker);
+
+		assert.ok(
+			protectedWorkIndex > unauthorizedIndex,
+			`${route} must reject signed-out requests before protected OmniRoute work begins`,
 		);
 	}
 });
 
-test("OmniRoute preview test bypass is explicit, preview-only, and runs before Auth.js", () => {
-	const helper = read("lib/omniroute-preview-access.ts");
+test("the retired OmniRoute Preview access mechanism is absent from runtime and operator source", () => {
+	const retiredTokens = [
+		"OMNIROUTE_" + "PREVIEW_TEST_BYPASS",
+		"isOmniRoute" + "PreviewTestAccessEnabled",
+		"omniroute-" + "preview-access",
+		"preview" + "TestAccess",
+		"disable" + "Auth",
+		"preview-" + "omniroute-tester",
+	];
+
+	const offenders: string[] = [];
+
+	for (const absolute of collectTextFiles(REPO_ROOT)) {
+		const relative = path.relative(REPO_ROOT, absolute).replaceAll(path.sep, "/");
+
+		if (relative.endsWith("test/omniroute-security.test.ts")) {
+			continue;
+		}
+
+		const source = readFileSync(absolute, "utf8");
+
+		for (const token of retiredTokens) {
+			if (source.includes(token)) {
+				offenders.push(`${relative}: ${token}`);
+			}
+		}
+	}
+
+	assert.deepEqual(
+		offenders,
+		[],
+		"retired OmniRoute Preview-access identifiers must not exist in repository runtime/operator source",
+	);
+
+	const retiredHelper = path.join(
+		WEB_ROOT,
+		"lib",
+		"omniroute-" + "preview-access.ts",
+	);
+
+	assert.equal(
+		existsSync(retiredHelper),
+		false,
+		"the retired OmniRoute Preview-access helper must remain deleted",
+	);
+
 	const proxy = read("proxy.ts");
 	const layout = read("app/layout.tsx");
 	const providers = read("app/providers.tsx");
-	assert.ok(helper.includes('process.env.NODE_ENV === "production"'));
-assert.ok(helper.includes('process.env.VERCEL_ENV === "preview"'));
-assert.ok(helper.includes('process.env.VERCEL_GIT_COMMIT_REF === OMNIROUTE_PREVIEW_BRANCH'));
-assert.ok(helper.includes('const OMNIROUTE_PREVIEW_BRANCH = "feature/omniroute-gateway"'));
-	assert.ok(helper.includes('process.env.OMNIROUTE_PREVIEW_TEST_BYPASS === "true"'));
-	assert.ok(proxy.includes('pathname === "/omniroute" || pathname.startsWith("/api/omniroute/")'));
-	assert.ok(proxy.includes("const authenticatedProxy = auth("));
-	assert.ok(proxy.includes("return (authenticatedProxy as unknown as NextMiddleware)(req, event)"));
-	assert.ok(
-		proxy.indexOf("isOmniRoutePreviewTestAccessEnabled()") <
-			proxy.lastIndexOf("return (authenticatedProxy as unknown as NextMiddleware)(req, event)"),
-	);
-	assert.ok(layout.includes("disableAuth={previewTestAccess}"));
-	assert.ok(providers.includes("if (disableAuth) return"));
-	assert.ok(!helper.includes('VERCEL_ENV === "production"'));
-});
 
+	assert.ok(
+		proxy.includes("const authenticatedProxy = auth("),
+		"proxy must retain the normal Auth.js middleware",
+	);
+	assert.ok(
+		proxy.includes(
+			"return (authenticatedProxy as unknown as NextMiddleware)(req, event)",
+		),
+		"proxy must delegate through authenticated Auth.js middleware",
+	);
+	assert.ok(
+		layout.includes("<Providers>{children}</Providers>"),
+		"RootLayout must always use normal application Providers",
+	);
+	assert.ok(
+		providers.includes("<SessionProvider"),
+		"Providers must retain the Auth.js SessionProvider",
+	);
+});
 test("OmniRoute credentials remain server-only", () => {
 	const env = readFileSync(path.join(REPO_ROOT, ".env.example"), "utf8");
 	const page = read("app/omniroute/page.tsx");

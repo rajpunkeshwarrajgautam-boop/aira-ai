@@ -1,5 +1,4 @@
 import { auth } from "@/auth";
-import { isOmniRoutePreviewTestAccessEnabled } from "@/lib/omniroute-preview-access";
 import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
 import { fetchOmniRouteModels, OmniRouteGatewayError } from "@services/omniroute/gateway";
 
@@ -7,11 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-	if (!isOmniRoutePreviewTestAccessEnabled()) {
-		const session = await auth();
-		if (!session?.user?.id) {
-			return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
-		}
+	const session = await auth();
+	if (!session?.user?.id) {
+		return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	}
 
 	const config = getOmniRouteConfigOrDisabled();
