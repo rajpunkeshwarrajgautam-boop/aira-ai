@@ -34,13 +34,19 @@ export interface RunBudgets {
 	readonly maxRetries: number;
 }
 
+/**
+ * The managed builder DAG uses up to 13 specialist tasks when deployment is
+ * requested. Keep the default above that number so verification is never
+ * silently truncated by a resource budget. maxParallelAgents is the primary
+ * concurrency control; maxAgents is a hard mission ceiling.
+ */
 export const DEFAULT_RUN_BUDGETS: RunBudgets = {
-	maxAgents: 8,
-	maxParallelAgents: 3,
-	maxToolCalls: 120,
-	maxTokens: 350_000,
-	maxCostUsd: 15,
-	maxDurationMinutes: 120,
+	maxAgents: 16,
+	maxParallelAgents: 4,
+	maxToolCalls: 160,
+	maxTokens: 500_000,
+	maxCostUsd: 20,
+	maxDurationMinutes: 180,
 	maxRetries: 2,
 };
 
