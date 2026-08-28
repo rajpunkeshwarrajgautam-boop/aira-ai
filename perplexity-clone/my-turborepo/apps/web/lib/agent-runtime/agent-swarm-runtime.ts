@@ -183,7 +183,7 @@ async function swarmRequest<T>(
 			signal: controller.signal,
 			cache: "no-store",
 		});
-	} catch (error) {
+	} catch {
 		throw new AgentRuntimeError({
 			code: options.submission ? "AGENT_SWARM_SUBMISSION_UNKNOWN" : "AGENT_SWARM_UNREACHABLE",
 			message: options.submission
@@ -427,7 +427,13 @@ async function steerAgentSwarm(userId: string, runId: string, instruction: strin
 		`/api/tasks/${encodeURIComponent(row.remoteExecutionId)}/steer`,
 		{
 			method: "POST",
-			body: { body: instruction, mode: "queue", source: "api", onUnsupported: "degrade" },
+			body: {
+				message: instruction,
+				mode: "queue",
+				source: "api",
+				onUnsupported: "degrade",
+				requestedByUserId: userId,
+			},
 		},
 	);
 }
