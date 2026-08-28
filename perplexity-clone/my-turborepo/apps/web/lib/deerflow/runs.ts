@@ -98,8 +98,10 @@ export async function submitDeerFlowAgentRun(options: {
 	readonly userId: string;
 	readonly clientRequestId: string;
 	readonly objective: string;
+	readonly billingMode?: "BILLABLE" | "DELEGATED";
 }): Promise<{ readonly run: AgentRunDto; readonly agentRunsRemaining: number }> {
 	const config = getDeerFlowConfig();
+	const billable = options.billingMode !== "DELEGATED";
 	const existing = await prisma.agentRun.findUnique({
 		where: {
 			userId_clientRequestId: {
@@ -144,7 +146,9 @@ export async function submitDeerFlowAgentRun(options: {
 
 	let remaining: number;
 	try {
-		const entitlements = await consumeAgentRunQuota(options.userId);
+		const entitlements = billable
+			? await consumeAgentRunQuota(options.userId)
+			: await getEffectiveEntitlements(options.userId);
 		remaining = entitlements.agentRunsRemaining;
 	} catch (error) {
 		await prisma.agentRun.delete({ where: { id: pendingRun.id } }).catch(() => undefined);
@@ -185,7 +189,7 @@ export async function submitDeerFlowAgentRun(options: {
 					completedAt: new Date(),
 				},
 			}),
-			...(outcomeUnknown ? [] : [refundAgentRunQuota(options.userId)]),
+			...(billable && !outcomeUnknown ? [refundAgentRunQuota(options.userId)] : []),
 		]);
 		throw error;
 	}
