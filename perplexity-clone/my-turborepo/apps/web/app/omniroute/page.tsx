@@ -5,6 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
+import {
+OMNIROUTE_DISABLED_ROUTING_MODES,
+OMNIROUTE_ROUTING_MODES,
+} from "@services/omniroute/routing";
 
 type Status = {
 	enabled: boolean;
@@ -23,19 +27,27 @@ type Model = { id: string; ownedBy?: string };
 type ModelsResponse = { models?: Model[]; total?: number; latencyMs?: number; checkedAt?: string; version?: string; error?: { message?: string } };
 type TestResponse = { ok?: boolean; model?: string; text?: string; latencyMs?: number; error?: string | { code?: string; message?: string } };
 
-const ROUTING_PRESETS = [
-	{ id: "auto", label: "Auto", detail: "Balanced routing" },
-	{ id: "auto/smart", label: "Smart", detail: "Quality first" },
-	{ id: "auto/coding", label: "Coding", detail: "Code-optimized" },
-	{ id: "auto/fast", label: "Fast", detail: "Low latency" },
-	{ id: "auto/cheap", label: "Cheap", detail: "Cost optimized" },
-	{ id: "auto/offline", label: "Available", detail: "Capacity first" },
-] as const;
+const ROUTING_PRESET_METADATA = {
+"auto": { label: "Auto", detail: "Balanced routing" },
+"auto/smart": { label: "Smart", detail: "Quality first" },
+"auto/coding": { label: "Coding", detail: "Code-optimized" },
+"auto/fast": { label: "Fast", detail: "Low latency" },
+"auto/offline": { label: "Available", detail: "Capacity first" },
+"auto/cheap": { label: "Cheap", detail: "Blocked: validation failed" },
+} as const;
 
-// OmniRoute's explicit NVIDIA routes passed live validation, but the current
-// auto profile returned OMNIROUTE_INFERENCE_FAILED. Keep the profiles visible
-// for operator awareness without presenting them as production-ready controls.
-const AUTOMATIC_ROUTING_VALIDATED = false;
+const ROUTING_PRESETS = [
+...OMNIROUTE_ROUTING_MODES.map((id) => ({
+id,
+...ROUTING_PRESET_METADATA[id],
+validated: true as const,
+})),
+...OMNIROUTE_DISABLED_ROUTING_MODES.map((id) => ({
+id,
+...ROUTING_PRESET_METADATA[id],
+validated: false as const,
+})),
+];
 
 function formatCheckedAt(value: string | undefined): string {
 	if (!value) return "—";
@@ -177,8 +189,8 @@ export default function OmniRoutePage() {
 						<div className="mt-3 rounded-xl border border-white/[0.07] bg-[#0d1014] px-4 py-3 text-[11px] text-[#6f747c]">Last gateway check: <span className="text-[#9ca1a8]">{formatCheckedAt(status?.checkedAt)}</span> · Active default: <code className="text-[#b69a50]">{status?.model ?? "auto"}</code></div>
 
 						<section className="mt-5 rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
-							<div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-[#eeeeeb]">Automatic routing</h2><span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-200/80">Experimental</span></div><p className="mt-1 max-w-3xl text-xs leading-5 text-[#72777f]">Temporarily disabled in AIRA because the current OmniRoute auto profiles did not pass live inference validation. Use the verified configured default or choose a specific discovered model below.</p></div></div>
-							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{ROUTING_PRESETS.map((preset) => <button key={preset.id} type="button" disabled={!AUTOMATIC_ROUTING_VALIDATED} onClick={() => { if (AUTOMATIC_ROUTING_VALIDATED) setSelectedModel(preset.id); }} title="Experimental OmniRoute profile — disabled until live validation passes" className={`rounded-xl border px-3 py-3 text-left transition ${AUTOMATIC_ROUTING_VALIDATED ? (selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]") : "cursor-not-allowed border-white/[0.06] bg-[#101318] opacity-55"}`}><strong className="block text-xs font-semibold text-[#ecece8]">{preset.label}</strong><span className="mt-1 block text-[10px] text-[#747981]">{preset.detail}</span><code className="mt-2 block truncate text-[9px] text-[#9c8448]">{preset.id}</code></button>)}</div>
+							<div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-[#eeeeeb]">Automatic routing</h2><span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200/80">Live validated</span></div><p className="mt-1 max-w-3xl text-xs leading-5 text-[#72777f]">Auto, Smart, Coding, Fast, and Available passed AIRA&apos;s live routing validation. The Cheap profile remains visible but blocked because it failed the validation gate.</p></div></div>
+							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{ROUTING_PRESETS.map((preset) => <button key={preset.id} type="button" disabled={!preset.validated} onClick={() => { if (preset.validated) setSelectedModel(preset.id); }} title={preset.validated ? `Use ${preset.label} routing` : "Blocked in AIRA because this OmniRoute profile failed live validation"} className={`rounded-xl border px-3 py-3 text-left transition ${preset.validated ? (selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]") : "cursor-not-allowed border-white/[0.06] bg-[#101318] opacity-55"}`}><strong className="block text-xs font-semibold text-[#ecece8]">{preset.label}</strong><span className="mt-1 block text-[10px] text-[#747981]">{preset.detail}</span><code className="mt-2 block truncate text-[9px] text-[#9c8448]">{preset.id}</code></button>)}</div>
 						</section>
 
 						<div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">

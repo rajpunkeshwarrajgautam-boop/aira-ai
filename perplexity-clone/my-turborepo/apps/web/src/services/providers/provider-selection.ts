@@ -4,24 +4,39 @@ type ProviderRouteEnvironment = Readonly<Record<string, string | undefined>>;
 
 /**
  * NVIDIA is AIRA's product-level free-tier provider. Keep this invariant in
- * code as well as deployment configuration so a stale or incorrectly scoped
- * Preview variable cannot route Free users through a paid gateway.
+ * code as well as deployment configuration so stale environment variables
+ * cannot route anonymous or Free users through a paid gateway.
  */
 export const FREE_TIER_PROVIDER_ID = "nvidia";
 
 export function resolveProviderRoute(
-	tier: ProviderAccessTier,
-	environment: ProviderRouteEnvironment = process.env,
+tier: ProviderAccessTier,
+environment: ProviderRouteEnvironment = process.env,
 ): {
-	readonly primaryProviderId: string;
-	readonly fallbackProviderId: string;
+readonly primaryProviderId: string;
+readonly fallbackProviderId: string;
 } {
-	const freeProviderId = FREE_TIER_PROVIDER_ID;
-	return {
-		primaryProviderId:
-			tier === "free"
-				? freeProviderId
-				: environment.DEFAULT_PRO_PROVIDER ?? "omniroute",
-		fallbackProviderId: freeProviderId,
-	};
+const freeProviderId = FREE_TIER_PROVIDER_ID;
+const primaryProviderId =
+tier === "free"
+? freeProviderId
+: environment.DEFAULT_PRO_PROVIDER ?? "omniroute";
+
+const route = {
+primaryProviderId,
+fallbackProviderId: freeProviderId,
+};
+
+if (process.env.NODE_ENV === "production") {
+console.info(
+"[ProviderRouter] route selected",
+JSON.stringify({
+tier,
+primaryProviderId: route.primaryProviderId,
+fallbackProviderId: route.fallbackProviderId,
+}),
+);
+}
+
+return route;
 }

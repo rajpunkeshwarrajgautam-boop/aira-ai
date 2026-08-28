@@ -71,7 +71,7 @@ function enforceFinalPublicationBoundary(
 
 	candidate = sanitizeRemainingPublicationViolations(candidate, violations, messages);
 	violations = validatePublicationCandidate(candidate, messages);
-	if (violations.length > 0 || candidate.length < 80) {
+	if (violations.length > 0 || !candidate) {
 		throw new Error(
 			"AIRA publication boundary rejected unresolved verifier output: " +
 				formatPublicationViolations(violations).slice(0, 1200),

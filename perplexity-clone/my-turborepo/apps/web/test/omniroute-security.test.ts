@@ -56,7 +56,10 @@ test("OmniRoute preview test bypass is explicit, preview-only, and runs before A
 	const proxy = read("proxy.ts");
 	const layout = read("app/layout.tsx");
 	const providers = read("app/providers.tsx");
-	assert.ok(helper.includes('process.env.VERCEL_ENV === "preview"'));
+	assert.ok(helper.includes('process.env.NODE_ENV === "production"'));
+assert.ok(helper.includes('process.env.VERCEL_ENV === "preview"'));
+assert.ok(helper.includes('process.env.VERCEL_GIT_COMMIT_REF === OMNIROUTE_PREVIEW_BRANCH'));
+assert.ok(helper.includes('const OMNIROUTE_PREVIEW_BRANCH = "feature/omniroute-gateway"'));
 	assert.ok(helper.includes('process.env.OMNIROUTE_PREVIEW_TEST_BYPASS === "true"'));
 	assert.ok(proxy.includes('pathname === "/omniroute" || pathname.startsWith("/api/omniroute/")'));
 	assert.ok(proxy.includes("const authenticatedProxy = auth("));

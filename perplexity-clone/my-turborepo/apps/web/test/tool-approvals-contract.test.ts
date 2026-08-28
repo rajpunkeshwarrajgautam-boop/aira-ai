@@ -8,11 +8,11 @@ const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const REPO_ROOT = path.resolve(WEB_ROOT, "../../../..");
 
 function readWeb(relative: string): string {
-	return readFileSync(path.join(WEB_ROOT, relative), "utf8");
+	return readFileSync(path.join(WEB_ROOT, relative), "utf8").replace(/\r\n/g, "\n");
 }
 
 function readRepo(relative: string): string {
-	return readFileSync(path.join(REPO_ROOT, relative), "utf8");
+	return readFileSync(path.join(REPO_ROOT, relative), "utf8").replace(/\r\n/g, "\n");
 }
 
 test("tool approvals are run-owned durable records with deny-by-default Data API access", () => {

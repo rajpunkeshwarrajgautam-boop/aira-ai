@@ -17,11 +17,16 @@ test("Compare advertises and validates OmniRoute selections through AIRA's produ
 	assert.ok(compare.includes("isAllowedOmniRouteSelection(model, discovered)"));
 });
 
-test("the operator workspace cannot select an unvalidated auto profile", () => {
-	const page = read("app/omniroute/page.tsx");
-	assert.ok(page.includes('{ id: "auto/cheap", label: "Cheap"'));
-	assert.ok(page.includes("disabled={!AUTOMATIC_ROUTING_VALIDATED}"));
-	assert.ok(page.includes("if (AUTOMATIC_ROUTING_VALIDATED) setSelectedModel(preset.id)"));
+test("the operator workspace exposes validated auto profiles while keeping failed profiles blocked", () => {
+const page = read("app/omniroute/page.tsx");
+
+assert.ok(page.includes("OMNIROUTE_ROUTING_MODES"));
+assert.ok(page.includes("OMNIROUTE_DISABLED_ROUTING_MODES"));
+assert.ok(page.includes('"auto/cheap": { label: "Cheap", detail: "Blocked: validation failed" }'));
+assert.ok(page.includes("disabled={!preset.validated}"));
+assert.ok(page.includes("if (preset.validated) setSelectedModel(preset.id)"));
+assert.ok(page.includes("Live validated"));
+assert.ok(!page.includes("AUTOMATIC_ROUTING_VALIDATED"));
 });
 
 test("the Preview inference endpoint applies the same product routing allowlist", () => {

@@ -2,142 +2,282 @@ import { createHash } from "node:crypto";
 
 import OpenAI from "openai";
 
+import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
 import {
-	EmbeddingCircuitOpenError,
-	embeddingCircuitStatus,
-	noteEmbeddingFailure,
-	resetEmbeddingCircuit,
+EmbeddingCircuitOpenError,
+embeddingCircuitStatus,
+noteEmbeddingFailure,
+resetEmbeddingCircuit,
 } from "@/lib/embedding-circuit";
 import { prisma } from "@/lib/prisma";
+import {
+formatSemanticEmbeddingInput,
+resolveSemanticEmbeddingRoute,
+SEMANTIC_EMBEDDING_DIMENSIONS,
+semanticEmbeddingTierForBillingPlan,
+semanticMemoryEnabled,
+type SemanticEmbeddingRoute,
+type SemanticEmbeddingWorkload,
+} from "@/lib/semantic-embedding-policy";
 
-export const AIRA_EMBEDDING_DIMENSIONS = 1536;
-const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
+export {
+SEMANTIC_EMBEDDING_DIMENSIONS,
+semanticMemoryEnabled,
+} from "@/lib/semantic-embedding-policy";
+export type { SemanticEmbeddingRoute } from "@/lib/semantic-embedding-policy";
 
-function embeddingModel(): string {
-	return process.env.AIRA_EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
+export interface SemanticEmbeddingResult {
+readonly vector: readonly number[];
+readonly route: SemanticEmbeddingRoute;
 }
 
-function embeddingApiKey(): string | undefined {
-	return process.env.AIRA_EMBEDDING_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim();
-}
-
-export function semanticMemoryEnabled(): boolean {
-	return process.env.SEMANTIC_MEMORY_ENABLED === "true";
-}
-
+/**
+ * Compatibility helper for code/tests that only need to know whether at least
+ * one entitlement-specific semantic embedding route is configured.
+ */
 export function semanticMemoryConfigured(): boolean {
-	return semanticMemoryEnabled() && Boolean(embeddingApiKey());
+return (
+resolveSemanticEmbeddingRoute("free") !== null ||
+resolveSemanticEmbeddingRoute("pro") !== null
+);
 }
 
-let embeddingClient: OpenAI | undefined;
-let embeddingClientKey = "";
+export async function resolveSemanticEmbeddingRouteForUser(
+userId: string,
+): Promise<SemanticEmbeddingRoute | null> {
+if (!semanticMemoryEnabled()) return null;
 
-function getEmbeddingClient(): OpenAI {
-	const apiKey = embeddingApiKey();
-	if (!apiKey) throw new Error("Semantic memory is enabled but no embedding API key is configured.");
-	const baseURL = process.env.AIRA_EMBEDDING_BASE_URL?.trim() || undefined;
-	const cacheKey = `${baseURL ?? "default"}|${apiKey}`;
-	if (!embeddingClient || embeddingClientKey !== cacheKey) {
-		embeddingClient = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
-		embeddingClientKey = cacheKey;
-	}
-	return embeddingClient;
+const entitlements = await getEffectiveEntitlements(userId);
+const tier = semanticEmbeddingTierForBillingPlan(entitlements.billingPlan);
+const route = resolveSemanticEmbeddingRoute(tier);
+
+if (route && process.env.NODE_ENV === "production") {
+console.info(
+"[AIRA semantic embedding] route selected",
+JSON.stringify({
+tier: route.tier,
+providerId: route.providerId,
+model: route.model,
+dimensions: route.dimensions,
+}),
+);
 }
 
-function vectorLiteral(values: readonly number[]): string {
-	if (values.length !== AIRA_EMBEDDING_DIMENSIONS) {
-		throw new Error(
-			`Embedding dimension mismatch: expected ${AIRA_EMBEDDING_DIMENSIONS}, received ${values.length}.`,
-		);
-	}
-	for (const value of values) {
-		if (!Number.isFinite(value)) throw new Error("Embedding contains a non-finite value.");
-	}
-	return `[${values.join(",")}]`;
+return route;
 }
 
-export async function embedText(text: string): Promise<readonly number[]> {
-	if (!semanticMemoryConfigured()) throw new Error("Semantic memory is not configured.");
-	const input = text.trim();
-	if (!input) throw new Error("Cannot embed empty text.");
-	const breaker = embeddingCircuitStatus();
-	if (breaker.state === "open") {
-		throw new EmbeddingCircuitOpenError(breaker.kind ?? "transient", breaker.retryAfterMs);
-	}
+const embeddingClients = new Map<string, OpenAI>();
 
-	let response;
-	try {
-		response = await getEmbeddingClient().embeddings.create({
-			model: embeddingModel(),
-			input: input.slice(0, 12_000),
-			encoding_format: "float",
-		});
-	} catch (error) {
-		noteEmbeddingFailure(error);
-		throw error;
-	}
+function clientForRoute(route: SemanticEmbeddingRoute): OpenAI {
+const keyHash = createHash("sha256")
+.update(route.apiKey ?? "no-key")
+.digest("hex")
+.slice(0, 16);
 
-	const embedding = response.data[0]?.embedding;
-	if (!embedding) throw new Error("Embedding provider returned no vector.");
-	vectorLiteral(embedding);
-	resetEmbeddingCircuit();
-	return embedding;
+const cacheKey = `${route.providerId}|${route.baseURL ?? "default"}|${keyHash}`;
+const existing = embeddingClients.get(cacheKey);
+if (existing) return existing;
+
+const client = new OpenAI({
+apiKey: route.apiKey ?? "aira-local-no-key-required",
+...(route.baseURL ? { baseURL: route.baseURL } : {}),
+});
+
+embeddingClients.set(cacheKey, client);
+return client;
+}
+
+export function semanticEmbeddingVectorLiteral(
+values: readonly number[],
+): string {
+if (values.length !== SEMANTIC_EMBEDDING_DIMENSIONS) {
+throw new Error(
+`Embedding dimension mismatch: expected ${SEMANTIC_EMBEDDING_DIMENSIONS}, received ${values.length}.`,
+);
+}
+
+for (const value of values) {
+if (!Number.isFinite(value)) {
+throw new Error("Embedding contains a non-finite value.");
+}
+}
+
+return `[${values.join(",")}]`;
+}
+
+/**
+ * The circuit breaker intentionally guards only the PRO/OpenAI embedding path.
+ *
+ * AIRA's FREE and PRO semantic routes are isolated. A failure in the FREE
+ * self-hosted route must not suppress a healthy PRO OpenAI route. The breaker
+ * exists primarily to stop repeated paid-provider quota/credential failures
+ * from adding latency and provider load to every semantic-memory request.
+ */
+function usesEmbeddingCircuit(route: SemanticEmbeddingRoute): boolean {
+return route.providerId === "openai";
+}
+
+export async function embedTextWithRoute(
+route: SemanticEmbeddingRoute,
+text: string,
+workload: SemanticEmbeddingWorkload,
+): Promise<SemanticEmbeddingResult> {
+const input = formatSemanticEmbeddingInput(route, text, workload).slice(
+0,
+12_000,
+);
+
+if (!input) throw new Error("Cannot embed empty text.");
+
+const circuitEnabled = usesEmbeddingCircuit(route);
+
+if (circuitEnabled) {
+const breaker = embeddingCircuitStatus();
+if (breaker.state === "open") {
+throw new EmbeddingCircuitOpenError(
+breaker.kind ?? "transient",
+breaker.retryAfterMs,
+);
+}
+}
+
+let response;
+
+try {
+response = await clientForRoute(route).embeddings.create({
+model: route.model,
+input,
+encoding_format: "float",
+...(route.providerId === "openai"
+? { dimensions: route.dimensions }
+: {}),
+});
+} catch (error) {
+if (circuitEnabled) {
+noteEmbeddingFailure(error);
+}
+throw error;
+}
+
+const vector = response.data[0]?.embedding;
+if (!vector) {
+const error = new Error("Embedding provider returned no vector.");
+if (circuitEnabled) {
+noteEmbeddingFailure(error);
+}
+throw error;
+}
+
+semanticEmbeddingVectorLiteral(vector);
+
+if (circuitEnabled) {
+resetEmbeddingCircuit();
+}
+
+return { vector, route };
+}
+
+export async function embedTextForUser(
+userId: string,
+text: string,
+workload: SemanticEmbeddingWorkload,
+): Promise<SemanticEmbeddingResult | null> {
+const route = await resolveSemanticEmbeddingRouteForUser(userId);
+if (!route) return null;
+
+return embedTextWithRoute(route, text, workload);
 }
 
 export async function upsertUserMemoryEmbedding(args: {
-	readonly memoryId: string;
-	readonly userId: string;
-	readonly content: string;
+readonly memoryId: string;
+readonly userId: string;
+readonly content: string;
+readonly route?: SemanticEmbeddingRoute;
 }): Promise<void> {
-	if (!semanticMemoryConfigured()) return;
-	const embedding = await embedText(args.content);
-	const literal = vectorLiteral(embedding);
-	const contentHash = createHash("sha256").update(args.content).digest("hex");
-	const model = embeddingModel();
+const route =
+args.route ??
+(await resolveSemanticEmbeddingRouteForUser(args.userId));
 
-	await prisma.$executeRaw`
-		insert into public."UserMemoryEmbedding"
-			("memoryId", "userId", model, dimensions, embedding, "contentHash", "updatedAt")
-		values
-			(${args.memoryId}, ${args.userId}, ${model}, ${AIRA_EMBEDDING_DIMENSIONS}, ${literal}::extensions.vector, ${contentHash}, now())
-		on conflict ("memoryId") do update set
-			"userId" = excluded."userId",
-			model = excluded.model,
-			dimensions = excluded.dimensions,
-			embedding = excluded.embedding,
-			"contentHash" = excluded."contentHash",
-			"updatedAt" = now()
-	`;
+if (!route) return;
+
+const { vector } = await embedTextWithRoute(
+route,
+args.content,
+"document",
+);
+
+const literal = semanticEmbeddingVectorLiteral(vector);
+const contentHash = createHash("sha256")
+.update(args.content)
+.digest("hex");
+
+await prisma.$executeRaw`
+insert into public."UserMemorySemanticEmbedding"
+("memoryId", "userId", tier, provider, model, dimensions, embedding, "contentHash", "updatedAt")
+values
+(${args.memoryId}, ${args.userId}, ${route.tier}, ${route.providerId}, ${route.model}, ${route.dimensions}, ${literal}::extensions.vector, ${contentHash}, now())
+on conflict ("memoryId", tier) do update set
+"userId" = excluded."userId",
+provider = excluded.provider,
+model = excluded.model,
+dimensions = excluded.dimensions,
+embedding = excluded.embedding,
+"contentHash" = excluded."contentHash",
+"updatedAt" = now()
+`;
 }
 
 export async function getSemanticMemoryScores(
-	userId: string,
-	query: string,
-	limit = 32,
+userId: string,
+query: string,
+limit = 32,
+route?: SemanticEmbeddingRoute,
 ): Promise<ReadonlyMap<string, number>> {
-	if (!semanticMemoryConfigured() || !query.trim()) return new Map();
-	const embedding = await embedText(query);
-	const literal = vectorLiteral(embedding);
-	const take = Math.min(Math.max(limit, 1), 64);
-	const rows = await prisma.$queryRaw<Array<{ memoryId: string; similarity: number }>>`
-		select
-			"memoryId",
-			(1 - (embedding <=> ${literal}::extensions.vector))::double precision as similarity
-		from public."UserMemoryEmbedding"
-		where "userId" = ${userId}
-		order by embedding <=> ${literal}::extensions.vector
-		limit ${take}
-	`;
-	return new Map(
-		rows
-			.filter((row) => Number.isFinite(row.similarity))
-			.map((row) => [row.memoryId, Math.max(-1, Math.min(1, row.similarity))]),
-	);
+if (!query.trim()) return new Map();
+
+const selectedRoute =
+route ??
+(await resolveSemanticEmbeddingRouteForUser(userId));
+
+if (!selectedRoute) return new Map();
+
+const { vector } = await embedTextWithRoute(
+selectedRoute,
+query,
+"query",
+);
+
+const literal = semanticEmbeddingVectorLiteral(vector);
+const take = Math.min(Math.max(limit, 1), 64);
+
+const rows = await prisma.$queryRaw<
+Array<{ memoryId: string; similarity: number }>
+>`
+select
+"memoryId",
+(1 - (embedding <=> ${literal}::extensions.vector))::double precision as similarity
+from public."UserMemorySemanticEmbedding"
+where "userId" = ${userId}
+and tier = ${selectedRoute.tier}
+and provider = ${selectedRoute.providerId}
+and model = ${selectedRoute.model}
+order by embedding <=> ${literal}::extensions.vector
+limit ${take}
+`;
+
+return new Map(
+rows
+.filter((row) => Number.isFinite(row.similarity))
+.map((row) => [
+row.memoryId,
+Math.max(-1, Math.min(1, row.similarity)),
+]),
+);
 }
 
 export {
-	EmbeddingCircuitOpenError,
-	embeddingCircuitStatus,
-	resetEmbeddingCircuit,
-	type EmbeddingFailureKind,
+EmbeddingCircuitOpenError,
+embeddingCircuitStatus,
+resetEmbeddingCircuit,
+type EmbeddingFailureKind,
 } from "@/lib/embedding-circuit";

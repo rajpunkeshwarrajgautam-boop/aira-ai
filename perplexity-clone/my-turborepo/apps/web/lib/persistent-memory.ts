@@ -7,7 +7,7 @@ import {
 import {
 	EmbeddingCircuitOpenError,
 	getSemanticMemoryScores,
-	semanticMemoryConfigured,
+	resolveSemanticEmbeddingRouteForUser,
 	upsertUserMemoryEmbedding,
 } from "@/lib/semantic-memory";
 
@@ -27,9 +27,11 @@ export async function refreshPersistentMemory(
 ): Promise<Awaited<ReturnType<typeof refreshCorePersistentMemory>>> {
 	const startedAt = Date.now();
 	const result = await refreshCorePersistentMemory(args);
-	if (!semanticMemoryConfigured() || result.upserts === 0) return result;
+	if (result.upserts === 0) return result;
 
 	try {
+		const route = await resolveSemanticEmbeddingRouteForUser(args.userId);
+		if (!route) return result;
 		const memories = await listUserMemories(args.userId, 40);
 		const changed = memories
 			.filter((memory) => memory.updatedAt.getTime() >= startedAt - 1_500)
@@ -40,6 +42,7 @@ export async function refreshPersistentMemory(
 					memoryId: memory.id,
 					userId: args.userId,
 					content: memory.content,
+					route,
 				}),
 			),
 		);
@@ -60,11 +63,12 @@ export async function getRelevantPersistentMemories(
 	limit = 8,
 ): Promise<readonly string[]> {
 	const lexical = await getCoreRelevantPersistentMemories(userId, query, limit);
-	if (!semanticMemoryConfigured()) return lexical;
 
 	try {
+		const route = await resolveSemanticEmbeddingRouteForUser(userId);
+		if (!route) return lexical;
 		const [scores, memories] = await Promise.all([
-			getSemanticMemoryScores(userId, query, Math.max(limit * 4, 24)),
+			getSemanticMemoryScores(userId, query, Math.max(limit * 4, 24), route),
 			listUserMemories(userId, 200),
 		]);
 		const semantic = memories
@@ -105,17 +109,21 @@ export async function createManualMemory(
 	args: Parameters<typeof createCoreManualMemory>[0],
 ): Promise<Awaited<ReturnType<typeof createCoreManualMemory>>> {
 	const memory = await createCoreManualMemory(args);
-	if (semanticMemoryConfigured()) {
-		void upsertUserMemoryEmbedding({
-			memoryId: memory.id,
-			userId: args.userId,
-			content: memory.content,
-		}).catch((error) =>
+	void resolveSemanticEmbeddingRouteForUser(args.userId)
+		.then((route) => {
+			if (!route) return;
+			return upsertUserMemoryEmbedding({
+				memoryId: memory.id,
+				userId: args.userId,
+				content: memory.content,
+				route,
+			});
+		})
+		.catch((error) =>
 			console.warn(
 				"[AIRA semantic memory] Manual memory embedding failed:",
 				error instanceof Error ? error.message : String(error),
 			),
 		);
-	}
 	return memory;
 }
