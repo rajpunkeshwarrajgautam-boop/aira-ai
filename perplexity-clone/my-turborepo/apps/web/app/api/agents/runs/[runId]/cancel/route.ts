@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getAgentRuntime } from "@/lib/agent-runtime/registry";
+import type { AgentRuntime } from "@/lib/agent-runtime/types";
 import { AgentRuntimeError } from "@/lib/agent-runtime/types";
 import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
@@ -35,7 +36,7 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 		);
 	}
 
-	let selectedRuntime;
+	let selectedRuntime: AgentRuntime;
 	try {
 		selectedRuntime = getAgentRuntime(cached.provider);
 	} catch (error) {
