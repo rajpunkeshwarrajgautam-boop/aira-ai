@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ projectId: string }> };
 
 const StartRunSchema = z.object({
+	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(8_000).optional(),
 	provider: z.enum(["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
 	budgets: z
@@ -83,6 +84,7 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 		const result = await startManagedRun({
 			userId: session.user.id,
 			projectId: project.id,
+			clientRequestId: parsed.data.clientRequestId,
 			objective,
 			requestedRuntime: parsed.data.provider as AgentRuntimeId | undefined,
 			budgets: parsed.data.budgets,
