@@ -1,0 +1,24 @@
+# Environment/pipeline smoke only. Never benchmark or publish this checkpoint as AIRA Core.
+base: Qwen/Qwen3.5-0.8B
+task: sft
+modality: text
+
+data:
+  train: ./model-lab/data/smoke/core-smoke.jsonl
+  format: alpaca
+  val_split: 0.2
+  max_length: 512
+  train_on_responses_only: true
+
+training:
+  epochs: 1
+  lr: 0.00002
+  batch_size: 1
+  seed: 3407
+  lora:
+    r: 8
+    alpha: 16
+  quantization: none
+  stream_layers: false
+
+output: ./model-lab/artifacts/aira-core-smoke

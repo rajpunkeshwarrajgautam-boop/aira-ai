@@ -1,0 +1,56 @@
+# AIRA Core v0 candidate recipe.
+# This is a research configuration, not a production model declaration.
+base: Qwen/Qwen3.5-9B-Base
+task: sft
+modality: text
+
+data:
+  # Exact frozen Core-v0 train split. The Windows Core operator verifies the
+  # reviewed SHA256 before Soup can start.
+  train: ./model-lab/data/core-v0/train.jsonl
+  format: chatml
+  # Training-only template for normalized AIRA text messages. Qwen3.5's shipped
+  # conversational template does not currently expose Hugging Face {% generation %}
+  # blocks, so response-only SFT would otherwise use Soup's looser incremental
+  # fallback. Keep role/control tokens outside the generation block and supervise
+  # assistant content only. This template is not the serving/inference template.
+  chat_template: |-
+    {%- for message in messages %}
+    {%- if message['role'] == 'system' %}
+    {{- '<|im_start|>system\n' + message['content'] + '<|im_end|>\n' }}
+    {%- elif message['role'] == 'user' %}
+    {{- '<|im_start|>user\n' + message['content'] + '<|im_end|>\n' }}
+    {%- elif message['role'] == 'assistant' %}
+    {{- '<|im_start|>assistant\n' }}{% generation %}{{- message['content'] }}{% endgeneration %}{{- '<|im_end|>\n' }}
+    {%- elif message['role'] == 'tool' %}
+    {{- '<|im_start|>tool\n' + message['content'] + '<|im_end|>\n' }}
+    {%- else %}
+    {{- raise_exception('Unexpected message role: ' + message['role']) }}
+    {%- endif %}
+    {%- endfor %}
+    {%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+    {%- endif %}
+  # Core-v0 already has separately frozen validation/holdout splits. Soup 0.73.3
+  # slices data.train only when val_split > 0, so keep this at zero to optimize on
+  # all 10,311 approved training rows rather than silently withholding another 10%.
+  val_split: 0.0
+  max_length: 2048
+  train_on_responses_only: true
+
+training:
+  epochs: 1
+  lr: 0.00002
+  # Fixed batch 1 is intentional for the first RX 9070 XT / 16 GiB physical run.
+  # Do not let auto-batching change the memory envelope of the reviewed recipe.
+  batch_size: 1
+  seed: 3407
+  lora:
+    r: 32
+    alpha: 64
+  quantization: 4bit
+  # Exact 9B NF4 resident load has already passed on RX 9070 XT. Keep streaming off
+  # for the first real Core run so adapter-key semantics stay on the verified path.
+  stream_layers: false
+
+output: ./model-lab/artifacts/aira-core-v0

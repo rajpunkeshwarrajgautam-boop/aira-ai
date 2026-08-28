@@ -1,0 +1,3 @@
+# Reproducible Soup pin for the AIRA model factory.
+# Upstream package metadata at this commit declares soup-cli 0.73.3 and Python >=3.10,<3.13.
+soup-cli[train,eval,data,serve] @ git+https://github.com/MakazhanAlpamys/Soup.git@6c13c44f5eb6bef67bbd39d83ec7269ac3c31dbf

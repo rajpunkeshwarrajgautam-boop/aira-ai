@@ -41,3 +41,11 @@ prisma-migrate-dev.js
 # Python test/build output
 __pycache__/
 *.py[cod]
+
+# AIRA model-lab generated/private working data. Keep recipes/manifests/eval fixtures tracked.
+.venv-model-lab/
+model-lab/cache/
+model-lab/artifacts/
+model-lab/runs/
+model-lab/eval/reports/
+model-lab/data/core-v0/

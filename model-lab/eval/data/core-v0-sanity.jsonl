@@ -1,0 +1,6 @@
+{"prompt":"Choose exactly one tool name: web_search, files_search, memory_search, or none. Request: What is the current weather in Delhi?","expected":"web_search"}
+{"prompt":"Choose exactly one tool name: web_search, files_search, memory_search, or none. Request: Find the revenue assumptions in my uploaded plan.","expected":"files_search"}
+{"prompt":"Choose exactly one tool name: web_search, files_search, memory_search, or none. Request: Recall the constraint I asked you to remember last week.","expected":"memory_search"}
+{"prompt":"Evidence: Deployment state is READY. Question: What was its latency? Answer only INSUFFICIENT_EVIDENCE if the evidence does not contain the answer.","expected":"INSUFFICIENT_EVIDENCE"}
+{"prompt":"Return only this phrase converted to snake_case: Model Evaluation Runs","expected":"model_evaluation_runs"}
+{"prompt":"Evidence: API returned HTTP 200 at 10:00. Statement: API remained healthy all day. Return only FACT, INFERENCE, or UNKNOWN.","expected":"UNKNOWN"}

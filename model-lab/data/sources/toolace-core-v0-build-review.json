@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "program": "aira-core-v0",
+  "source_id": "toolace",
+  "source_revision": "e0db1bccf18d6d02cbb03b1ecb63fafb21525311",
+  "prepared_input": {
+    "representation": "aira_tool_calls_json_v1",
+    "examples": 10509,
+    "sha256": "768bffd674cb9114340aeab4682bb18d5fc76608da182939ca6c211cb279aa12"
+  },
+  "build": {
+    "status": "FROZEN_SPLITS_CONTAMINATION_PASS",
+    "catalog_sha256": "dddb5a3198d6df4240ffec1f46a7870fdb7a606817d753e66efa7e786e07bc9c",
+    "frozen_eval_sha256": "9885c9c49ca2048be3739f782048aa5b84813970834bbfc33db23adff1ea0cc8",
+    "total_examples": 10509,
+    "prepared_candidate_hash_binding": true,
+    "exact_dedup": true,
+    "high_confidence_secret_filter": true,
+    "frozen_eval_exact_prompt_overlap_removed": true,
+    "manifest_token_count": 6138380,
+    "freeze_gate": "PASS",
+    "splits": {
+      "train": {
+        "examples": 10311,
+        "sha256": "89890cc7c5b017bd88c91d427921b7cc31dd9e2b211c4ff72ef20331c78654d2",
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 10311
+      },
+      "validation": {
+        "examples": 104,
+        "sha256": "426667615d75673108d776b7d269a2b67ce8290bd4526e295829d8e6186031cc",
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 104
+      },
+      "holdout": {
+        "examples": 94,
+        "sha256": "8b580a22fde7adb68f861810a21c45f85d1fd1b03822482a95bb07e8dde21025",
+        "contamination_gate": "PASS",
+        "exact_overlap_count": 0,
+        "semantic_overlap_count": 0,
+        "semantic_threshold": 0.85,
+        "training_prompts_scanned": 94
+      }
+    }
+  },
+  "training_manifest_promotion": "PROPOSAL_PASS_REVIEW_ONLY",
+  "manifest_proposal": {
+    "status": "PASS",
+    "example_count": 10509,
+    "token_count": 6138380,
+    "source_count": 1,
+    "languages": ["en", "zh"],
+    "domains": ["agentic_execution", "function_calling", "tool_use"]
+  },
+  "physical_canary": {
+    "status": "VERIFIED",
+    "rows": 8,
+    "base": "Qwen/Qwen3.5-9B-Base",
+    "base_revision": "68c46c4b3498877f3ef123c856ecfde50c39f404",
+    "soup_run_id": "run_20260826_225205_d8ede358",
+    "run_record": "model-lab/runs/core-v0-canary-20260826-171911.json",
+    "lora_trainable_parameters": 20185088,
+    "total_parameters": 8973988352,
+    "optimizer_steps": 2,
+    "train_runtime_seconds": 115.4,
+    "train_loss": 0.3708,
+    "mean_token_accuracy": 0.8943,
+    "optimized_tokens": 3524,
+    "reported_gpu_used_gib": 11.2,
+    "adapter_verification": {
+      "status": "VERIFIED",
+      "adapter_active": true,
+      "quantization": "nf4",
+      "compute_dtype": "bfloat16",
+      "double_quant": true,
+      "linear4bit_modules": 248,
+      "max_abs_logit_deltas": [0.1328125, 0.125, 0.1875],
+      "peak_allocated_gib": 7.4235,
+      "peak_reserved_gib": 7.4961,
+      "tensor_count": 128,
+      "finite": true,
+      "nonzero": true,
+      "stale_inner_keys": []
+    }
+  },
+  "full_training_gate": {
+    "status": "AUTHORIZED",
+    "requires_verified_canary_record": true,
+    "requires_nf4_canary_reverification": true,
+    "operator_commit": "279eef59302838804c2afece8cb981e7a7815886"
+  },
+  "training_execution": "CANARY_VERIFIED_FULL_AUTHORIZED_NOT_STARTED",
+  "next_gate": "full_9b_qlora"
+}

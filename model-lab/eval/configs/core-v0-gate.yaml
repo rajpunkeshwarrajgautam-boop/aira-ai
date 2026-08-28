@@ -1,0 +1,6 @@
+# Minimal frozen-style contract gate for AIRA Core smoke/candidate runs.
+# Expand with locked held-out suites before any capability claim.
+tasks:
+  - name: grounded_tool_and_evidence_sanity
+    prompts: ./model-lab/eval/data/core-v0-sanity.jsonl
+    scoring: exact

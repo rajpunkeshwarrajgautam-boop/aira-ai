@@ -1,0 +1,223 @@
+name: AIRA Model Lab Contracts
+
+on:
+  pull_request:
+    paths:
+      - "model-lab/**"
+      - "docs/models/**"
+      - "desktop-agent/**"
+      - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
+      - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
+      - ".github/workflows/model-lab-contracts.yml"
+      - ".github/workflows/model-lab-rx9070xt-smoke.yml"
+      - ".gitignore"
+  push:
+    paths:
+      - "model-lab/**"
+      - "docs/models/**"
+      - "desktop-agent/**"
+      - "perplexity-clone/my-turborepo/apps/web/src/services/models/**"
+      - "perplexity-clone/my-turborepo/apps/web/test/aira-model-registry.test.ts"
+      - ".github/workflows/model-lab-contracts.yml"
+      - ".github/workflows/model-lab-rx9070xt-smoke.yml"
+      - ".gitignore"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-lab-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile model-lab Python operators
+        run: python -m py_compile model-lab/scripts/*.py
+
+      - name: Reject accidental JSON literals in Python operators
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          failures = []
+          for path in sorted(Path("model-lab/scripts").glob("*.py")):
+              tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+              bad = sorted({
+                  node.id
+                  for node in ast.walk(tree)
+                  if isinstance(node, ast.Name) and node.id in {"true", "false", "null"}
+              })
+              if bad:
+                  failures.append(f"{path}: {', '.join(bad)}")
+          if failures:
+              raise SystemExit("JSON literals used as Python names:\n" + "\n".join(failures))
+          print("Python operator literal guard passed.")
+          PY
+
+      - name: Self-test OpenAI-compatible inference probe
+        run: python model-lab/scripts/verify_openai_endpoint.py --self-test
+
+      - name: Self-test AIRA OmniRoute multi-mode gate
+        run: python model-lab/scripts/verify_omniroute_live.py --self-test
+
+      - name: Self-test deterministic endpoint evaluator
+        run: python model-lab/scripts/run_exact_eval.py --self-test
+
+      - name: Self-test dataset contamination gate
+        run: python model-lab/scripts/check_dataset_contamination.py --self-test
+
+      - name: Self-test Core manifest promotion gate
+        run: python model-lab/scripts/promote_core_manifest.py --self-test
+
+      - name: Self-test sanitized RX smoke evidence exporter
+        run: python model-lab/scripts/sanitize_smoke_evidence.py --self-test
+
+      - name: Self-test RX 9070 XT NF4 preflight contract
+        run: python model-lab/scripts/verify_bnb_4bit_backend.py --self-test
+
+      - name: Self-test exact Qwen3.5 9B NF4 load gate
+        run: python model-lab/scripts/verify_qwen35_9b_load.py --self-test
+
+      - name: Self-test frozen Qwen3.5 9B baseline contract
+        run: python model-lab/scripts/run_qwen35_9b_baseline.py --self-test
+
+      - name: Self-test strict Qwen3.5 masking preflight
+        run: python model-lab/scripts/validate_qwen35_text_contract.py --self-test
+
+      - name: Self-test exact Core token accounting
+        run: python model-lab/scripts/count_core_tokens.py --self-test
+
+      - name: Self-test frozen Core build evidence
+        run: python model-lab/scripts/freeze_core_build.py --self-test
+
+      - name: Self-test Core token failure diagnostic
+        run: python model-lab/scripts/diagnose_core_token_failures.py --self-test
+
+      - name: Self-test ToolACE format analysis
+        run: python model-lab/scripts/analyze_toolace_format.py --self-test
+
+      - name: Self-test bounded Core source audit
+        run: python model-lab/scripts/audit_core_sources.py --self-test
+
+      - name: Self-test bounded Core source token profile
+        run: python model-lab/scripts/profile_core_source_tokens.py --self-test
+
+      - name: Self-test Core source decision guard
+        run: python model-lab/scripts/validate_core_source_decisions.py --self-test
+
+      - name: Self-test prepared Core training input binding
+        run: python model-lab/scripts/prepare_core_dataset.py --self-test
+
+      - name: Self-test filtered Core review candidate
+        run: python model-lab/scripts/materialize_filtered_core_candidate.py --self-test
+
+      - name: Self-test ToolACE context-preserving review candidate
+        run: python model-lab/scripts/materialize_toolace_context_candidate.py --self-test
+
+      - name: Self-test AIRA-normalized ToolACE review candidate
+        run: python model-lab/scripts/materialize_toolace_aira_candidate.py --self-test
+
+      - name: Self-test AIRA tool_calls runtime parity gate
+        run: python model-lab/scripts/verify_aira_tool_runtime_parity.py --self-test
+
+      - name: Validate AIRA tool_calls training/runtime parity
+        run: python model-lab/scripts/verify_aira_tool_runtime_parity.py
+
+      - name: Validate Core source decisions
+        run: python model-lab/scripts/validate_core_source_decisions.py
+
+      - name: Validate strict Core training template markers
+        run: |
+          grep -Fq '{% generation %}' model-lab/soup/core/sft.yaml
+          grep -Fq '{% endgeneration %}' model-lab/soup/core/sft.yaml
+          grep -Fq 'train_on_responses_only: true' model-lab/soup/core/sft.yaml
+
+      - name: Validate model-lab contracts without downloading weights
+        run: python model-lab/scripts/validate_contracts.py
+
+      - name: Validate exact base-model catalog without downloading weights
+        run: python model-lab/scripts/materialize_hf_model.py --validate-only
+
+      - name: Validate runtime Soup config materialization without downloading weights
+        run: |
+          python model-lab/scripts/make_runtime_soup_config.py \
+            --template model-lab/soup/core/sft-smoke.yaml \
+            --base . \
+            --output /tmp/aira-sft-smoke.runtime.yaml
+          grep -q 'base: "/home/runner/work/' /tmp/aira-sft-smoke.runtime.yaml
+          grep -q 'format: alpaca' /tmp/aira-sft-smoke.runtime.yaml
+
+      - name: Validate fail-closed Core source catalog
+        run: python model-lab/scripts/prepare_core_dataset.py --validate-only
+
+      - name: Prove NOT_TESTED Core cannot pass release-candidate gate
+        run: |
+          if python model-lab/scripts/check_release_gate.py model-lab/eval/fixtures/core-not-tested-evidence.json --gate release-candidate; then
+            echo "::error::NOT_TESTED Core incorrectly passed the release-candidate gate."
+            exit 1
+          fi
+          echo "Release-candidate gate correctly failed closed."
+
+      - name: Prove NOT_TESTED Core cannot pass production gate
+        run: |
+          if python model-lab/scripts/check_release_gate.py model-lab/eval/fixtures/core-not-tested-evidence.json --gate production; then
+            echo "::error::NOT_TESTED Core incorrectly passed the production gate."
+            exit 1
+          fi
+          echo "Production gate correctly failed closed."
+
+  windows-operator-contract:
+    runs-on: windows-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Parse RX 9070 XT PowerShell operator without executing it
+        shell: pwsh
+        run: |
+          $path = Resolve-Path "model-lab/scripts/windows/run-rx9070xt-smoke.ps1"
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          Write-Host "RX 9070 XT operator syntax is valid; hardware execution is intentionally not attempted on GitHub-hosted runners."
+
+  web-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run existing AIRA quality gates
+        run: pnpm run ci
