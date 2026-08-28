@@ -24,13 +24,18 @@ const capabilities: AgentRuntimeCapabilities = {
 	artifacts: false,
 };
 
-function state(id: AgentRuntimeId, ready: boolean): AgentRuntimeHealth {
+function state(
+	id: AgentRuntimeId,
+	options: { ready: boolean; configured?: boolean; enabled?: boolean },
+): AgentRuntimeHealth {
+	const configured = options.configured ?? options.ready;
+	const enabled = options.enabled ?? options.ready;
 	return {
 		id,
-		enabled: ready,
-		configured: ready,
-		healthy: ready,
-		ready,
+		enabled,
+		configured,
+		healthy: options.ready,
+		ready: options.ready,
 		capabilities,
 	};
 }
@@ -39,7 +44,11 @@ test("preserves DeerFlow then AutoGPT as the default selection order", () => {
 	assert.deepEqual(DEFAULT_RUNTIME_PRIORITY, ["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]);
 	assert.equal(
 		selectRuntimeId({
-			states: [state("AGENT_SWARM", true), state("AUTOGPT", true), state("DEERFLOW", true)],
+			states: [
+				state("AGENT_SWARM", { ready: true }),
+				state("AUTOGPT", { ready: true }),
+				state("DEERFLOW", { ready: true }),
+			],
 		}),
 		"DEERFLOW",
 	);
@@ -48,7 +57,11 @@ test("preserves DeerFlow then AutoGPT as the default selection order", () => {
 test("falls back without selecting an unready runtime", () => {
 	assert.equal(
 		selectRuntimeId({
-			states: [state("DEERFLOW", false), state("AUTOGPT", true), state("AGENT_SWARM", true)],
+			states: [
+				state("DEERFLOW", { ready: false }),
+				state("AUTOGPT", { ready: true }),
+				state("AGENT_SWARM", { ready: true }),
+			],
 		}),
 		"AUTOGPT",
 	);
@@ -57,21 +70,44 @@ test("falls back without selecting an unready runtime", () => {
 test("honors an explicitly requested ready runtime", () => {
 	assert.equal(
 		selectRuntimeId({
-			states: [state("DEERFLOW", true), state("AUTOGPT", true), state("AGENT_SWARM", true)],
+			states: [
+				state("DEERFLOW", { ready: true }),
+				state("AUTOGPT", { ready: true }),
+				state("AGENT_SWARM", { ready: true }),
+			],
 			requested: "AGENT_SWARM",
 		}),
 		"AGENT_SWARM",
 	);
 });
 
-test("fails closed when the requested runtime is not ready", () => {
+test("fails closed when a configured requested runtime is disabled", () => {
 	assert.throws(
 		() =>
 			selectRuntimeId({
-				states: [state("DEERFLOW", true), state("AUTOGPT", true), state("AGENT_SWARM", false)],
+				states: [
+					state("DEERFLOW", { ready: true }),
+					state("AUTOGPT", { ready: true }),
+					state("AGENT_SWARM", { ready: false, configured: true, enabled: false }),
+				],
 				requested: "AGENT_SWARM",
 			}),
 		(error: unknown) => error instanceof AgentRuntimeError && error.code === "RUNTIME_DISABLED",
+	);
+});
+
+test("fails closed when the requested runtime is not configured", () => {
+	assert.throws(
+		() =>
+			selectRuntimeId({
+				states: [
+					state("DEERFLOW", { ready: true }),
+					state("AUTOGPT", { ready: true }),
+					state("AGENT_SWARM", { ready: false }),
+				],
+				requested: "AGENT_SWARM",
+			}),
+		(error: unknown) => error instanceof AgentRuntimeError && error.code === "RUNTIME_NOT_CONFIGURED",
 	);
 });
 
