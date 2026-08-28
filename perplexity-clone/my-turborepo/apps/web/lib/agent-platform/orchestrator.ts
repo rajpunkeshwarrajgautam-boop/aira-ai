@@ -1,6 +1,10 @@
 import { AgentRunStatus } from "@/generated/prisma/enums";
 import { getAgentRuntime, selectAgentRuntime } from "@/lib/agent-runtime/registry";
-import type { AgentRuntimeId } from "@/lib/agent-runtime/types";
+import { AgentRuntimeError, type AgentRuntimeId } from "@/lib/agent-runtime/types";
+import {
+	consumeAgentRunQuota,
+	refundAgentRunQuota,
+} from "@/lib/billing/plan-enforcement";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -10,10 +14,12 @@ import {
 	createAgentInstance,
 	createPlatformRun,
 	failTask,
+	getRunByClientRequestId,
 	getRunForUser,
 	listPendingApprovals,
 	listTasks,
 	markTaskRunning,
+	recoverExpiredClaims,
 	setRunStatus,
 	setTaskStatus,
 } from "./store";
@@ -44,7 +50,7 @@ const AGENT_TOOLS: Record<string, readonly string[]> = {
 
 function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 	return {
-		maxAgents: Math.max(1, Math.min(16, input?.maxAgents ?? DEFAULT_RUN_BUDGETS.maxAgents)),
+		maxAgents: Math.max(13, Math.min(24, input?.maxAgents ?? DEFAULT_RUN_BUDGETS.maxAgents)),
 		maxParallelAgents: Math.max(1, Math.min(6, input?.maxParallelAgents ?? DEFAULT_RUN_BUDGETS.maxParallelAgents)),
 		maxToolCalls: Math.max(10, Math.min(500, input?.maxToolCalls ?? DEFAULT_RUN_BUDGETS.maxToolCalls)),
 		maxTokens: Math.max(10_000, Math.min(2_000_000, input?.maxTokens ?? DEFAULT_RUN_BUDGETS.maxTokens)),
@@ -190,21 +196,49 @@ export function buildManagerDag(objective: string): TaskSpec[] {
 export async function startManagedRun(input: {
 	readonly userId: string;
 	readonly projectId: string;
+	readonly clientRequestId: string;
 	readonly objective: string;
 	readonly requestedRuntime?: AgentRuntimeId;
 	readonly budgets?: Partial<RunBudgets>;
 }): Promise<RuntimeTickResult> {
+	const existing = await getRunByClientRequestId(input.userId, input.clientRequestId);
+	if (existing) return tickManagedRun(input.userId, existing.id);
+
 	const runtime = await selectAgentRuntime(input.requestedRuntime);
 	const budgets = boundedBudgets(input.budgets);
-	const tasks = buildManagerDag(input.objective).slice(0, budgets.maxAgents);
-	const run = await createPlatformRun({
-		userId: input.userId,
+	const tasks = buildManagerDag(input.objective);
+	if (tasks.length > budgets.maxAgents) {
+		throw new AgentRuntimeError({
+			code: "MISSION_AGENT_BUDGET_TOO_SMALL",
+			message: `This mission requires ${tasks.length} specialist tasks but maxAgents is ${budgets.maxAgents}.`,
+			status: 400,
+			runtimeId: runtime.id,
+		});
+	}
+
+	await consumeAgentRunQuota(input.userId);
+	let run: PlatformRun;
+	try {
+		run = await createPlatformRun({
+			userId: input.userId,
+			projectId: input.projectId,
+			clientRequestId: input.clientRequestId,
+			runtime: runtime.id,
+			budgets,
+			tasks,
+		});
+	} catch (error) {
+		const concurrent = await getRunByClientRequestId(input.userId, input.clientRequestId);
+		await refundAgentRunQuota(input.userId).catch(() => undefined);
+		if (concurrent) return tickManagedRun(input.userId, concurrent.id);
+		throw error;
+	}
+	await appendEvent({
 		projectId: input.projectId,
-		runtime: runtime.id,
-		budgets,
-		tasks,
+		runId: run.id,
+		type: "run.started",
+		payload: { manager: "AIRA_MANAGER", runtime: runtime.id, billing: "mission" },
 	});
-	await appendEvent({ projectId: input.projectId, runId: run.id, type: "run.started", payload: { manager: "AIRA_MANAGER", runtime: runtime.id } });
 	return tickManagedRun(input.userId, run.id);
 }
 
@@ -292,6 +326,7 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					task.objective,
 					"Work only on this delegated task. Return concrete artifacts/evidence and concise handoff information to the Manager.",
 				].join("\n\n"),
+				billingMode: "DELEGATED",
 			});
 			await markTaskRunning(task.id, submission.run.id, agentId);
 			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, agentId, type: "task.started", payload: { runtime: runtime.id, runtimeRunId: submission.run.id } });
@@ -340,6 +375,14 @@ export async function tickManagedRun(userId: string, runId: string): Promise<Run
 	if (run.status === "COMPLETED" || run.status === "FAILED" || run.status === "CANCELLED") {
 		return { run, tasks: await listTasks(run.id), dispatched: 0, reconciled: 0 };
 	}
+	if (run.startedAt && Date.now() - run.startedAt.getTime() > run.budgets.maxDurationMinutes * 60_000) {
+		await cancelManagedRun(userId, run.id);
+		await setRunStatus(run.id, "FAILED", `Mission exceeded its ${run.budgets.maxDurationMinutes}-minute execution budget.`);
+		await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.failed", payload: { reason: "duration_budget" } });
+		run = (await getRunForUser(userId, run.id))!;
+		return { run, tasks: await listTasks(run.id), dispatched: 0, reconciled: 0 };
+	}
+	await recoverExpiredClaims(run.id);
 	let tasks = await listTasks(run.id);
 	const reconciled = await reconcileActiveTasks(userId, run, tasks);
 	tasks = await listTasks(run.id);
