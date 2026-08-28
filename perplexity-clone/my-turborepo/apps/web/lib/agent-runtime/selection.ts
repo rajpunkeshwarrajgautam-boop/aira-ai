@@ -29,15 +29,7 @@ export function selectRuntimeId(options: {
 	const byId = new Map(options.states.map((state) => [state.id, state]));
 	if (options.requested) {
 		const state = byId.get(options.requested);
-		if (!state?.enabled) {
-			throw new AgentRuntimeError({
-				code: "RUNTIME_DISABLED",
-				message: `${options.requested} is disabled for this AIRA deployment.`,
-				status: 503,
-				runtimeId: options.requested,
-			});
-		}
-		if (!state.configured) {
+		if (!state?.configured) {
 			throw new AgentRuntimeError({
 				code: "RUNTIME_NOT_CONFIGURED",
 				message: `${options.requested} is not configured for this AIRA deployment.`,
@@ -47,11 +39,13 @@ export function selectRuntimeId(options: {
 		}
 		if (!state.ready) {
 			throw new AgentRuntimeError({
-				code: "RUNTIME_UNAVAILABLE",
-				message: `${options.requested} is temporarily unavailable.`,
+				code: state.enabled ? "RUNTIME_UNAVAILABLE" : "RUNTIME_DISABLED",
+				message: state.enabled
+					? `${options.requested} is temporarily unavailable.`
+					: `${options.requested} is disabled for this AIRA deployment.`,
 				status: 503,
 				runtimeId: options.requested,
-				retryable: true,
+				retryable: state.enabled,
 			});
 		}
 		return options.requested;
