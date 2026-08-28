@@ -270,7 +270,11 @@ function statusFromSwarm(status: SwarmTask["status"]): AgentRunStatus {
 }
 
 function isTerminal(status: AgentRunStatus): boolean {
-	return [AgentRunStatus.COMPLETED, AgentRunStatus.FAILED, AgentRunStatus.TERMINATED].includes(status);
+	return (
+		status === AgentRunStatus.COMPLETED ||
+		status === AgentRunStatus.FAILED ||
+		status === AgentRunStatus.TERMINATED
+	);
 }
 
 async function persistTaskState(row: SelectedRun, task: SwarmTask): Promise<AgentRunDto> {
