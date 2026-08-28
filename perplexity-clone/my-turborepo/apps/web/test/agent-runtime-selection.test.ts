@@ -54,6 +54,19 @@ test("preserves DeerFlow then AutoGPT as the default selection order", () => {
 	);
 });
 
+test("preserves a configured legacy runtime even when its old UI flag is off", () => {
+	assert.equal(
+		selectRuntimeId({
+			states: [
+				state("DEERFLOW", { ready: false }),
+				state("AUTOGPT", { ready: true, configured: true, enabled: false }),
+				state("AGENT_SWARM", { ready: false }),
+			],
+		}),
+		"AUTOGPT",
+	);
+});
+
 test("falls back without selecting an unready runtime", () => {
 	assert.equal(
 		selectRuntimeId({
