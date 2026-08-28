@@ -1,6 +1,7 @@
 import type { AgentRunDto } from "@/lib/autogpt/runs";
 
 export type AgentRuntimeId = "DEERFLOW" | "AUTOGPT" | "AGENT_SWARM";
+export type AgentRunBillingMode = "BILLABLE" | "DELEGATED";
 
 export interface AgentRuntimeCapabilities {
 	readonly cancel: boolean;
@@ -27,6 +28,11 @@ export interface CreateAgentRunInput {
 	readonly userId: string;
 	readonly clientRequestId: string;
 	readonly objective: string;
+	/**
+	 * BILLABLE is the default for user-launched standalone runs. DELEGATED is
+	 * reserved for child executions inside an already-billed managed mission.
+	 */
+	readonly billingMode?: AgentRunBillingMode;
 }
 
 export interface AgentRunSubmission {
