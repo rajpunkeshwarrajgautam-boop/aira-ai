@@ -87,6 +87,26 @@
 	}
 }
 
+# --- Terminal / Git worktree worker ------------------------------------------
+# The worker exposes only authenticated workspace operations. It has no remote
+# push/force-push route; remote Git hosting mutations remain separate Tool
+# Gateway actions with their own risk/approval policy.
+{$AIRA_TERMINAL_HOST} {
+	import hardened
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:{$AIRA_TERMINAL_PORT}
+	}
+
+	handle /v1/workspaces* {
+		reverse_proxy 127.0.0.1:{$AIRA_TERMINAL_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
 # --- DeerFlow Gateway ---------------------------------------------------------
 {$AIRA_DEERFLOW_HOST} {
 	import hardened
