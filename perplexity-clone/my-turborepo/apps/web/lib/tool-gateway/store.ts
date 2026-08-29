@@ -1,3 +1,4 @@
+import { APPROVAL_TTL_MINUTES } from "@/lib/agent-platform/approval-expiry";
 import { prisma } from "@/lib/prisma";
 
 import type { RiskClass } from "@/lib/agent-platform/types";
@@ -147,19 +148,45 @@ export async function isToolApprovalApproved(
 	approvalId: string,
 	inputHash: string,
 ): Promise<boolean> {
-	const rows = await prisma.$queryRaw<Array<{ approved: boolean }>>`
-		select exists(
-			select 1 from "AgentApproval" a
-			join "AgentToolCall" c on c."approvalId"=a."id"
-			where a."id"=${approvalId}
-			  and c."id"=${toolCallId}
-			  and a."userId"=${userId}
-			  and c."userId"=${userId}
-			  and c."inputHash"=${inputHash}
-			  and a."status"='APPROVED'
-			  and a."context"->>'inputHash'=${inputHash}
-		) as approved
+	const rows = await prisma.$queryRaw<Array<{ approved: boolean; expired: boolean }>>`
+		select
+			exists(
+				select 1 from "AgentApproval" a
+				join "AgentToolCall" c on c."approvalId"=a."id"
+				where a."id"=${approvalId}
+				  and c."id"=${toolCallId}
+				  and a."userId"=${userId}
+				  and c."userId"=${userId}
+				  and c."inputHash"=${inputHash}
+				  and a."status"='APPROVED'
+				  and a."context"->>'inputHash'=${inputHash}
+				  and a."createdAt" >= current_timestamp - (${APPROVAL_TTL_MINUTES} * interval '1 minute')
+			) as approved,
+			exists(
+				select 1 from "AgentApproval" a
+				join "AgentToolCall" c on c."approvalId"=a."id"
+				where a."id"=${approvalId}
+				  and c."id"=${toolCallId}
+				  and a."userId"=${userId}
+				  and c."userId"=${userId}
+				  and c."inputHash"=${inputHash}
+				  and a."context"->>'inputHash'=${inputHash}
+				  and a."status"='APPROVED'
+				  and a."createdAt" < current_timestamp - (${APPROVAL_TTL_MINUTES} * interval '1 minute')
+			) as expired
 	`;
+	if (rows[0]?.expired) {
+		await prisma.$executeRaw`
+			update "AgentApproval"
+			set "status"='EXPIRED', "resolvedAt"=coalesce("resolvedAt", current_timestamp)
+			where "id"=${approvalId} and "userId"=${userId} and "status"='APPROVED'
+		`;
+		throw new ToolGatewayError({
+			code: "TOOL_APPROVAL_EXPIRED",
+			message: "This tool approval expired. Start a fresh request and obtain a new approval before executing the action.",
+			status: 409,
+		});
+	}
 	return Boolean(rows[0]?.approved);
 }
 
