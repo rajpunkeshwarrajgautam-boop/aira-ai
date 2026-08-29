@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -65,6 +66,11 @@ test("audit summaries omit sensitive operation payloads while input hashing rema
 	});
 	assert.equal(JSON.stringify(mcp).includes("secret-generic-value"), false);
 	assert.equal(mcp.arguments, "[redacted-by-policy]");
+});
+
+test("tool ownership query binds a supplied agent to the supplied task", () => {
+	const source = readFileSync(new URL("../lib/tool-gateway/store.ts", import.meta.url), "utf8");
+	assert.match(source, /a\."currentTaskId"=\$\{context\.taskId \?\? null\}/);
 });
 
 test("unknown actions fail toward human approval", () => {
