@@ -8,7 +8,7 @@ import { browser } from './browser'
 import { getSettings } from './config'
 import { focusWindow, launchApp, listWindows, mouseClick, pasteText, powerShell, pressKeys, scroll } from './computer'
 import { addMemory, searchMemory } from './memory'
-import { resolvePathInsideRoot } from './policy'
+import { resolvePathInsideRoot, sanitizeApprovalDetails } from './policy'
 import { indexWorkspace, ragStatus, searchWorkspace } from './rag'
 import { analyzeScreen, capturePrimaryScreen, locateOnScreen } from './screen'
 import { cancelTask, createTask, listTasks } from './scheduler'
@@ -72,4 +72,4 @@ run_skill:{name:'run_skill',description:'Load custom skill instructions into cur
 }
 export function toolDescriptors():ToolDescriptor[]{return Object.values(tools).map(({run:_run,...descriptor})=>descriptor)}
 export function toolCatalog():string{return toolDescriptors().map(tool=>`- ${tool.name}: ${tool.description}${tool.requiresApproval?` [APPROVAL ${tool.risk.toUpperCase()}]`:''}`).join('\n')}
-export async function executeTool(name:string,args:Record<string,unknown>={},context:ToolContext):Promise<unknown>{const spec=tools[name];if(!spec)throw new Error(`Unknown tool: ${name}`);let approved=true;if(spec.requiresApproval){if(context.unattended)approved=false;else approved=await context.approve(`Allow ${name}?`,JSON.stringify(args,null,2).slice(0,5000),spec.risk)}logAudit({type:'tool',tool:name,approved,summary:JSON.stringify(args).slice(0,500)});if(!approved)return{denied:true,reason:context.unattended?'Unattended tasks cannot execute state-changing tools.':'User denied action.'};try{const result=await spec.run(args,context);logAudit({type:'tool_result',tool:name,summary:JSON.stringify(result).slice(0,700)});return result}catch(error){logAudit({type:'tool_error',tool:name,summary:error instanceof Error?error.message:String(error)});throw error}}
+export async function executeTool(name:string,args:Record<string,unknown>={},context:ToolContext):Promise<unknown>{const spec=tools[name];if(!spec)throw new Error(`Unknown tool: ${name}`);let approved=true;if(spec.requiresApproval){if(context.unattended)approved=false;else approved=await context.approve(`Allow ${name}?`,sanitizeApprovalDetails(name,args),spec.risk)}logAudit({type:'tool',tool:name,approved,summary:JSON.stringify(args).slice(0,500)});if(!approved)return{denied:true,reason:context.unattended?'Unattended tasks cannot execute state-changing tools.':'User denied action.'};try{const result=await spec.run(args,context);logAudit({type:'tool_result',tool:name,summary:JSON.stringify(result).slice(0,700)});return result}catch(error){logAudit({type:'tool_error',tool:name,summary:error instanceof Error?error.message:String(error)});throw error}}
