@@ -112,3 +112,20 @@ export async function retrieveProjectMemory(input: {
 		.slice(0, Math.max(1, Math.min(12, input.limit ?? 8)))
 		.map((entry) => entry.memory);
 }
+
+export async function deleteProjectMemory(input: {
+	readonly userId: string;
+	readonly projectId: string;
+	readonly memoryKey: string;
+}): Promise<boolean> {
+	const affected = await prisma.$executeRaw`
+		delete from "AgentProjectMemory" m
+		using "AgentProject" p
+		where m."projectId"=p."id"
+		  and m."projectId"=${input.projectId}
+		  and m."userId"=${input.userId}
+		  and p."userId"=${input.userId}
+		  and m."memoryKey"=${input.memoryKey.trim().slice(0, 180)}
+	`;
+	return affected > 0;
+}
