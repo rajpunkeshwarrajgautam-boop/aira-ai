@@ -55,7 +55,10 @@ export async function assertToolContextOwnership(context: ToolContext): Promise<
 			  ))
 			  and (${context.agentId ?? null}::text is null or exists(
 				select 1 from "AgentInstance" a
-				where a."id"=${context.agentId ?? null} and a."runId"=r."id" and a."projectId"=p."id"
+				where a."id"=${context.agentId ?? null}
+				  and a."runId"=r."id"
+				  and a."projectId"=p."id"
+				  and (${context.taskId ?? null}::text is null or a."currentTaskId"=${context.taskId ?? null})
 			  ))
 		) as ok
 	`;
