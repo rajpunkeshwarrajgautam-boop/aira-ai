@@ -30,6 +30,17 @@ where r."id"=c."id"
 returning r."id", r."userId", r."schedulerLeaseOwner"
 '''
 
+RENEW_SQL = '''
+update "AgentPlatformRun"
+set "schedulerLeaseExpiresAt"=current_timestamp + (%s * interval '1 second'),
+    "updatedAt"=current_timestamp
+where "id"=%s
+  and "schedulerLeaseOwner"=%s
+  and "schedulerLeaseExpiresAt" >= current_timestamp
+  and "status" in ('PLANNING','RUNNING','WAITING')
+returning "schedulerLeaseExpiresAt"
+'''
+
 FAILURE_RELEASE_SQL = '''
 update "AgentPlatformRun"
 set "schedulerLeaseOwner"=null,
@@ -128,6 +139,36 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
         self.assertIn("stale", claimed)
         self.assertNotIn("active", claimed)
 
+    def test_live_owner_can_renew_but_wrong_or_expired_owner_cannot(self):
+        now = datetime.now(timezone.utc)
+        self.insert_run("renewable", lease_owner="scheduler-a", lease_expires_at=now + timedelta(seconds=20))
+        self.insert_run("expired", lease_owner="scheduler-a", lease_expires_at=now - timedelta(seconds=1))
+        before = datetime.now(timezone.utc)
+        with psycopg.connect(DATABASE_URL) as connection:
+            wrong = connection.execute(RENEW_SQL, (45, "renewable", "scheduler-b")).fetchone()
+            renewed = connection.execute(RENEW_SQL, (45, "renewable", "scheduler-a")).fetchone()
+            stale = connection.execute(RENEW_SQL, (45, "expired", "scheduler-a")).fetchone()
+        self.assertIsNone(wrong)
+        self.assertIsNotNone(renewed)
+        self.assertGreaterEqual(renewed[0], before + timedelta(seconds=40))
+        self.assertIsNone(stale)
+
+    def test_expired_owner_cannot_resurrect_after_another_scheduler_reclaims(self):
+        self.insert_run(
+            "handoff",
+            lease_owner="scheduler-old",
+            lease_expires_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        )
+        claimed = self.claim("scheduler-new", limit=1, hold_seconds=0)
+        self.assertEqual(claimed, ["handoff"])
+        with psycopg.connect(DATABASE_URL) as connection:
+            stale = connection.execute(RENEW_SQL, (45, "handoff", "scheduler-old")).fetchone()
+            owner = connection.execute(
+                'select "schedulerLeaseOwner" from "AgentPlatformRun" where "id"=\'handoff\''
+            ).fetchone()[0]
+        self.assertIsNone(stale)
+        self.assertEqual(owner, "scheduler-new")
+
     def test_future_backoff_is_not_claimed(self):
         self.insert_run("backoff", next_attempt=datetime.now(timezone.utc) + timedelta(minutes=2))
         self.insert_run("ready")
@@ -153,6 +194,9 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
         self.assertIn("'planning','running','waiting'", source.replace(" ", ""))
         self.assertIn('"schedulerleaseowner"=${workerid}', source)
         self.assertIn('where "id"=${runid} and "schedulerleaseowner"=${workerid}', source)
+        self.assertIn("renewschedulerlease", source)
+        self.assertIn('"schedulerleaseexpiresat">=current_timestamp', source.replace(" ", ""))
+        self.assertIn("startschedulerleaseheartbeat", source)
         self.assertNotIn("approval_required','blocked", source.replace(" ", ""))
 
 
