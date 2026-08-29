@@ -1,0 +1,68 @@
+name: Terminal Worker CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/terminal-worker/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/terminal-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/**"
+      - ".github/workflows/terminal-worker-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terminal-worker/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/terminal-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/**"
+      - ".github/workflows/terminal-worker-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  terminal-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AIRA_TERMINAL_RUNTIME_TOKEN: contract-terminal-runtime-token-contract
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python source
+        run: python -m py_compile infra/terminal-worker/server.py
+
+      - name: Validate Compose security profile
+        working-directory: infra/terminal-worker
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Confirm dangerous container capabilities are absent
+        run: |
+          grep -q '127.0.0.1:' infra/terminal-worker/compose.yml
+          grep -q 'cap_drop: \["ALL"\]' infra/terminal-worker/compose.yml
+          grep -q 'no-new-privileges:true' infra/terminal-worker/compose.yml
+          grep -q 'read_only: true' infra/terminal-worker/compose.yml
+          if grep -RnE '(privileged:[[:space:]]*true|/var/run/docker.sock|0\.0\.0\.0:[0-9]+:8080)' infra/terminal-worker; then
+            echo "::error::Unsafe terminal worker configuration detected."
+            exit 1
+          fi
+
+      - name: Confirm worker has no remote push endpoint
+        run: |
+          if grep -nE '@app\.(post|put|patch).*push|git push|force.push' infra/terminal-worker/server.py; then
+            echo "::error::Remote Git push must not be exposed by the isolated terminal worker."
+            exit 1
+          fi
+          grep -q 'asyncio.create_subprocess_exec' infra/terminal-worker/server.py
+          if grep -q 'create_subprocess_shell' infra/terminal-worker/server.py; then
+            echo "::error::Shell-string execution is forbidden."
+            exit 1
+          fi
+
+      - name: Build terminal worker image
+        run: docker build -t aira-terminal-worker:ci infra/terminal-worker
