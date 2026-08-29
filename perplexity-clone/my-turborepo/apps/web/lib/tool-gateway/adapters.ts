@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import {
+	claimBrowserActionLease,
+	releaseBrowserActionLease,
+} from "@/lib/agent-platform/browser-arbitration";
+import {
 	getBrowserSession,
 	recordBrowserAction,
 	updateBrowserSession,
@@ -98,40 +102,61 @@ export const browserToolAdapter: ToolAdapter = {
 		if (!session.permissions.includes(action)) {
 			throw new ToolGatewayError({ code: "BROWSER_PERMISSION_DENIED", message: "Browser action is outside the session permission scope.", status: 403 });
 		}
-		const actionInput = {
-			selector: parsed.data.selector,
-			text: parsed.data.text,
-			value: parsed.data.value,
-			key: parsed.data.key,
-			url: parsed.data.url,
-			x: parsed.data.x,
-			y: parsed.data.y,
-			deltaY: parsed.data.deltaY,
-			milliseconds: parsed.data.milliseconds,
-		};
-		const result = await runRemoteBrowserAction(session.id, { action, ...actionInput });
-		await Promise.all([
-			updateBrowserSession({ sessionId: session.id, currentUrl: result.currentUrl, screenshotUri: `/api/browser/sessions/${encodeURIComponent(session.id)}/screenshot` }),
-			recordBrowserAction({
-				sessionId: session.id,
-				source: context.source === "USER" ? "HUMAN" : context.source,
-				action,
-				target: parsed.data.url ?? parsed.data.selector ?? null,
-				result: { currentUrl: result.currentUrl, title: result.title },
-				risk: ["navigate", "scroll", "wait", "inspect", "hover"].includes(action) ? "LOW" : "MEDIUM",
-				screenshotUri: `/api/browser/sessions/${encodeURIComponent(session.id)}/screenshot`,
-			}),
-		]);
-		return {
-			result: {
-				currentUrl: result.currentUrl,
-				title: result.title,
-				...(result.text ? { text: result.text.slice(0, 20_000) } : {}),
-				console: result.console?.slice(-50) ?? [],
-				pageErrors: result.pageErrors?.slice(-50) ?? [],
-				networkFailures: result.networkFailures?.slice(-50) ?? [],
-			},
-		};
+
+		const leaseOwner = `browser:${context.source.toLowerCase()}:${crypto.randomUUID()}`;
+		const claimed = await claimBrowserActionLease({
+			userId: context.userId,
+			sessionId: session.id,
+			source: context.source === "USER" ? "USER" : "AGENT",
+			leaseOwner,
+		});
+		if (!claimed) {
+			throw new ToolGatewayError({
+				code: "BROWSER_CONTROL_RACE",
+				message: "Browser ownership changed or another action is already in progress. Refresh session state before retrying.",
+				status: 409,
+				retryable: true,
+			});
+		}
+
+		try {
+			const actionInput = {
+				selector: parsed.data.selector,
+				text: parsed.data.text,
+				value: parsed.data.value,
+				key: parsed.data.key,
+				url: parsed.data.url,
+				x: parsed.data.x,
+				y: parsed.data.y,
+				deltaY: parsed.data.deltaY,
+				milliseconds: parsed.data.milliseconds,
+			};
+			const result = await runRemoteBrowserAction(session.id, { action, ...actionInput });
+			await Promise.all([
+				updateBrowserSession({ sessionId: session.id, currentUrl: result.currentUrl, screenshotUri: `/api/browser/sessions/${encodeURIComponent(session.id)}/screenshot` }),
+				recordBrowserAction({
+					sessionId: session.id,
+					source: context.source === "USER" ? "HUMAN" : context.source,
+					action,
+					target: parsed.data.url ?? parsed.data.selector ?? null,
+					result: { currentUrl: result.currentUrl, title: result.title },
+					risk: ["navigate", "scroll", "wait", "inspect", "hover"].includes(action) ? "LOW" : "MEDIUM",
+					screenshotUri: `/api/browser/sessions/${encodeURIComponent(session.id)}/screenshot`,
+				}),
+			]);
+			return {
+				result: {
+					currentUrl: result.currentUrl,
+					title: result.title,
+					...(result.text ? { text: result.text.slice(0, 20_000) } : {}),
+					console: result.console?.slice(-50) ?? [],
+					pageErrors: result.pageErrors?.slice(-50) ?? [],
+					networkFailures: result.networkFailures?.slice(-50) ?? [],
+				},
+			};
+		} finally {
+			await releaseBrowserActionLease({ userId: context.userId, sessionId: session.id, leaseOwner }).catch(() => undefined);
+		}
 	},
 };
 
