@@ -1,5 +1,5 @@
 import { promises as dns } from 'dns'
-import { promises as fs } from 'fs'
+import { existsSync, mkdirSync, realpathSync } from 'fs'
 import { isIP } from 'net'
 import path from 'path'
 
@@ -141,27 +141,21 @@ export function isPathInside(root: string, target: string): boolean {
  * the path to escape the configured workspace. The target itself may not exist
  * yet (for writes), so the nearest existing ancestor is canonicalized.
  */
-export async function resolvePathInsideRoot(root: string, target: string): Promise<string> {
+export function resolvePathInsideRoot(root: string, target: string): string {
   const base = path.resolve(root)
   const full = path.resolve(target)
   if (!isPathInside(base, full)) throw new Error(`Path is outside workspace: ${base}`)
 
-  await fs.mkdir(base, { recursive: true })
-  const realBase = await fs.realpath(base)
+  if (!existsSync(base)) mkdirSync(base, { recursive: true })
+  const realBase = realpathSync.native(base)
   let probe = full
-  while (true) {
-    try {
-      const realProbe = await fs.realpath(probe)
-      if (!isPathInside(realBase, realProbe)) throw new Error(`Path escapes workspace through a symlink or junction: ${base}`)
-      break
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException | undefined)?.code
-      if (code !== 'ENOENT') throw error
-      const parent = path.dirname(probe)
-      if (parent === probe || !isPathInside(base, parent)) throw new Error(`Path is outside workspace: ${base}`)
-      probe = parent
-    }
+  while (!existsSync(probe)) {
+    const parent = path.dirname(probe)
+    if (parent === probe || !isPathInside(base, parent)) throw new Error(`Path is outside workspace: ${base}`)
+    probe = parent
   }
+  const realProbe = realpathSync.native(probe)
+  if (!isPathInside(realBase, realProbe)) throw new Error(`Path escapes workspace through a symlink or junction: ${base}`)
   return full
 }
 
