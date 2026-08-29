@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { buildManagerDag } from "../lib/agent-platform/orchestrator";
@@ -57,6 +58,16 @@ test("default mission budget cannot silently truncate the production DAG", () =>
 	const productionTasks = buildManagerDag("ship this application to production");
 	assert.ok(DEFAULT_RUN_BUDGETS.maxAgents >= productionTasks.length);
 	assert.ok(DEFAULT_RUN_BUDGETS.maxParallelAgents < DEFAULT_RUN_BUDGETS.maxAgents);
+});
+
+test("managed mission creation uses request-bound quota and does not refund a concurrent winner", () => {
+	const source = readFileSync(new URL("../lib/agent-platform/orchestrator.ts", import.meta.url), "utf8");
+	assert.match(source, /consumeManagedMissionQuota\(input\.userId, input\.clientRequestId\)/);
+	assert.doesNotMatch(source, /consumeAgentRunQuota\(/);
+	const concurrent = source.indexOf("const concurrent = await getRunByClientRequestId", source.indexOf("export async function startManagedRun"));
+	const concurrentReturn = source.indexOf("if (concurrent) return tickManagedRun", concurrent);
+	const refund = source.indexOf("refundManagedMissionQuota(input.userId, input.clientRequestId)", concurrent);
+	assert.ok(concurrent >= 0 && concurrentReturn > concurrent && refund > concurrentReturn, "a losing concurrent creator must reuse the winner before any quota refund");
 });
 
 test("browser runtime remains disabled unless explicitly enabled", () => {
