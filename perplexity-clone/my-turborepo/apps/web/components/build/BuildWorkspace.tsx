@@ -7,7 +7,6 @@ import {
 	CircleDot,
 	GitBranch,
 	Loader2,
-	PauseCircle,
 	Play,
 	RefreshCw,
 	Send,
