@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { prisma } from "@/lib/prisma";
 import { executeTool } from "@/lib/tool-gateway/gateway";
 import { ToolGatewayError } from "@/lib/tool-gateway/types";
 
@@ -10,14 +11,14 @@ const RequestSchema = z.object({
 	userId: z.string().min(1).max(160),
 	projectId: z.string().min(8).max(160),
 	runId: z.string().min(8).max(160),
-	taskId: z.string().min(8).max(160).optional(),
-	agentId: z.string().min(8).max(160).optional(),
+	taskId: z.string().min(8).max(160),
+	agentId: z.string().min(8).max(160),
 	clientRequestId: z.string().trim().min(8).max(160),
 	tool: z.enum(["browser", "terminal", "git", "files", "memory", "web", "github", "vercel", "supabase", "mcp"]),
 	action: z.string().trim().min(1).max(120),
 	input: z.record(z.string(), z.unknown()).default({}),
 	approvalId: z.string().min(8).max(160).optional(),
-});
+}).strict();
 
 function authorized(req: Request): boolean {
 	const expected = process.env.AIRA_TOOL_GATEWAY_TOKEN?.trim();
@@ -35,6 +36,35 @@ function json(body: unknown, init?: ResponseInit): Response {
 	return Response.json(body, { ...init, headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) } });
 }
 
+async function agentContextAuthorized(input: {
+	readonly userId: string;
+	readonly projectId: string;
+	readonly runId: string;
+	readonly taskId: string;
+	readonly agentId: string;
+	readonly tool: string;
+}): Promise<boolean> {
+	const rows = await prisma.$queryRaw<Array<{ ok: boolean }>>`
+		select exists(
+			select 1
+			from "AgentPlatformRun" r
+			join "AgentProject" p on p."id"=r."projectId"
+			join "AgentTask" t on t."id"=${input.taskId} and t."runId"=r."id" and t."projectId"=p."id"
+			join "AgentInstance" a on a."id"=${input.agentId}
+				and a."runId"=r."id" and a."projectId"=p."id" and a."currentTaskId"=t."id"
+			where r."id"=${input.runId}
+			  and r."projectId"=${input.projectId}
+			  and r."userId"=${input.userId}
+			  and p."userId"=${input.userId}
+			  and r."status" in ('RUNNING','WAITING','APPROVAL_REQUIRED')
+			  and t."status" in ('CLAIMED','RUNNING','WAITING','APPROVAL_REQUIRED')
+			  and a."status" in ('WORKING','WAITING','PAUSED')
+			  and a."allowedTools" @> ${JSON.stringify([input.tool])}::jsonb
+		) as ok
+	`;
+	return Boolean(rows[0]?.ok);
+}
+
 export async function POST(req: Request): Promise<Response> {
 	if (!authorized(req)) return json({ error: { code: "UNAUTHORIZED", message: "Unauthorized tool-gateway request." } }, { status: 401 });
 	if (!["1", "true", "yes", "on"].includes((process.env.AIRA_TOOL_GATEWAY_ENABLED ?? "").trim().toLowerCase())) {
@@ -42,6 +72,9 @@ export async function POST(req: Request): Promise<Response> {
 	}
 	const parsed = RequestSchema.safeParse(await req.json().catch(() => null));
 	if (!parsed.success) return json({ error: { code: "VALIDATION_ERROR", message: "Tool request is invalid.", details: z.treeifyError(parsed.error) } }, { status: 400 });
+	if (!(await agentContextAuthorized(parsed.data))) {
+		return json({ error: { code: "AGENT_TOOL_CONTEXT_FORBIDDEN", message: "The active agent/task does not own this tool request or the tool is outside its allowed scope." } }, { status: 403 });
+	}
 	try {
 		const result = await executeTool(
 			{

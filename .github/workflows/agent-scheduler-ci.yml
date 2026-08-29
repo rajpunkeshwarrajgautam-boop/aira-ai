@@ -9,6 +9,7 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/approval-expiry.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/approval.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/store.ts"
+      - "perplexity-clone/my-turborepo/apps/web/app/api/internal/tool-gateway/**"
       - "perplexity-clone/my-turborepo/apps/web/lib/billing/plan-enforcement.ts"
       - "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/approvals/**"
       - "perplexity-clone/my-turborepo/apps/web/app/api/internal/agent-platform/tick/**"
@@ -22,6 +23,7 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/approval-expiry.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/approval.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/store.ts"
+      - "perplexity-clone/my-turborepo/apps/web/app/api/internal/tool-gateway/**"
       - "perplexity-clone/my-turborepo/apps/web/lib/billing/plan-enforcement.ts"
       - "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/approvals/**"
       - "perplexity-clone/my-turborepo/apps/web/app/api/internal/agent-platform/tick/**"
@@ -59,14 +61,14 @@ jobs:
           python-version: "3.12"
 
       - name: Validate scheduler source
-        run: python -m py_compile infra/agent-scheduler/worker.py infra/agent-scheduler/test_leases.py infra/agent-scheduler/test_managed_quota.py infra/agent-scheduler/test_approvals.py infra/agent-scheduler/test_tool_gateway.py
+        run: python -m py_compile infra/agent-scheduler/worker.py infra/agent-scheduler/test_leases.py infra/agent-scheduler/test_managed_quota.py infra/agent-scheduler/test_approvals.py infra/agent-scheduler/test_tool_gateway.py infra/agent-scheduler/test_tool_authorization.py
 
       - name: Install scheduler test dependency
         run: python -m pip install --disable-pip-version-check "psycopg[binary]>=3.2,<3.3"
 
-      - name: Prove concurrent database lease quota approval and Tool Gateway semantics
+      - name: Prove concurrent database lease quota approval Tool Gateway and authorization semantics
         working-directory: infra/agent-scheduler
-        run: python -m unittest -v test_leases.py test_managed_quota.py test_approvals.py test_tool_gateway.py
+        run: python -m unittest -v test_leases.py test_managed_quota.py test_approvals.py test_tool_gateway.py test_tool_authorization.py
 
       - name: Validate Compose profile
         env:
