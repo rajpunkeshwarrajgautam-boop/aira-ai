@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,6 +9,7 @@ from fastapi import HTTPException
 
 import launcher
 import server
+import sandboxed_server as runtime
 
 
 class TerminalSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
@@ -79,6 +81,16 @@ class TerminalSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(env["AIRA_TERMINAL_REQUIRE_SECRET_FD"], "true")
         self.assertEqual(env["SAFE_SETTING"], "preserved")
 
+    def test_only_server_owned_git_network_path_bypasses_child_sandbox(self):
+        generic = runtime.command_argv(["git", "status"], git_network=False)
+        self.assertEqual(generic[0], sys.executable)
+        self.assertEqual(Path(generic[1]), runtime.SANDBOX_EXEC)
+        self.assertEqual(generic[-2:], ["git", "status"])
+        self.assertEqual(
+            runtime.command_argv(["git", "fetch", "--prune", "origin", "main"], git_network=True),
+            ["git", "fetch", "--prune", "origin", "main"],
+        )
+
     async def test_exec_rejects_unapproved_executable_and_nul_arguments(self):
         with tempfile.TemporaryDirectory() as cwd_raw:
             cwd = Path(cwd_raw)
@@ -88,6 +100,36 @@ class TerminalSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(HTTPException) as invalid:
                 await server._run(["python3", "-c", "print('ok')\x00"], cwd=cwd)
             self.assertEqual(invalid.exception.status_code, 400)
+
+    async def test_generic_exec_blocks_ip_network_but_keeps_unix_ipc(self):
+        with tempfile.TemporaryDirectory() as cwd_raw:
+            cwd = Path(cwd_raw)
+            blocked = await server._run(
+                ["python3", "-c", "import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)"],
+                cwd=cwd,
+                timeout_seconds=5,
+            )
+            self.assertNotEqual(blocked["exitCode"], 0)
+            self.assertIn("Operation not permitted", blocked["stderr"])
+
+            local = await server._run(
+                ["python3", "-c", "import socket; s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.close(); print('ok')"],
+                cwd=cwd,
+                timeout_seconds=5,
+            )
+            self.assertEqual(local["exitCode"], 0, local["stderr"])
+            self.assertEqual(local["stdout"].strip(), "ok")
+
+    async def test_network_filter_is_inherited_by_nested_children(self):
+        child = "import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)"
+        outer = (
+            "import subprocess,sys; "
+            f"r=subprocess.run([sys.executable,'-c',{child!r}]); "
+            "raise SystemExit(0 if r.returncode != 0 else 9)"
+        )
+        with tempfile.TemporaryDirectory() as cwd_raw:
+            result = await server._run(["python3", "-c", outer], cwd=Path(cwd_raw), timeout_seconds=5)
+        self.assertEqual(result["exitCode"], 0, result["stderr"])
 
     async def test_exec_enforces_output_bound(self):
         with tempfile.TemporaryDirectory() as cwd_raw:

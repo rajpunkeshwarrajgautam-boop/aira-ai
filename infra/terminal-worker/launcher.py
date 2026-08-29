@@ -42,7 +42,7 @@ def main() -> None:
             python,
             "-m",
             "uvicorn",
-            "server:app",
+            "sandboxed_server:app",
             "--host",
             "0.0.0.0",
             "--port",

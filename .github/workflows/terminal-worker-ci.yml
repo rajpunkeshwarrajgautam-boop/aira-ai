@@ -36,7 +36,7 @@ jobs:
           python-version: "3.12"
 
       - name: Validate Python source
-        run: python -m py_compile infra/terminal-worker/server.py infra/terminal-worker/launcher.py infra/terminal-worker/test_security.py
+        run: python -m py_compile infra/terminal-worker/server.py infra/terminal-worker/sandboxed_server.py infra/terminal-worker/sandbox_exec.py infra/terminal-worker/launcher.py infra/terminal-worker/test_security.py
 
       - name: Install terminal worker Python dependencies
         run: python -m pip install --disable-pip-version-check -r infra/terminal-worker/requirements.txt
@@ -54,7 +54,7 @@ jobs:
           grep -q '127.0.0.1:' infra/terminal-worker/compose.yml
           grep -q 'cap_drop: \["ALL"\]' infra/terminal-worker/compose.yml
           grep -q 'no-new-privileges:true' infra/terminal-worker/compose.yml
-          grep -q 'read_only: true' infra/terminal-worker/compose.yml
+          grep -q 'sandboxed_server:app' infra/terminal-worker/launcher.py
           if grep -RnE '(privileged:[[:space:]]*true|/var/run/docker.sock|0\.0\.0\.0:[0-9]+:8080)' infra/terminal-worker; then
             echo "::error::Unsafe terminal worker configuration detected."
             exit 1
@@ -66,14 +66,20 @@ jobs:
             echo "::error::Remote Git push must not be exposed by the isolated terminal worker."
             exit 1
           fi
-          grep -q 'asyncio.create_subprocess_exec' infra/terminal-worker/server.py
-          if grep -q 'create_subprocess_shell' infra/terminal-worker/server.py; then
+          grep -q 'asyncio.create_subprocess_exec' infra/terminal-worker/sandboxed_server.py
+          grep -q 'seccomp.Arg(0, seccomp.NE, socket.AF_UNIX)' infra/terminal-worker/sandbox_exec.py
+          if grep -q 'create_subprocess_shell' infra/terminal-worker/server.py infra/terminal-worker/sandboxed_server.py; then
             echo "::error::Shell-string execution is forbidden."
             exit 1
           fi
 
       - name: Build terminal worker image
         run: docker build -t aira-terminal-worker:ci infra/terminal-worker
+
+      - name: Prove generic commands cannot create IP sockets
+        run: |
+          docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; r=asyncio.run(runtime.sandboxed_run(['python3','-c','import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)'], cwd=Path('/tmp'), timeout_seconds=5)); assert r['exitCode'] != 0, r; assert 'Operation not permitted' in r['stderr'], r"
+          docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; child='import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)'; outer=f'import subprocess,sys; r=subprocess.run([sys.executable,\"-c\",{child!r}]); raise SystemExit(0 if r.returncode != 0 else 9)'; r=asyncio.run(runtime.sandboxed_run(['python3','-c',outer], cwd=Path('/tmp'), timeout_seconds=5)); assert r['exitCode'] == 0, r"
 
       - name: Prove long-lived worker process environment is secret-free
         run: |
