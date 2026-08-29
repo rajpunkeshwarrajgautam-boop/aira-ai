@@ -18,6 +18,17 @@ export interface RuntimeContextInput {
 	readonly taskTitle: string;
 	readonly objective: string;
 	readonly allowedTools: readonly string[];
+	readonly workspace?: {
+		readonly workspaceId: string;
+		readonly branch: string;
+		readonly baseRef: string;
+	};
+	readonly relatedWorkspaces?: readonly {
+		readonly workspaceId: string;
+		readonly branch: string;
+		readonly taskId: string;
+		readonly status: string;
+	}[];
 }
 
 export interface BuiltRuntimeContext {
@@ -60,6 +71,17 @@ export async function buildRuntimeContext(input: RuntimeContextInput): Promise<B
 		availableTools: toolMap,
 	});
 
+	const workspaceContext = input.workspace
+		? [
+			"# CONTROLLED CODING WORKSPACE",
+			`Workspace ID: ${input.workspace.workspaceId}\nMission branch: ${input.workspace.branch}\nBase ref: ${input.workspace.baseRef}\nTask ID: ${input.taskId}`,
+			"Use only the AIRA Tool Gateway integration provided by the trusted runtime worker to read/write files, run commands, or use Git. The runtime's own uncontrolled shell/filesystem tools are not authorized for this mission. The Tool Gateway service credential is server-side and must never be requested or echoed.",
+			...(input.relatedWorkspaces?.length
+				? ["Related mission workspaces:\n" + input.relatedWorkspaces.map((workspace) => `- ${workspace.taskId}: ${workspace.workspaceId} (${workspace.branch}, ${workspace.status})`).join("\n")]
+				: []),
+		].join("\n\n")
+		: "# CONTROLLED CODING WORKSPACE\nNo AIRA-owned coding workspace is assigned to this task.";
+
 	const prompt = [
 		"# AIRA CONSTITUTION",
 		AIRA_CONSTITUTION,
@@ -74,6 +96,7 @@ export async function buildRuntimeContext(input: RuntimeContextInput): Promise<B
 			runtimes: manifest.runtimes,
 			localModels: manifest.localModels,
 		}, null, 2),
+		workspaceContext,
 		`# SPECIALIST ROLE: ${input.role}`,
 		rolePolicy(input.role),
 		"# SELECTED SKILLS",
@@ -85,7 +108,7 @@ export async function buildRuntimeContext(input: RuntimeContextInput): Promise<B
 			? memories.map((memory) => `- [${memory.kind}/${memory.memoryKey}] ${memory.content}`).join("\n")
 			: "No relevant stored project memory was retrieved.",
 		"# ASSIGNED TASK",
-		`Mission: ${input.runId}\nTask: ${input.taskTitle}\nObjective: ${input.objective}`,
+		`Mission: ${input.runId}\nTask ID: ${input.taskId}\nTask: ${input.taskTitle}\nObjective: ${input.objective}`,
 		"# OUTPUT CONTRACT",
 		"Return a concise handoff containing: summary, artifacts/evidence, decisions, risks/blockers, and nextActions. Never claim a tool action occurred unless its result is present in your runtime evidence.",
 	].join("\n\n");
