@@ -58,7 +58,7 @@ class ApprovalIntegrationTests(unittest.TestCase):
         with psycopg.connect(DATABASE_URL) as connection:
             connection.execute(
                 '''insert into "AgentApproval" ("id","userId","status","context","createdAt")
-                   values (%s,%s,%s,jsonb_build_object('inputHash',%s),%s)''',
+                   values (%s,%s,%s,jsonb_build_object('inputHash',%s::text),%s)''',
                 (approval_id, user_id, status, input_hash, created_at),
             )
             connection.execute(
