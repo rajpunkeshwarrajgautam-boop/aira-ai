@@ -12,6 +12,12 @@ export interface AgentRuntimeCapabilities {
 	readonly spawnAgent: boolean;
 	readonly events: boolean;
 	readonly artifacts: boolean;
+	/**
+	 * True only when the trusted runtime worker is configured to route model
+	 * tool calls back through AIRA's authenticated Tool Gateway. This is
+	 * deliberately separate from a runtime having its own uncontrolled tools.
+	 */
+	readonly controlledTools: boolean;
 }
 
 export interface AgentRuntimeHealth {
