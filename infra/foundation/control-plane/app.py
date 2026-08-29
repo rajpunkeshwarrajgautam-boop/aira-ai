@@ -16,6 +16,7 @@ FAILURE_THRESHOLD = max(1, int(os.environ.get("PROVIDER_FAILURE_THRESHOLD", "3")
 PROVIDER_COOLDOWN_MS = max(1000, int(os.environ.get("PROVIDER_COOLDOWN_MS", "30000")))
 PROVIDER_CONFIG_COOLDOWN_MS = max(1000, int(os.environ.get("PROVIDER_CONFIG_COOLDOWN_MS", "60000")))
 QUEUE_MAX_DEPTH = max(10, int(os.environ.get("QUEUE_MAX_DEPTH", "2000")))
+QUEUE_IDEMPOTENCY_TTL_MS = max(60000, int(os.environ.get("QUEUE_IDEMPOTENCY_TTL_MS", "86400000")))
 LEASE_TTL_MS = max(5000, int(os.environ.get("ADMISSION_LEASE_TTL_MS", "300000")))
 ADMISSION_LIMITS = {
     "search": max(1, int(os.environ.get("ADMISSION_SEARCH_LIMIT", "120"))),
@@ -23,6 +24,7 @@ ADMISSION_LIMITS = {
     "agent": max(1, int(os.environ.get("ADMISSION_AGENT_LIMIT", "16"))),
 }
 JOB_TYPE_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+JOB_KEY_RE = re.compile(r"^[A-Za-z0-9._:-]{1,160}$")
 
 client = redis.Redis.from_url(
     REDIS_URL,
@@ -52,10 +54,19 @@ return {1, count + 1}
 
 # Queue depth must represent outstanding stream entries, not lifetime processed jobs.
 # XACK alone does not remove a stream entry, so enqueue and ack/delete are both atomic.
+# A caller-supplied idempotency key is checked and stored in this same Lua script so
+# a lost HTTP response can be retried without launching duplicate autonomous work.
 ENQUEUE_SCRIPT = """
 local key = KEYS[1]
+local idempotency_key = KEYS[2]
 local max_depth = tonumber(ARGV[1])
 local depth = redis.call('XLEN', key)
+if idempotency_key ~= '' then
+  local existing = redis.call('GET', idempotency_key)
+  if existing then
+    return {2, existing, tostring(depth)}
+  end
+end
 if depth >= max_depth then
   return {0, tostring(depth)}
 end
@@ -65,6 +76,9 @@ local id = redis.call(
   'attempts', ARGV[3],
   'enqueuedAt', ARGV[4]
 )
+if idempotency_key ~= '' then
+  redis.call('PSETEX', idempotency_key, tonumber(ARGV[5]), id)
+end
 return {1, id, tostring(depth + 1)}
 """
 
@@ -115,12 +129,18 @@ def stream_key(job_type):
     return f"aira:jobs:{job_type}"
 
 
+def idempotency_key(job_type, job_key):
+    if not job_key:
+        return ""
+    return f"aira:job-idempotency:{job_type}:{job_key}"
+
+
 def group_name(job_type):
     return f"aira-foundation-{job_type}"
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "AIRAControlPlane/1.1"
+    server_version = "AIRAControlPlane/1.2"
 
     def log_message(self, fmt, *args):
         print(json.dumps({"component": "control-plane", "message": fmt % args}), flush=True)
@@ -265,18 +285,24 @@ class Handler(BaseHTTPRequestHandler):
                 job_type = str(body.get("type", ""))
                 job_payload = body.get("payload")
                 attempts = int(body.get("attempts", 0) or 0)
+                job_key = str(body.get("jobKey", "") or "")
                 if not JOB_TYPE_RE.fullmatch(job_type) or not isinstance(job_payload, dict):
                     raise ValueError("invalid job")
+                if job_key and not JOB_KEY_RE.fullmatch(job_key):
+                    raise ValueError("invalid job key")
                 result = client.eval(
                     ENQUEUE_SCRIPT,
-                    1,
+                    2,
                     stream_key(job_type),
+                    idempotency_key(job_type, job_key),
                     QUEUE_MAX_DEPTH,
                     json.dumps(job_payload, separators=(",", ":")),
                     max(0, attempts),
                     int(time.time() * 1000),
+                    QUEUE_IDEMPOTENCY_TTL_MS,
                 )
-                if int(result[0]) != 1:
+                state = int(result[0])
+                if state == 0:
                     self._json(
                         429,
                         payload(False, error=f"queue saturated at depth {result[1]}"),
@@ -284,7 +310,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 self._json(
                     200,
-                    payload(True, {"jobId": result[1], "depth": int(result[2])}),
+                    payload(True, {
+                        "jobId": result[1],
+                        "depth": int(result[2]),
+                        "deduplicated": state == 2,
+                    }),
                 )
                 return
 
