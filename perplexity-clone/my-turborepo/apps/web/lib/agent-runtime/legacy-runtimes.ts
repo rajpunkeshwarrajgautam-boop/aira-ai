@@ -18,6 +18,7 @@ import {
 	submitAgentRun,
 } from "@/lib/autogpt/runs";
 
+import { runtimeHasControlledTools } from "./tool-bridge";
 import type { AgentRuntime, AgentRuntimeCapabilities, AgentRuntimeHealth } from "./types";
 
 const AUTOGPT_CAPABILITIES: AgentRuntimeCapabilities = {
@@ -29,6 +30,7 @@ const AUTOGPT_CAPABILITIES: AgentRuntimeCapabilities = {
 	spawnAgent: false,
 	events: false,
 	artifacts: false,
+	controlledTools: runtimeHasControlledTools("AUTOGPT"),
 };
 
 const DEERFLOW_CAPABILITIES: AgentRuntimeCapabilities = {
@@ -40,6 +42,7 @@ const DEERFLOW_CAPABILITIES: AgentRuntimeCapabilities = {
 	spawnAgent: false,
 	events: false,
 	artifacts: true,
+	controlledTools: runtimeHasControlledTools("DEERFLOW"),
 };
 
 export const autoGptRuntime: AgentRuntime = {
