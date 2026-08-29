@@ -6,6 +6,14 @@ import path from 'path'
 const SECRET_KEY = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)/i
 const HTTP_PROTOCOLS = new Set(['http:', 'https:'])
 const BROWSER_NETWORK_PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:'])
+const PRIVATE_APPROVAL_FIELDS: Record<string, ReadonlySet<string>> = {
+  write_file: new Set(['content']),
+  browser_type: new Set(['text']),
+  type_text: new Set(['text']),
+  set_clipboard: new Set(['text']),
+  android_text: new Set(['text']),
+  schedule_task: new Set(['prompt'])
+}
 
 function credentialFreeUrl(raw: string, protocols: ReadonlySet<string>): URL | null {
   try {
@@ -104,6 +112,13 @@ export function assertPublicBrowserNetworkUrl(raw: string): Promise<URL> {
   return assertPublicNetworkUrl(raw, BROWSER_NETWORK_PROTOCOLS, 'Only credential-free HTTP(S) or WebSocket URLs are allowed.')
 }
 
+function redactCredentialText(value: string): string {
+  return value
+    .replace(/bearer\s+[a-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+    .replace(/(?:sk|nvapi|ghp|github_pat|xox[baprs])[-_a-z0-9]+/gi, '[redacted]')
+    .replace(/((?:token|secret|password|passwd|api[_-]?key|authorization|cookie)\s*[=:]\s*)[^\s,;]+/gi, '$1[redacted]')
+}
+
 function auditShape(value: unknown, key = '', depth = 0): unknown {
   if (SECRET_KEY.test(key)) return '[redacted]'
   if (depth > 4) return '[truncated]'
@@ -116,16 +131,31 @@ function auditShape(value: unknown, key = '', depth = 0): unknown {
   return String(value)
 }
 
+function approvalShape(tool: string, value: unknown, key = '', depth = 0): unknown {
+  if (SECRET_KEY.test(key)) return '[redacted]'
+  if (depth > 4) return '[truncated]'
+  if (typeof value === 'string') {
+    if (PRIVATE_APPROVAL_FIELDS[tool]?.has(key)) return `<private input:${value.length} chars>`
+    return redactCredentialText(value).slice(0, 2000)
+  }
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value
+  if (Array.isArray(value)) return value.slice(0, 20).map((entry) => approvalShape(tool, entry, key, depth + 1))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 40).map(([childKey, child]) => [childKey, approvalShape(tool, child, childKey, depth + 1)]))
+  }
+  return String(value)
+}
+
+export function sanitizeApprovalDetails(tool: string, args: Record<string, unknown>): string {
+  return JSON.stringify(approvalShape(tool, args)).slice(0, 5000)
+}
+
 export function sanitizeAuditSummary(summary: string | undefined): string | undefined {
   if (!summary) return summary
   try {
     return JSON.stringify(auditShape(JSON.parse(summary))).slice(0, 2000)
   } catch {
-    return summary
-      .replace(/bearer\s+[a-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
-      .replace(/(?:sk|nvapi|ghp|github_pat|xox[baprs])[-_a-z0-9]+/gi, '[redacted]')
-      .replace(/((?:token|secret|password|api[_-]?key)\s*[=:]\s*)[^\s,;]+/gi, '$1[redacted]')
-      .slice(0, 1000)
+    return redactCredentialText(summary).slice(0, 1000)
   }
 }
 
