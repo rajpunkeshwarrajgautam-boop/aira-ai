@@ -511,7 +511,7 @@ export async function steerManagedTask(input: { readonly userId: string; readonl
 	await runtime.steerAgent(input.userId, task.runtimeRunId, input.instruction);
 	await Promise.all([
 		recordAgentMessage({ projectId: run.projectId, runId: run.id, taskId: task.id, kind: "STEERING", body: { instruction: input.instruction } }).catch(() => undefined),
-		appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "agent.message", payload: { kind: "STEERING", instruction: input.instruction }),
+		appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "agent.message", payload: { kind: "STEERING", instruction: input.instruction } }),
 	]);
 }
 
