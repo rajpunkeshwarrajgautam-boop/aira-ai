@@ -19,7 +19,13 @@ const PlannerTaskSchema = z.object({
 	description: z.string().trim().min(3).max(1_200),
 	role: z.enum(SPECIALIST_ROLES),
 	dependsOn: z.array(z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)).max(12).default([]),
+	requiredCapabilities: z.array(z.string().trim().min(1).max(80)).max(12).default([]),
+	expectedOutput: z.string().trim().min(1).max(800).optional(),
+	acceptanceCriteria: z.array(z.string().trim().min(1).max(500)).max(12).default([]),
+	riskClass: z.enum(["safe", "caution", "consequential"]).default("safe"),
+	preferredModelClass: z.enum(["fast", "reasoning", "coding", "vision", "long_context", "local_private"]).optional(),
 	priority: z.number().int().min(0).max(100).default(50),
+	maxAttempts: z.number().int().min(1).max(5).optional(),
 });
 
 const PlannerOutputSchema = z.object({
@@ -83,7 +89,14 @@ function normalizeFinalVerifier(output: PlannerOutput): PlannerOutput {
 			...output,
 			tasks: output.tasks.map((task) =>
 				task.id === verifier.id
-					? { ...task, dependsOn: [...new Set([...task.dependsOn, ...leaves])] }
+					? {
+							...task,
+							dependsOn: [...new Set([...task.dependsOn, ...leaves])],
+							acceptanceCriteria:
+								task.acceptanceCriteria.length > 0
+									? task.acceptanceCriteria
+									: ["Verify the final outcome against the user's objective and observable evidence."],
+						  }
 					: task,
 			),
 		};
@@ -103,7 +116,13 @@ function normalizeFinalVerifier(output: PlannerOutput): PlannerOutput {
 				description: "Independently verify completed work against the user's objective and recorded evidence.",
 				role: "verifier",
 				dependsOn: [...leaves],
+				requiredCapabilities: [],
+				expectedOutput: "A structured PASS, FAIL, or NEEDS_HUMAN_APPROVAL verdict backed by observable evidence.",
+				acceptanceCriteria: ["Verify the final outcome against the user's objective and observable evidence."],
+				riskClass: "safe",
+				preferredModelClass: "reasoning",
 				priority: 100,
+				maxAttempts: 3,
 			},
 		],
 	};
@@ -123,9 +142,15 @@ export function parseExecutionPlan(objective: string, raw: string): ExecutionPla
 		description: task.description,
 		role: task.role,
 		dependsOn: task.dependsOn,
+		requiredCapabilities: task.requiredCapabilities,
+		...(task.expectedOutput ? { expectedOutput: task.expectedOutput } : {}),
+		acceptanceCriteria: task.acceptanceCriteria,
+		riskClass: task.riskClass,
+		...(task.preferredModelClass ? { preferredModelClass: task.preferredModelClass } : {}),
 		status: "pending",
 		priority: task.priority,
 		attempt: 0,
+		...(task.maxAttempts ? { maxAttempts: task.maxAttempts } : {}),
 		delegationDepth: 1,
 	}));
 	const graph: TaskGraph = { tasks };
@@ -144,6 +169,10 @@ Rules:
 - Use only these roles: researcher, coder, browser_operator, designer, analyst, verifier.
 - Prefer independent tasks that can run concurrently.
 - Dependencies must reference task ids in this same plan.
+- Give each task concrete acceptance criteria and an expected output when useful.
+- requiredCapabilities must describe capabilities actually needed, not imaginary tool names.
+- riskClass must be safe, caution, or consequential. Any publishing, destructive mutation, production write, external message, financial action, security/auth change, or irreversible operation is consequential.
+- preferredModelClass, when supplied, must be fast, reasoning, coding, vision, long_context, or local_private.
 - Use browser_operator only when browser observation or interaction is materially required.
 - Use coder only for repository/file/code implementation work.
 - Make consequential external actions explicit in task descriptions; approval is enforced later by the tool boundary.
@@ -151,7 +180,7 @@ Rules:
 - Do not invent credentials, tools, successful results, deployments, or external state.
 
 Required schema:
-{"summary":"string","tasks":[{"id":"lowercase-id","title":"string","description":"string","role":"researcher|coder|browser_operator|designer|analyst|verifier","dependsOn":["task-id"],"priority":0}]}`;
+{"summary":"string","tasks":[{"id":"lowercase-id","title":"string","description":"string","role":"researcher|coder|browser_operator|designer|analyst|verifier","dependsOn":["task-id"],"requiredCapabilities":["capability"],"expectedOutput":"string","acceptanceCriteria":["criterion"],"riskClass":"safe|caution|consequential","preferredModelClass":"fast|reasoning|coding|vision|long_context|local_private","priority":0,"maxAttempts":3}]}`;
 
 export async function planObjective(
 	objective: string,

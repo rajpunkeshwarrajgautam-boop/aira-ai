@@ -11,6 +11,20 @@ export const AGENT_ROLES = [
 
 export type AgentRole = (typeof AGENT_ROLES)[number];
 
+export const AGENT_MODEL_CLASSES = [
+	"fast",
+	"reasoning",
+	"coding",
+	"vision",
+	"long_context",
+	"local_private",
+] as const;
+
+export type AgentModelClass = (typeof AGENT_MODEL_CLASSES)[number];
+
+export const AGENT_RISK_CLASSES = ["safe", "caution", "consequential"] as const;
+export type AgentRiskClass = (typeof AGENT_RISK_CLASSES)[number];
+
 export const RUNTIME_TASK_STATUSES = [
 	"pending",
 	"ready",
@@ -33,6 +47,11 @@ export interface RuntimeTask {
 	readonly description?: string;
 	readonly role: AgentRole;
 	readonly dependsOn: readonly string[];
+	readonly requiredCapabilities?: readonly string[];
+	readonly expectedOutput?: string;
+	readonly acceptanceCriteria?: readonly string[];
+	readonly riskClass?: AgentRiskClass;
+	readonly preferredModelClass?: AgentModelClass;
 	readonly status: RuntimeTaskStatus;
 	readonly priority?: number;
 	readonly attempt: number;

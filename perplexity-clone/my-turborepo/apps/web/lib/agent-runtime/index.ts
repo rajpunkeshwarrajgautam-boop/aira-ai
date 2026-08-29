@@ -3,6 +3,7 @@ export * from "./execution-meter";
 export * from "./manager-runtime";
 export * from "./planner";
 export * from "./role-policy";
+export * from "./run-persistence";
 export * from "./run-step-projection";
 export * from "./scheduler";
 export * from "./task-graph";
