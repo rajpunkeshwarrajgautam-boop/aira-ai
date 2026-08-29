@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     COREPACK_HOME=/opt/corepack
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git python3 python3-pip tini \
+    && apt-get install -y --no-install-recommends ca-certificates git python3 python3-pip \
     && rm -rf /var/lib/apt/lists/* \
     && corepack enable \
     && corepack prepare pnpm@10.28.1 --activate \
@@ -17,10 +17,9 @@ RUN apt-get update \
 WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
-COPY server.py .
+COPY server.py launcher.py ./
 RUN chown -R runner:runner /app
 
 USER runner
 EXPOSE 8080
-ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python3", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]
+CMD ["python3", "launcher.py"]
