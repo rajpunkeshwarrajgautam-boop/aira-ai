@@ -184,12 +184,18 @@ async def _safe_route(state: SessionState, route: Any) -> None:
         return
     host = _hostname(parsed.hostname or "")
     try:
+        # Resolve every network request at request time. This makes DNS rebinding
+        # and redirect-to-private-address attempts fail closed after navigation
+        # has begun, not only when the original URL was validated.
         await _assert_public_host(host)
     except HTTPException:
         await route.abort("blockedbyclient")
         return
-    if request.is_navigation_request() and request.frame == state.page.main_frame:
-        if not _domain_allowed(host, state.allowed_domains):
+    if request.is_navigation_request() and request.frame.parent_frame is None:
+        # Every top-level redirect must remain inside the explicit domain scope.
+        # Popup/new-tab main frames are blocked entirely so a click cannot create
+        # a hidden second browsing context outside the session AIRA audits.
+        if request.frame != state.page.main_frame or not _domain_allowed(host, state.allowed_domains):
             await route.abort("blockedbyclient")
             return
     await route.continue_()
