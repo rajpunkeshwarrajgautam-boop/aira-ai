@@ -1,4 +1,5 @@
 import { AgentRunStatus } from "@/generated/prisma/enums";
+import { buildRuntimeContext } from "@/lib/aira-runtime/context";
 import { getAgentRuntime, selectAgentRuntime } from "@/lib/agent-runtime/registry";
 import { AgentRuntimeError, type AgentRuntimeId } from "@/lib/agent-runtime/types";
 import {
@@ -6,7 +7,10 @@ import {
 	refundAgentRunQuota,
 } from "@/lib/billing/plan-enforcement";
 import { prisma } from "@/lib/prisma";
+import { readMissionUsage } from "@/lib/tool-gateway/store";
 
+import { recordAgentMessage } from "./messages";
+import { rememberProjectFact, type ProjectMemoryKind } from "./project-memory";
 import {
 	appendEvent,
 	claimTask,
@@ -31,6 +35,7 @@ import {
 	type RuntimeTickResult,
 	type TaskSpec,
 } from "./types";
+import { applyRuntimeUsage, missionBudgetExceeded, usageFromRuntimeResult } from "./usage";
 
 const AGENT_TOOLS: Record<string, readonly string[]> = {
 	PRODUCT: ["files", "web", "memory"],
@@ -233,12 +238,24 @@ export async function startManagedRun(input: {
 		if (concurrent) return tickManagedRun(input.userId, concurrent.id);
 		throw error;
 	}
-	await appendEvent({
-		projectId: input.projectId,
-		runId: run.id,
-		type: "run.started",
-		payload: { manager: "AIRA_MANAGER", runtime: runtime.id, billing: "mission" },
-	});
+	await Promise.all([
+		appendEvent({
+			projectId: input.projectId,
+			runId: run.id,
+			type: "run.started",
+			payload: { manager: "AIRA_MANAGER", runtime: runtime.id, billing: "mission" },
+		}),
+		rememberProjectFact({
+			userId: input.userId,
+			projectId: input.projectId,
+			memoryKey: "mission-goal",
+			kind: "GOAL",
+			content: input.objective,
+			source: `managed-run:${run.id}`,
+			importance: 5,
+			confidence: 1,
+		}).catch(() => undefined),
+	]);
 	return tickManagedRun(input.userId, run.id);
 }
 
@@ -259,12 +276,33 @@ function artifactsFromResult(result: unknown): string[] {
 	return Array.isArray(artifacts) ? artifacts.filter((value): value is string => typeof value === "string").slice(0, 50) : [];
 }
 
+function safeHandoff(result: unknown): string {
+	if (result === null || result === undefined) return "No structured runtime result was returned.";
+	if (typeof result === "string") return result.slice(0, 6_000);
+	try {
+		return JSON.stringify(result, (key, value) =>
+			/(password|secret|token|authorization|cookie|api[_-]?key|private[_-]?key)/i.test(key) ? "[redacted]" : value,
+		).slice(0, 6_000);
+	} catch {
+		return "Runtime returned a non-serializable result.";
+	}
+}
+
+function memoryKindForTask(task: PlatformTask): ProjectMemoryKind {
+	if (task.agentRole === "VERIFICATION") return "VERIFICATION";
+	if (task.agentRole === "ARCHITECT") return "ARCHITECTURE";
+	if (task.agentRole === "DATABASE" || task.agentRole === "FRONTEND" || task.agentRole === "BACKEND") return "TECH_STACK";
+	if (task.agentRole === "DEVOPS") return "DEPLOYMENT";
+	return "DECISION";
+}
+
 async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: readonly PlatformTask[]): Promise<number> {
 	let reconciled = 0;
 	for (const task of tasks.filter((entry) => entry.status === "RUNNING" && entry.runtimeRunId)) {
 		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId!, userId }, select: { id: true, provider: true } });
 		if (!local) {
 			const next = await failTask(task, "The delegated runtime run no longer exists.");
+			await recordAgentMessage({ projectId: run.projectId, runId: run.id, taskId: task.id, kind: "BLOCKER", body: { summary: "Delegated runtime run no longer exists.", nextActions: ["retry or reassign task"] } }).catch(() => undefined);
 			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: next === "FAILED" ? "task.failed" : "task.requeued", payload: { reason: "runtime_run_missing" } });
 			reconciled += 1;
 			continue;
@@ -273,13 +311,37 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 		const child = await runtime.refreshRun(userId, local.id);
 		if (!child) continue;
 		if (child.status === AgentRunStatus.COMPLETED) {
+			const usage = usageFromRuntimeResult(child.result);
+			await applyRuntimeUsage(run.id, usage).catch(() => undefined);
 			const artifacts = runtime.getArtifacts ? await runtime.getArtifacts(userId, child.id).catch(() => []) : [];
 			const paths = artifacts.length ? artifacts.map((artifact) => artifact.uri ?? artifact.name) : artifactsFromResult(child.result);
+			const handoff = safeHandoff(child.result);
 			await completeTask(task.id, paths);
-			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "task.completed", payload: { runtimeRunId: child.id, artifacts: paths } });
+			await Promise.all([
+				recordAgentMessage({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					kind: "RESULT",
+					body: { summary: handoff, artifacts: paths, decisions: [], risks: [], nextActions: [] },
+				}).catch(() => undefined),
+				rememberProjectFact({
+					userId,
+					projectId: run.projectId,
+					memoryKey: `task-${task.id}`,
+					kind: memoryKindForTask(task),
+					content: `${task.title}: ${handoff}`,
+					source: `agent-run:${child.id}`,
+					importance: task.agentRole === "VERIFICATION" || task.agentRole === "ARCHITECT" ? 5 : 3,
+					metadata: { taskId: task.id, agentRole: task.agentRole, artifacts: paths.slice(0, 20) },
+				}).catch(() => undefined),
+				appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "task.completed", payload: { runtimeRunId: child.id, artifacts: paths } }),
+			]);
 			reconciled += 1;
 		} else if (child.status === AgentRunStatus.FAILED || child.status === AgentRunStatus.TERMINATED) {
+			await applyRuntimeUsage(run.id, usageFromRuntimeResult(child.result)).catch(() => undefined);
 			const next = await failTask(task, child.errorMessage ?? `Delegated run ended with ${child.status}.`);
+			await recordAgentMessage({ projectId: run.projectId, runId: run.id, taskId: task.id, kind: "BLOCKER", body: { summary: child.errorMessage ?? `Delegated run ended with ${child.status}.`, risks: [child.status], nextActions: next === "FAILED" ? ["manager intervention required"] : ["retry task"] } }).catch(() => undefined);
 			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: next === "FAILED" ? "task.failed" : "task.requeued", payload: { runtimeRunId: child.id, status: child.status } });
 			reconciled += 1;
 		} else if (child.status === AgentRunStatus.REVIEW) {
@@ -306,6 +368,7 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		const workerId = `aira:${run.id}:${crypto.randomUUID()}`;
 		const claimed = await claimTask(task.id, workerId);
 		if (!claimed) continue;
+		const allowedTools = AGENT_TOOLS[task.agentRole] ?? ["files"];
 		const agentId = await createAgentInstance({
 			projectId: run.projectId,
 			runId: run.id,
@@ -313,19 +376,32 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 			role: task.agentRole,
 			objective: task.objective,
 			modelTier: task.modelTier,
-			allowedTools: AGENT_TOOLS[task.agentRole] ?? ["files"],
+			allowedTools,
 		});
 		await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, agentId, type: "agent.spawned", payload: { role: task.agentRole, modelTier: task.modelTier } });
 		try {
+			const runtimeContext = await buildRuntimeContext({
+				userId,
+				projectId: run.projectId,
+				runId: run.id,
+				taskId: task.id,
+				role: task.agentRole,
+				taskTitle: task.title,
+				objective: task.objective,
+				allowedTools,
+			});
+			await recordAgentMessage({
+				projectId: run.projectId,
+				runId: run.id,
+				taskId: task.id,
+				agentId,
+				kind: "INSTRUCTION",
+				body: { task: task.title, role: task.agentRole, selectedSkills: runtimeContext.selectedSkillIds, memoryKeys: runtimeContext.memoryKeys },
+			}).catch(() => undefined);
 			const submission = await runtime.createRun({
 				userId,
 				clientRequestId: task.id,
-				objective: [
-					`You are AIRA's ${task.agentRole} specialist inside managed run ${run.id}.`,
-					`Task: ${task.title}`,
-					task.objective,
-					"Work only on this delegated task. Return concrete artifacts/evidence and concise handoff information to the Manager.",
-				].join("\n\n"),
+				objective: runtimeContext.systemPrompt,
 				billingMode: "DELEGATED",
 			});
 			await markTaskRunning(task.id, submission.run.id, agentId);
@@ -369,6 +445,30 @@ async function updateRunState(userId: string, run: PlatformRun, tasks: readonly 
 	await setRunStatus(run.id, "RUNNING");
 }
 
+async function haltForBudget(userId: string, run: PlatformRun, reason: string): Promise<void> {
+	const tasks = await listTasks(run.id);
+	for (const task of tasks.filter((entry) => entry.runtimeRunId && (entry.status === "RUNNING" || entry.status === "WAITING" || entry.status === "CLAIMED"))) {
+		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId!, userId }, select: { provider: true } });
+		if (local) {
+			const runtime = getAgentRuntime(local.provider);
+			if (runtime.cancelRun) await runtime.cancelRun(userId, task.runtimeRunId!).catch(() => null);
+		}
+		await setTaskStatus(task.id, "BLOCKED");
+	}
+	for (const task of tasks.filter((entry) => entry.status === "QUEUED" || entry.status === "READY")) await setTaskStatus(task.id, "BLOCKED");
+	await setRunStatus(run.id, "BLOCKED", reason);
+	await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.blocked", payload: { reason: "budget", detail: reason } });
+}
+
+async function enforceUsageBudget(userId: string, run: PlatformRun): Promise<boolean> {
+	const usage = await readMissionUsage(run.id).catch(() => null);
+	if (!usage) return false;
+	const verdict = missionBudgetExceeded({ budgets: run.budgets, usage });
+	if (!verdict.exceeded) return false;
+	await haltForBudget(userId, run, verdict.reason);
+	return true;
+}
+
 export async function tickManagedRun(userId: string, runId: string): Promise<RuntimeTickResult> {
 	let run = await getRunForUser(userId, runId);
 	if (!run) throw new Error("Managed run not found.");
@@ -376,15 +476,21 @@ export async function tickManagedRun(userId: string, runId: string): Promise<Run
 		return { run, tasks: await listTasks(run.id), dispatched: 0, reconciled: 0 };
 	}
 	if (run.startedAt && Date.now() - run.startedAt.getTime() > run.budgets.maxDurationMinutes * 60_000) {
-		await cancelManagedRun(userId, run.id);
-		await setRunStatus(run.id, "FAILED", `Mission exceeded its ${run.budgets.maxDurationMinutes}-minute execution budget.`);
-		await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.failed", payload: { reason: "duration_budget" } });
+		await haltForBudget(userId, run, `Mission exceeded its ${run.budgets.maxDurationMinutes}-minute execution budget.`);
+		run = (await getRunForUser(userId, run.id))!;
+		return { run, tasks: await listTasks(run.id), dispatched: 0, reconciled: 0 };
+	}
+	if (await enforceUsageBudget(userId, run)) {
 		run = (await getRunForUser(userId, run.id))!;
 		return { run, tasks: await listTasks(run.id), dispatched: 0, reconciled: 0 };
 	}
 	await recoverExpiredClaims(run.id);
 	let tasks = await listTasks(run.id);
 	const reconciled = await reconcileActiveTasks(userId, run, tasks);
+	if (await enforceUsageBudget(userId, run)) {
+		run = (await getRunForUser(userId, run.id))!;
+		return { run, tasks: await listTasks(run.id), dispatched: 0, reconciled };
+	}
 	tasks = await listTasks(run.id);
 	const dispatched = await dispatchReadyTasks(userId, run, tasks);
 	tasks = await listTasks(run.id);
@@ -403,7 +509,10 @@ export async function steerManagedTask(input: { readonly userId: string; readonl
 	const runtime = getAgentRuntime(local.provider);
 	if (!runtime.steerAgent) throw new Error(`${runtime.id} does not support mid-run steering.`);
 	await runtime.steerAgent(input.userId, task.runtimeRunId, input.instruction);
-	await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "agent.message", payload: { kind: "STEERING", instruction: input.instruction } });
+	await Promise.all([
+		recordAgentMessage({ projectId: run.projectId, runId: run.id, taskId: task.id, kind: "STEERING", body: { instruction: input.instruction } }).catch(() => undefined),
+		appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "agent.message", payload: { kind: "STEERING", instruction: input.instruction }),
+	]);
 }
 
 export async function cancelManagedRun(userId: string, runId: string): Promise<void> {
