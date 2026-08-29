@@ -4,10 +4,24 @@ import time
 import urllib.error
 import urllib.request
 
-BASE_URL = os.environ.get("AIRA_WEB_INTERNAL_URL", "").rstrip("/")
+BASE_URL = (
+    os.environ.get("AIRA_AGENT_SCHEDULER_WEB_URL")
+    or os.environ.get("AIRA_WEB_INTERNAL_URL")
+    or ""
+).rstrip("/")
 TOKEN = os.environ.get("AIRA_AGENT_SCHEDULER_TOKEN", "")
 INTERVAL_SECONDS = max(3, min(60, int(os.environ.get("AIRA_AGENT_SCHEDULER_INTERVAL_SECONDS", "5"))))
-BATCH_LIMIT = max(1, min(20, int(os.environ.get("AIRA_AGENT_SCHEDULER_BATCH_LIMIT", "8"))))
+BATCH_LIMIT = max(
+    1,
+    min(
+        20,
+        int(
+            os.environ.get("AIRA_AGENT_SCHEDULER_BATCH_SIZE")
+            or os.environ.get("AIRA_AGENT_SCHEDULER_BATCH_LIMIT")
+            or "8"
+        ),
+    ),
+)
 
 
 def tick() -> None:
@@ -35,7 +49,7 @@ def tick() -> None:
 
 def main() -> None:
     if not BASE_URL.startswith("https://") and not BASE_URL.startswith("http://127.0.0.1") and not BASE_URL.startswith("http://localhost"):
-        raise SystemExit("AIRA_WEB_INTERNAL_URL must use HTTPS outside loopback")
+        raise SystemExit("AIRA_AGENT_SCHEDULER_WEB_URL must use HTTPS outside loopback")
     if len(TOKEN) < 24:
         raise SystemExit("AIRA_AGENT_SCHEDULER_TOKEN must contain at least 24 characters")
     while True:
