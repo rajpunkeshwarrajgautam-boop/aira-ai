@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { expireApprovalIfStale } from "@/lib/agent-platform/approval-expiry";
 import { tickManagedRun } from "@/lib/agent-platform/orchestrator";
 import { resolveApproval } from "@/lib/agent-platform/store";
 import { resolveToolApproval } from "@/lib/tool-gateway/approval";
@@ -30,6 +31,13 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 	}
 	const { approvalId } = await params;
 	const approve = parsed.data.decision === "approve";
+
+	if (await expireApprovalIfStale({ userId: session.user.id, approvalId })) {
+		return json(
+			{ error: { code: "APPROVAL_EXPIRED", message: "This approval expired. Start a fresh approval request before performing the action." } },
+			{ status: 410 },
+		);
+	}
 
 	// Tool approvals are independent of DAG-stage approvals. Resolving one must
 	// never requeue/cancel the parent task. The caller re-submits the same
