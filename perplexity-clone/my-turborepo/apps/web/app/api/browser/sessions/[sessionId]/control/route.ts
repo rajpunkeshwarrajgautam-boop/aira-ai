@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { transitionBrowserControl } from "@/lib/agent-platform/browser-arbitration";
 import {
 	getBrowserSession,
 	recordBrowserAction,
-	updateBrowserSession,
 } from "@/lib/agent-platform/store";
 
 export const runtime = "nodejs";
@@ -29,17 +29,26 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 	}
 	const parsed = ControlSchema.safeParse(await req.json().catch(() => null));
 	if (!parsed.success) return json({ error: { code: "VALIDATION_ERROR", message: "Control must be human, agent, pause, or resume." } }, { status: 400 });
-	const status = parsed.data.control === "human"
-		? "HUMAN_CONTROL"
-		: parsed.data.control === "pause"
-			? "PAUSED"
-			: "ACTIVE";
-	await updateBrowserSession({ sessionId: record.id, status });
+
+	const transition = await transitionBrowserControl({
+		userId: session.user.id,
+		sessionId: record.id,
+		control: parsed.data.control,
+	});
+	if (!transition) {
+		return json({
+			error: {
+				code: "BROWSER_CONTROL_CONFLICT",
+				message: "Browser ownership changed, the requested transition is invalid, or an action is still in progress. Refresh session state and retry.",
+			},
+		}, { status: 409 });
+	}
+
 	await recordBrowserAction({
 		sessionId: record.id,
 		source: "SYSTEM",
 		action: `control.${parsed.data.control}`,
-		result: { previousStatus: record.status, status },
+		result: transition,
 		risk: "LOW",
 	});
 	return json({ session: await getBrowserSession(session.user.id, sessionId) });
