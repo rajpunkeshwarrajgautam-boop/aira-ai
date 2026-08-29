@@ -18,6 +18,8 @@ test("tool risk is classified per action, not merely per tool", () => {
 	assert.equal(classifyToolRisk("git", "create_worktree"), "MEDIUM");
 	assert.equal(classifyToolRisk("git", "push"), "HIGH");
 	assert.equal(classifyToolRisk("git", "force_push"), "PROTECTED");
+	assert.equal(classifyToolRisk("terminal", "exec_readonly"), "MEDIUM");
+	assert.equal(classifyToolRisk("terminal", "exec"), "MEDIUM");
 	assert.equal(classifyToolRisk("github", "create_commit"), "HIGH");
 	assert.equal(requiresApproval(classifyToolRisk("github", "create_commit")), true);
 	assert.equal(classifyToolRisk("github", "create_pr"), "HIGH");
