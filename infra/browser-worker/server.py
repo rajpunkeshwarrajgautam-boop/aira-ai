@@ -84,6 +84,8 @@ async def _validate_url(url: str, allowed: tuple[str, ...], *, require_allowed: 
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(status_code=400, detail="Only HTTP(S) browser targets are allowed.")
+    if parsed.username is not None or parsed.password is not None:
+        raise HTTPException(status_code=400, detail="Credential-bearing browser URLs are blocked.")
     host = _hostname(parsed.hostname)
     await _assert_public_host(host)
     if require_allowed and not _domain_allowed(host, allowed):
@@ -180,6 +182,9 @@ async def _safe_route(state: SessionState, route: Any) -> None:
     request = route.request
     parsed = urlparse(request.url)
     if parsed.scheme not in {"http", "https"}:
+        await route.abort("blockedbyclient")
+        return
+    if parsed.username is not None or parsed.password is not None:
         await route.abort("blockedbyclient")
         return
     host = _hostname(parsed.hostname or "")
