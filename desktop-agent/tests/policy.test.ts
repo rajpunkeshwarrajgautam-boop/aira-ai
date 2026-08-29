@@ -1,7 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import { clampAgentSteps, isHttpUrl, isPathInside, isPublicNetworkAddress, sanitizeAuditSummary } from '../src/main/policy'
+import {
+  assertPublicBrowserNetworkUrl,
+  clampAgentSteps,
+  isBrowserNetworkUrl,
+  isHttpUrl,
+  isPathInside,
+  isPublicNetworkAddress,
+  sanitizeAuditSummary
+} from '../src/main/policy'
 
 test('HTTP URL policy accepts credential-free http(s) only', () => {
   assert.equal(isHttpUrl('https://example.com'), true)
@@ -11,7 +19,14 @@ test('HTTP URL policy accepts credential-free http(s) only', () => {
   assert.equal(isHttpUrl('javascript:alert(1)'), false)
 })
 
-test('browser network policy rejects private loopback link-local metadata and mapped addresses', () => {
+test('browser network URL policy includes credential-free WebSockets only', () => {
+  assert.equal(isBrowserNetworkUrl('wss://example.com/socket'), true)
+  assert.equal(isBrowserNetworkUrl('ws://127.0.0.1:3000/socket'), true)
+  assert.equal(isBrowserNetworkUrl('wss://user:pass@example.com/socket'), false)
+  assert.equal(isBrowserNetworkUrl('file:///C:/secret.txt'), false)
+})
+
+test('browser network policy rejects private loopback link-local metadata mapped and reserved addresses', () => {
   for (const address of [
     '127.0.0.1',
     '10.0.0.1',
@@ -20,14 +35,24 @@ test('browser network policy rejects private loopback link-local metadata and ma
     '169.254.169.254',
     '100.64.0.1',
     '0.0.0.0',
+    '192.0.2.1',
+    '198.51.100.1',
+    '203.0.113.1',
     '::1',
     'fc00::1',
     'fd12::1',
     'fe80::1',
-    '::ffff:127.0.0.1'
+    '::ffff:127.0.0.1',
+    '::ffff:7f00:1'
   ]) assert.equal(isPublicNetworkAddress(address), false, address)
   assert.equal(isPublicNetworkAddress('1.1.1.1'), true)
   assert.equal(isPublicNetworkAddress('2606:4700:4700::1111'), true)
+})
+
+test('browser network policy rejects private WebSocket destinations before connection', async () => {
+  await assert.rejects(() => assertPublicBrowserNetworkUrl('ws://127.0.0.1:3000/socket'), /blocked/i)
+  await assert.rejects(() => assertPublicBrowserNetworkUrl('wss://[::ffff:7f00:1]/socket'), /blocked/i)
+  await assert.rejects(() => assertPublicBrowserNetworkUrl('wss://user:pass@example.com/socket'), /credential-free/i)
 })
 
 test('audit summary stores shape and lengths instead of sensitive string contents', () => {
