@@ -35,7 +35,14 @@ jobs:
           python-version: "3.12"
 
       - name: Validate Python source
-        run: python -m py_compile infra/browser-worker/server.py
+        run: python -m py_compile infra/browser-worker/server.py infra/browser-worker/test_security.py
+
+      - name: Install browser worker Python dependencies
+        run: python -m pip install --disable-pip-version-check -r infra/browser-worker/requirements.txt
+
+      - name: Run browser security policy tests
+        working-directory: infra/browser-worker
+        run: python -m unittest -v test_security.py
 
       - name: Validate Compose security profile
         working-directory: infra/browser-worker
