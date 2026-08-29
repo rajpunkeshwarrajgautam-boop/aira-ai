@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import pyseccomp as seccomp
-from py_landlock import Landlock
+from py_landlock import AccessFs, Landlock
 
 RW_PATHS_ENV = "AIRA_TERMINAL_SANDBOX_RW_PATHS"
 RO_PATHS_ENV = "AIRA_TERMINAL_SANDBOX_RO_PATHS"
@@ -38,16 +38,27 @@ def install_filesystem_policy() -> None:
     rw_paths = _sandbox_paths(RW_PATHS_ENV)
     ro_paths = _sandbox_paths(RO_PATHS_ENV)
 
-    policy = Landlock()
+    # Landlock is used only for filesystem confinement here. IP networking is
+    # denied independently by seccomp below, and signal/abstract-UNIX scope is
+    # intentionally left unchanged so normal local process orchestration keeps
+    # working inside the already-confined child process tree.
+    policy = Landlock().allow_all_network().allow_all_scope()
     policy.allow_read(*ro_paths)
     policy.allow_execute(*ro_paths)
     policy.allow_read_write(*rw_paths)
     policy.allow_execute(*rw_paths)
 
-    device_paths = [path for path in ("/dev/null", "/dev/urandom", "/dev/random") if Path(path).exists()]
-    if device_paths:
-        policy.allow_read(*device_paths)
-        policy.allow_write(*device_paths)
+    # File rules must contain only access rights valid for files. The high-level
+    # allow_read/allow_write helpers also include directory creation/listing
+    # rights, which the kernel rejects with EINVAL when attached to device files.
+    if Path("/dev/null").exists():
+        policy.add_path_rule(
+            "/dev/null",
+            access=AccessFs.READ_FILE | AccessFs.WRITE_FILE,
+        )
+    for path in ("/dev/urandom", "/dev/random"):
+        if Path(path).exists():
+            policy.add_path_rule(path, access=AccessFs.READ_FILE)
     policy.apply()
 
 
