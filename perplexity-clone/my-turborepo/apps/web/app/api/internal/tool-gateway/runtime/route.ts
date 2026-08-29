@@ -29,7 +29,9 @@ type RuntimeTaskContext = {
 };
 
 function authorized(req: Request): boolean {
-	const expected = process.env.AIRA_TOOL_GATEWAY_TOKEN?.trim();
+	// Runtime workers receive a dedicated restricted credential. They never share
+	// the broader internal Tool Gateway token used by other trusted AIRA services.
+	const expected = process.env.AIRA_RUNTIME_TOOL_GATEWAY_TOKEN?.trim();
 	if (!expected || expected.length < 24) return false;
 	const authorization = req.headers.get("authorization") ?? "";
 	if (!authorization.toLowerCase().startsWith("bearer ")) return false;
@@ -77,10 +79,11 @@ async function resolveTaskContext(taskId: string, tool: string): Promise<Runtime
 /**
  * Trusted runtime bridge endpoint.
  *
- * Remote runtime workers keep AIRA_TOOL_GATEWAY_TOKEN in their server process;
- * the model sees only taskId/workspace identifiers. AIRA resolves ownership and
- * the active agent server-side and enforces that agent's allowedTools before the
- * regular Tool Gateway performs risk, approval, idempotency and budget checks.
+ * Remote runtime workers keep AIRA_RUNTIME_TOOL_GATEWAY_TOKEN in their server
+ * process; the model sees only taskId/workspace identifiers. AIRA resolves
+ * ownership and the active agent server-side and enforces that agent's
+ * allowedTools before the regular Tool Gateway performs risk, approval,
+ * idempotency and budget checks.
  */
 export async function POST(req: Request): Promise<Response> {
 	if (!authorized(req)) return json({ error: { code: "UNAUTHORIZED", message: "Unauthorized runtime tool request." } }, { status: 401 });
