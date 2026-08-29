@@ -7,6 +7,7 @@ import {
 	refundAgentRunQuota,
 } from "@/lib/billing/plan-enforcement";
 import { prisma } from "@/lib/prisma";
+import { executeTool } from "@/lib/tool-gateway/gateway";
 import { readMissionUsage } from "@/lib/tool-gateway/store";
 
 import { recordAgentMessage } from "./messages";
@@ -18,6 +19,7 @@ import {
 	createAgentInstance,
 	createPlatformRun,
 	failTask,
+	getProjectForUser,
 	getRunByClientRequestId,
 	getRunForUser,
 	listPendingApprovals,
@@ -36,6 +38,7 @@ import {
 	type TaskSpec,
 } from "./types";
 import { applyRuntimeUsage, missionBudgetExceeded, usageFromRuntimeResult } from "./usage";
+import { getTaskWorktree, listRunWorktrees, type WorktreeRecord } from "./worktrees";
 
 const AGENT_TOOLS: Record<string, readonly string[]> = {
 	PRODUCT: ["files", "web", "memory"],
@@ -52,6 +55,8 @@ const AGENT_TOOLS: Record<string, readonly string[]> = {
 	DEVOPS: ["git", "terminal", "vercel", "github"],
 	VERIFICATION: ["browser", "terminal", "vercel", "github"],
 };
+
+const CONTROLLED_WORKTREE_ROLES = new Set(["FRONTEND", "BACKEND", "DATABASE", "SECURITY", "INTEGRATOR"]);
 
 function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 	return {
@@ -299,6 +304,119 @@ function memoryKindForTask(task: PlatformTask): ProjectMemoryKind {
 	return "DECISION";
 }
 
+function toolGatewayEnabled(): boolean {
+	return ["1", "true", "yes", "on"].includes((process.env.AIRA_TOOL_GATEWAY_ENABLED ?? "").trim().toLowerCase());
+}
+
+function repositoryBinding(config: Record<string, unknown>): { repositoryUrl: string; baseRef: string } | null {
+	const configuredUrl = typeof config.repositoryUrl === "string" ? config.repositoryUrl.trim() : "";
+	const configuredBaseRef = typeof config.baseRef === "string" ? config.baseRef.trim() : "";
+	const serverRepository = process.env.AIRA_GITHUB_REPOSITORY?.trim();
+	const repositoryUrl = configuredUrl || (serverRepository ? `https://github.com/${serverRepository}.git` : "");
+	if (!repositoryUrl) return null;
+	try {
+		const url = new URL(repositoryUrl);
+		if (url.protocol !== "https:") return null;
+	} catch {
+		return null;
+	}
+	return {
+		repositoryUrl,
+		baseRef: configuredBaseRef || process.env.AIRA_GITHUB_BASE_BRANCH?.trim() || "main",
+	};
+}
+
+async function blockClaimedTask(input: {
+	readonly run: PlatformRun;
+	readonly task: PlatformTask;
+	readonly agentId: string;
+	readonly reason: string;
+}): Promise<void> {
+	await Promise.all([
+		setTaskStatus(input.task.id, "BLOCKED"),
+		prisma.$executeRaw`
+			update "AgentInstance"
+			set "status"='WAITING', "updatedAt"=current_timestamp
+			where "id"=${input.agentId} and "currentTaskId"=${input.task.id}
+		`,
+		recordAgentMessage({
+			projectId: input.run.projectId,
+			runId: input.run.id,
+			taskId: input.task.id,
+			agentId: input.agentId,
+			kind: "BLOCKER",
+			body: { summary: input.reason, risks: ["controlled_tooling_unavailable"], nextActions: ["configure the required trusted runtime/tooling and resume the mission"] },
+		}).catch(() => undefined),
+		appendEvent({
+			projectId: input.run.projectId,
+			runId: input.run.id,
+			taskId: input.task.id,
+			agentId: input.agentId,
+			type: "task.blocked",
+			payload: { reason: "controlled_tooling_unavailable", detail: input.reason.slice(0, 1000) },
+		}),
+	]);
+}
+
+async function prepareControlledWorkspace(input: {
+	readonly userId: string;
+	readonly run: PlatformRun;
+	readonly task: PlatformTask;
+	readonly agentId: string;
+}): Promise<{ workspace: WorktreeRecord; relatedWorkspaces: readonly WorktreeRecord[] } | { blocked: string }> {
+	const runtime = getAgentRuntime(input.run.runtime ?? "");
+	if (!runtime.capabilities.controlledTools) {
+		return { blocked: `${runtime.id} is not configured with the trusted AIRA runtime Tool Gateway bridge.` };
+	}
+	if (!toolGatewayEnabled()) {
+		return { blocked: "AIRA Tool Gateway is disabled, so coding work cannot be delegated safely." };
+	}
+	const bridgeToken = process.env.AIRA_RUNTIME_TOOL_GATEWAY_TOKEN?.trim();
+	if (!bridgeToken || bridgeToken.length < 24) {
+		return { blocked: "The dedicated runtime Tool Gateway credential is not configured." };
+	}
+	const project = await getProjectForUser(input.userId, input.run.projectId);
+	if (!project) return { blocked: "The project no longer exists or is outside this user scope." };
+	const binding = repositoryBinding(project.config);
+	if (!binding) {
+		return { blocked: "This project has no valid HTTPS repository binding. Configure project.repositoryUrl or the server-owned AIRA_GITHUB_REPOSITORY scope." };
+	}
+
+	let workspace = await getTaskWorktree(input.userId, input.task.id);
+	if (!workspace || workspace.status === "FAILED" || workspace.status === "CLEANED") {
+		const result = await executeTool(
+			{
+				userId: input.userId,
+				projectId: input.run.projectId,
+				runId: input.run.id,
+				taskId: input.task.id,
+				agentId: input.agentId,
+				source: "SYSTEM",
+			},
+			{
+				clientRequestId: `workspace:${input.task.id}`,
+				tool: "git",
+				action: "create_worktree",
+				input: binding,
+			},
+		);
+		if (result.status !== "COMPLETED") {
+			return { blocked: `AIRA could not provision the controlled coding worktree (${result.status}).` };
+		}
+		workspace = await getTaskWorktree(input.userId, input.task.id);
+	}
+	if (!workspace || !["READY", "DIRTY", "CONFLICT", "INTEGRATED"].includes(workspace.status)) {
+		return { blocked: "The isolated coding worktree is not ready." };
+	}
+	await prisma.$executeRaw`
+		update "AgentInstance"
+		set "workspace"=${workspace.workspaceId}, "updatedAt"=current_timestamp
+		where "id"=${input.agentId} and "currentTaskId"=${input.task.id}
+	`;
+	const relatedWorkspaces = (await listRunWorktrees(input.userId, input.run.id)).filter((entry) => entry.workspaceId !== workspace!.workspaceId);
+	return { workspace, relatedWorkspaces };
+}
+
 async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: readonly PlatformTask[]): Promise<number> {
 	let reconciled = 0;
 	for (const task of tasks.filter((entry) => entry.status === "RUNNING" && entry.runtimeRunId)) {
@@ -383,6 +501,18 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		});
 		await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, agentId, type: "agent.spawned", payload: { role: task.agentRole, modelTier: task.modelTier } });
 		try {
+			let workspace: WorktreeRecord | undefined;
+			let relatedWorkspaces: readonly WorktreeRecord[] = [];
+			if (CONTROLLED_WORKTREE_ROLES.has(task.agentRole)) {
+				const prepared = await prepareControlledWorkspace({ userId, run, task, agentId });
+				if ("blocked" in prepared) {
+					await blockClaimedTask({ run, task, agentId, reason: prepared.blocked });
+					continue;
+				}
+				workspace = prepared.workspace;
+				relatedWorkspaces = prepared.relatedWorkspaces;
+			}
+
 			const runtimeContext = await buildRuntimeContext({
 				userId,
 				projectId: run.projectId,
@@ -392,6 +522,15 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				taskTitle: task.title,
 				objective: task.objective,
 				allowedTools,
+				...(workspace ? { workspace: { workspaceId: workspace.workspaceId, branch: workspace.branch, baseRef: workspace.baseRef } } : {}),
+				...(relatedWorkspaces.length ? {
+					relatedWorkspaces: relatedWorkspaces.map((entry) => ({
+						workspaceId: entry.workspaceId,
+						branch: entry.branch,
+						taskId: entry.taskId,
+						status: entry.status,
+					})),
+				} : {}),
 			});
 			await recordAgentMessage({
 				projectId: run.projectId,
@@ -399,7 +538,13 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				taskId: task.id,
 				agentId,
 				kind: "INSTRUCTION",
-				body: { task: task.title, role: task.agentRole, selectedSkills: runtimeContext.selectedSkillIds, memoryKeys: runtimeContext.memoryKeys },
+				body: {
+					task: task.title,
+					role: task.agentRole,
+					selectedSkills: runtimeContext.selectedSkillIds,
+					memoryKeys: runtimeContext.memoryKeys,
+					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
+				},
 			}).catch(() => undefined);
 			const submission = await runtime.createRun({
 				userId,
@@ -408,7 +553,14 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				billingMode: "DELEGATED",
 			});
 			await markTaskRunning(task.id, submission.run.id, agentId);
-			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, agentId, type: "task.started", payload: { runtime: runtime.id, runtimeRunId: submission.run.id } });
+			await appendEvent({
+				projectId: run.projectId,
+				runId: run.id,
+				taskId: task.id,
+				agentId,
+				type: "task.started",
+				payload: { runtime: runtime.id, runtimeRunId: submission.run.id, ...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}) },
+			});
 			dispatched += 1;
 		} catch (error) {
 			const next = await failTask(claimed, error instanceof Error ? error.message : "Task dispatch failed.");
