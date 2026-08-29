@@ -67,7 +67,7 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 	github: {
 		read: "LOW",
 		create_branch: "MEDIUM",
-		create_commit: "MEDIUM",
+		create_commit: "HIGH",
 		create_pr: "HIGH",
 		comment: "HIGH",
 		merge: "PROTECTED",
