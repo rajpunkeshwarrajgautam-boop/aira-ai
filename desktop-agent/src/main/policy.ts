@@ -3,20 +3,41 @@ import { isIP } from 'net'
 import path from 'path'
 
 const SECRET_KEY = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)/i
+const HTTP_PROTOCOLS = new Set(['http:', 'https:'])
+const BROWSER_NETWORK_PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:'])
+
+function credentialFreeUrl(raw: string, protocols: ReadonlySet<string>): URL | null {
+  try {
+    const parsed = new URL(raw.trim())
+    return protocols.has(parsed.protocol) && !parsed.username && !parsed.password ? parsed : null
+  } catch {
+    return null
+  }
+}
 
 export function isHttpUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url.trim())
-    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.username && !parsed.password
-  } catch {
-    return false
-  }
+  return credentialFreeUrl(url, HTTP_PROTOCOLS) !== null
+}
+
+export function isBrowserNetworkUrl(url: string): boolean {
+  return credentialFreeUrl(url, BROWSER_NETWORK_PROTOCOLS) !== null
 }
 
 function ipv4Parts(address: string): number[] | null {
   if (isIP(address) !== 4) return null
   const parts = address.split('.').map(Number)
   return parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) ? parts : null
+}
+
+function mappedIpv4Address(address: string): string | null {
+  if (!address.startsWith('::ffff:')) return null
+  const tail = address.slice('::ffff:'.length)
+  if (isIP(tail) === 4) return tail
+  const words = tail.split(':')
+  if (words.length !== 2 || words.some((word) => !/^[0-9a-f]{1,4}$/i.test(word))) return null
+  const high = Number.parseInt(words[0], 16)
+  const low = Number.parseInt(words[1], 16)
+  return `${high >>> 8}.${high & 0xff}.${low >>> 8}.${low & 0xff}`
 }
 
 export function isPublicNetworkAddress(address: string): boolean {
@@ -29,26 +50,31 @@ export function isPublicNetworkAddress(address: string): boolean {
     if (a === 169 && b === 254) return false
     if (a === 172 && b >= 16 && b <= 31) return false
     if (a === 192 && b === 0 && c === 0) return false
+    if (a === 192 && b === 0 && c === 2) return false
+    if (a === 192 && b === 88 && c === 99) return false
     if (a === 192 && b === 168) return false
     if (a === 198 && (b === 18 || b === 19)) return false
+    if (a === 198 && b === 51 && c === 100) return false
+    if (a === 203 && b === 0 && c === 113) return false
     if (a >= 224) return false
     return true
   }
   if (isIP(normalized) === 6) {
     if (normalized === '::' || normalized === '::1') return false
+    const mapped = mappedIpv4Address(normalized)
+    if (mapped) return isPublicNetworkAddress(mapped)
+    if (normalized.startsWith('::')) return false
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return false
     if (/^fe[89ab]/.test(normalized)) return false
     if (normalized.startsWith('ff')) return false
-    const mapped = normalized.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-    if (mapped) return isPublicNetworkAddress(mapped[1])
     return true
   }
   return false
 }
 
-export async function assertPublicHttpUrl(raw: string): Promise<URL> {
-  if (!isHttpUrl(raw)) throw new Error('Only credential-free HTTP(S) URLs are allowed.')
-  const url = new URL(raw.trim())
+async function assertPublicNetworkUrl(raw: string, protocols: ReadonlySet<string>, message: string): Promise<URL> {
+  const url = credentialFreeUrl(raw, protocols)
+  if (!url) throw new Error(message)
   const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
   if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) {
     throw new Error('Local/private browser destinations are blocked.')
@@ -67,6 +93,14 @@ export async function assertPublicHttpUrl(raw: string): Promise<URL> {
     throw new Error('Browser destination resolved to a blocked network address.')
   }
   return url
+}
+
+export function assertPublicHttpUrl(raw: string): Promise<URL> {
+  return assertPublicNetworkUrl(raw, HTTP_PROTOCOLS, 'Only credential-free HTTP(S) URLs are allowed.')
+}
+
+export function assertPublicBrowserNetworkUrl(raw: string): Promise<URL> {
+  return assertPublicNetworkUrl(raw, BROWSER_NETWORK_PROTOCOLS, 'Only credential-free HTTP(S) or WebSocket URLs are allowed.')
 }
 
 function auditShape(value: unknown, key = '', depth = 0): unknown {
