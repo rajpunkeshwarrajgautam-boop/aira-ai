@@ -80,14 +80,27 @@ jobs:
           docker run -d --name aira-terminal-secret-ci \
             --read-only \
             --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+            --tmpfs /workspaces:rw,nosuid,nodev,size=64m,uid=10005,gid=10005 \
             -e AIRA_TERMINAL_RUNTIME_TOKEN=runtime-secret-must-not-remain-in-proc \
             -e 'AIRA_TERMINAL_GIT_AUTH_HEADER=Authorization: Bearer git-secret-must-not-remain-in-proc' \
             aira-terminal-worker:ci
           trap 'docker rm -f aira-terminal-secret-ci >/dev/null 2>&1 || true' EXIT
+          ready=false
           for attempt in $(seq 1 30); do
+            if ! docker inspect -f '{{.State.Running}}' aira-terminal-secret-ci | grep -qx true; then
+              docker logs aira-terminal-secret-ci
+              echo "::error::Terminal worker exited before becoming healthy."
+              exit 1
+            fi
             if docker exec aira-terminal-secret-ci python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=1).read()" >/dev/null 2>&1; then
+              ready=true
               break
             fi
             sleep 1
           done
+          if [ "$ready" != true ]; then
+            docker logs aira-terminal-secret-ci
+            echo "::error::Terminal worker did not become healthy in time."
+            exit 1
+          fi
           docker exec aira-terminal-secret-ci python3 -c "data=open('/proc/1/environ','rb').read(); assert b'runtime-secret-must-not-remain-in-proc' not in data; assert b'git-secret-must-not-remain-in-proc' not in data"
