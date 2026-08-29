@@ -11,6 +11,10 @@ DATABASE_URL = os.environ.get("AIRA_SCHEDULER_TEST_DATABASE_URL", "postgresql://
 APPROVAL_TTL_MINUTES = 30
 
 
+class ApprovalBindingLost(Exception):
+    pass
+
+
 class ApprovalIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -66,6 +70,35 @@ class ApprovalIntegrationTests(unittest.TestCase):
                    values (%s,%s,%s,%s)''',
                 (f"tool-{approval_id}", user_id, approval_id, input_hash),
             )
+
+    def create_or_get_approval(self, proposed_id):
+        try:
+            with psycopg.connect(DATABASE_URL) as connection:
+                with connection.transaction():
+                    connection.execute(
+                        '''insert into "AgentApproval" ("id","userId","status","context")
+                           values (%s,'user-1','PENDING',jsonb_build_object('inputHash','hash-a'))''',
+                        (proposed_id,),
+                    )
+                    bound = connection.execute(
+                        '''update "AgentToolCall"
+                           set "status"='APPROVAL_REQUIRED', "approvalId"=%s
+                           where "id"='tool-race' and "userId"='user-1' and "inputHash"='hash-a'
+                             and "status"='PENDING' and "approvalId" is null
+                           returning "approvalId"''',
+                        (proposed_id,),
+                    ).fetchone()
+                    if not bound or bound[0] != proposed_id:
+                        raise ApprovalBindingLost()
+                    return proposed_id
+        except ApprovalBindingLost:
+            with psycopg.connect(DATABASE_URL) as connection:
+                row = connection.execute(
+                    '''select "approvalId" from "AgentToolCall"
+                       where "id"='tool-race' and "userId"='user-1' and "inputHash"='hash-a'
+                         and "status"='APPROVAL_REQUIRED' ''',
+                ).fetchone()
+                return row[0] if row else None
 
     def resolve(self, approval_id, user_id, approve):
         with psycopg.connect(DATABASE_URL) as connection:
@@ -123,6 +156,32 @@ class ApprovalIntegrationTests(unittest.TestCase):
     def status(self, approval_id="approval-1"):
         with psycopg.connect(DATABASE_URL) as connection:
             return connection.execute('select "status" from "AgentApproval" where "id"=%s', (approval_id,)).fetchone()[0]
+
+    def test_parallel_approval_creation_binds_one_canonical_approval(self):
+        with psycopg.connect(DATABASE_URL) as connection:
+            connection.execute(
+                '''insert into "AgentToolCall" ("id","userId","approvalId","inputHash","status")
+                   values ('tool-race','user-1',null,'hash-a','PENDING')''',
+            )
+        workers = 8
+        barrier = threading.Barrier(workers)
+
+        def create_once(index):
+            barrier.wait(timeout=5)
+            return self.create_or_get_approval(f"approval-race-{index}")
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            results = list(pool.map(create_once, range(workers)))
+        self.assertEqual(len(set(results)), 1, results)
+        canonical = results[0]
+        self.assertIsNotNone(canonical)
+        with psycopg.connect(DATABASE_URL) as connection:
+            bound = connection.execute(
+                'select "approvalId","status" from "AgentToolCall" where "id"=\'tool-race\'',
+            ).fetchone()
+            approval_count = connection.execute('select count(*) from "AgentApproval"').fetchone()[0]
+        self.assertEqual(bound, (canonical, "APPROVAL_REQUIRED"))
+        self.assertEqual(approval_count, 1)
 
     def test_parallel_approve_resolves_exactly_once(self):
         self.insert_approval()
