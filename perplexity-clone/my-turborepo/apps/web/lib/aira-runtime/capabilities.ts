@@ -1,4 +1,5 @@
 import { getAgentRuntimeStates } from "@/lib/agent-runtime/registry";
+import { runtimeHasControlledTools } from "@/lib/agent-runtime/tool-bridge";
 import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
 import { toolAvailability } from "@/lib/tool-gateway/gateway";
 
@@ -43,15 +44,18 @@ export async function buildCapabilityManifest(userId: string): Promise<Capabilit
 				configured: runtime.configured,
 				healthy: runtime.healthy,
 				ready: runtime.ready,
-				capabilities: { ...runtime.capabilities },
+				capabilities: {
+					...runtime.capabilities,
+					controlledTools: runtime.ready && runtimeHasControlledTools(runtime.id),
+				},
 			},
 		]),
 	);
 	return {
-		web: Boolean(process.env.EXA_API_KEY?.trim()),
+		web: tools.web,
 		browser: tools.browser,
-		files: true,
-		memory: true,
+		files: tools.files,
+		memory: tools.memory,
 		git: tools.git,
 		terminal: tools.terminal,
 		github: tools.github,
