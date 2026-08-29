@@ -14,7 +14,50 @@ from urllib.parse import urlparse
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-TOKEN = os.environ.get("AIRA_TERMINAL_RUNTIME_TOKEN", "")
+
+def _load_worker_secrets() -> tuple[str, str]:
+    fd_text = os.environ.pop("AIRA_TERMINAL_SECRET_FD", "").strip()
+    require_fd = os.environ.get("AIRA_TERMINAL_REQUIRE_SECRET_FD", "").strip().lower() in {"1", "true", "yes", "on"}
+    if fd_text:
+        try:
+            fd = int(fd_text)
+            chunks: list[bytes] = []
+            total = 0
+            while total <= 16_384:
+                chunk = os.read(fd, min(4096, 16_384 - total + 1))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+            if total > 16_384:
+                raise RuntimeError("terminal worker secret payload is too large")
+            payload = json.loads(b"".join(chunks).decode("utf-8"))
+            token = payload.get("runtimeToken", "") if isinstance(payload, dict) else ""
+            git_auth = payload.get("gitAuthHeader", "") if isinstance(payload, dict) else ""
+            if not isinstance(token, str) or not token:
+                raise RuntimeError("terminal worker runtime token is missing")
+            if not isinstance(git_auth, str):
+                raise RuntimeError("terminal worker Git auth header is invalid")
+            return token, git_auth.strip()
+        except (OSError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError("terminal worker secret handoff is invalid") from exc
+        finally:
+            try:
+                if 'fd' in locals():
+                    os.close(fd)
+            except OSError:
+                pass
+    if require_fd:
+        raise RuntimeError("terminal worker requires the scrubbed secret-fd launcher")
+    # Direct imports are retained for local/unit tests only. The production
+    # container sets AIRA_TERMINAL_REQUIRE_SECRET_FD=true and uses launcher.py.
+    return (
+        os.environ.get("AIRA_TERMINAL_RUNTIME_TOKEN", ""),
+        os.environ.get("AIRA_TERMINAL_GIT_AUTH_HEADER", "").strip(),
+    )
+
+
+TOKEN, GIT_AUTH_HEADER = _load_worker_secrets()
 ROOT = Path(os.environ.get("AIRA_TERMINAL_WORKSPACE_ROOT", "/workspaces")).resolve()
 REPOS_ROOT = (ROOT / "repos").resolve()
 TREES_ROOT = (ROOT / "trees").resolve()
@@ -34,7 +77,6 @@ ALLOWED_EXECUTABLES = frozenset(
     ).split(",")
     if value.strip()
 )
-GIT_AUTH_HEADER = os.environ.get("AIRA_TERMINAL_GIT_AUTH_HEADER", "").strip()
 GIT_AUTHOR_NAME = os.environ.get("AIRA_TERMINAL_GIT_AUTHOR_NAME", "AIRA Agent")
 GIT_AUTHOR_EMAIL = os.environ.get("AIRA_TERMINAL_GIT_AUTHOR_EMAIL", "aira-agent@localhost")
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$")
@@ -129,7 +171,7 @@ def _base_env(*, git_network: bool = False) -> dict[str, str]:
     }
     if git_network and GIT_AUTH_HEADER:
         # Git reads this as config without placing the credential in argv or
-        # exposing the worker's service token to child processes.
+        # exposing the worker's service token to generic child processes.
         env.update({
             "GIT_CONFIG_COUNT": "1",
             "GIT_CONFIG_KEY_0": "http.extraHeader",
