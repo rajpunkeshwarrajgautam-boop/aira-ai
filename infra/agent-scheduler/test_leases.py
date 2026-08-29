@@ -153,6 +153,41 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
         self.assertGreaterEqual(renewed[0], before + timedelta(seconds=40))
         self.assertIsNone(stale)
 
+    def test_heartbeat_keeps_long_tick_exclusive_until_renewal_stops(self):
+        lease_seconds = 2
+        self.insert_run(
+            "long-tick",
+            lease_owner="scheduler-a",
+            lease_expires_at=datetime.now(timezone.utc) + timedelta(seconds=lease_seconds),
+        )
+        stop = threading.Event()
+        renewals = []
+
+        def heartbeat():
+            while not stop.wait(0.4):
+                with psycopg.connect(DATABASE_URL) as connection:
+                    row = connection.execute(RENEW_SQL, (lease_seconds, "long-tick", "scheduler-a")).fetchone()
+                renewals.append(row is not None)
+                if row is None:
+                    return
+
+        thread = threading.Thread(target=heartbeat, daemon=True)
+        thread.start()
+        try:
+            # Wait past the original lease deadline. Repeated owner-scoped
+            # heartbeats must keep the mission unavailable to a competitor.
+            time.sleep(2.6)
+            self.assertTrue(any(renewals), renewals)
+            self.assertEqual(self.claim("scheduler-b", limit=1, hold_seconds=0), [])
+        finally:
+            stop.set()
+            thread.join(timeout=2)
+
+        # Once renewal stops and the latest lease really expires, another
+        # scheduler is allowed to recover the mission.
+        time.sleep(2.2)
+        self.assertEqual(self.claim("scheduler-b", limit=1, hold_seconds=0), ["long-tick"])
+
     def test_expired_owner_cannot_resurrect_after_another_scheduler_reclaims(self):
         self.insert_run(
             "handoff",
