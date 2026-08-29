@@ -87,6 +87,7 @@ class ToolAuthorizationDatabaseTests(unittest.TestCase):
     def test_exact_active_agent_task_tool_binding_is_allowed(self):
         self.assertTrue(self.allowed())
         self.assertTrue(self.allowed(tool='git'))
+        self.assertTrue(self.allowed(project='project-b', run='run-b', task='task-b', agent='agent-b'))
 
     def test_cross_user_project_run_task_and_agent_contexts_are_denied(self):
         self.assertFalse(self.allowed(user='user-b'))
@@ -96,7 +97,8 @@ class ToolAuthorizationDatabaseTests(unittest.TestCase):
         self.assertFalse(self.allowed(agent='agent-b'))
 
     def test_same_user_wrong_project_and_same_run_wrong_task_are_denied(self):
-        self.assertFalse(self.allowed(project='project-b', run='run-b', task='task-b', agent='agent-b'))
+        self.assertFalse(self.allowed(project='project-b', run='run-a', task='task-a', agent='agent-a'))
+        self.assertFalse(self.allowed(project='project-a', run='run-b', task='task-b', agent='agent-b'))
         self.assertFalse(self.allowed(task='task-a2'))
         self.assertFalse(self.allowed(agent='agent-a2'))
         self.assertFalse(self.allowed(task='task-a2', agent='agent-a'))
