@@ -1,9 +1,12 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi import HTTPException
 
+import launcher
 import server
 
 
@@ -51,12 +54,30 @@ class TerminalSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(HTTPException):
                 server._cwd(workspace, "outside-link")
 
-    def test_child_environment_does_not_inherit_worker_service_token(self):
+    def test_child_environment_does_not_inherit_worker_or_git_credentials(self):
         env = server._base_env()
         self.assertNotIn("AIRA_TERMINAL_RUNTIME_TOKEN", env)
         self.assertNotIn("AIRA_TOOL_GATEWAY_TOKEN", env)
         self.assertNotIn("AIRA_RUNTIME_TOOL_GATEWAY_TOKEN", env)
+        self.assertNotIn("GIT_CONFIG_VALUE_0", env)
         self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
+
+    def test_launcher_removes_secrets_from_exec_environment(self):
+        with patch.dict(
+            os.environ,
+            {
+                "AIRA_TERMINAL_RUNTIME_TOKEN": "runtime-secret-value",
+                "AIRA_TERMINAL_GIT_AUTH_HEADER": "Authorization: Bearer git-secret-value",
+                "SAFE_SETTING": "preserved",
+            },
+            clear=False,
+        ):
+            env = launcher.sanitized_environment(42)
+        self.assertNotIn("AIRA_TERMINAL_RUNTIME_TOKEN", env)
+        self.assertNotIn("AIRA_TERMINAL_GIT_AUTH_HEADER", env)
+        self.assertEqual(env["AIRA_TERMINAL_SECRET_FD"], "42")
+        self.assertEqual(env["AIRA_TERMINAL_REQUIRE_SECRET_FD"], "true")
+        self.assertEqual(env["SAFE_SETTING"], "preserved")
 
     async def test_exec_rejects_unapproved_executable_and_nul_arguments(self):
         with tempfile.TemporaryDirectory() as cwd_raw:
