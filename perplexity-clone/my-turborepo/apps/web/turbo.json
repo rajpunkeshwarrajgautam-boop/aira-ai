@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "env": [
+        "AIRA_FREE_EMBEDDING_PROVIDER",
+        "AIRA_FREE_EMBEDDING_API_KEY",
+        "AIRA_FREE_EMBEDDING_BASE_URL",
+        "AIRA_FREE_EMBEDDING_MODEL",
+        "AIRA_FREE_EMBEDDING_DIMENSIONS"
+      ]
+    }
+  }
+}

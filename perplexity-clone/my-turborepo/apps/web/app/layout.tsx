@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 import "./best-of-premium.css";
 import "./impeccable-workspace-v3.css";
+import "./claude-workspace.css";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",

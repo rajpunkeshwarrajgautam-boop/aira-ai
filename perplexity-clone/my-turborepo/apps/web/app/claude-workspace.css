@@ -1,0 +1,742 @@
+/*
+ * AIRA AI — warm workspace presentation layer
+ *
+ * Loaded after the existing product styles. This file intentionally changes
+ * presentation only: colors, spacing, shell density, composer ergonomics,
+ * message readability, and shared workspace chrome. Runtime handlers, API
+ * routes, auth, persistence, provider routing, citations, and entitlements
+ * remain owned by the existing React components and server code.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Shared operational tokens                                                   */
+/* -------------------------------------------------------------------------- */
+
+.aira-home.aira-home,
+.aira-v2-page.aira-v2-page,
+.aira-agent-workspace.aira-agent-workspace,
+.aira-memory-workspace.aira-memory-workspace {
+  --surface: 40 24% 96% !important;
+  --surface-elevated: 40 33% 98% !important;
+  --surface-inset: 40 18% 93% !important;
+  --border-subtle: 36 15% 85% !important;
+  --border: 36 14% 78% !important;
+  --accent: 13 48% 53% !important;
+  --accent-muted: 13 44% 46% !important;
+  --accent-violet: 13 48% 53% !important;
+  --accent-cyan: 196 30% 42% !important;
+  --content-primary: 28 14% 18% !important;
+  --content-secondary: 30 9% 42% !important;
+  --content-tertiary: 30 7% 54% !important;
+  --page-glow: 38 30% 96% !important;
+  --page-mid: 40 24% 96% !important;
+  --aira-canvas: #f7f5f0;
+  --aira-panel: #fcfbf8;
+  --aira-panel-muted: #f0eee8;
+  --aira-panel-hover: #e9e6df;
+  --aira-divider: #dedad2;
+  --aira-text: #2f2b27;
+  --aira-muted: #777067;
+  --aira-accent: #c5654a;
+  --aira-accent-soft: #f1ded6;
+  --aira-shadow: 0 18px 48px rgba(48, 40, 32, .08);
+  color-scheme: light !important;
+}
+
+.aira-home.aira-home,
+.aira-v2-page.aira-v2-page,
+.aira-agent-workspace.aira-agent-workspace,
+.aira-memory-workspace.aira-memory-workspace {
+  background: var(--aira-canvas) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home :where(button, a, input, textarea, select):focus-visible,
+.aira-v2-page.aira-v2-page :where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--aira-accent) 78%, white) !important;
+  outline-offset: 2px !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chat shell                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.aira-home.aira-home {
+  width: 100%;
+  max-width: none !important;
+  background: var(--aira-canvas) !important;
+}
+
+.aira-home.aira-home .max-w-7xl {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+.aira-home.aira-home > div,
+.aira-home.aira-home main {
+  background: var(--aira-canvas) !important;
+}
+
+/* Sidebar: Claude-style two-zone workspace rail, preserving real route links. */
+.aira-home.aira-home div:has(> aside[aria-label="Conversation sidebar"]) {
+  width: 286px !important;
+  min-width: 286px !important;
+  max-width: 286px !important;
+  flex: 0 0 286px !important;
+  padding: 0 !important;
+}
+
+.aira-home.aira-home aside[aria-label="Conversation sidebar"] {
+  width: 286px !important;
+  min-width: 286px !important;
+  max-width: 286px !important;
+  height: 100dvh !important;
+  border-right: 1px solid var(--aira-divider) !important;
+  background: var(--aira-panel-muted) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home .aira-app-rail {
+  width: 64px !important;
+  min-width: 64px !important;
+  border-color: var(--aira-divider) !important;
+  background: #ece9e2 !important;
+}
+
+.aira-home.aira-home .aira-app-rail > a:first-child {
+  border-color: color-mix(in srgb, var(--aira-accent) 26%, transparent) !important;
+  background: var(--aira-accent-soft) !important;
+  color: var(--aira-accent) !important;
+  box-shadow: none !important;
+}
+
+.aira-home.aira-home .aira-app-rail a {
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home .aira-app-rail a:hover {
+  background: rgba(255, 255, 255, .55) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home .aira-app-rail a[aria-current="page"] {
+  background: rgba(197, 101, 74, .11) !important;
+  color: var(--aira-accent) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav {
+  background: var(--aira-panel-muted) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav > div:first-child,
+.aira-home.aira-home .aira-conversation-nav > div:last-child {
+  border-color: var(--aira-divider) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav > div:first-child {
+  height: 56px !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav input {
+  border-color: var(--aira-divider) !important;
+  background: rgba(252, 251, 248, .78) !important;
+  color: var(--aira-text) !important;
+  box-shadow: none !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav input::placeholder {
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home .aira-new-chat {
+  background: var(--aira-panel) !important;
+  border-color: var(--aira-divider) !important;
+  color: var(--aira-text) !important;
+  box-shadow: 0 1px 2px rgba(48, 40, 32, .04) !important;
+}
+
+.aira-home.aira-home .aira-new-chat:hover {
+  background: #f8f6f1 !important;
+  border-color: #d5d0c6 !important;
+}
+
+.aira-home.aira-home .aira-new-chat span:last-child {
+  border-color: #d7d2c9 !important;
+  background: #ece8e0 !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav section button {
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav section button:hover {
+  background: rgba(255, 255, 255, .55) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav section button[aria-current="page"] {
+  border-color: rgba(197, 101, 74, .14) !important;
+  background: rgba(197, 101, 74, .09) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home .aira-conversation-nav > div:last-child > div {
+  border-color: var(--aira-divider) !important;
+  background: rgba(252, 251, 248, .72) !important;
+}
+
+/* Main canvas: no centered app island or decorative glass frame. */
+.aira-home.aira-home main {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100dvh !important;
+  padding: 0 !important;
+  background: var(--aira-canvas) !important;
+}
+
+/* The old promotional pill is redundant inside a workspace shell. */
+.aira-home.aira-home main > div:first-child {
+  display: none !important;
+}
+
+/* Plan usage remains available in the real sidebar UsageIndicator. */
+.aira-home.aira-home main > header [aria-label="Plan and usage"] {
+  display: none !important;
+}
+
+.aira-home.aira-home main > header {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-bottom: 1px solid var(--aira-divider) !important;
+  background: rgba(247, 245, 240, .94) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.aira-home.aira-home main > header > div:last-child {
+  width: 100% !important;
+}
+
+.aira-home.aira-home main > header h1 {
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  letter-spacing: -.012em !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home main > header p {
+  margin-top: 1px !important;
+  font-size: 10px !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home main > header .bg-accent.text-white {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 11px !important;
+  background: var(--aira-accent-soft) !important;
+  color: var(--aira-accent) !important;
+  box-shadow: none !important;
+}
+
+.aira-home.aira-home main > div[class*="max-w-4xl"] {
+  width: 100% !important;
+  max-width: 1120px !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  margin-inline: auto !important;
+  padding: 0 28px 20px !important;
+  gap: 0 !important;
+}
+
+.aira-home.aira-home [aria-label="Research history"] {
+  margin-top: 14px !important;
+}
+
+/* Conversation frame becomes an open document canvas. */
+.aira-home.aira-home div[aria-busy] {
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar {
+  position: sticky !important;
+  top: 0 !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  border-color: var(--aira-divider) !important;
+  background: rgba(247, 245, 240, .96) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar h2 {
+  color: var(--aira-text) !important;
+  font-size: 13px !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar p {
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar > div:nth-child(2),
+.aira-home.aira-home .aira-thread-toolbar a[href="/compare"] {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+}
+
+.aira-home.aira-home .aira-thread-columns {
+  width: 100% !important;
+  max-width: none !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.aira-home.aira-home .aira-thread-columns > section {
+  background: transparent !important;
+  padding-inline: 28px !important;
+}
+
+.aira-home.aira-home .aira-message-stack {
+  max-width: 820px !important;
+  padding-bottom: 26px !important;
+}
+
+/* Empty state uses the generated workspace's calm, sparse composition. */
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child {
+  padding-top: clamp(48px, 8vh, 92px) !important;
+  padding-bottom: 34px !important;
+}
+
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child h2 {
+  color: var(--aira-text) !important;
+  font-size: clamp(26px, 3vw, 36px) !important;
+  font-weight: 560 !important;
+  letter-spacing: -.035em !important;
+}
+
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child p {
+  color: var(--aira-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child > div:first-child > div:first-child {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 15px !important;
+  border-color: rgba(197, 101, 74, .16) !important;
+  background: var(--aira-accent-soft) !important;
+  color: var(--aira-accent) !important;
+}
+
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child button,
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child a {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+  color: var(--aira-text) !important;
+  box-shadow: none !important;
+}
+
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child button:hover,
+.aira-home.aira-home .aira-message-stack > .aira-enter:first-child a:hover {
+  border-color: #d0cac0 !important;
+  background: #f8f6f1 !important;
+}
+
+/* Messages stay document-like; only user input gets a restrained bubble. */
+.aira-home.aira-home .aira-assistant-response {
+  border-color: var(--aira-divider) !important;
+}
+
+.aira-home.aira-home .aira-message-stack .answer-markdown {
+  max-width: 72ch !important;
+  color: hsl(var(--content-secondary)) !important;
+  font-size: 15px !important;
+  line-height: 1.78 !important;
+}
+
+.aira-home.aira-home .aira-message-stack :where(button, a).hover\:bg-white\/\[0\.05\]:hover,
+.aira-home.aira-home .aira-message-stack :where(button, a).hover\:bg-white\/\[0\.035\]:hover {
+  background: rgba(47, 43, 39, .045) !important;
+}
+
+.aira-home.aira-home .aira-source-grid,
+.aira-home.aira-home .aira-sources {
+  border-color: var(--aira-divider) !important;
+}
+
+.aira-home.aira-home .aira-source-grid li {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+}
+
+/* Composer: visually dominant, floating, but still the original functional form. */
+.aira-home.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 30 !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 14px 0 18px !important;
+  border: 0 !important;
+  background: linear-gradient(180deg, rgba(247,245,240,0), rgba(247,245,240,.93) 24%, #f7f5f0 58%) !important;
+  backdrop-filter: none !important;
+}
+
+.aira-home.aira-home form[aria-label="Ask AiraAI"] {
+  width: min(820px, 100%) !important;
+  max-width: 820px !important;
+  margin-inline: auto !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer {
+  border: 1px solid var(--aira-divider) !important;
+  border-radius: 22px !important;
+  background: var(--aira-panel) !important;
+  box-shadow: var(--aira-shadow) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer:focus-within {
+  border-color: color-mix(in srgb, var(--aira-accent) 42%, var(--aira-divider)) !important;
+  background: #fffdfa !important;
+  box-shadow: 0 18px 50px rgba(48, 40, 32, .11), 0 0 0 1px rgba(197, 101, 74, .08) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer textarea {
+  min-height: 76px !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer textarea::placeholder {
+  color: #928a81 !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer button,
+.aira-home.aira-home .aira-enterprise-composer a {
+  border-color: #e0dcd4 !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer button:hover,
+.aira-home.aira-home .aira-enterprise-composer a:hover {
+  background: var(--aira-panel-muted) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer button[type="submit"] {
+  border-color: transparent !important;
+  background: var(--aira-text) !important;
+  color: #fff !important;
+}
+
+.aira-home.aira-home select {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+  color: var(--aira-text) !important;
+}
+
+/* Keep the live inspector progressive: hidden until very wide, like a context panel. */
+.aira-home.aira-home .aira-live-inspector {
+  display: none !important;
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel-muted) !important;
+}
+
+@media (min-width: 1640px) {
+  .aira-home.aira-home .aira-thread-columns {
+    grid-template-columns: minmax(0, 1fr) 310px !important;
+  }
+
+  .aira-home.aira-home .aira-live-inspector {
+    display: block !important;
+  }
+
+  .aira-home.aira-home .aira-live-inspector section {
+    border-color: var(--aira-divider) !important;
+    background: var(--aira-panel) !important;
+    box-shadow: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared AiraV2Frame: Files, Agents, Memory, OmniRoute, Compare, Settings    */
+/* -------------------------------------------------------------------------- */
+
+.aira-v2-page.aira-v2-page .aira-v2-frame {
+  grid-template-columns: 244px minmax(0, 1fr) !important;
+  background: var(--aira-canvas) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-rail {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel-muted) !important;
+  padding: 14px 12px 12px !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-brand {
+  min-height: 48px !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-brand-copy span,
+.aira-v2-page.aira-v2-page .aira-v2-topbar-title strong,
+.aira-v2-page.aira-v2-page .aira-v2-palette-item strong {
+  color: var(--aira-text) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-brand-copy small,
+.aira-v2-page.aira-v2-page .aira-v2-nav-label,
+.aira-v2-page.aira-v2-page .aira-v2-nav-copy small,
+.aira-v2-page.aira-v2-page .aira-v2-topbar-title small,
+.aira-v2-page.aira-v2-page .aira-v2-grounded-status {
+  color: var(--aira-muted) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-nav-item {
+  min-height: 48px !important;
+  border-radius: 11px !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-nav-item:hover {
+  background: rgba(255,255,255,.55) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-nav-item.is-active {
+  border-color: rgba(197, 101, 74, .13) !important;
+  background: rgba(197, 101, 74, .10) !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-nav-item.is-active::before {
+  left: -13px !important;
+  background: var(--aira-accent) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-nav-icon,
+.aira-v2-page.aira-v2-page .aira-v2-nav-item.is-active .aira-v2-nav-icon {
+  color: var(--aira-accent) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-command-trigger,
+.aira-v2-page.aira-v2-page .aira-v2-topbar-command {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-command-trigger:hover,
+.aira-v2-page.aira-v2-page .aira-v2-topbar-command:hover {
+  border-color: #d0cac0 !important;
+  background: #f8f6f1 !important;
+  color: var(--aira-text) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-command-trigger kbd,
+.aira-v2-page.aira-v2-page .aira-v2-topbar-command kbd {
+  border-color: var(--aira-divider) !important;
+  background: #ebe7df !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-main,
+.aira-v2-page.aira-v2-page .aira-v2-workspace-stage,
+.aira-v2-page.aira-v2-page .aira-v2-stage {
+  background: var(--aira-canvas) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-topbar {
+  height: 56px !important;
+  border-color: var(--aira-divider) !important;
+  background: rgba(247,245,240,.95) !important;
+  padding-inline: 18px !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-topbar-icon,
+.aira-v2-page.aira-v2-page .aira-v2-palette-item-icon {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+  color: var(--aira-accent) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-status-dot {
+  background: #5f9b6e !important;
+  box-shadow: 0 0 0 3px rgba(95,155,110,.09) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette-backdrop {
+  background: rgba(47,43,39,.28) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+  box-shadow: 0 28px 90px rgba(48,40,32,.22) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette-search {
+  border-color: var(--aira-divider) !important;
+  color: var(--aira-muted) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette-search input {
+  color: var(--aira-text) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette-search input::placeholder {
+  color: #948c82 !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette-item {
+  color: var(--aira-muted) !important;
+}
+
+.aira-v2-page.aira-v2-page .aira-v2-palette-item:hover,
+.aira-v2-page.aira-v2-page .aira-v2-palette-item:focus-visible,
+.aira-v2-page.aira-v2-page .aira-v2-palette-search button:hover {
+  background: var(--aira-panel-muted) !important;
+  color: var(--aira-text) !important;
+}
+
+/* Operational page primitives from the existing V2 workspaces. */
+.aira-v2-page.aira-v2-page :where(.aira-v2-panel, .aira-v2-card, .aira-agent-card, .aira-memory-card, .aira-inspector-section) {
+  border-color: var(--aira-divider) !important;
+  background: var(--aira-panel) !important;
+  box-shadow: 0 1px 2px rgba(48,40,32,.025) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive behavior                                                         */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 1199px) and (min-width: 768px) {
+  .aira-home.aira-home div:has(> aside[aria-label="Conversation sidebar"]),
+  .aira-home.aira-home aside[aria-label="Conversation sidebar"] {
+    width: 264px !important;
+    min-width: 264px !important;
+    max-width: 264px !important;
+    flex-basis: 264px !important;
+  }
+
+  .aira-home.aira-home .aira-app-rail {
+    width: 58px !important;
+    min-width: 58px !important;
+  }
+
+  .aira-v2-page.aira-v2-page .aira-v2-frame {
+    grid-template-columns: 214px minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .aira-home.aira-home main > header {
+    height: 56px !important;
+    min-height: 56px !important;
+    padding-inline: 12px !important;
+  }
+
+  .aira-home.aira-home main > div[class*="max-w-4xl"] {
+    padding-inline: 12px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .aira-home.aira-home .aira-thread-columns > section {
+    padding-inline: 4px !important;
+  }
+
+  .aira-home.aira-home .aira-message-stack {
+    max-width: none !important;
+  }
+
+  .aira-home.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+    margin-inline: -12px !important;
+    width: calc(100% + 24px) !important;
+    padding: 12px !important;
+  }
+
+  .aira-home.aira-home .aira-enterprise-composer {
+    border-radius: 18px !important;
+  }
+
+  .aira-v2-page.aira-v2-page .aira-v2-topbar {
+    height: 56px !important;
+    padding-inline: 12px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-home.aira-home *,
+  .aira-v2-page.aira-v2-page * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* System dark mode keeps the same warm-neutral hierarchy without reverting to
+   the previous navy/gamer palette. If an explicit .dark class exists, it gets
+   the same treatment. */
+@media (prefers-color-scheme: dark) {
+  .aira-home.aira-home,
+  .aira-v2-page.aira-v2-page,
+  .aira-agent-workspace.aira-agent-workspace,
+  .aira-memory-workspace.aira-memory-workspace {
+    --surface: 30 8% 12% !important;
+    --surface-elevated: 30 7% 15% !important;
+    --surface-inset: 30 7% 18% !important;
+    --border-subtle: 30 7% 24% !important;
+    --border: 30 7% 30% !important;
+    --content-primary: 38 19% 92% !important;
+    --content-secondary: 35 9% 70% !important;
+    --content-tertiary: 32 7% 58% !important;
+    --aira-canvas: #1f1e1b;
+    --aira-panel: #262522;
+    --aira-panel-muted: #2e2c28;
+    --aira-panel-hover: #383530;
+    --aira-divider: #403d38;
+    --aira-text: #f0ece5;
+    --aira-muted: #aaa39a;
+    --aira-accent: #dd8066;
+    --aira-accent-soft: #4a312b;
+    --aira-shadow: 0 18px 48px rgba(0,0,0,.24);
+    color-scheme: dark !important;
+  }
+
+  .aira-home.aira-home .aira-app-rail { background: #292722 !important; }
+  .aira-home.aira-home .aira-app-rail a:hover,
+  .aira-home.aira-home .aira-conversation-nav section button:hover,
+  .aira-v2-page.aira-v2-page .aira-v2-nav-item:hover { background: rgba(255,255,255,.045) !important; }
+  .aira-home.aira-home .aira-conversation-nav input,
+  .aira-home.aira-home .aira-new-chat,
+  .aira-home.aira-home .aira-conversation-nav > div:last-child > div,
+  .aira-home.aira-home .aira-thread-toolbar > div:nth-child(2),
+  .aira-home.aira-home .aira-thread-toolbar a[href="/compare"],
+  .aira-home.aira-home .aira-message-stack > .aira-enter:first-child button,
+  .aira-home.aira-home .aira-message-stack > .aira-enter:first-child a,
+  .aira-home.aira-home select,
+  .aira-v2-page.aira-v2-page .aira-v2-command-trigger,
+  .aira-v2-page.aira-v2-page .aira-v2-topbar-command,
+  .aira-v2-page.aira-v2-page .aira-v2-topbar-icon,
+  .aira-v2-page.aira-v2-page .aira-v2-palette-item-icon { background: var(--aira-panel) !important; border-color: var(--aira-divider) !important; }
+  .aira-home.aira-home main > header,
+  .aira-home.aira-home .aira-thread-toolbar,
+  .aira-v2-page.aira-v2-page .aira-v2-topbar { background: rgba(31,30,27,.95) !important; }
+  .aira-home.aira-home .aira-enterprise-composer:focus-within { background: #292824 !important; }
+  .aira-home.aira-home main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
+    background: linear-gradient(180deg, rgba(31,30,27,0), rgba(31,30,27,.94) 24%, #1f1e1b 58%) !important;
+  }
+  .aira-v2-page.aira-v2-page .aira-v2-command-trigger kbd,
+  .aira-v2-page.aira-v2-page .aira-v2-topbar-command kbd { background: #23221f !important; }
+  .aira-v2-page.aira-v2-page .aira-v2-palette-backdrop { background: rgba(0,0,0,.52) !important; }
+}
