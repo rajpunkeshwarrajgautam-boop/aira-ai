@@ -8,13 +8,14 @@ import { browser } from './browser'
 import { getSettings } from './config'
 import { focusWindow, launchApp, listWindows, mouseClick, pasteText, powerShell, pressKeys, scroll } from './computer'
 import { addMemory, searchMemory } from './memory'
+import { resolvePathInsideRoot } from './policy'
 import { indexWorkspace, ragStatus, searchWorkspace } from './rag'
 import { analyzeScreen, capturePrimaryScreen, locateOnScreen } from './screen'
 import { cancelTask, createTask, listTasks } from './scheduler'
 import { getSkill, installSkillFromFile, listSkills, removeSkill } from './skills'
 import type { ToolContext, ToolDescriptor } from './types'
 interface ToolSpec extends ToolDescriptor { run:(args:Record<string,unknown>,context:ToolContext)=>Promise<unknown> }
-function safePath(input:string):string{const root=path.resolve(getSettings().workspaceRoot);const expanded=input.startsWith('~')?path.join(os.homedir(),input.slice(1)):input;const target=path.isAbsolute(expanded)?path.resolve(expanded):path.resolve(root,expanded||'.');const rel=path.relative(root,target);if(rel.startsWith('..')||path.isAbsolute(rel))throw new Error(`Path is outside workspace: ${root}`);return target}
+function safePath(input:string):string{const root=path.resolve(getSettings().workspaceRoot);const expanded=input.startsWith('~')?path.join(os.homedir(),input.slice(1)):input;const target=path.isAbsolute(expanded)?path.resolve(expanded):path.resolve(root,expanded||'.');return resolvePathInsideRoot(root,target)}
 function asString(value:unknown,max=20_000):string{return String(value??'').slice(0,max)}
 function requireCapability(enabled:boolean,name:string):void{if(!enabled)throw new Error(`${name} is disabled in Settings.`)}
 const tools:Record<string,ToolSpec>={
