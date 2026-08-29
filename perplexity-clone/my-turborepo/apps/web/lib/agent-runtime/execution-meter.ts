@@ -35,13 +35,12 @@ export class AgentRuntimeLoopError extends Error {
 }
 
 export class ExecutionMeter {
+	readonly budget: ExecutionBudget;
 	private usage: ExecutionUsage;
 	private loopGuard: ActionLoopGuardState;
 
-	constructor(
-		readonly budget: ExecutionBudget,
-		startedAtMs = Date.now(),
-	) {
+	constructor(budget: ExecutionBudget, startedAtMs = Date.now()) {
+		this.budget = budget;
 		this.usage = {
 			startedAtMs,
 			activeAgents: 0,

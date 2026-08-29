@@ -51,7 +51,11 @@ export interface BudgetedToolInvocation<TContext = unknown> {
  * single-sourced.
  */
 export class BudgetedToolExecutor {
-	constructor(readonly meter: ExecutionMeter) {}
+	readonly meter: ExecutionMeter;
+
+	constructor(meter: ExecutionMeter) {
+		this.meter = meter;
+	}
 
 	async execute<TOutput = unknown, TContext = unknown>(
 		invocation: BudgetedToolInvocation<TContext>,
