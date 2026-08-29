@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     env:
       AIRA_TERMINAL_RUNTIME_TOKEN: contract-terminal-runtime-token-contract
-      AIRA_TERMINAL_WORKSPACE_ROOT: ${{ runner.temp }}/aira-terminal-worker-test
+      AIRA_TERMINAL_WORKSPACE_ROOT: /tmp/aira-terminal-worker-test
 
     steps:
       - name: Check out repository
