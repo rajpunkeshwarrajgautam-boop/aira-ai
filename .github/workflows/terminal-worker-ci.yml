@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 20
     env:
       AIRA_TERMINAL_RUNTIME_TOKEN: contract-terminal-runtime-token-contract
+      AIRA_TERMINAL_WORKSPACE_ROOT: ${{ runner.temp }}/aira-terminal-worker-test
 
     steps:
       - name: Check out repository
@@ -35,7 +36,14 @@ jobs:
           python-version: "3.12"
 
       - name: Validate Python source
-        run: python -m py_compile infra/terminal-worker/server.py
+        run: python -m py_compile infra/terminal-worker/server.py infra/terminal-worker/test_security.py
+
+      - name: Install terminal worker Python dependencies
+        run: python -m pip install --disable-pip-version-check -r infra/terminal-worker/requirements.txt
+
+      - name: Run terminal security policy tests
+        working-directory: infra/terminal-worker
+        run: python -m unittest -v test_security.py
 
       - name: Validate Compose security profile
         working-directory: infra/terminal-worker
