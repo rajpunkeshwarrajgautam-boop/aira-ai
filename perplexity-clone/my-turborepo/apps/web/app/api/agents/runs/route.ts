@@ -30,6 +30,13 @@ import {
 	releaseFoundationLease,
 } from "@/lib/foundation-control-plane";
 import {
+	isManagedAgentRuntimeConfigured,
+	isManagedAgentRuntimeEnabled,
+	ManagedAgentQueueError,
+	ManagedAgentRuntimeConfigError,
+	submitManagedAgentRun,
+} from "@/lib/agent-runtime/managed-runs";
+import {
 	assertSafetyAllowed,
 	SafetyBlockedError,
 	SafetyGatewayError,
@@ -38,12 +45,12 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type AgentProvider = "DEERFLOW" | "AUTOGPT";
+type AgentProvider = "AIRA" | "DEERFLOW" | "AUTOGPT";
 
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(4_000),
-	provider: z.enum(["DEERFLOW", "AUTOGPT"]).optional(),
+	provider: z.enum(["AIRA", "DEERFLOW", "AUTOGPT"]).optional(),
 });
 
 function noStoreJson(body: unknown, init?: ResponseInit): Response {
@@ -54,6 +61,10 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 
 function configuredProviderState() {
 	return {
+		manager: {
+			enabled: isManagedAgentRuntimeEnabled(),
+			configured: isManagedAgentRuntimeConfigured(),
+		},
 		deerFlow: {
 			enabled: isDeerFlowEnabled(),
 			configured: isDeerFlowConfigured(),
@@ -76,6 +87,10 @@ async function deerFlowHealthy(configured: boolean): Promise<boolean> {
 
 async function selectProvider(requested?: AgentProvider): Promise<AgentProvider> {
 	const state = configuredProviderState();
+	if (requested === "AIRA") {
+		if (!state.manager.configured) throw new ManagedAgentRuntimeConfigError();
+		return "AIRA";
+	}
 	if (requested === "DEERFLOW") {
 		if (!state.deerFlow.configured) {
 			throw new DeerFlowConfigError("DeerFlow is not configured for this AIRA deployment.");
@@ -97,8 +112,10 @@ async function selectProvider(requested?: AgentProvider): Promise<AgentProvider>
 		return "AUTOGPT";
 	}
 
-	// DeerFlow is AIRA's preferred long-horizon engine, but a failed health probe
-	// must not strand the workspace when the already-hardened AutoGPT fallback is configured.
+	// AIRA Manager becomes the preferred orchestration layer only when an explicitly
+	// enabled long-lived worker and the foundation queue are configured. Existing
+	// provider-direct execution remains a backward-compatible fallback.
+	if (state.manager.configured) return "AIRA";
 	if (state.deerFlow.configured && (await deerFlowHealthy(true))) return "DEERFLOW";
 	if (state.autoGpt.configured) return "AUTOGPT";
 	if (state.deerFlow.configured) {
@@ -110,6 +127,12 @@ async function selectProvider(requested?: AgentProvider): Promise<AgentProvider>
 		});
 	}
 	throw new DeerFlowConfigError("No autonomous agent runtime is configured.");
+}
+
+function providerLabel(provider: string): string {
+	if (provider === "AIRA") return "AIRA Manager";
+	if (provider === "DEERFLOW") return "DeerFlow 2.0";
+	return "AutoGPT";
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -128,21 +151,25 @@ export async function GET(req: Request): Promise<Response> {
 		getEffectiveEntitlements(session.user.id),
 		deerFlowHealthy(configured.deerFlow.configured),
 	]);
+	const managerReady = configured.manager.configured;
 	const deerFlowReady = configured.deerFlow.configured && deerFlowIsHealthy;
 	const autoGptReady = configured.autoGpt.configured;
-	const preferredProvider: AgentProvider | null = deerFlowReady
-		? "DEERFLOW"
-		: autoGptReady
-			? "AUTOGPT"
-			: null;
+	const preferredProvider: AgentProvider | null = managerReady
+		? "AIRA"
+		: deerFlowReady
+			? "DEERFLOW"
+			: autoGptReady
+				? "AUTOGPT"
+				: null;
 	return noStoreJson({
 		runs,
 		feature: {
-			enabled: configured.deerFlow.enabled || configured.autoGpt.enabled,
-			configured: configured.deerFlow.configured || configured.autoGpt.configured,
-			ready: deerFlowReady || autoGptReady,
+			enabled: configured.manager.enabled || configured.deerFlow.enabled || configured.autoGpt.enabled,
+			configured: configured.manager.configured || configured.deerFlow.configured || configured.autoGpt.configured,
+			ready: managerReady || deerFlowReady || autoGptReady,
 			preferredProvider,
 			providers: {
+				AIRA: { ...configured.manager, healthy: null, ready: managerReady },
 				DEERFLOW: { ...configured.deerFlow, healthy: deerFlowIsHealthy, ready: deerFlowReady },
 				AUTOGPT: { ...configured.autoGpt, healthy: null, ready: autoGptReady },
 			},
@@ -229,39 +256,46 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		leaseId = lease.leaseId;
 
-		const submitted = provider === "DEERFLOW"
-			? await submitDeerFlowAgentRun({
+		const submitted = provider === "AIRA"
+			? await submitManagedAgentRun({
 				userId: session.user.id,
 				clientRequestId: parsed.data.clientRequestId,
 				objective: parsed.data.objective,
 			})
-			: await submitAgentRun({
-				userId: session.user.id,
-				clientRequestId: parsed.data.clientRequestId,
-				objective: parsed.data.objective,
-			});
+			: provider === "DEERFLOW"
+				? await submitDeerFlowAgentRun({
+					userId: session.user.id,
+					clientRequestId: parsed.data.clientRequestId,
+					objective: parsed.data.objective,
+				})
+				: await submitAgentRun({
+					userId: session.user.id,
+					clientRequestId: parsed.data.clientRequestId,
+					objective: parsed.data.objective,
+				});
 
+		const label = providerLabel(submitted.run.provider);
 		await Promise.all([
 			recordAgentRunEventBestEffort({
 				runId: submitted.run.id,
 				eventKey: "submitted",
 				type: "SUBMITTED",
 				status: submitted.run.status,
-				message: `Task accepted by ${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"}.`,
+				message: `Task accepted by ${label}.`,
 				metadata: { provider: submitted.run.provider },
 			}),
 			recordAgentRunStepBestEffort({
 				runId: submitted.run.id,
 				stepKey: "provider-submission",
 				type: "PROVIDER_SUBMISSION",
-				label: `Submit task to ${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"}`,
+				label: provider === "AIRA" ? "Queue task for AIRA Manager" : `Submit task to ${label}`,
 				status: "COMPLETED",
 			}),
 			recordAgentRunStepBestEffort({
 				runId: submitted.run.id,
 				stepKey: "provider-execution",
-				type: "PROVIDER_EXECUTION",
-				label: `${submitted.run.provider === "DEERFLOW" ? "DeerFlow 2.0" : "AutoGPT"} execution`,
+				type: provider === "AIRA" ? "MANAGER_EXECUTION" : "PROVIDER_EXECUTION",
+				label: `${label} execution`,
 				status: agentRunStatusToStepStatus(submitted.run.status),
 			}),
 		]);
@@ -274,7 +308,13 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: error.status },
 			);
 		}
-		if (error instanceof DeerFlowConfigError || error instanceof AutoGptConfigError) {
+		if (error instanceof ManagedAgentQueueError) {
+			return noStoreJson(
+				{ error: { code: error.code, message: error.message, retryable: true }, run: error.run },
+				{ status: error.status, headers: { "Retry-After": "2" } },
+			);
+		}
+		if (error instanceof ManagedAgentRuntimeConfigError || error instanceof DeerFlowConfigError || error instanceof AutoGptConfigError) {
 			return noStoreJson(
 				{
 					error: {

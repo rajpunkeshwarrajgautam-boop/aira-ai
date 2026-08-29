@@ -26,6 +26,10 @@ function config(): { baseUrl: string; token: string } | null {
 	return { baseUrl, token };
 }
 
+export function foundationControlPlaneConfigured(): boolean {
+	return controlPlaneEnabled() && config() !== null;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 	const cfg = config();
 	if (!cfg) throw new Error("Foundation control plane is not configured.");
@@ -118,13 +122,15 @@ export async function enqueueFoundationJob(args: {
 	readonly type: string;
 	readonly payload: Record<string, unknown>;
 	readonly attempts?: number;
+	readonly jobKey?: string;
 }): Promise<string> {
-	const data = await request<{ jobId: string }>("/v1/jobs/enqueue", {
+	const data = await request<{ jobId: string; deduplicated?: boolean }>("/v1/jobs/enqueue", {
 		method: "POST",
 		body: JSON.stringify({
 			type: args.type,
 			payload: args.payload,
 			attempts: args.attempts ?? 0,
+			...(args.jobKey ? { jobKey: args.jobKey } : {}),
 		}),
 	});
 	return data.jobId;

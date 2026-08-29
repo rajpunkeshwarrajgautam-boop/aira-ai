@@ -124,7 +124,22 @@ def assert_provider_circuit():
 
 def assert_queue_recovery():
     job_type = f"smoke.queue.{uuid.uuid4().hex[:10]}"
-    for index in range(10):
+    first_key = f"request:{uuid.uuid4()}"
+    _, first = control(
+        "/v1/jobs/enqueue",
+        {"type": job_type, "payload": {"index": 0}, "jobKey": first_key},
+    )
+    first_id = first["data"].get("jobId")
+    assert first_id and first["data"].get("deduplicated") is False, first
+
+    _, duplicate = control(
+        "/v1/jobs/enqueue",
+        {"type": job_type, "payload": {"index": 999}, "jobKey": first_key},
+    )
+    assert duplicate["data"].get("jobId") == first_id, duplicate
+    assert duplicate["data"].get("deduplicated") is True, duplicate
+
+    for index in range(1, 10):
         _, response = control(
             "/v1/jobs/enqueue",
             {"type": job_type, "payload": {"index": index}},
@@ -194,7 +209,7 @@ def main():
     assert_provider_circuit()
     assert_queue_recovery()
     assert_sandbox()
-    print(json.dumps({"ok": True, "checks": ["admission", "providerCircuit", "queueRecovery", "sandbox"]}))
+    print(json.dumps({"ok": True, "checks": ["admission", "providerCircuit", "queueRecovery", "queueIdempotency", "sandbox"]}))
     return 0
 
 

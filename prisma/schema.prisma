@@ -186,6 +186,9 @@ model AgentRun {
   completedAt       DateTime?
   events            AgentRunEvent[]
   approvals         AgentToolApproval[]
+  tasks             AgentRunTask[]
+  messages          AgentRunMessage[]
+  artifacts         AgentRunArtifact[]
 
   @@unique([userId, clientRequestId])
   @@index([userId, createdAt(sort: Desc)])
@@ -229,6 +232,78 @@ model AgentToolApproval {
   @@unique([runId, approvalKey])
   @@index([runId, status, requestedAt])
   @@index([resolverUserId, resolvedAt])
+}
+
+/// Durable, scheduler-owned task state for an AIRA-managed run.
+/// AgentRun remains the ownership boundary; no task row is directly exposed through Supabase Data API.
+model AgentRunTask {
+  id                 String    @id @default(cuid())
+  runId              String
+  run                AgentRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  taskKey            String
+  parentTaskKey      String?
+  title              String
+  description        String?   @db.Text
+  role               String
+  dependencies       String[]  @default([])
+  requiredCapabilities String[] @default([])
+  status             String
+  priority           Int       @default(50)
+  attempt            Int       @default(0)
+  maxAttempts        Int?
+  delegationDepth    Int       @default(1)
+  blockedReason      String?   @db.Text
+  expectedOutput     String?   @db.Text
+  acceptanceCriteria Json?
+  riskClass          String?
+  preferredModelClass String?
+  result             Json?
+  evidence           Json?
+  artifactRefs       Json?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([runId, taskKey])
+  @@index([runId, status, priority(sort: Desc)])
+  @@index([runId, role, updatedAt(sort: Desc)])
+}
+
+/// Bounded, structured communication between specialist agents during one run.
+model AgentRunMessage {
+  id            String   @id @default(cuid())
+  runId         String
+  run           AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  taskKey       String?
+  senderRole    String
+  recipientRole String?
+  messageType   String
+  content       String   @db.Text
+  artifactRefs  Json?
+  createdAt     DateTime @default(now())
+
+  @@index([runId, createdAt])
+  @@index([runId, taskKey, createdAt])
+}
+
+/// Run-owned artifact metadata. Binary payloads belong in bounded object/provider storage, not JSON event rows.
+model AgentRunArtifact {
+  id           String   @id @default(cuid())
+  runId        String
+  run          AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  taskKey      String?
+  agentRole    String?
+  type         String
+  name         String
+  storageRef   String   @db.Text
+  contentType  String?
+  sizeBytes    Int?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([runId, createdAt])
+  @@index([runId, taskKey, createdAt])
 }
 
 /// User-owned activation preference for deployment-approved MCP servers.
@@ -324,7 +399,7 @@ model UserMemory {
 model ResearchHistory {
   id                String               @id @default(cuid())
   userId            String
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversationId    String?
   conversation      Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   messageId         String?
