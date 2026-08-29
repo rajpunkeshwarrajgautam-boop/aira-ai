@@ -11,6 +11,7 @@ import {
   isPathInside,
   isPublicNetworkAddress,
   resolvePathInsideRoot,
+  sanitizeApprovalDetails,
   sanitizeAuditSummary
 } from '../src/main/policy'
 
@@ -72,6 +73,21 @@ test('plain-text audit summaries redact credential-shaped values', () => {
   const safe = sanitizeAuditSummary('Authorization: Bearer ghp_abcdef123456789 token=secret-value') || ''
   assert.equal(safe.includes('ghp_abcdef123456789'), false)
   assert.equal(safe.includes('secret-value'), false)
+})
+
+test('approval details hide private text and credential-shaped command values', () => {
+  const browser = sanitizeApprovalDetails('browser_type', { ref: 'e3', text: 'my-login-password', submit: true })
+  assert.equal(browser.includes('my-login-password'), false)
+  assert.match(browser, /private input:17 chars/)
+
+  const write = sanitizeApprovalDetails('write_file', { path: 'config.txt', content: 'private file body', apiKey: 'sk-secret-value' })
+  assert.equal(write.includes('private file body'), false)
+  assert.equal(write.includes('sk-secret-value'), false)
+  assert.match(write, /\[redacted\]/)
+
+  const command = sanitizeApprovalDetails('run_powershell', { command: 'curl https://example.com -H "Authorization: Bearer ghp_abcdef123456789"' })
+  assert.equal(command.includes('ghp_abcdef123456789'), false)
+  assert.equal(command.includes('curl https://example.com'), true)
 })
 
 test('workspace policy blocks traversal', () => {
