@@ -17,6 +17,8 @@ export interface StoredToolCall {
 	readonly risk: RiskClass;
 	readonly status: ToolCallStatus;
 	readonly approvalId: string | null;
+	readonly inputHash: string;
+	readonly inputSummary: Record<string, unknown>;
 	readonly resultSummary: Record<string, unknown> | null;
 	readonly usage: Record<string, unknown>;
 	readonly errorCode: string | null;
@@ -31,6 +33,7 @@ function jsonObject(value: unknown): Record<string, unknown> {
 function row(value: StoredToolCall): StoredToolCall {
 	return {
 		...value,
+		inputSummary: jsonObject(value.inputSummary),
 		resultSummary: value.resultSummary ? jsonObject(value.resultSummary) : null,
 		usage: jsonObject(value.usage),
 	};
@@ -83,6 +86,7 @@ export async function createToolCall(input: {
 	readonly tool: AiraToolId;
 	readonly action: string;
 	readonly risk: RiskClass;
+	readonly inputHash: string;
 	readonly inputSummary: Record<string, unknown>;
 }): Promise<StoredToolCall> {
 	const id = crypto.randomUUID();
@@ -90,11 +94,11 @@ export async function createToolCall(input: {
 		const rows = await prisma.$queryRaw<StoredToolCall[]>`
 			insert into "AgentToolCall" (
 				"id","clientRequestId","userId","projectId","runId","taskId","agentId",
-				"tool","action","risk","inputSummary"
+				"tool","action","risk","inputHash","inputSummary"
 			) values (
 				${id},${input.clientRequestId},${input.context.userId},${input.context.projectId},
 				${input.context.runId},${input.context.taskId ?? null},${input.context.agentId ?? null},
-				${input.tool},${input.action},${input.risk},${JSON.stringify(input.inputSummary)}::jsonb
+				${input.tool},${input.action},${input.risk},${input.inputHash},${JSON.stringify(input.inputSummary)}::jsonb
 			)
 			returning *
 		`;
@@ -111,6 +115,7 @@ export async function createToolApproval(input: {
 	readonly toolCallId: string;
 	readonly action: string;
 	readonly risk: RiskClass;
+	readonly inputHash: string;
 	readonly summary: Record<string, unknown>;
 }): Promise<string> {
 	const approvalId = crypto.randomUUID();
@@ -121,13 +126,13 @@ export async function createToolApproval(input: {
 			) values (
 				${approvalId},${input.context.userId},${input.context.projectId},${input.context.runId},
 				${input.context.taskId ?? null},${input.action},${input.risk},
-				${JSON.stringify({ toolCallId: input.toolCallId, ...input.summary })}::jsonb
+				${JSON.stringify({ toolCallId: input.toolCallId, inputHash: input.inputHash, ...input.summary })}::jsonb
 			)
 		`,
 		prisma.$executeRaw`
 			update "AgentToolCall"
 			set "status"='APPROVAL_REQUIRED', "approvalId"=${approvalId}
-			where "id"=${input.toolCallId} and "userId"=${input.context.userId} and "status"='PENDING'
+			where "id"=${input.toolCallId} and "userId"=${input.context.userId} and "inputHash"=${input.inputHash} and "status"='PENDING'
 		`,
 	]);
 	return approvalId;
@@ -137,6 +142,7 @@ export async function isToolApprovalApproved(
 	userId: string,
 	toolCallId: string,
 	approvalId: string,
+	inputHash: string,
 ): Promise<boolean> {
 	const rows = await prisma.$queryRaw<Array<{ approved: boolean }>>`
 		select exists(
@@ -146,7 +152,9 @@ export async function isToolApprovalApproved(
 			  and c."id"=${toolCallId}
 			  and a."userId"=${userId}
 			  and c."userId"=${userId}
+			  and c."inputHash"=${inputHash}
 			  and a."status"='APPROVED'
+			  and a."context"->>'inputHash'=${inputHash}
 		) as approved
 	`;
 	return Boolean(rows[0]?.approved);
@@ -174,6 +182,7 @@ export async function reserveToolBudget(runId: string): Promise<void> {
 export async function claimToolCallForExecution(input: {
 	readonly userId: string;
 	readonly toolCallId: string;
+	readonly inputHash: string;
 	readonly approvalSatisfied: boolean;
 }): Promise<boolean> {
 	const rows = await prisma.$queryRaw<Array<{ id: string }>>`
@@ -181,6 +190,7 @@ export async function claimToolCallForExecution(input: {
 		set "status"='EXECUTING', "startedAt"=coalesce("startedAt", current_timestamp)
 		where "id"=${input.toolCallId}
 		  and "userId"=${input.userId}
+		  and "inputHash"=${input.inputHash}
 		  and (
 			"status"='PENDING'
 			or ("status"='APPROVAL_REQUIRED' and ${input.approvalSatisfied})
