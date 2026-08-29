@@ -25,6 +25,8 @@ export interface StoredToolCall {
 	readonly errorCode: string | null;
 }
 
+class ApprovalBindingLost extends Error {}
+
 function jsonObject(value: unknown): Record<string, unknown> {
 	return value && typeof value === "object" && !Array.isArray(value)
 		? (value as Record<string, unknown>)
@@ -123,23 +125,54 @@ export async function createToolApproval(input: {
 	readonly summary: Record<string, unknown>;
 }): Promise<string> {
 	const approvalId = crypto.randomUUID();
-	await prisma.$transaction([
-		prisma.$executeRaw`
-			insert into "AgentApproval" (
-				"id","userId","projectId","runId","taskId","action","risk","context"
-			) values (
-				${approvalId},${input.context.userId},${input.context.projectId},${input.context.runId},
-				${input.context.taskId ?? null},${input.action},${input.risk},
-				${JSON.stringify({ toolCallId: input.toolCallId, inputHash: input.inputHash, ...input.summary })}::jsonb
-			)
-		`,
-		prisma.$executeRaw`
-			update "AgentToolCall"
-			set "status"='APPROVAL_REQUIRED', "approvalId"=${approvalId}
-			where "id"=${input.toolCallId} and "userId"=${input.context.userId} and "inputHash"=${input.inputHash} and "status"='PENDING'
-		`,
-	]);
-	return approvalId;
+	try {
+		return await prisma.$transaction(async (tx) => {
+			await tx.$executeRaw`
+				insert into "AgentApproval" (
+					"id","userId","projectId","runId","taskId","action","risk","context"
+				) values (
+					${approvalId},${input.context.userId},${input.context.projectId},${input.context.runId},
+					${input.context.taskId ?? null},${input.action},${input.risk},
+					${JSON.stringify({ toolCallId: input.toolCallId, inputHash: input.inputHash, ...input.summary })}::jsonb
+				)
+			`;
+			const bound = await tx.$queryRaw<Array<{ approvalId: string | null }>>`
+				update "AgentToolCall"
+				set "status"='APPROVAL_REQUIRED', "approvalId"=${approvalId}
+				where "id"=${input.toolCallId}
+				  and "userId"=${input.context.userId}
+				  and "inputHash"=${input.inputHash}
+				  and "status"='PENDING'
+				  and "approvalId" is null
+				returning "approvalId"
+			`;
+			if (bound[0]?.approvalId !== approvalId) {
+				// Throwing from the interactive transaction rolls the speculative
+				// approval insert back. A concurrent caller may have bound the
+				// canonical approval while this transaction waited on the ToolCall.
+				throw new ApprovalBindingLost();
+			}
+			return approvalId;
+		});
+	} catch (error) {
+		if (!(error instanceof ApprovalBindingLost)) throw error;
+		const existing = await prisma.$queryRaw<Array<{ approvalId: string | null }>>`
+			select "approvalId"
+			from "AgentToolCall"
+			where "id"=${input.toolCallId}
+			  and "userId"=${input.context.userId}
+			  and "inputHash"=${input.inputHash}
+			  and "status"='APPROVAL_REQUIRED'
+			limit 1
+		`;
+		if (existing[0]?.approvalId) return existing[0].approvalId;
+		throw new ToolGatewayError({
+			code: "TOOL_APPROVAL_STATE_CONFLICT",
+			message: "The tool request changed state while approval was being created.",
+			status: 409,
+			retryable: true,
+		});
+	}
 }
 
 export async function isToolApprovalApproved(
