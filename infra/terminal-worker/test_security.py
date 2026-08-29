@@ -87,9 +87,30 @@ class TerminalSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(Path(generic[1]), runtime.SANDBOX_EXEC)
         self.assertEqual(generic[-2:], ["git", "status"])
         self.assertEqual(
-            runtime.command_argv(["git", "fetch", "--prune", "origin", "main"], git_network=True),
+            runtime.command_argv(
+                ["git", "fetch", "--prune", "origin", "main"],
+                git_network=True,
+                trusted_git=True,
+            ),
             ["git", "fetch", "--prune", "origin", "main"],
         )
+        generic_network = runtime.command_argv(
+            ["git", "fetch", "origin", "main"],
+            git_network=True,
+            trusted_git=False,
+        )
+        self.assertEqual(generic_network[0], sys.executable)
+
+    async def test_generic_network_flag_is_denied_without_server_git_marker(self):
+        with tempfile.TemporaryDirectory() as cwd_raw:
+            with self.assertRaises(HTTPException) as denied:
+                await runtime.sandboxed_run(
+                    ["git", "fetch", "origin", "main"],
+                    cwd=Path(cwd_raw),
+                    git_network=True,
+                    trusted_git=False,
+                )
+        self.assertEqual(denied.exception.status_code, 403)
 
     async def test_exec_rejects_unapproved_executable_and_nul_arguments(self):
         with tempfile.TemporaryDirectory() as cwd_raw:
@@ -130,6 +151,42 @@ class TerminalSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as cwd_raw:
             result = await server._run(["python3", "-c", outer], cwd=Path(cwd_raw), timeout_seconds=5)
         self.assertEqual(result["exitCode"], 0, result["stderr"])
+
+    async def test_generic_exec_can_write_own_scope_but_not_sibling_or_symlink_target(self):
+        with tempfile.TemporaryDirectory() as root_raw:
+            root = Path(root_raw).resolve()
+            workspace = root / "workspace"
+            sibling = root / "sibling"
+            workspace.mkdir()
+            sibling.mkdir()
+            secret = sibling / "secret.txt"
+            secret.write_text("sibling-secret", encoding="utf-8")
+
+            own = await server._run(
+                ["python3", "-c", "from pathlib import Path; Path('own.txt').write_text('ok'); print(Path('own.txt').read_text())"],
+                cwd=workspace,
+                timeout_seconds=5,
+            )
+            self.assertEqual(own["exitCode"], 0, own["stderr"])
+            self.assertEqual(own["stdout"].strip(), "ok")
+
+            sibling_read = await server._run(
+                ["python3", "-c", f"from pathlib import Path; print(Path({str(secret)!r}).read_text())"],
+                cwd=workspace,
+                timeout_seconds=5,
+            )
+            self.assertNotEqual(sibling_read["exitCode"], 0)
+            self.assertIn("Permission denied", sibling_read["stderr"])
+
+            link = workspace / "outside-link"
+            link.symlink_to(sibling, target_is_directory=True)
+            symlink_read = await server._run(
+                ["python3", "-c", "from pathlib import Path; print(Path('outside-link/secret.txt').read_text())"],
+                cwd=workspace,
+                timeout_seconds=5,
+            )
+            self.assertNotEqual(symlink_read["exitCode"], 0)
+            self.assertIn("Permission denied", symlink_read["stderr"])
 
     async def test_exec_enforces_output_bound(self):
         with tempfile.TemporaryDirectory() as cwd_raw:

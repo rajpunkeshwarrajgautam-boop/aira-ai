@@ -68,6 +68,7 @@ jobs:
           fi
           grep -q 'asyncio.create_subprocess_exec' infra/terminal-worker/sandboxed_server.py
           grep -q 'seccomp.Arg(0, seccomp.NE, socket.AF_UNIX)' infra/terminal-worker/sandbox_exec.py
+          grep -q 'Landlock()' infra/terminal-worker/sandbox_exec.py
           if grep -q 'create_subprocess_shell' infra/terminal-worker/server.py infra/terminal-worker/sandboxed_server.py; then
             echo "::error::Shell-string execution is forbidden."
             exit 1
@@ -80,6 +81,10 @@ jobs:
         run: |
           docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; r=asyncio.run(runtime.sandboxed_run(['python3','-c','import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)'], cwd=Path('/tmp'), timeout_seconds=5)); assert r['exitCode'] != 0, r; assert 'Operation not permitted' in r['stderr'], r"
           docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; child='import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)'; outer=f'import subprocess,sys; r=subprocess.run([sys.executable,\"-c\",{child!r}]); raise SystemExit(0 if r.returncode != 0 else 9)'; r=asyncio.run(runtime.sandboxed_run(['python3','-c',outer], cwd=Path('/tmp'), timeout_seconds=5)); assert r['exitCode'] == 0, r"
+
+      - name: Prove generic commands cannot cross workspace filesystem scope
+        run: |
+          docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; a=Path('/tmp/work-a'); b=Path('/tmp/work-b'); a.mkdir(); b.mkdir(); secret=b/'secret.txt'; secret.write_text('secret'); r=asyncio.run(runtime.sandboxed_run(['python3','-c',f'from pathlib import Path; print(Path({str(secret)!r}).read_text())'], cwd=a, timeout_seconds=5)); assert r['exitCode'] != 0, r; assert 'Permission denied' in r['stderr'], r"
 
       - name: Prove long-lived worker process environment is secret-free
         run: |
