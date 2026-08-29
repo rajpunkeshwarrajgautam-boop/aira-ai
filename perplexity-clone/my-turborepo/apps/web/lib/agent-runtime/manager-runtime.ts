@@ -138,6 +138,7 @@ function transitiveDependents(graph: TaskGraph, roots: ReadonlySet<string>): Set
 				changed = true;
 			}
 		}
+	}
 	return selected;
 }
 
