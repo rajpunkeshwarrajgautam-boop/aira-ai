@@ -6,7 +6,7 @@ export class DeerFlowRequestError extends Error {
 	readonly retryable: boolean;
 	readonly submissionOutcomeUnknown: boolean;
 	/**
-	 * Diagnostic text taken from the DeerFlow Gateway response. It is for server
+	 * Sanitized diagnostic text derived from the DeerFlow Gateway response. It is for server
 	 * logs only: upstream `detail` strings can carry host paths, configuration
 	 * fragments or model-provider error text. `message` stays AIRA-owned so a
 	 * route can return it to the browser without leaking any of that, matching how
@@ -74,17 +74,42 @@ function internalHeaders(config: DeerFlowConfig, ownerUserId: string): Headers {
 	return headers;
 }
 
-/** Extracts upstream diagnostic text for server logs. Never returned to a client. */
+const SENSITIVE_UPSTREAM_DETAIL_PATTERN =
+	/(?:authorization|api[-_]?key|secret|token|password|cookie|private[-_]?key|credential)\s*[:=]\s*\S+|\bbearer\s+\S+|\b(?:sk|nvapi|ghp|gho|ghu|ghs|github_pat)[-_A-Za-z0-9.]{6,}\b/i;
+const ABSOLUTE_PATH_UPSTREAM_DETAIL_PATTERN =
+	/(?:[A-Za-z]:\\[^\s]+|\/(?:opt|home|var|etc|usr|srv|app|workspace|mnt)\/[^\s]+)/i;
+const STACK_TRACE_UPSTREAM_DETAIL_PATTERN = /\b(?:traceback|stack trace)\b/i;
+
+function sanitizeUpstreamDetailText(value: string): string {
+	const bounded = value.trim().slice(0, 500);
+	if (!bounded) return "";
+	if (
+		SENSITIVE_UPSTREAM_DETAIL_PATTERN.test(bounded) ||
+		ABSOLUTE_PATH_UPSTREAM_DETAIL_PATTERN.test(bounded) ||
+		STACK_TRACE_UPSTREAM_DETAIL_PATTERN.test(bounded)
+	) {
+		return "[redacted upstream diagnostic]";
+	}
+	return bounded;
+}
+
+/**
+ * Extracts bounded upstream diagnostics for server-side observability.
+ * Credentials, stack traces and absolute host paths are redacted before
+ * they can enter an Error object or server log.
+ */
 async function upstreamDetail(response: Response): Promise<string | undefined> {
 	const payload = (await response.json().catch(() => null)) as
 		| { detail?: unknown; error?: unknown; message?: unknown }
 		| null;
 	for (const candidate of [payload?.detail, payload?.error, payload?.message]) {
-		if (typeof candidate === "string" && candidate.trim()) return candidate.trim().slice(0, 500);
+		if (typeof candidate === "string" && candidate.trim()) {
+			const sanitized = sanitizeUpstreamDetailText(candidate);
+			if (sanitized) return sanitized;
+		}
 	}
 	return undefined;
 }
-
 /** AIRA-owned, user-safe explanation of an upstream DeerFlow failure. */
 function safeMessageForStatus(status: number): string {
 	if (status === 401 || status === 403) return "AIRA's DeerFlow connection is not authorized.";

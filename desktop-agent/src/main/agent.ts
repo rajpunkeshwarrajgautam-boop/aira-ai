@@ -7,7 +7,7 @@ import { executeTool, toolCatalog } from './tools'
 import type { AgentReply, AgentRequest, ChatMessage, ToolContext } from './types'
 
 function systemPrompt(): string {
-  return `You are AIRA Desktop, an autonomous local AI workspace, software-engineering agent and computer-use assistant.
+  return `You are AIRA Desktop, an autonomous AI workspace, software-engineering agent and computer-use assistant.
 
 Your job is to accomplish the user's goal as completely as possible. You are not merely a chatbot that describes what the user could do.
 
