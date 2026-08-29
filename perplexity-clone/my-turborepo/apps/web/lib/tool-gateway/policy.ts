@@ -61,6 +61,7 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 	},
 	web: {
 		search: "LOW",
+		retrieve: "LOW",
 		open: "LOW",
 	},
 	github: {
@@ -70,7 +71,9 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 		create_pr: "HIGH",
 		comment: "HIGH",
 		merge: "PROTECTED",
+		force_push: "PROTECTED",
 		delete_branch: "HIGH",
+		modify_branch_protection: "PROTECTED",
 	},
 	vercel: {
 		read: "LOW",
@@ -78,20 +81,28 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 		promote_production: "PROTECTED",
 		update_env: "PROTECTED",
 		delete_deployment: "PROTECTED",
+		change_domain: "PROTECTED",
 	},
 	supabase: {
 		read: "LOW",
+		inspect_schema: "LOW",
+		read_migrations: "LOW",
 		query_readonly: "LOW",
 		write_non_destructive: "HIGH",
 		apply_migration: "PROTECTED",
 		destructive_sql: "PROTECTED",
+		drop_project: "PROTECTED",
 	},
-	mcp: {},
+	mcp: {
+		call: "HIGH",
+	},
 };
 
 const ALWAYS_DENIED = new Set([
 	"git.force_push",
 	"github.force_push",
+	"github.merge",
+	"github.modify_branch_protection",
 	"vercel.change_billing",
 	"vercel.change_account_security",
 	"supabase.drop_project",
