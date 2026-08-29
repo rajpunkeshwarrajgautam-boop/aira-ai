@@ -66,7 +66,10 @@ function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 }
 
 function wantsDeployment(objective: string): boolean {
-	return /\b(deploy|production|publish|ship|vercel|go live|live site)\b/i.test(objective);
+	const explicitNoDeploy = /\b(?:do not|don't|dont|never|without)\s+(?:a\s+)?(?:production\s+)?(?:deploy(?:ment|ing)?|publish(?:ing)?|ship(?:ping)?|go live)\b/i;
+	const noDeployment = /\bno\s+(?:production\s+)?deployment\b/i;
+	if (explicitNoDeploy.test(objective) || noDeployment.test(objective)) return false;
+	return /\b(?:deploy(?:ment|ing)?|publish(?:ing)?|ship(?:ping)?|go live|live site|vercel(?:\s+deploy(?:ment|ing)?)?|production deployment)\b/i.test(objective);
 }
 
 export function buildManagerDag(objective: string): TaskSpec[] {
