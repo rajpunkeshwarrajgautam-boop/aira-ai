@@ -88,12 +88,26 @@ test("protected and high-risk actions require approval", () => {
 	assert.equal(requiresApproval("PROTECTED"), true);
 });
 
-test("force-push protected merge and account-level dangerous actions are always denied", () => {
-	assert.equal(isAlwaysDeniedToolAction("git", "force_push"), true);
-	assert.equal(isAlwaysDeniedToolAction("github", "force_push"), true);
-	assert.equal(isAlwaysDeniedToolAction("github", "merge"), true);
-	assert.equal(isAlwaysDeniedToolAction("github", "modify_branch_protection"), true);
+test("all currently classified protected remote or destructive actions are centrally always denied", () => {
+	for (const [tool, action] of [
+		["git", "merge_remote"],
+		["git", "force_push"],
+		["github", "force_push"],
+		["github", "merge"],
+		["github", "modify_branch_protection"],
+		["vercel", "promote_production"],
+		["vercel", "update_env"],
+		["vercel", "delete_deployment"],
+		["vercel", "change_domain"],
+		["supabase", "apply_migration"],
+		["supabase", "destructive_sql"],
+		["supabase", "drop_project"],
+	] as const) {
+		assert.equal(classifyToolRisk(tool, action), "PROTECTED", `${tool}.${action} must remain PROTECTED`);
+		assert.equal(isAlwaysDeniedToolAction(tool, action), true, `${tool}.${action} must fail before adapter execution`);
+	}
 	assert.equal(isAlwaysDeniedToolAction("vercel", "change_billing"), true);
-	assert.equal(isAlwaysDeniedToolAction("supabase", "drop_project"), true);
+	assert.equal(isAlwaysDeniedToolAction("vercel", "change_account_security"), true);
+	assert.equal(isAlwaysDeniedToolAction("browser", "change_mfa"), true);
 	assert.equal(isAlwaysDeniedToolAction("git", "commit"), false);
 });

@@ -101,13 +101,24 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 	},
 };
 
+// Protected actions are deliberately denied at the central authorization
+// boundary even when today's adapter does not expose them. This prevents a
+// future adapter expansion from turning production/destructive capabilities
+// executable merely because an approval was supplied.
 const ALWAYS_DENIED = new Set([
+	"git.merge_remote",
 	"git.force_push",
 	"github.force_push",
 	"github.merge",
 	"github.modify_branch_protection",
+	"vercel.promote_production",
+	"vercel.update_env",
+	"vercel.delete_deployment",
+	"vercel.change_domain",
 	"vercel.change_billing",
 	"vercel.change_account_security",
+	"supabase.apply_migration",
+	"supabase.destructive_sql",
 	"supabase.drop_project",
 	"browser.change_mfa",
 ]);
