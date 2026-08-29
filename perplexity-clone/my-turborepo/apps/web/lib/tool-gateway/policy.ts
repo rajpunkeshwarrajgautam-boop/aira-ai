@@ -29,7 +29,10 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 	},
 	terminal: {
 		status: "LOW",
-		exec_readonly: "LOW",
+		// exec_readonly currently shares the generic argv executor. Until a
+		// separately enforced read-only sandbox exists it must not receive a
+		// lower risk classification than exec.
+		exec_readonly: "MEDIUM",
 		exec: "MEDIUM",
 		install: "HIGH",
 	},
