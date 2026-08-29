@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   assertPublicBrowserNetworkUrl,
@@ -8,6 +10,7 @@ import {
   isHttpUrl,
   isPathInside,
   isPublicNetworkAddress,
+  resolvePathInsideRoot,
   sanitizeAuditSummary
 } from '../src/main/policy'
 
@@ -75,6 +78,22 @@ test('workspace policy blocks traversal', () => {
   const root = path.resolve('C:/Users/test/AIRA Workspace')
   assert.equal(isPathInside(root, path.join(root, 'project/file.txt')), true)
   assert.equal(isPathInside(root, path.resolve(root, '../outside.txt')), false)
+})
+
+test('workspace policy blocks symlink and junction escape through an existing ancestor', () => {
+  const temp = mkdtempSync(path.join(os.tmpdir(), 'aira-policy-'))
+  const root = path.join(temp, 'workspace')
+  const outside = path.join(temp, 'outside')
+  mkdirSync(root, { recursive: true })
+  mkdirSync(outside, { recursive: true })
+  const link = path.join(root, 'escape')
+  try {
+    symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir')
+    assert.throws(() => resolvePathInsideRoot(root, path.join(link, 'secret.txt')), /symlink|junction|escapes/i)
+    assert.equal(resolvePathInsideRoot(root, path.join(root, 'safe', 'file.txt')), path.resolve(root, 'safe', 'file.txt'))
+  } finally {
+    rmSync(temp, { recursive: true, force: true })
+  }
 })
 
 test('agent step policy clamps unsafe values', () => {
