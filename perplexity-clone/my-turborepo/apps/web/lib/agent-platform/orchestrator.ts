@@ -3,8 +3,8 @@ import { buildRuntimeContext } from "@/lib/aira-runtime/context";
 import { getAgentRuntime, selectAgentRuntime } from "@/lib/agent-runtime/registry";
 import { AgentRuntimeError, type AgentRuntimeId } from "@/lib/agent-runtime/types";
 import {
-	consumeAgentRunQuota,
-	refundAgentRunQuota,
+	consumeManagedMissionQuota,
+	refundManagedMissionQuota,
 } from "@/lib/billing/plan-enforcement";
 import { prisma } from "@/lib/prisma";
 import { executeTool } from "@/lib/tool-gateway/gateway";
@@ -229,7 +229,7 @@ export async function startManagedRun(input: {
 		});
 	}
 
-	await consumeAgentRunQuota(input.userId);
+	await consumeManagedMissionQuota(input.userId, input.clientRequestId);
 	let run: PlatformRun;
 	try {
 		run = await createPlatformRun({
@@ -242,8 +242,8 @@ export async function startManagedRun(input: {
 		});
 	} catch (error) {
 		const concurrent = await getRunByClientRequestId(input.userId, input.clientRequestId);
-		await refundAgentRunQuota(input.userId).catch(() => undefined);
 		if (concurrent) return tickManagedRun(input.userId, concurrent.id);
+		await refundManagedMissionQuota(input.userId, input.clientRequestId).catch(() => undefined);
 		throw error;
 	}
 	await Promise.all([
