@@ -14,6 +14,22 @@ import type {
 	TaskSpec,
 } from "./types";
 
+/**
+ * A claimed task is dispatched by the same Node process that obtained the DB
+ * lease. Keeping the opaque lease owner process-local lets later store calls
+ * fence every pre-runtime transition without exposing the owner to a model or
+ * remote runtime. Database predicates remain the authority; this map is only
+ * the caller's expected fencing token.
+ */
+const localTaskClaims = new Map<string, string>();
+
+export class TaskClaimLostError extends Error {
+	constructor(taskId: string) {
+		super(`Task ${taskId} is no longer owned by this dispatcher.`);
+		this.name = "TaskClaimLostError";
+	}
+}
+
 function jsonObject(value: unknown): Record<string, unknown> {
 	return value && typeof value === "object" && !Array.isArray(value)
 		? (value as Record<string, unknown>)
@@ -177,36 +193,80 @@ export async function listEvents(runId: string, after?: Date): Promise<PlatformE
 }
 
 export async function recoverExpiredClaims(runId: string): Promise<number> {
-	return prisma.$executeRaw`
-		update "AgentTask"
-		set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
-			"lastError"=coalesce("lastError", 'Worker claim expired before remote execution started.'),
-			"updatedAt"=current_timestamp
-		where "runId"=${runId} and "status"='CLAIMED' and "leaseExpiresAt" < current_timestamp
-	`;
+	const expired = await prisma.$transaction(async (tx) => {
+		const rows = await tx.$queryRaw<Array<{ id: string }>>`
+			update "AgentTask"
+			set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+				"lastError"=coalesce("lastError", 'Worker claim expired before remote execution started.'),
+				"updatedAt"=current_timestamp
+			where "runId"=${runId} and "status"='CLAIMED' and "leaseExpiresAt" < current_timestamp
+			returning "id"
+		`;
+		for (const task of rows) {
+			await tx.$executeRaw`
+				update "AgentInstance"
+				set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp
+				where "currentTaskId"=${task.id} and "status"='IDLE'
+			`;
+		}
+		return rows;
+	});
+	for (const task of expired) localTaskClaims.delete(task.id);
+	return expired.length;
 }
 
 export async function claimTask(taskId: string, workerId: string, leaseSeconds = 90): Promise<PlatformTask | null> {
+	const safeLease = Math.max(15, Math.min(600, Math.trunc(leaseSeconds)));
 	const rows = await prisma.$queryRaw<PlatformTask[]>`
 		update "AgentTask"
-		set "status" = 'CLAIMED', "leaseOwner" = ${workerId}, "leaseExpiresAt" = current_timestamp + (${leaseSeconds} * interval '1 second'), "heartbeatAt" = current_timestamp, "updatedAt" = current_timestamp
+		set "status" = 'CLAIMED', "leaseOwner" = ${workerId}, "leaseExpiresAt" = current_timestamp + (${safeLease} * interval '1 second'), "heartbeatAt" = current_timestamp, "updatedAt" = current_timestamp
 		where "id" = ${taskId}
 		  and "status" in ('QUEUED','READY')
 		  and ("leaseExpiresAt" is null or "leaseExpiresAt" < current_timestamp)
 		returning *
 	`;
-	return rows[0] ? taskRow(rows[0]) : null;
+	if (!rows[0]) {
+		localTaskClaims.delete(taskId);
+		return null;
+	}
+	localTaskClaims.set(taskId, workerId);
+	return taskRow(rows[0]);
 }
 
 export async function markTaskRunning(taskId: string, runtimeRunId: string, agentId: string): Promise<void> {
-	await prisma.$transaction([
-		prisma.$executeRaw`
-			update "AgentTask" set "status"='RUNNING', "runtimeRunId"=${runtimeRunId}, "attempt"="attempt"+1, "startedAt"=coalesce("startedAt", current_timestamp), "heartbeatAt"=current_timestamp, "updatedAt"=current_timestamp where "id"=${taskId}
-		`,
-		prisma.$executeRaw`
-			update "AgentInstance" set "status"='WORKING', "currentTaskId"=${taskId}, "updatedAt"=current_timestamp where "id"=${agentId}
-		`,
-	]);
+	const expectedOwner = localTaskClaims.get(taskId);
+	if (!expectedOwner) throw new TaskClaimLostError(taskId);
+	try {
+		await prisma.$transaction(async (tx) => {
+			const claimed = await tx.$queryRaw<Array<{ id: string }>>`
+				update "AgentTask"
+				set "status"='RUNNING', "runtimeRunId"=${runtimeRunId}, "attempt"="attempt"+1,
+					"startedAt"=coalesce("startedAt", current_timestamp), "heartbeatAt"=current_timestamp,
+					"leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
+				where "id"=${taskId}
+				  and "status"='CLAIMED'
+				  and "leaseOwner"=${expectedOwner}
+				  and "leaseExpiresAt" >= current_timestamp
+				returning "id"
+			`;
+			if (!claimed[0]) throw new TaskClaimLostError(taskId);
+			const agentChanged = await tx.$executeRaw`
+				update "AgentInstance"
+				set "status"='WORKING', "currentTaskId"=${taskId}, "updatedAt"=current_timestamp
+				where "id"=${agentId} and "currentTaskId"=${taskId} and "status"='IDLE'
+			`;
+			if (agentChanged !== 1) throw new TaskClaimLostError(taskId);
+		});
+	} catch (error) {
+		await prisma.$executeRaw`
+			update "AgentInstance"
+			set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp
+			where "id"=${agentId} and "status"='IDLE'
+		`.catch(() => undefined);
+		throw error;
+	} finally {
+		localTaskClaims.delete(taskId);
+	}
 }
 
 export async function createAgentInstance(input: {
@@ -218,15 +278,34 @@ export async function createAgentInstance(input: {
 	readonly modelTier: string;
 	readonly allowedTools: readonly string[];
 }): Promise<string> {
+	const expectedOwner = localTaskClaims.get(input.taskId);
+	if (!expectedOwner) throw new TaskClaimLostError(input.taskId);
 	const id = crypto.randomUUID();
-	await prisma.$executeRaw`
+	const rows = await prisma.$queryRaw<Array<{ id: string }>>`
 		insert into "AgentInstance" ("id", "projectId", "runId", "role", "objective", "status", "modelTier", "allowedTools", "currentTaskId")
-		values (${id}, ${input.projectId}, ${input.runId}, ${input.role}, ${input.objective}, 'IDLE', ${input.modelTier}, ${JSON.stringify(input.allowedTools)}::jsonb, ${input.taskId})
+		select ${id}, ${input.projectId}, ${input.runId}, ${input.role}, ${input.objective}, 'IDLE', ${input.modelTier}, ${JSON.stringify(input.allowedTools)}::jsonb, ${input.taskId}
+		from "AgentTask" t
+		where t."id"=${input.taskId}
+		  and t."projectId"=${input.projectId}
+		  and t."runId"=${input.runId}
+		  and t."status"='CLAIMED'
+		  and t."leaseOwner"=${expectedOwner}
+		  and t."leaseExpiresAt" >= current_timestamp
+		  and not exists (
+			select 1 from "AgentInstance" existing
+			where existing."currentTaskId"=t."id" and existing."status" in ('IDLE','WORKING','WAITING','PAUSED')
+		  )
+		returning "id"
 	`;
+	if (!rows[0]) {
+		localTaskClaims.delete(input.taskId);
+		throw new TaskClaimLostError(input.taskId);
+	}
 	return id;
 }
 
 export async function completeTask(taskId: string, outputArtifacts: readonly string[] = []): Promise<void> {
+	localTaskClaims.delete(taskId);
 	const operations = [
 		prisma.$executeRaw`
 			update "AgentTask" set "status"='COMPLETED', "outputArtifacts"=${JSON.stringify(outputArtifacts)}::jsonb, "leaseOwner"=null, "leaseExpiresAt"=null, "completedAt"=current_timestamp, "updatedAt"=current_timestamp where "id"=${taskId}
@@ -245,18 +324,53 @@ export async function completeTask(taskId: string, outputArtifacts: readonly str
 
 export async function failTask(task: PlatformTask, message: string): Promise<PlatformTaskStatus> {
 	const nextStatus: PlatformTaskStatus = task.attempt < task.maxAttempts ? "QUEUED" : "FAILED";
-	await prisma.$transaction([
-		prisma.$executeRaw`
-			update "AgentTask" set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null, "lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp, "completedAt"=${nextStatus === "FAILED" ? new Date() : null} where "id"=${task.id}
-		`,
-		prisma.$executeRaw`
-			update "AgentInstance" set "status"=${nextStatus === "FAILED" ? "FAILED" : "STOPPED"}, "currentTaskId"=null, "updatedAt"=current_timestamp where "currentTaskId"=${task.id}
-		`,
-	]);
-	return nextStatus;
+	const claimedOwner = task.status === "CLAIMED" ? task.leaseOwner : null;
+	if (task.status === "CLAIMED" && !claimedOwner) throw new TaskClaimLostError(task.id);
+	try {
+		await prisma.$transaction(async (tx) => {
+			const changed = claimedOwner
+				? await tx.$executeRaw`
+					update "AgentTask"
+					set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null,
+						"lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp,
+						"completedAt"=${nextStatus === "FAILED" ? new Date() : null}
+					where "id"=${task.id} and "status"='CLAIMED' and "leaseOwner"=${claimedOwner}
+					  and "leaseExpiresAt" >= current_timestamp
+				`
+				: await tx.$executeRaw`
+					update "AgentTask"
+					set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null,
+						"lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp,
+						"completedAt"=${nextStatus === "FAILED" ? new Date() : null}
+					where "id"=${task.id}
+				`;
+			if (changed !== 1) throw new TaskClaimLostError(task.id);
+			await tx.$executeRaw`
+				update "AgentInstance" set "status"=${nextStatus === "FAILED" ? "FAILED" : "STOPPED"}, "currentTaskId"=null, "updatedAt"=current_timestamp where "currentTaskId"=${task.id}
+			`;
+		});
+		return nextStatus;
+	} finally {
+		localTaskClaims.delete(task.id);
+	}
 }
 
 export async function setTaskStatus(taskId: string, status: PlatformTaskStatus): Promise<void> {
+	const expectedOwner = localTaskClaims.get(taskId);
+	if (expectedOwner) {
+		try {
+			const changed = await prisma.$executeRaw`
+				update "AgentTask"
+				set "status"=${status}, "leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
+				where "id"=${taskId} and "status"='CLAIMED' and "leaseOwner"=${expectedOwner}
+				  and "leaseExpiresAt" >= current_timestamp
+			`;
+			if (changed !== 1) throw new TaskClaimLostError(taskId);
+			return;
+		} finally {
+			localTaskClaims.delete(taskId);
+		}
+	}
 	await prisma.$executeRaw`
 		update "AgentTask" set "status"=${status}, "updatedAt"=current_timestamp where "id"=${taskId}
 	`;
