@@ -53,6 +53,20 @@ export interface ManagerRuntimeResult {
 	readonly blockedTaskIds: readonly string[];
 }
 
+type SettledTaskResult =
+	| {
+			readonly ok: true;
+			readonly taskId: string;
+			readonly task: RuntimeTask;
+			readonly result: RuntimeTaskExecutionResult;
+	  }
+	| {
+			readonly ok: false;
+			readonly taskId: string;
+			readonly task: RuntimeTask;
+			readonly error: unknown;
+	  };
+
 export class VerificationRepairRequest extends Error {
 	readonly code = "AGENT_VERIFICATION_REPAIR_REQUESTED";
 	readonly taskIds: readonly string[];
@@ -222,8 +236,8 @@ export async function executeManagedTaskGraph(
 		meter.setActiveAgents(decision.startedTaskIds.length);
 		for (const taskId of decision.startedTaskIds) await notifyTask(input.observer, taskById(graph, taskId));
 
-		const settled = await Promise.all(
-			decision.startedTaskIds.map(async (taskId) => {
+		const settled: SettledTaskResult[] = await Promise.all(
+			decision.startedTaskIds.map(async (taskId): Promise<SettledTaskResult> => {
 				const task = taskById(graph, taskId);
 				try {
 					const result = await input.executor.execute({
@@ -232,9 +246,9 @@ export async function executeManagedTaskGraph(
 						outputs,
 						abortSignal: input.abortSignal,
 					});
-					return { taskId, task, result } as const;
+					return { ok: true, taskId, task, result };
 				} catch (error) {
-					return { taskId, task, error } as const;
+					return { ok: false, taskId, task, error };
 				}
 			}),
 		);
@@ -242,7 +256,7 @@ export async function executeManagedTaskGraph(
 
 		let repairRequest: VerificationRepairRequest | null = null;
 		for (const item of settled) {
-			if ("result" in item) {
+			if (item.ok) {
 				const result = item.result;
 				meter.recordModelUsage(result.tokens ?? 0, result.estimatedCostUsd ?? 0);
 				outputs.set(item.taskId, result);
