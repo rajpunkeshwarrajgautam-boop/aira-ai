@@ -1,6 +1,10 @@
+import { createHash } from "node:crypto";
+
 import { appendEvent } from "@/lib/agent-platform/store";
 
 import { browserToolAdapter, gitToolAdapter, terminalToolAdapter } from "./adapters";
+import { githubToolAdapter, mcpToolAdapter, supabaseToolAdapter, vercelToolAdapter } from "./external-adapters";
+import { filesToolAdapter, memoryToolAdapter, webToolAdapter } from "./native-adapters";
 import {
 	classifyToolRisk,
 	isAlwaysDeniedToolAction,
@@ -31,6 +35,13 @@ const adapters = new Map<AiraToolId, ToolAdapter>([
 	[browserToolAdapter.id, browserToolAdapter],
 	[terminalToolAdapter.id, terminalToolAdapter],
 	[gitToolAdapter.id, gitToolAdapter],
+	[filesToolAdapter.id, filesToolAdapter],
+	[memoryToolAdapter.id, memoryToolAdapter],
+	[webToolAdapter.id, webToolAdapter],
+	[githubToolAdapter.id, githubToolAdapter],
+	[vercelToolAdapter.id, vercelToolAdapter],
+	[supabaseToolAdapter.id, supabaseToolAdapter],
+	[mcpToolAdapter.id, mcpToolAdapter],
 ]);
 
 const SECRETISH = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)/i;
@@ -53,6 +64,22 @@ function safeValue(value: unknown, key = "", depth = 0): unknown {
 
 function summary(input: Record<string, unknown>): Record<string, unknown> {
 	return safeValue(input) as Record<string, unknown>;
+}
+
+function canonical(value: unknown): string {
+	if (value === null) return "null";
+	if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+	if (typeof value === "number") return Number.isFinite(value) ? JSON.stringify(value) : JSON.stringify(String(value));
+	if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+	if (value && typeof value === "object") {
+		const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+		return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`).join(",")}}`;
+	}
+	return JSON.stringify(String(value));
+}
+
+export function toolInputHash(input: Record<string, unknown>): string {
+	return createHash("sha256").update(canonical(input), "utf8").digest("hex");
 }
 
 function usageOrDefault(value?: UsageDelta): UsageDelta {
@@ -125,12 +152,20 @@ export async function executeTool(
 	}
 
 	const risk = classifyToolRisk(request.tool, request.action);
+	const inputHash = toolInputHash(request.input);
 	let stored = await getToolCallByRequest(context.userId, request.clientRequestId);
+	if (stored && (
+		stored.tool !== request.tool ||
+		stored.action !== request.action ||
+		stored.runId !== context.runId ||
+		stored.projectId !== context.projectId ||
+		stored.taskId !== (context.taskId ?? null) ||
+		stored.inputHash !== inputHash
+	)) {
+		throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "This tool request id is already bound to a different exact operation.", status: 409 });
+	}
 	const replay = replayStored(stored);
 	if (replay) return replay;
-	if (stored && (stored.tool !== request.tool || stored.action !== request.action || stored.runId !== context.runId)) {
-		throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "This tool request id is already bound to a different action.", status: 409 });
-	}
 	if (stored?.status === "EXECUTING") {
 		throw new ToolGatewayError({ code: "TOOL_ALREADY_EXECUTING", message: "This tool request is already executing.", status: 409, retryable: true });
 	}
@@ -149,8 +184,12 @@ export async function executeTool(
 			tool: request.tool,
 			action: request.action,
 			risk,
+			inputHash,
 			inputSummary: summary(request.input),
 		});
+		if (stored.inputHash !== inputHash) {
+			throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "Concurrent tool request id collision detected.", status: 409 });
+		}
 	}
 
 	if (isAlwaysDeniedToolAction(request.tool, request.action)) {
@@ -162,7 +201,7 @@ export async function executeTool(
 	let approvalSatisfied = false;
 	if (requiresApproval(risk)) {
 		if (stored.approvalId && request.approvalId === stored.approvalId) {
-			approvalSatisfied = await isToolApprovalApproved(context.userId, stored.id, stored.approvalId);
+			approvalSatisfied = await isToolApprovalApproved(context.userId, stored.id, stored.approvalId, inputHash);
 		}
 		if (!approvalSatisfied) {
 			if (!stored.approvalId) {
@@ -171,18 +210,20 @@ export async function executeTool(
 					toolCallId: stored.id,
 					action: `${request.tool}.${request.action}`,
 					risk,
+					inputHash,
 					summary: { tool: request.tool, action: request.action, input: summary(request.input) },
 				});
-				await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "approval.requested", payload: { approvalId, toolCallId: stored.id, tool: request.tool, action: request.action, risk } });
+				await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "approval.requested", payload: { approvalId, toolCallId: stored.id, tool: request.tool, action: request.action, risk, inputHash } });
 				return { status: "APPROVAL_REQUIRED", toolCallId: stored.id, approvalId, risk };
 			}
 			return { status: "APPROVAL_REQUIRED", toolCallId: stored.id, approvalId: stored.approvalId, risk };
 		}
 	}
 
-	const claimed = await claimToolCallForExecution({ userId: context.userId, toolCallId: stored.id, approvalSatisfied });
+	const claimed = await claimToolCallForExecution({ userId: context.userId, toolCallId: stored.id, inputHash, approvalSatisfied });
 	if (!claimed) {
 		const latest = await getToolCallByRequest(context.userId, request.clientRequestId);
+		if (latest?.inputHash !== inputHash) throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "The tool operation changed before execution.", status: 409 });
 		const latestReplay = replayStored(latest);
 		if (latestReplay) return latestReplay;
 		throw new ToolGatewayError({ code: "TOOL_EXECUTION_STATE_CONFLICT", message: "The tool request changed state before it could execute.", status: 409, retryable: true });
@@ -190,7 +231,7 @@ export async function executeTool(
 
 	try {
 		await reserveToolBudget(context.runId);
-		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.started", payload: { toolCallId: stored.id, tool: request.tool, action: request.action, risk } });
+		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.started", payload: { toolCallId: stored.id, tool: request.tool, action: request.action, risk, inputHash } });
 		const executed = await adapter.execute(context, request.action, request.input);
 		const usage = usageOrDefault(executed.usage);
 		const storedResult = summary(executed.result);
