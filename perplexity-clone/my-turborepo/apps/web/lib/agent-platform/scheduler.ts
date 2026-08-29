@@ -54,6 +54,64 @@ export async function claimSchedulableRuns(
 	`;
 }
 
+/**
+ * Extends only a still-live lease owned by this exact scheduler. Once a lease
+ * expires it is fenced: the old owner must not resurrect it after another
+ * scheduler has become eligible to claim the mission.
+ */
+export async function renewSchedulerLease(
+	runId: string,
+	workerId: string,
+	leaseSeconds = DEFAULT_LEASE_SECONDS,
+): Promise<boolean> {
+	const safeLease = Math.max(15, Math.min(180, Math.trunc(leaseSeconds)));
+	const changed = await prisma.$executeRaw`
+		update "AgentPlatformRun"
+		set "schedulerLeaseExpiresAt"=current_timestamp + (${safeLease} * interval '1 second'),
+			"updatedAt"=current_timestamp
+		where "id"=${runId}
+		  and "schedulerLeaseOwner"=${workerId}
+		  and "schedulerLeaseExpiresAt" >= current_timestamp
+		  and "status" in ('PLANNING','RUNNING','WAITING')
+	`;
+	return changed === 1;
+}
+
+function startSchedulerLeaseHeartbeat(
+	runId: string,
+	workerId: string,
+	leaseSeconds = DEFAULT_LEASE_SECONDS,
+): { stop(): Promise<boolean> } {
+	const intervalMs = Math.max(5_000, Math.floor((leaseSeconds * 1_000) / 3));
+	let stopped = false;
+	let leaseHealthy = true;
+	let inFlight: Promise<void> | null = null;
+
+	const renew = async () => {
+		try {
+			if (!(await renewSchedulerLease(runId, workerId, leaseSeconds))) leaseHealthy = false;
+		} catch {
+			leaseHealthy = false;
+		}
+	};
+	const timer = setInterval(() => {
+		if (stopped || inFlight) return;
+		inFlight = renew().finally(() => {
+			inFlight = null;
+		});
+	}, intervalMs);
+	timer.unref?.();
+
+	return {
+		async stop() {
+			stopped = true;
+			clearInterval(timer);
+			if (inFlight) await inFlight;
+			return leaseHealthy;
+		},
+	};
+}
+
 async function releaseSchedulerLease(
 	runId: string,
 	workerId: string,
@@ -93,11 +151,19 @@ export async function advanceScheduledRuns(limit = 8): Promise<SchedulerResult> 
 	const failures: Array<{ runId: string; code: string }> = [];
 
 	for (const run of runs) {
+		const heartbeat = startSchedulerLeaseHeartbeat(run.id, workerId);
 		try {
 			await tickManagedRun(run.userId, run.id);
+			const leaseHealthy = await heartbeat.stop();
+			if (!leaseHealthy) {
+				failures.push({ runId: run.id, code: "SCHEDULER_LEASE_LOST" });
+				await releaseSchedulerLease(run.id, workerId, "FAILURE").catch(() => undefined);
+				continue;
+			}
 			advanced += 1;
 			await releaseSchedulerLease(run.id, workerId, "SUCCESS");
 		} catch (error) {
+			await heartbeat.stop();
 			failures.push({
 				runId: run.id,
 				code: error instanceof Error ? error.name || "ERROR" : "UNKNOWN_ERROR",
