@@ -1,7 +1,7 @@
 import { app, BrowserWindow, session } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { assertPublicHttpUrl } from './policy'
+import { assertPublicBrowserNetworkUrl, assertPublicHttpUrl } from './policy'
 
 interface BrowserElement { ref:string; tag:string; text:string; aria:string; placeholder:string; type:string }
 interface BrowserSnapshot { url:string; title:string; text:string; elements:BrowserElement[] }
@@ -17,8 +17,15 @@ class BrowserController {
     ses.setPermissionCheckHandler(()=>false)
     if (!this.networkPolicyInstalled) {
       this.networkPolicyInstalled = true
-      ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
-        void assertPublicHttpUrl(details.url).then(
+      // The listener is intentionally unfiltered so WebSocket handshakes cannot
+      // bypass the same DNS/IP policy applied to HTTP(S). Non-network schemes
+      // such as data: and blob: are left alone for normal page rendering.
+      ses.webRequest.onBeforeRequest((details, callback) => {
+        if (!/^(?:https?|wss?):\/\//i.test(details.url)) {
+          callback({ cancel: false })
+          return
+        }
+        void assertPublicBrowserNetworkUrl(details.url).then(
           () => callback({ cancel: false }),
           () => callback({ cancel: true })
         )
