@@ -67,53 +67,136 @@ const WebSearchSchema = z.object({
 const WebOpenSchema = z.object({ url: z.string().url().max(4_096) });
 
 const SAFE_FILE_SCRIPT = String.raw`
-import base64,json,os,pathlib,shutil,sys
+import base64,json,os,pathlib,stat,sys
 root=pathlib.Path.cwd().resolve()
-def rel(raw):
- p=pathlib.Path(raw)
- if p.is_absolute() or '..' in p.parts or '.git' in p.parts or '\x00' in raw: raise ValueError('unsafe path')
- q=(root/p).resolve()
- q.relative_to(root)
- return q
+O_NOFOLLOW=getattr(os,'O_NOFOLLOW',0)
+O_DIRECTORY=getattr(os,'O_DIRECTORY',0)
+SKIP={'.git','node_modules','.next','dist','build'}
+def parts(raw,allow_root=False):
+ if '\x00' in raw: raise ValueError('unsafe path')
+ normalized=raw.replace('\\','/')
+ p=pathlib.PurePosixPath(normalized)
+ if p.is_absolute(): raise ValueError('unsafe path')
+ out=[part for part in p.parts if part not in {'','.'}]
+ if any(part in {'..','.git'} for part in out): raise ValueError('unsafe path')
+ if not out and not allow_root: raise ValueError('unsafe path')
+ return out
+def open_dir(path_parts,create=False):
+ fd=os.open(str(root),os.O_RDONLY|O_DIRECTORY)
+ try:
+  for part in path_parts:
+   try: child=os.open(part,os.O_RDONLY|O_DIRECTORY|O_NOFOLLOW,dir_fd=fd)
+   except FileNotFoundError:
+    if not create: raise
+    os.mkdir(part,0o755,dir_fd=fd)
+    child=os.open(part,os.O_RDONLY|O_DIRECTORY|O_NOFOLLOW,dir_fd=fd)
+   os.close(fd); fd=child
+  return fd
+ except:
+  os.close(fd); raise
+def parent_leaf(raw,create=False):
+ ps=parts(raw)
+ return open_dir(ps[:-1],create),ps[-1]
+def regular(fd,max_size):
+ st=os.fstat(fd)
+ if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1: raise ValueError('file unavailable')
+ if st.st_size>max_size: raise ValueError('file too large')
+ return st
+def read_all(fd,limit):
+ chunks=[]; total=0
+ while total<=limit:
+  chunk=os.read(fd,min(65536,limit-total+1))
+  if not chunk: break
+  chunks.append(chunk); total+=len(chunk)
+ if total>limit: raise ValueError('file too large')
+ return b''.join(chunks)
 op=sys.argv[1]
 if op=='read':
- q=rel(sys.argv[2])
- if not q.is_file() or q.is_symlink(): raise ValueError('file unavailable')
- if q.stat().st_size>524288: raise ValueError('file too large')
- print(json.dumps({'path':sys.argv[2],'content':q.read_text(encoding='utf-8'),'bytes':q.stat().st_size}))
+ pfd,name=parent_leaf(sys.argv[2])
+ try:
+  fd=os.open(name,os.O_RDONLY|O_NOFOLLOW,dir_fd=pfd)
+  try:
+   st=regular(fd,524288); data=read_all(fd,524288)
+  finally: os.close(fd)
+ finally: os.close(pfd)
+ try: text=data.decode('utf-8')
+ except UnicodeDecodeError: raise ValueError('text files only')
+ print(json.dumps({'path':sys.argv[2],'content':text,'bytes':st.st_size}))
 elif op=='write':
- q=rel(sys.argv[2]); data=base64.b64decode(sys.argv[3],validate=True)
+ data=base64.b64decode(sys.argv[3],validate=True)
  if len(data)>524288: raise ValueError('file too large')
  try: data.decode('utf-8')
  except UnicodeDecodeError: raise ValueError('text files only')
- if q.exists() and q.is_symlink(): raise ValueError('symlink writes blocked')
- q.parent.mkdir(parents=True,exist_ok=True); q.write_bytes(data)
+ pfd,name=parent_leaf(sys.argv[2],True)
+ try:
+  fd=os.open(name,os.O_WRONLY|os.O_CREAT|O_NOFOLLOW,0o644,dir_fd=pfd)
+  try:
+   st=os.fstat(fd)
+   if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1: raise ValueError('file unavailable')
+   os.ftruncate(fd,0)
+   view=memoryview(data)
+   while view:
+    written=os.write(fd,view); view=view[written:]
+  finally: os.close(fd)
+ finally: os.close(pfd)
  print(json.dumps({'path':sys.argv[2],'bytes':len(data),'written':True}))
 elif op=='move':
- src=rel(sys.argv[2]); dst=rel(sys.argv[3])
- if not src.is_file() or src.is_symlink() or (dst.exists() and dst.is_symlink()): raise ValueError('file unavailable')
- dst.parent.mkdir(parents=True,exist_ok=True); src.replace(dst)
+ spfd,sname=parent_leaf(sys.argv[2]); dpfd,dname=parent_leaf(sys.argv[3],True)
+ try:
+  sfd=os.open(sname,os.O_RDONLY|O_NOFOLLOW,dir_fd=spfd)
+  try: regular(sfd,524288)
+  finally: os.close(sfd)
+  try:
+   dfd=os.open(dname,os.O_RDONLY|O_NOFOLLOW,dir_fd=dpfd)
+  except FileNotFoundError: dfd=None
+  if dfd is not None:
+   try: regular(dfd,524288)
+   finally: os.close(dfd)
+  os.rename(sname,dname,src_dir_fd=spfd,dst_dir_fd=dpfd)
+ finally:
+  os.close(spfd); os.close(dpfd)
  print(json.dumps({'from':sys.argv[2],'to':sys.argv[3],'moved':True}))
 elif op=='delete':
- q=rel(sys.argv[2])
- if not q.is_file() or q.is_symlink(): raise ValueError('file unavailable')
- q.unlink(); print(json.dumps({'path':sys.argv[2],'deleted':True}))
+ pfd,name=parent_leaf(sys.argv[2])
+ try:
+  st=os.stat(name,dir_fd=pfd,follow_symlinks=False)
+  if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1: raise ValueError('file unavailable')
+  os.unlink(name,dir_fd=pfd)
+ finally: os.close(pfd)
+ print(json.dumps({'path':sys.argv[2],'deleted':True}))
 elif op=='search':
- base=rel(sys.argv[2] or '.'); needle=sys.argv[3].lower(); limit=min(100,max(1,int(sys.argv[4]))); out=[]
- if not base.is_dir(): raise ValueError('search root unavailable')
- for dp,dn,fn in os.walk(base,followlinks=False):
-  dn[:]=[d for d in dn if d not in {'.git','node_modules','.next','dist','build'} and not (pathlib.Path(dp)/d).is_symlink()]
-  for name in fn:
-   p=pathlib.Path(dp)/name
-   try:
-    if p.is_symlink() or p.stat().st_size>262144: continue
-    text=p.read_text(encoding='utf-8')
-   except (OSError,UnicodeDecodeError): continue
-   for i,line in enumerate(text.splitlines(),1):
-    if needle in line.lower():
-     out.append({'path':str(p.relative_to(root)),'line':i,'text':line[:500]})
-     if len(out)>=limit: print(json.dumps({'matches':out,'truncated':True})); raise SystemExit(0)
- print(json.dumps({'matches':out,'truncated':False}))
+ base_parts=parts(sys.argv[2] or '.',True); needle=sys.argv[3].lower(); limit=min(100,max(1,int(sys.argv[4]))); out=[]
+ base_fd=open_dir(base_parts); stack=[(base_fd,base_parts)]
+ while stack and len(out)<limit:
+  fd,rel_parts=stack.pop()
+  try:
+   with os.scandir(fd) as entries:
+    for entry in entries:
+     if entry.name in SKIP: continue
+     try:
+      if entry.is_dir(follow_symlinks=False):
+       child=os.open(entry.name,os.O_RDONLY|O_DIRECTORY|O_NOFOLLOW,dir_fd=fd)
+       stack.append((child,[*rel_parts,entry.name]))
+       continue
+      if not entry.is_file(follow_symlinks=False): continue
+      ffd=os.open(entry.name,os.O_RDONLY|O_NOFOLLOW,dir_fd=fd)
+      try:
+       regular(ffd,262144); data=read_all(ffd,262144)
+      finally: os.close(ffd)
+      text=data.decode('utf-8')
+     except (OSError,UnicodeDecodeError,ValueError):
+      continue
+     path='/'.join([*rel_parts,entry.name])
+     for i,line in enumerate(text.splitlines(),1):
+      if needle in line.lower():
+       out.append({'path':path,'line':i,'text':line[:500]})
+       if len(out)>=limit: break
+     if len(out)>=limit: break
+  finally: os.close(fd)
+ for fd,_ in stack:
+  try: os.close(fd)
+  except OSError: pass
+ print(json.dumps({'matches':out,'truncated':len(out)>=limit}))
 else: raise ValueError('unsupported operation')
 `;
 
@@ -267,7 +350,7 @@ export const webToolAdapter: ToolAdapter = {
 			const parsed = WebOpenSchema.safeParse(input);
 			if (!parsed.success) invalid("Web open input is invalid.");
 			const url = new URL(parsed.data.url);
-			if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) invalid("Only credential-free HTTP(S) URLs can be retrieved.");
+			if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) invalid("Only credential-free HTTP(S) URLs can be retrieved.");
 			const search = await service.search(parsed.data.url, {
 				numResults: 3,
 				includeDomains: [url.hostname],
