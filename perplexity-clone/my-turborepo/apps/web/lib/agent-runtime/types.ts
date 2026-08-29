@@ -17,7 +17,7 @@ export interface AgentRuntimeCapabilities {
 	 * tool calls back through AIRA's authenticated Tool Gateway. This is
 	 * deliberately separate from a runtime having its own uncontrolled tools.
 	 */
-	readonly controlledTools: boolean;
+	readonly controlledTools?: boolean;
 }
 
 export interface AgentRuntimeHealth {
