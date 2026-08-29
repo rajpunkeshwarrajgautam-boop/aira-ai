@@ -1,0 +1,56 @@
+name: Agent Scheduler CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/agent-scheduler/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/scheduler.ts"
+      - "perplexity-clone/my-turborepo/apps/web/app/api/internal/agent-platform/tick/**"
+      - ".github/workflows/agent-scheduler-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/agent-scheduler/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/scheduler.ts"
+      - "perplexity-clone/my-turborepo/apps/web/app/api/internal/agent-platform/tick/**"
+      - ".github/workflows/agent-scheduler-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  agent-scheduler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate scheduler source
+        run: python -m py_compile infra/agent-scheduler/worker.py
+
+      - name: Validate Compose profile
+        env:
+          AIRA_AGENT_SCHEDULER_WEB_URL: https://aira.example.test
+          AIRA_AGENT_SCHEDULER_TOKEN: contract-scheduler-token-contract
+        working-directory: infra/agent-scheduler
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Confirm scheduler is non-privileged
+        run: |
+          grep -q 'cap_drop: \["ALL"\]' infra/agent-scheduler/compose.yml
+          grep -q 'no-new-privileges:true' infra/agent-scheduler/compose.yml
+          grep -q 'read_only: true' infra/agent-scheduler/compose.yml
+          if grep -RnE '(privileged:[[:space:]]*true|/var/run/docker.sock)' infra/agent-scheduler; then
+            echo "::error::Unsafe scheduler configuration detected."
+            exit 1
+          fi
+
+      - name: Build scheduler image
+        run: docker build -t aira-agent-scheduler:ci infra/agent-scheduler
