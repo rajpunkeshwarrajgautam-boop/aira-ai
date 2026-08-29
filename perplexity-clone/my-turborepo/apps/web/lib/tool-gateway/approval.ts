@@ -1,3 +1,4 @@
+import { APPROVAL_TTL_MINUTES } from "@/lib/agent-platform/approval-expiry";
 import { prisma } from "@/lib/prisma";
 
 export interface ResolvedToolApproval {
@@ -19,6 +20,14 @@ export async function resolveToolApproval(input: {
 	readonly approve: boolean;
 }): Promise<ResolvedToolApproval | null> {
 	return prisma.$transaction(async (tx) => {
+		await tx.$executeRaw`
+			update "AgentApproval"
+			set "status"='EXPIRED', "resolvedAt"=coalesce("resolvedAt", current_timestamp)
+			where "id"=${input.approvalId}
+			  and "userId"=${input.userId}
+			  and "status"='PENDING'
+			  and "createdAt" < current_timestamp - (${APPROVAL_TTL_MINUTES} * interval '1 minute')
+		`;
 		const rows = await tx.$queryRaw<Array<{
 			toolCallId: string;
 			runId: string;
@@ -32,6 +41,7 @@ export async function resolveToolApproval(input: {
 			  and a."userId"=${input.userId}
 			  and c."userId"=${input.userId}
 			  and a."status"='PENDING'
+			  and a."createdAt" >= current_timestamp - (${APPROVAL_TTL_MINUTES} * interval '1 minute')
 			for update of a, c
 		`;
 		const linked = rows[0];
