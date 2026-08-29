@@ -6,6 +6,7 @@ import {
 } from "@/lib/agent-platform/browser-arbitration";
 import {
 	getBrowserSession,
+	getProjectForUser,
 	recordBrowserAction,
 	updateBrowserSession,
 } from "@/lib/agent-platform/store";
@@ -55,7 +56,7 @@ const TerminalExecSchema = z.object({
 const CreateWorktreeSchema = z.object({
 	repositoryUrl: z.string().url().max(2048),
 	baseRef: z.string().min(1).max(192).default("main"),
-});
+}).strict();
 
 const WorkspaceSchema = z.object({ workspaceId: z.string().min(8).max(128) });
 const CommitSchema = WorkspaceSchema.extend({ message: z.string().trim().min(1).max(500) });
@@ -63,6 +64,52 @@ const MergeSchema = z.object({ targetWorkspaceId: z.string().min(8).max(128), so
 
 function invalidInput(message: string): never {
 	throw new ToolGatewayError({ code: "TOOL_INPUT_INVALID", message, status: 400 });
+}
+
+function canonicalRepositoryUrl(value: string): string | null {
+	const raw = value.trim();
+	if (!raw) return null;
+	try {
+		const url = new URL(raw);
+		if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
+		const parts = url.pathname.split("/").filter(Boolean);
+		if (parts.length < 2 || parts.some((part) => part === "." || part === "..")) return null;
+		let pathname = `/${parts.join("/")}`;
+		if (!pathname.toLowerCase().endsWith(".git")) pathname += ".git";
+		url.pathname = pathname;
+		return url.toString();
+	} catch {
+		return null;
+	}
+}
+
+function safeBaseRef(value: string): string | null {
+	const ref = value.trim();
+	if (!ref || ref.length > 192 || ref.startsWith("/") || ref.endsWith("/") || ref.endsWith(".") || ref.includes("..") || ref.includes("@{") || ref.includes("//")) return null;
+	const forbidden = new Set(["~", "^", ":", "?", "*", "[", "\\"]);
+	for (const char of ref) {
+		const code = char.charCodeAt(0);
+		if (code <= 32 || code === 127 || forbidden.has(char)) return null;
+	}
+	return ref;
+}
+
+function projectRepositoryBinding(config: Record<string, unknown>): { repositoryUrl: string; baseRef: string; repositoryHost: string } | null {
+	const configuredUrl = typeof config.repositoryUrl === "string" ? config.repositoryUrl.trim() : "";
+	const configuredBaseRef = typeof config.baseRef === "string" ? config.baseRef.trim() : "";
+	let repositoryUrl: string | null;
+	if (configuredUrl) {
+		repositoryUrl = canonicalRepositoryUrl(configuredUrl);
+		if (!repositoryUrl) return null;
+	} else {
+		const serverRepository = process.env.AIRA_GITHUB_REPOSITORY?.trim().replace(/^\/+|\/+$/g, "");
+		if (!serverRepository) return null;
+		repositoryUrl = canonicalRepositoryUrl(`https://github.com/${serverRepository}`);
+		if (!repositoryUrl) return null;
+	}
+	const baseRef = safeBaseRef(configuredBaseRef || process.env.AIRA_GITHUB_BASE_BRANCH?.trim() || "main");
+	if (!baseRef) return null;
+	return { repositoryUrl, baseRef, repositoryHost: new URL(repositoryUrl).hostname };
 }
 
 async function ownedWorktree(userId: string, runId: string, workspaceId: string) {
@@ -189,6 +236,14 @@ export const gitToolAdapter: ToolAdapter = {
 			if (!context.taskId) throw new ToolGatewayError({ code: "TASK_REQUIRED", message: "A task is required to create a worktree.", status: 400 });
 			const parsed = CreateWorktreeSchema.safeParse(input);
 			if (!parsed.success) invalidInput("Worktree input is invalid.");
+			const project = await getProjectForUser(context.userId, context.projectId);
+			if (!project) throw new ToolGatewayError({ code: "PROJECT_NOT_FOUND", message: "The project is outside this user scope.", status: 404 });
+			const binding = projectRepositoryBinding(project.config);
+			if (!binding) throw new ToolGatewayError({ code: "WORKTREE_REPOSITORY_UNBOUND", message: "This project has no valid server-authoritative repository binding.", status: 409 });
+			const requestedRepository = canonicalRepositoryUrl(parsed.data.repositoryUrl);
+			if (!requestedRepository || requestedRepository !== binding.repositoryUrl || parsed.data.baseRef !== binding.baseRef) {
+				throw new ToolGatewayError({ code: "WORKTREE_REPOSITORY_OVERRIDE_DENIED", message: "Worktree repository and base ref are controlled by the project binding.", status: 403 });
+			}
 			const workspaceId = `wt-${context.taskId}`;
 			const branch = `aira/${context.runId.slice(0, 8)}/${context.taskId.slice(0, 8)}`;
 			const record = await createWorktreeRecord({
@@ -198,15 +253,18 @@ export const gitToolAdapter: ToolAdapter = {
 				taskId: context.taskId,
 				workspaceId,
 				branch,
-				baseRef: parsed.data.baseRef,
-				metadata: { repositoryHost: new URL(parsed.data.repositoryUrl).hostname },
+				baseRef: binding.baseRef,
+				metadata: { repositoryHost: binding.repositoryHost, repositoryUrl: binding.repositoryUrl },
 			});
+			if (record.baseRef !== binding.baseRef || record.metadata.repositoryUrl !== binding.repositoryUrl) {
+				throw new ToolGatewayError({ code: "WORKTREE_REPOSITORY_BINDING_MISMATCH", message: "The existing worktree record is not bound to this project's exact repository identity.", status: 409 });
+			}
 			try {
 				const workspace = await createRemoteWorkspace({
 					workspaceId: record.workspaceId,
 					projectKey: context.projectId,
-					repositoryUrl: parsed.data.repositoryUrl,
-					baseRef: record.baseRef,
+					repositoryUrl: binding.repositoryUrl,
+					baseRef: binding.baseRef,
 					branch: record.branch,
 				});
 				await updateWorktreeStatus(context.userId, record.workspaceId, "READY");
