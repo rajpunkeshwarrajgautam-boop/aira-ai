@@ -98,7 +98,17 @@ export const browserToolAdapter: ToolAdapter = {
 		if (!session.permissions.includes(action)) {
 			throw new ToolGatewayError({ code: "BROWSER_PERMISSION_DENIED", message: "Browser action is outside the session permission scope.", status: 403 });
 		}
-		const { sessionId: _sessionId, ...actionInput } = parsed.data;
+		const actionInput = {
+			selector: parsed.data.selector,
+			text: parsed.data.text,
+			value: parsed.data.value,
+			key: parsed.data.key,
+			url: parsed.data.url,
+			x: parsed.data.x,
+			y: parsed.data.y,
+			deltaY: parsed.data.deltaY,
+			milliseconds: parsed.data.milliseconds,
+		};
 		const result = await runRemoteBrowserAction(session.id, { action, ...actionInput });
 		await Promise.all([
 			updateBrowserSession({ sessionId: session.id, currentUrl: result.currentUrl, screenshotUri: `/api/browser/sessions/${encodeURIComponent(session.id)}/screenshot` }),
