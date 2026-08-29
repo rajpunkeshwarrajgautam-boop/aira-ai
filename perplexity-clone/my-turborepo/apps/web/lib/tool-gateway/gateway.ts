@@ -44,26 +44,76 @@ const adapters = new Map<AiraToolId, ToolAdapter>([
 	[mcpToolAdapter.id, mcpToolAdapter],
 ]);
 
-const SECRETISH = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)/i;
+const SECRETISH = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential|access[_-]?key|refresh[_-]?token)/i;
 
-function safeValue(value: unknown, key = "", depth = 0): unknown {
+function boundedValue(
+	value: unknown,
+	options: { readonly maxString: number; readonly maxArray: number; readonly maxDepth: number },
+	key = "",
+	depth = 0,
+): unknown {
 	if (SECRETISH.test(key)) return "[redacted]";
-	if (depth > 4) return "[truncated]";
-	if (typeof value === "string") return value.length > 400 ? `${value.slice(0, 400)}…` : value;
+	if (depth > options.maxDepth) return "[truncated]";
+	if (typeof value === "string") return value.length > options.maxString ? `${value.slice(0, options.maxString)}…` : value;
 	if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
-	if (Array.isArray(value)) return value.slice(0, 20).map((entry) => safeValue(entry, key, depth + 1));
+	if (Array.isArray(value)) {
+		return value.slice(0, options.maxArray).map((entry) => boundedValue(entry, options, key, depth + 1));
+	}
 	if (value && typeof value === "object") {
 		return Object.fromEntries(
 			Object.entries(value as Record<string, unknown>)
-				.slice(0, 40)
-				.map(([childKey, childValue]) => [childKey, safeValue(childValue, childKey, depth + 1)]),
+				.slice(0, options.maxArray)
+				.map(([childKey, childValue]) => [childKey, boundedValue(childValue, options, childKey, depth + 1)]),
 		);
 	}
 	return String(value);
 }
 
-function summary(input: Record<string, unknown>): Record<string, unknown> {
-	return safeValue(input) as Record<string, unknown>;
+function summary(value: Record<string, unknown>): Record<string, unknown> {
+	return boundedValue(value, { maxString: 400, maxArray: 20, maxDepth: 4 }) as Record<string, unknown>;
+}
+
+function sanitizedResult(value: Record<string, unknown>): Record<string, unknown> {
+	return boundedValue(value, { maxString: 20_000, maxArray: 100, maxDepth: 7 }) as Record<string, unknown>;
+}
+
+function textBytes(value: unknown): number | undefined {
+	return typeof value === "string" ? Buffer.byteLength(value, "utf8") : undefined;
+}
+
+/**
+ * Persist only metadata needed to understand/approve the operation. Exact
+ * payload binding is handled independently by inputHash, so sensitive values do
+ * not need to be copied into AgentToolCall/AgentApproval records.
+ */
+export function auditInputSummary(
+	tool: AiraToolId,
+	action: string,
+	input: Record<string, unknown>,
+): Record<string, unknown> {
+	if (tool === "browser" && ["fill", "press", "select", "submit"].includes(action)) {
+		return summary({ sessionId: input.sessionId, selector: input.selector, url: input.url, textBytes: textBytes(input.text), valuePresent: input.value !== undefined, key: input.key });
+	}
+	if (tool === "terminal") {
+		const argv = Array.isArray(input.argv) ? input.argv : [];
+		return summary({ workspaceId: input.workspaceId, executable: typeof argv[0] === "string" ? argv[0] : undefined, argumentCount: Math.max(0, argv.length - 1), cwd: input.cwd, timeoutSeconds: input.timeoutSeconds });
+	}
+	if (tool === "files" && action === "write") {
+		return summary({ workspaceId: input.workspaceId, path: input.path, contentBytes: textBytes(input.content) });
+	}
+	if (tool === "github" && action === "create_commit") {
+		return summary({ path: input.path, message: input.message, contentBytes: textBytes(input.content) });
+	}
+	if (tool === "supabase" && action === "write_non_destructive") {
+		const values = input.values && typeof input.values === "object" && !Array.isArray(input.values)
+			? Object.keys(input.values as Record<string, unknown>).slice(0, 30)
+			: [];
+		return summary({ schema: input.schema, table: input.table, columns: values });
+	}
+	if (tool === "mcp") {
+		return summary({ tool: input.tool, arguments: "[redacted-by-policy]" });
+	}
+	return summary(input);
 }
 
 function canonical(value: unknown): string {
@@ -136,23 +186,15 @@ export async function executeTool(
 	await assertToolContextOwnership(context);
 	const adapter = adapters.get(request.tool);
 	if (!adapter) {
-		throw new ToolGatewayError({
-			code: "TOOL_NOT_IMPLEMENTED",
-			message: `${request.tool} is not available through the AIRA Tool Gateway.`,
-			status: 409,
-		});
+		throw new ToolGatewayError({ code: "TOOL_NOT_IMPLEMENTED", message: `${request.tool} is not available through the AIRA Tool Gateway.`, status: 409 });
 	}
 	if (!(await adapter.isAvailable().catch(() => false))) {
-		throw new ToolGatewayError({
-			code: "TOOL_UNAVAILABLE",
-			message: `${request.tool} is not currently available.`,
-			status: 503,
-			retryable: true,
-		});
+		throw new ToolGatewayError({ code: "TOOL_UNAVAILABLE", message: `${request.tool} is not currently available.`, status: 503, retryable: true });
 	}
 
 	const risk = classifyToolRisk(request.tool, request.action);
 	const inputHash = toolInputHash(request.input);
+	const safeInputSummary = auditInputSummary(request.tool, request.action, request.input);
 	let stored = await getToolCallByRequest(context.userId, request.clientRequestId);
 	if (stored && (
 		stored.tool !== request.tool ||
@@ -170,23 +212,11 @@ export async function executeTool(
 		throw new ToolGatewayError({ code: "TOOL_ALREADY_EXECUTING", message: "This tool request is already executing.", status: 409, retryable: true });
 	}
 	if (stored?.status === "FAILED" || stored?.status === "CANCELLED") {
-		throw new ToolGatewayError({
-			code: "TOOL_RETRY_REQUIRES_NEW_REQUEST_ID",
-			message: "This tool request ended without a confirmed success. Use a new request id for an explicit retry so side effects cannot be duplicated silently.",
-			status: 409,
-		});
+		throw new ToolGatewayError({ code: "TOOL_RETRY_REQUIRES_NEW_REQUEST_ID", message: "This tool request ended without a confirmed success. Use a new request id for an explicit retry so side effects cannot be duplicated silently.", status: 409 });
 	}
 
 	if (!stored) {
-		stored = await createToolCall({
-			context,
-			clientRequestId: request.clientRequestId,
-			tool: request.tool,
-			action: request.action,
-			risk,
-			inputHash,
-			inputSummary: summary(request.input),
-		});
+		stored = await createToolCall({ context, clientRequestId: request.clientRequestId, tool: request.tool, action: request.action, risk, inputHash, inputSummary: safeInputSummary });
 		if (stored.inputHash !== inputHash) {
 			throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "Concurrent tool request id collision detected.", status: 409 });
 		}
@@ -211,7 +241,7 @@ export async function executeTool(
 					action: `${request.tool}.${request.action}`,
 					risk,
 					inputHash,
-					summary: { tool: request.tool, action: request.action, input: summary(request.input) },
+					summary: { tool: request.tool, action: request.action, input: safeInputSummary },
 				});
 				await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "approval.requested", payload: { approvalId, toolCallId: stored.id, tool: request.tool, action: request.action, risk, inputHash } });
 				return { status: "APPROVAL_REQUIRED", toolCallId: stored.id, approvalId, risk };
@@ -234,10 +264,11 @@ export async function executeTool(
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.started", payload: { toolCallId: stored.id, tool: request.tool, action: request.action, risk, inputHash } });
 		const executed = await adapter.execute(context, request.action, request.input);
 		const usage = usageOrDefault(executed.usage);
-		const storedResult = summary(executed.result);
+		const safeResult = sanitizedResult(executed.result);
+		const storedResult = summary(safeResult);
 		await completeToolCall({ toolCallId: stored.id, result: storedResult, usage });
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.completed", payload: { toolCallId: stored.id, tool: request.tool, action: request.action } });
-		return { status: "COMPLETED", toolCallId: stored.id, result: executed.result, usage };
+		return { status: "COMPLETED", toolCallId: stored.id, result: safeResult, usage };
 	} catch (error) {
 		const code = error instanceof ToolGatewayError ? error.code : error instanceof Error ? error.name : "TOOL_EXECUTION_FAILED";
 		await failToolCall(stored.id, code).catch(() => undefined);
