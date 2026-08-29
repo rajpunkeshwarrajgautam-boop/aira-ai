@@ -45,7 +45,7 @@ export interface ManagerRuntimeInput {
 }
 
 export interface ManagerRuntimeResult {
-	readonly status: "completed" | "failed" | "cancelled";
+	readonly status: "completed" | "failed" | "cancelled" | "waiting_for_approval";
 	readonly graph: TaskGraph;
 	readonly outputs: ReadonlyMap<string, RuntimeTaskExecutionResult>;
 	readonly usage: ReturnType<ExecutionMeter["snapshot"]>;
@@ -75,6 +75,22 @@ export class VerificationRepairRequest extends Error {
 		super(message);
 		this.name = "VerificationRepairRequest";
 		this.taskIds = [...new Set(taskIds.map((id) => id.trim()).filter(Boolean))];
+	}
+}
+
+export class RuntimeApprovalRequired extends Error {
+	readonly code = "AGENT_RUNTIME_APPROVAL_REQUIRED";
+	readonly approvalId?: string;
+	readonly toolId?: string;
+
+	constructor(
+		message = "Human approval is required before this task can continue.",
+		options: { readonly approvalId?: string; readonly toolId?: string } = {},
+	) {
+		super(message);
+		this.name = "RuntimeApprovalRequired";
+		this.approvalId = options.approvalId;
+		this.toolId = options.toolId;
 	}
 }
 
@@ -122,7 +138,6 @@ function transitiveDependents(graph: TaskGraph, roots: ReadonlySet<string>): Set
 				changed = true;
 			}
 		}
-	}
 	return selected;
 }
 
@@ -173,6 +188,11 @@ function terminalStatus(graph: TaskGraph): ManagerRuntimeResult["status"] | null
 		);
 		if (!unfinished) return "failed";
 	}
+	const waitingForApproval = graph.tasks.some((task) => task.status === "waiting_for_approval");
+	const runnableOrActive = graph.tasks.some((task) =>
+		["ready", "running", "retrying", "verifying", "waiting_for_tool"].includes(task.status),
+	);
+	if (waitingForApproval && !runnableOrActive) return "waiting_for_approval";
 	if (graph.tasks.every((task) => task.status === "completed" || task.status === "cancelled")) {
 		return graph.tasks.some((task) => task.status === "cancelled") ? "cancelled" : "completed";
 	}
@@ -270,6 +290,16 @@ export async function executeManagedTaskGraph(
 			await input.observer?.onTaskError?.(item.task, item.error);
 			if (item.error instanceof VerificationRepairRequest) {
 				repairRequest = item.error;
+				continue;
+			}
+			if (item.error instanceof RuntimeApprovalRequired) {
+				const waiting = {
+					...taskById(graph, item.taskId),
+					status: "waiting_for_approval" as const,
+					blockedReason: item.error.message,
+				};
+				graph = replaceTask(graph, waiting);
+				await notifyTask(input.observer, waiting);
 				continue;
 			}
 			graph = retryAfterFailure(graph, item.taskId, input.budget);

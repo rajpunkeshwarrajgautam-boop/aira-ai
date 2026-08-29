@@ -4,6 +4,7 @@ import test from "node:test";
 import {
 	DEFAULT_EXECUTION_BUDGET,
 	executeManagedTaskGraph,
+	RuntimeApprovalRequired,
 	VerificationRepairRequest,
 } from "../lib/agent-runtime/index";
 import type {
@@ -121,6 +122,42 @@ test("verifier repair request reopens worker work and invalidates stale downstre
 	assert.equal(counts.get("verify"), 2);
 	assert.deepEqual(sawStaleBuildOutputDuringRepair, [false]);
 	assert.equal(result.outputs.get("build")?.output, "build:attempt:2");
+});
+
+test("consequential work pauses for approval without being retried or failed", async () => {
+	let executions = 0;
+	const executor: RuntimeTaskExecutor = {
+		async execute({ task: current }) {
+			executions += 1;
+			if (current.id === "deploy") {
+				throw new RuntimeApprovalRequired("Approve production deployment.", {
+					approvalId: "approval-1",
+					toolId: "deployment",
+				});
+			}
+			return { output: "unexpected" };
+		},
+	};
+	const graph: TaskGraph = {
+		tasks: [
+			{ ...task("deploy", "coder"), riskClass: "consequential" },
+			task("verify", "verifier", ["deploy"]),
+		],
+	};
+
+	const result = await executeManagedTaskGraph({
+		objective: "Deploy then verify",
+		graph,
+		budget: { ...DEFAULT_EXECUTION_BUDGET, maxRetriesPerTask: 2 },
+		executor,
+	});
+
+	assert.equal(result.status, "waiting_for_approval");
+	assert.equal(executions, 1);
+	assert.equal(result.graph.tasks.find((entry) => entry.id === "deploy")?.status, "waiting_for_approval");
+	assert.equal(result.graph.tasks.find((entry) => entry.id === "deploy")?.attempt, 1);
+	assert.equal(result.graph.tasks.find((entry) => entry.id === "verify")?.status, "pending");
+	assert.deepEqual(result.failedTaskIds, []);
 });
 
 test("permanent worker failure blocks dependents instead of inventing completion", async () => {
