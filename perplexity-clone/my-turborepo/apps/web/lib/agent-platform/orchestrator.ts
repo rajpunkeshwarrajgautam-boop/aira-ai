@@ -717,16 +717,19 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 			dispatched += 1;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Task dispatch failed.";
-			const [attemptRun, taskState] = await Promise.all([
+			const [attemptRun, taskRows] = await Promise.all([
 				prisma.agentRun.findUnique({
 					where: { userId_clientRequestId: { userId, clientRequestId: runtimeRequestId } },
 					select: { id: true, status: true },
 				}).catch(() => null),
-				prisma.agentTask.findUnique({
-					where: { id: task.id },
-					select: { status: true, runtimeRunId: true, leaseOwner: true },
-				}).catch(() => null),
+				prisma.$queryRaw<Array<{ status: string; runtimeRunId: string | null; leaseOwner: string | null }>>`
+					select "status","runtimeRunId","leaseOwner"
+					from "AgentTask"
+					where "id"=${task.id} and "runId"=${run.id} and "projectId"=${run.projectId}
+					limit 1
+				`.catch(() => []),
 			]);
+			const taskState = taskRows[0] ?? null;
 
 			// If markTaskRunning committed but its response was lost, the durable task
 			// row is authoritative. Do not block or advance the attempt merely because
