@@ -7,11 +7,11 @@ import {
 	retrieveProjectMemory,
 	type ProjectMemoryKind,
 } from "@/lib/agent-platform/project-memory";
-import { getWorktreeForUser } from "@/lib/agent-platform/worktrees";
+import { getScopedWorktree } from "@/lib/agent-platform/worktrees";
 import { runRemoteCommand, terminalRuntimeHealth } from "@/lib/terminal-runtime/client";
 import { createExaSearchService } from "@services/search";
 
-import type { ToolAdapter } from "./types";
+import type { ToolAdapter, ToolContext } from "./types";
 import { ToolGatewayError } from "./types";
 
 const WorkspacePathSchema = z.object({
@@ -204,10 +204,10 @@ function invalid(message: string): never {
 	throw new ToolGatewayError({ code: "TOOL_INPUT_INVALID", message, status: 400 });
 }
 
-async function ownedWorkspace(userId: string, runId: string, workspaceId: string): Promise<void> {
-	const workspace = await getWorktreeForUser(userId, workspaceId);
-	if (!workspace || workspace.runId !== runId) {
-		throw new ToolGatewayError({ code: "WORKTREE_NOT_FOUND", message: "Workspace is outside this mission scope.", status: 404 });
+async function ownedWorkspace(context: ToolContext, workspaceId: string): Promise<void> {
+	const workspace = await getScopedWorktree(context, workspaceId);
+	if (!workspace) {
+		throw new ToolGatewayError({ code: "WORKTREE_NOT_FOUND", message: "Workspace is outside this mission and task scope.", status: 404 });
 	}
 }
 
@@ -255,25 +255,25 @@ export const filesToolAdapter: ToolAdapter = {
 		if (action === "read" || action === "delete") {
 			const parsed = WorkspacePathSchema.safeParse(input);
 			if (!parsed.success) invalid("File input is invalid.");
-			await ownedWorkspace(context.userId, context.runId, parsed.data.workspaceId);
+			await ownedWorkspace(context, parsed.data.workspaceId);
 			return { result: await fileOperation(parsed.data.workspaceId, [action, parsed.data.path]) };
 		}
 		if (action === "write") {
 			const parsed = FileWriteSchema.safeParse(input);
 			if (!parsed.success) invalid("File write input is invalid.");
-			await ownedWorkspace(context.userId, context.runId, parsed.data.workspaceId);
+			await ownedWorkspace(context, parsed.data.workspaceId);
 			return { result: await fileOperation(parsed.data.workspaceId, ["write", parsed.data.path, Buffer.from(parsed.data.content, "utf8").toString("base64")]) };
 		}
 		if (action === "move") {
 			const parsed = FileMoveSchema.safeParse(input);
 			if (!parsed.success) invalid("File move input is invalid.");
-			await ownedWorkspace(context.userId, context.runId, parsed.data.workspaceId);
+			await ownedWorkspace(context, parsed.data.workspaceId);
 			return { result: await fileOperation(parsed.data.workspaceId, ["move", parsed.data.from, parsed.data.to]) };
 		}
 		if (action === "search") {
 			const parsed = FileSearchSchema.safeParse(input);
 			if (!parsed.success) invalid("File search input is invalid.");
-			await ownedWorkspace(context.userId, context.runId, parsed.data.workspaceId);
+			await ownedWorkspace(context, parsed.data.workspaceId);
 			return { result: await fileOperation(parsed.data.workspaceId, ["search", parsed.data.path ?? ".", parsed.data.query, String(parsed.data.limit)]) };
 		}
 		throw new ToolGatewayError({ code: "TOOL_ACTION_UNSUPPORTED", message: `Files action ${action} is not supported.`, status: 409 });
