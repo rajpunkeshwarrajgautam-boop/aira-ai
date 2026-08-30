@@ -74,7 +74,8 @@ test("classifies an accepted run with no final state as uncertain rather than de
 test("AutoGPT keeps unknown submission and stale execution outcomes in REVIEW", () => {
 	const source = readFileSync(new URL("../lib/autogpt/runs.ts", import.meta.url), "utf8");
 	assert.match(source, /status:\s*outcomeUnknown\s*\?\s*AgentRunStatus\.REVIEW\s*:\s*AgentRunStatus\.FAILED/);
-	assert.match(source, /status:\s*AgentRunStatus\.REVIEW,[\s\S]*?errorMessage:\s*stale\.errorMessage/);
+	assert.match(source, /async function reviewUncertainAutoGptRun[\s\S]*?status:\s*AgentRunStatus\.REVIEW/);
+	assert.match(source, /if \(stale\)[\s\S]*?reviewUncertainAutoGptRun\(row\.id, stale\.errorMessage\)/);
 	assert.match(source, /completedAt:\s*outcomeUnknown\s*\?\s*null\s*:\s*new Date\(\)/);
 });
 
