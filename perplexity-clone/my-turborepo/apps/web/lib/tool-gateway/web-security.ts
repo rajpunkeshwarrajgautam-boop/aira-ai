@@ -10,14 +10,14 @@ function ipv4Octets(hostname: string): readonly number[] | null {
 	const parts = hostname.split(".");
 	if (parts.length !== 4) return null;
 	const octets = parts.map((part) => Number(part));
-	if (octets.some((value, index) => !Number.isInteger(value) || value < 0 || value > 255 || String(value) !== String(Number(parts[index])))) return null;
+	if (octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) return null;
 	return octets;
 }
 
 function isNonPublicIpv4(hostname: string): boolean {
 	const octets = ipv4Octets(hostname);
 	if (!octets) return false;
-	const [a, b] = octets;
+	const [a, b, c] = octets;
 	return (
 		a === 0 ||
 		a === 10 ||
@@ -25,20 +25,19 @@ function isNonPublicIpv4(hostname: string): boolean {
 		(a === 100 && b >= 64 && b <= 127) ||
 		(a === 169 && b === 254) ||
 		(a === 172 && b >= 16 && b <= 31) ||
-		(a === 192 && b === 0) ||
+		(a === 192 && b === 0 && (c === 0 || c === 2)) ||
 		(a === 192 && b === 168) ||
-		(a === 192 && b === 0 && octets[2] === 2) ||
 		(a === 198 && (b === 18 || b === 19)) ||
-		(a === 198 && b === 51 && octets[2] === 100) ||
-		(a === 203 && b === 0 && octets[2] === 113) ||
+		(a === 198 && b === 51 && c === 100) ||
+		(a === 203 && b === 0 && c === 113) ||
 		a >= 224
 	);
 }
 
 function isNonPublicIpv6(hostname: string): boolean {
 	const host = normalizedHostname(hostname);
-	if (isIP(host) !== 6) return false;
 	if (host.includes("%")) return true;
+	if (isIP(host) !== 6) return false;
 	if (host === "::" || host === "::1") return true;
 	const mapped = /(?:^|:)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(host);
 	if (mapped?.[1] && isNonPublicIpv4(mapped[1])) return true;
@@ -46,7 +45,7 @@ function isNonPublicIpv6(hostname: string): boolean {
 	if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
 	if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
 	if (host.startsWith("2001:db8:")) return true; // documentation-only
-	if (host.startsWith("ff")) return true; // multicast
+	if ((first & 0xff00) === 0xff00) return true; // multicast
 	return false;
 }
 
@@ -55,7 +54,7 @@ export function isObviouslyNonPublicHostname(hostname: string): boolean {
 	if (!host) return true;
 	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return true;
 	if (isIP(host) === 4) return isNonPublicIpv4(host);
-	if (isIP(host) === 6) return isNonPublicIpv6(host);
+	if (isIP(host) === 6 || host.includes("%")) return isNonPublicIpv6(host);
 	return false;
 }
 
