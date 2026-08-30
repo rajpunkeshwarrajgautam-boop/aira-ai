@@ -2,16 +2,18 @@ import { isIP } from "node:net";
 
 export const UNTRUSTED_WEB_CONTENT = "UNTRUSTED_EXTERNAL_CONTENT" as const;
 
+type Ipv4Octets = readonly [number, number, number, number];
+
 function normalizedHostname(value: string): string {
 	return value.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
 }
 
-function ipv4Octets(hostname: string): readonly number[] | null {
+function ipv4Octets(hostname: string): Ipv4Octets | null {
 	const parts = hostname.split(".");
 	if (parts.length !== 4) return null;
 	const octets = parts.map((part) => Number(part));
 	if (octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) return null;
-	return octets;
+	return octets as unknown as Ipv4Octets;
 }
 
 function isNonPublicIpv4(hostname: string): boolean {
