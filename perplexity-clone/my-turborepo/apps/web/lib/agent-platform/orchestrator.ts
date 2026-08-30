@@ -28,6 +28,7 @@ import {
 	recoverExpiredClaims,
 	setRunStatus,
 	setTaskStatus,
+	TaskClaimLostError,
 } from "./store";
 import {
 	DEFAULT_RUN_BUDGETS,
@@ -57,6 +58,32 @@ const AGENT_TOOLS: Record<string, readonly string[]> = {
 };
 
 const CONTROLLED_WORKTREE_ROLES = new Set(["FRONTEND", "BACKEND", "DATABASE", "SECURITY", "INTEGRATOR"]);
+
+/**
+ * Runtime submissions are idempotent within one task attempt, but a definitive
+ * failed attempt must not resolve back to the previous terminal AgentRun.
+ * Keep the historical first-attempt key for crash recovery/backward
+ * compatibility and use deterministic attempt-scoped keys for later attempts.
+ */
+export function runtimeAttemptRequestId(task: Pick<PlatformTask, "id" | "attempt">): string {
+	const nextAttempt = Math.max(1, task.attempt + 1);
+	return nextAttempt === 1 ? task.id : `${task.id}:attempt:${nextAttempt}`;
+}
+
+/**
+ * Provider adapters use this flag when a submission may have reached a remote
+ * runtime before the response became unknowable. It is intentionally checked
+ * structurally so provider-specific request errors cannot accidentally be
+ * treated as safe-to-retry merely because they do not extend AgentRuntimeError.
+ */
+export function runtimeSubmissionOutcomeUnknown(error: unknown): boolean {
+	return Boolean(
+		error &&
+			typeof error === "object" &&
+			"submissionOutcomeUnknown" in error &&
+			(error as { readonly submissionOutcomeUnknown?: unknown }).submissionOutcomeUnknown === true,
+	);
+}
 
 function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 	return {
@@ -326,14 +353,44 @@ function repositoryBinding(config: Record<string, unknown>): { repositoryUrl: st
 	};
 }
 
+async function consumeClaimedDispatchAttempt(task: PlatformTask): Promise<PlatformTask> {
+	if (task.status !== "CLAIMED" || !task.leaseOwner) throw new TaskClaimLostError(task.id);
+	const changed = await prisma.$executeRaw`
+		update "AgentTask"
+		set "attempt"="attempt"+1, "updatedAt"=current_timestamp
+		where "id"=${task.id}
+		  and "status"='CLAIMED'
+		  and "leaseOwner"=${task.leaseOwner}
+		  and "leaseExpiresAt" >= current_timestamp
+	`;
+	if (changed !== 1) throw new TaskClaimLostError(task.id);
+	return { ...task, attempt: task.attempt + 1 };
+}
+
 async function blockClaimedTask(input: {
 	readonly run: PlatformRun;
 	readonly task: PlatformTask;
 	readonly agentId: string;
 	readonly reason: string;
+	readonly reasonCode?: string;
+	readonly risks?: readonly string[];
+	readonly nextActions?: readonly string[];
+	readonly runtimeRunId?: string | null;
+	readonly consumeAttempt?: boolean;
 }): Promise<void> {
+	const reasonCode = input.reasonCode ?? "controlled_tooling_unavailable";
+	await setTaskStatus(input.task.id, "BLOCKED");
+	if (input.consumeAttempt || input.runtimeRunId) {
+		await prisma.$executeRaw`
+			update "AgentTask"
+			set "attempt"=case when ${input.consumeAttempt ?? false} then least("maxAttempts", "attempt"+1) else "attempt" end,
+				"runtimeRunId"=coalesce(${input.runtimeRunId ?? null}, "runtimeRunId"),
+				"lastError"=${input.reason.slice(0, 4000)},
+				"updatedAt"=current_timestamp
+			where "id"=${input.task.id} and "status"='BLOCKED'
+		`;
+	}
 	await Promise.all([
-		setTaskStatus(input.task.id, "BLOCKED"),
 		prisma.$executeRaw`
 			update "AgentInstance"
 			set "status"='WAITING', "updatedAt"=current_timestamp
@@ -345,7 +402,11 @@ async function blockClaimedTask(input: {
 			taskId: input.task.id,
 			agentId: input.agentId,
 			kind: "BLOCKER",
-			body: { summary: input.reason, risks: ["controlled_tooling_unavailable"], nextActions: ["configure the required trusted runtime/tooling and resume the mission"] },
+			body: {
+				summary: input.reason,
+				risks: [...(input.risks ?? [reasonCode])],
+				nextActions: [...(input.nextActions ?? ["configure the required trusted runtime/tooling and resume the mission"])],
+			},
 		}).catch(() => undefined),
 		appendEvent({
 			projectId: input.run.projectId,
@@ -353,9 +414,60 @@ async function blockClaimedTask(input: {
 			taskId: input.task.id,
 			agentId: input.agentId,
 			type: "task.blocked",
-			payload: { reason: "controlled_tooling_unavailable", detail: input.reason.slice(0, 1000) },
+			payload: {
+				reason: reasonCode,
+				detail: input.reason.slice(0, 1000),
+				...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
+			},
 		}),
 	]);
+}
+
+async function blockRunningTaskForUnknownRuntimeOutcome(input: {
+	readonly run: PlatformRun;
+	readonly task: PlatformTask;
+	readonly reasonCode: string;
+	readonly detail: string;
+}): Promise<boolean> {
+	const changed = await prisma.$executeRaw`
+		update "AgentTask"
+		set "status"='BLOCKED', "lastError"=${input.detail.slice(0, 4000)}, "updatedAt"=current_timestamp
+		where "id"=${input.task.id}
+		  and "runId"=${input.run.id}
+		  and "status"='RUNNING'
+		  and "runtimeRunId" is not distinct from ${input.task.runtimeRunId}
+	`;
+	if (changed !== 1) return false;
+	await Promise.all([
+		prisma.$executeRaw`
+			update "AgentInstance"
+			set "status"='WAITING', "updatedAt"=current_timestamp
+			where "currentTaskId"=${input.task.id} and "status" in ('WORKING','WAITING')
+		`,
+		recordAgentMessage({
+			projectId: input.run.projectId,
+			runId: input.run.id,
+			taskId: input.task.id,
+			kind: "BLOCKER",
+			body: {
+				summary: input.detail,
+				risks: ["duplicate_execution"],
+				nextActions: ["reconcile the previous runtime execution before authorizing any retry"],
+			},
+		}).catch(() => undefined),
+		appendEvent({
+			projectId: input.run.projectId,
+			runId: input.run.id,
+			taskId: input.task.id,
+			type: "task.blocked",
+			payload: {
+				reason: input.reasonCode,
+				detail: input.detail.slice(0, 1000),
+				...(input.task.runtimeRunId ? { runtimeRunId: input.task.runtimeRunId } : {}),
+			},
+		}),
+	]);
+	return true;
 }
 
 async function prepareControlledWorkspace(input: {
@@ -419,18 +531,37 @@ async function prepareControlledWorkspace(input: {
 
 async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: readonly PlatformTask[]): Promise<number> {
 	let reconciled = 0;
-	for (const task of tasks.filter((entry) => entry.status === "RUNNING" && entry.runtimeRunId)) {
-		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId!, userId }, select: { id: true, provider: true } });
+	for (const task of tasks.filter((entry) => entry.status === "RUNNING")) {
+		if (!task.runtimeRunId) {
+			if (await blockRunningTaskForUnknownRuntimeOutcome({
+				run,
+				task,
+				reasonCode: "runtime_link_missing",
+				detail: "The delegated task is running but its runtime execution link is missing. AIRA will not create another execution until the previous outcome is reconciled.",
+			})) reconciled += 1;
+			continue;
+		}
+		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId, userId }, select: { id: true, provider: true } });
 		if (!local) {
-			const next = await failTask(task, "The delegated runtime run no longer exists.");
-			await recordAgentMessage({ projectId: run.projectId, runId: run.id, taskId: task.id, kind: "BLOCKER", body: { summary: "Delegated runtime run no longer exists.", nextActions: ["retry or reassign task"] } }).catch(() => undefined);
-			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: next === "FAILED" ? "task.failed" : "task.requeued", payload: { reason: "runtime_run_missing" } });
-			reconciled += 1;
+			if (await blockRunningTaskForUnknownRuntimeOutcome({
+				run,
+				task,
+				reasonCode: "runtime_run_missing",
+				detail: "The delegated runtime record no longer exists. Its remote outcome is unknown, so AIRA blocked the task instead of risking duplicate autonomous work.",
+			})) reconciled += 1;
 			continue;
 		}
 		const runtime = getAgentRuntime(local.provider);
 		const child = await runtime.refreshRun(userId, local.id);
-		if (!child) continue;
+		if (!child) {
+			if (await blockRunningTaskForUnknownRuntimeOutcome({
+				run,
+				task,
+				reasonCode: "runtime_refresh_missing",
+				detail: "The runtime could not resolve the delegated execution. AIRA blocked the task until the existing execution can be reconciled.",
+			})) reconciled += 1;
+			continue;
+		}
 		if (child.status === AgentRunStatus.COMPLETED) {
 			const usage = usageFromRuntimeResult(child.result);
 			await applyRuntimeUsage(run.id, usage).catch(() => undefined);
@@ -463,7 +594,18 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 			await applyRuntimeUsage(run.id, usageFromRuntimeResult(child.result)).catch(() => undefined);
 			const next = await failTask(task, child.errorMessage ?? `Delegated run ended with ${child.status}.`);
 			await recordAgentMessage({ projectId: run.projectId, runId: run.id, taskId: task.id, kind: "BLOCKER", body: { summary: child.errorMessage ?? `Delegated run ended with ${child.status}.`, risks: [child.status], nextActions: next === "FAILED" ? ["manager intervention required"] : ["retry task"] } }).catch(() => undefined);
-			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: next === "FAILED" ? "task.failed" : "task.requeued", payload: { runtimeRunId: child.id, status: child.status } });
+			await appendEvent({
+				projectId: run.projectId,
+				runId: run.id,
+				taskId: task.id,
+				type: next === "FAILED" ? "task.failed" : "task.requeued",
+				payload: {
+					runtimeRunId: child.id,
+					status: child.status,
+					attempt: task.attempt,
+					nextAttempt: next === "FAILED" ? null : task.attempt + 1,
+				},
+			});
 			reconciled += 1;
 		} else if (child.status === AgentRunStatus.REVIEW) {
 			await setTaskStatus(task.id, "WAITING");
@@ -489,6 +631,7 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		const workerId = `aira:${run.id}:${crypto.randomUUID()}`;
 		const claimed = await claimTask(task.id, workerId);
 		if (!claimed) continue;
+		const runtimeRequestId = runtimeAttemptRequestId(claimed);
 		const allowedTools = AGENT_TOOLS[task.agentRole] ?? ["files"];
 		const agentId = await createAgentInstance({
 			projectId: run.projectId,
@@ -543,12 +686,13 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					role: task.agentRole,
 					selectedSkills: runtimeContext.selectedSkillIds,
 					memoryKeys: runtimeContext.memoryKeys,
+					attempt: claimed.attempt + 1,
 					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
 				},
 			}).catch(() => undefined);
 			const submission = await runtime.createRun({
 				userId,
-				clientRequestId: task.id,
+				clientRequestId: runtimeRequestId,
 				objective: runtimeContext.systemPrompt,
 				billingMode: "DELEGATED",
 			});
@@ -559,12 +703,50 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				taskId: task.id,
 				agentId,
 				type: "task.started",
-				payload: { runtime: runtime.id, runtimeRunId: submission.run.id, ...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}) },
+				payload: {
+					runtime: runtime.id,
+					runtimeRunId: submission.run.id,
+					runtimeClientRequestId: runtimeRequestId,
+					attempt: claimed.attempt + 1,
+					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
+				},
 			});
 			dispatched += 1;
 		} catch (error) {
-			const next = await failTask(claimed, error instanceof Error ? error.message : "Task dispatch failed.");
-			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, agentId, type: next === "FAILED" ? "task.failed" : "task.requeued", payload: { phase: "dispatch" } });
+			const message = error instanceof Error ? error.message : "Task dispatch failed.";
+			if (runtimeSubmissionOutcomeUnknown(error)) {
+				const ambiguousRun = await prisma.agentRun.findUnique({
+					where: { userId_clientRequestId: { userId, clientRequestId: runtimeRequestId } },
+					select: { id: true },
+				}).catch(() => null);
+				await blockClaimedTask({
+					run,
+					task: claimed,
+					agentId,
+					reason: "The runtime did not confirm whether it accepted this delegated task. AIRA blocked automatic retry to avoid duplicate autonomous work.",
+					reasonCode: "runtime_outcome_unknown",
+					risks: ["duplicate_execution"],
+					nextActions: ["reconcile the existing runtime execution before authorizing any retry"],
+					runtimeRunId: ambiguousRun?.id ?? null,
+					consumeAttempt: true,
+				});
+				continue;
+			}
+			const attempted = await consumeClaimedDispatchAttempt(claimed);
+			const next = await failTask(attempted, message);
+			await appendEvent({
+				projectId: run.projectId,
+				runId: run.id,
+				taskId: task.id,
+				agentId,
+				type: next === "FAILED" ? "task.failed" : "task.requeued",
+				payload: {
+					phase: "dispatch",
+					attempt: attempted.attempt,
+					nextAttempt: next === "FAILED" ? null : attempted.attempt + 1,
+					runtimeClientRequestId: runtimeRequestId,
+				},
+			});
 		}
 	}
 	return dispatched;
