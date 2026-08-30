@@ -89,12 +89,17 @@ jobs:
           $$;
           SQL
 
-      - name: Reconstruct the repository historical baseline
+      - name: Materialize the historical baseline as a CI-only first migration
         run: |
-          psql "$PSQL_URL" -v ON_ERROR_STOP=1 \
-            -f prisma/baseline/20260429_initial_schema.sql
+          test ! -e prisma/migrations/20260429_initial_schema || {
+            echo "::error::The historical baseline must not be committed into prisma/migrations; existing deployments must never see it as a pending production migration."
+            exit 1
+          }
+          mkdir prisma/migrations/20260429_initial_schema
+          cp prisma/baseline/20260429_initial_schema.sql \
+            prisma/migrations/20260429_initial_schema/migration.sql
 
-      - name: Apply every recorded Prisma migration
+      - name: Apply historical baseline and every recorded Prisma migration
         run: pnpm exec prisma migrate deploy
 
       - name: Verify migration ledger is complete
