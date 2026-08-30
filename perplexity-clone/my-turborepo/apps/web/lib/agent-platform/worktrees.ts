@@ -17,6 +17,17 @@ export interface WorktreeRecord {
 	readonly updatedAt: Date;
 }
 
+export interface WorktreeScope {
+	readonly userId: string;
+	readonly projectId: string;
+	readonly runId: string;
+	readonly taskId?: string | null;
+}
+
+export interface WorktreeScopeOptions {
+	readonly allowSiblingTask?: boolean;
+}
+
 function jsonObject(value: unknown): Record<string, unknown> {
 	return value && typeof value === "object" && !Array.isArray(value)
 		? (value as Record<string, unknown>)
@@ -27,6 +38,16 @@ function normalize(row: WorktreeRecord): WorktreeRecord {
 	return { ...row, metadata: jsonObject(row.metadata) };
 }
 
+export function worktreeMatchesScope(
+	record: WorktreeRecord,
+	scope: WorktreeScope,
+	options: WorktreeScopeOptions = {},
+): boolean {
+	if (record.userId !== scope.userId || record.projectId !== scope.projectId || record.runId !== scope.runId) return false;
+	if (scope.taskId && !options.allowSiblingTask && record.taskId !== scope.taskId) return false;
+	return true;
+}
+
 export async function getWorktreeForUser(userId: string, workspaceId: string): Promise<WorktreeRecord | null> {
 	const rows = await prisma.$queryRaw<WorktreeRecord[]>`
 		select * from "AgentWorktree"
@@ -34,6 +55,15 @@ export async function getWorktreeForUser(userId: string, workspaceId: string): P
 		limit 1
 	`;
 	return rows[0] ? normalize(rows[0]) : null;
+}
+
+export async function getScopedWorktree(
+	scope: WorktreeScope,
+	workspaceId: string,
+	options: WorktreeScopeOptions = {},
+): Promise<WorktreeRecord | null> {
+	const record = await getWorktreeForUser(scope.userId, workspaceId);
+	return record && worktreeMatchesScope(record, scope, options) ? record : null;
 }
 
 export async function getTaskWorktree(userId: string, taskId: string): Promise<WorktreeRecord | null> {
