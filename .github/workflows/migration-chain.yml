@@ -39,6 +39,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/aira_migration_ci?schema=public
+      PSQL_URL: postgresql://postgres:postgres@127.0.0.1:5432/aira_migration_ci
       PGPASSWORD: postgres
 
     steps:
@@ -63,7 +64,7 @@ jobs:
 
       - name: Assert disposable database starts without application tables
         run: |
-          table_count="$(psql "$DATABASE_URL" -Atc "select count(*) from pg_tables where schemaname = 'public';")"
+          table_count="$(psql "$PSQL_URL" -Atc "select count(*) from pg_tables where schemaname = 'public';")"
           test "$table_count" = "0" || {
             echo "::error::Disposable database unexpectedly contains $table_count public table(s)."
             exit 1
@@ -71,7 +72,7 @@ jobs:
 
       - name: Prepare Supabase-compatible migration principals
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
           create schema if not exists extensions;
           do $$
           begin
@@ -90,7 +91,7 @@ jobs:
 
       - name: Reconstruct the repository historical baseline
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 \
             -f prisma/baseline/20260429_initial_schema.sql
 
       - name: Apply every recorded Prisma migration
@@ -99,7 +100,7 @@ jobs:
       - name: Verify migration ledger is complete
         run: |
           expected="$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-          applied="$(psql "$DATABASE_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          applied="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
           if [ "$expected" != "$applied" ]; then
             echo "::error::Expected $expected applied migrations, found $applied."
             pnpm exec prisma migrate status || true
@@ -109,7 +110,7 @@ jobs:
 
       - name: Verify representative schema milestones
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
           do $$
           declare
             missing text[];
@@ -140,9 +141,9 @@ jobs:
 
       - name: Prove migrate deploy is restart-idempotent
         run: |
-          before="$(psql "$DATABASE_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          before="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
           pnpm exec prisma migrate deploy
-          after="$(psql "$DATABASE_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          after="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
           test "$before" = "$after" || {
             echo "::error::A second migrate deploy changed the applied migration count ($before -> $after)."
             exit 1
