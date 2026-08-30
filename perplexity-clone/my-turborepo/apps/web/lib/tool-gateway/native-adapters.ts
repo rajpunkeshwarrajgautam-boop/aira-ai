@@ -75,6 +75,7 @@ SKIP={'.git','node_modules','.next','dist','build'}
 def parts(raw,allow_root=False):
  if '\x00' in raw: raise ValueError('unsafe path')
  normalized=raw.replace('\\','/')
+ if normalized.startswith('//') or (len(normalized)>=2 and normalized[0].isalpha() and normalized[1]==':'): raise ValueError('unsafe path')
  p=pathlib.PurePosixPath(normalized)
  if p.is_absolute(): raise ValueError('unsafe path')
  out=[part for part in p.parts if part not in {'','.'}]
@@ -127,18 +128,31 @@ elif op=='write':
  if len(data)>524288: raise ValueError('file too large')
  try: data.decode('utf-8')
  except UnicodeDecodeError: raise ValueError('text files only')
- pfd,name=parent_leaf(sys.argv[2],True)
+ pfd,name=parent_leaf(sys.argv[2],True); tmp=f'.aira-write-{os.getpid()}-{os.urandom(8).hex()}'
  try:
-  fd=os.open(name,os.O_WRONLY|os.O_CREAT|O_NOFOLLOW,0o644,dir_fd=pfd)
+  mode=0o644
+  try: current=os.open(name,os.O_RDONLY|O_NOFOLLOW,dir_fd=pfd)
+  except FileNotFoundError: current=None
+  if current is not None:
+   try:
+    st=os.fstat(current)
+    if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1: raise ValueError('file unavailable')
+    mode=stat.S_IMODE(st.st_mode)
+   finally: os.close(current)
+  fd=os.open(tmp,os.O_WRONLY|os.O_CREAT|os.O_EXCL|O_NOFOLLOW,0o600,dir_fd=pfd)
   try:
-   st=os.fstat(fd)
-   if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1: raise ValueError('file unavailable')
-   os.ftruncate(fd,0)
+   os.fchmod(fd,mode)
    view=memoryview(data)
    while view:
     written=os.write(fd,view); view=view[written:]
+   os.fsync(fd)
   finally: os.close(fd)
- finally: os.close(pfd)
+  os.replace(tmp,name,src_dir_fd=pfd,dst_dir_fd=pfd)
+  os.fsync(pfd)
+ finally:
+  try: os.unlink(tmp,dir_fd=pfd)
+  except FileNotFoundError: pass
+  os.close(pfd)
  print(json.dumps({'path':sys.argv[2],'bytes':len(data),'written':True}))
 elif op=='move':
  spfd,sname=parent_leaf(sys.argv[2]); dpfd,dname=parent_leaf(sys.argv[3],True)
