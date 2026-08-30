@@ -34,13 +34,24 @@ function isNonPublicIpv4(hostname: string): boolean {
 	);
 }
 
+function mappedIpv4(host: string): string | null {
+	if (!host.startsWith("::ffff:")) return null;
+	const tail = host.slice("::ffff:".length);
+	if (ipv4Octets(tail)) return tail;
+	const words = tail.split(":");
+	if (words.length !== 2 || words.some((word) => !/^[0-9a-f]{1,4}$/i.test(word))) return null;
+	const high = Number.parseInt(words[0]!, 16);
+	const low = Number.parseInt(words[1]!, 16);
+	return `${high >>> 8}.${high & 0xff}.${low >>> 8}.${low & 0xff}`;
+}
+
 function isNonPublicIpv6(hostname: string): boolean {
 	const host = normalizedHostname(hostname);
 	if (host.includes("%")) return true;
 	if (isIP(host) !== 6) return false;
 	if (host === "::" || host === "::1") return true;
-	const mapped = /(?:^|:)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(host);
-	if (mapped?.[1] && isNonPublicIpv4(mapped[1])) return true;
+	const mapped = mappedIpv4(host);
+	if (mapped && isNonPublicIpv4(mapped)) return true;
 	const first = Number.parseInt(host.split(":", 1)[0] || "0", 16);
 	if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
 	if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
