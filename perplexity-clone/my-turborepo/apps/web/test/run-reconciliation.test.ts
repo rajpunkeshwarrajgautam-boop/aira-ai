@@ -78,6 +78,21 @@ test("AutoGPT keeps unknown submission and stale execution outcomes in REVIEW", 
 	assert.match(source, /completedAt:\s*outcomeUnknown\s*\?\s*null\s*:\s*new Date\(\)/);
 });
 
+test("AutoGPT treats a disappeared accepted execution as uncertain review, not a retryable failure", () => {
+	const clientSource = readFileSync(new URL("../lib/autogpt/client.ts", import.meta.url), "utf8");
+	const runsSource = readFileSync(new URL("../lib/autogpt/runs.ts", import.meta.url), "utf8");
+	assert.match(clientSource, /if \(status === 404\)[\s\S]*?code:\s*"AUTOGPT_NOT_FOUND"/);
+	assert.match(
+		runsSource,
+		/error\.code === "AUTOGPT_NOT_FOUND" \|\| error\.code === "AUTOGPT_TARGET_NOT_CONFIGURED"/,
+	);
+	assert.match(runsSource, /reviewUncertainAutoGptRun\([\s\S]*?requires review before any retry/);
+	assert.doesNotMatch(
+		runsSource,
+		/AUTOGPT_NOT_FOUND[\s\S]{0,300}AgentRunStatus\.FAILED/,
+	);
+});
+
 test("DeerFlow keeps unknown, stale and disappeared accepted executions in REVIEW", () => {
 	const source = readFileSync(new URL("../lib/deerflow/runs.ts", import.meta.url), "utf8");
 	assert.match(source, /status:\s*outcomeUnknown\s*\?\s*AgentRunStatus\.REVIEW\s*:\s*AgentRunStatus\.FAILED/);
