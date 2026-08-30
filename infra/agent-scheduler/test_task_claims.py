@@ -69,6 +69,13 @@ where "id"=%s and "status"='CLAIMED' and "leaseOwner"=%s
 returning "id"
 '''
 
+CANCEL_RUN_TASKS_SQL = '''
+update "AgentTask"
+set "status"='CANCELLED', "leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
+where "runId"=%s and "status" not in ('COMPLETED','FAILED','CANCELLED')
+returning "id"
+'''
+
 
 class TaskClaimIntegrationTests(unittest.TestCase):
     @classmethod
@@ -218,6 +225,28 @@ class TaskClaimIntegrationTests(unittest.TestCase):
         self.assertIsNone(stale)
         self.assertEqual(state, ("CLAIMED", "worker-new"))
 
+    def test_cancellation_fences_a_claim_before_it_can_be_marked_running(self):
+        self.assertIsNotNone(self.claim("worker-a"))
+        self.assertEqual(self.create_agent("agent-a", "worker-a"), ("agent-a",))
+        with psycopg.connect(DATABASE_URL) as connection:
+            cancelled = connection.execute(CANCEL_RUN_TASKS_SQL, ("run-1",)).fetchall()
+            connection.execute(
+                '''update "AgentInstance" set "status"='STOPPED',"currentTaskId"=null
+                   where "runId"='run-1' and "status" not in ('COMPLETED','FAILED','STOPPED')'''
+            )
+            stale_mark = connection.execute(MARK_RUNNING_SQL, ("runtime-after-cancel", "task-1", "worker-a")).fetchone()
+            task_state = connection.execute(
+                'select "status","leaseOwner","runtimeRunId","attempt" from "AgentTask" where "id"=\'task-1\''
+            ).fetchone()
+            agent_state = connection.execute(
+                'select "status","currentTaskId" from "AgentInstance" where "id"=\'agent-a\''
+            ).fetchone()
+        self.assertEqual(cancelled, [("task-1",)])
+        self.assertIsNone(stale_mark)
+        self.assertEqual(task_state, ("CANCELLED", None, None, 0))
+        self.assertEqual(agent_state, ("STOPPED", None))
+        self.assertIsNone(self.claim("worker-after-cancel"), "a cancelled task must never be reclaimed")
+
     def test_typescript_store_and_orchestrator_fence_retry_transitions(self):
         root = Path(__file__).resolve().parents[2] / "perplexity-clone/my-turborepo/apps/web/lib/agent-platform"
         store = (root / "store.ts").read_text(encoding="utf-8")
@@ -235,6 +264,9 @@ class TaskClaimIntegrationTests(unittest.TestCase):
         self.assertIn('and"leaseExpiresAt">=current_timestamp', compact_orchestrator)
         self.assertIn("runtimeAttemptRequestId", orchestrator)
         self.assertIn("runtime_outcome_unknown", orchestrator)
+        self.assertIn("run_cancelled_before_runtime_submission", orchestrator)
+        self.assertIn("run_cancelled_after_runtime_submission", orchestrator)
+        self.assertIn("run_cancelled_during_dispatch", orchestrator)
 
 
 if __name__ == "__main__":
