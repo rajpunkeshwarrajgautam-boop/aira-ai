@@ -73,7 +73,15 @@ function errorForProviderStatus(status: number): AutoGptRequestError {
 			retryable: false,
 		});
 	}
-	if (status === 404 || status === 400 || status === 422) {
+	if (status === 404) {
+		return new AutoGptRequestError({
+			code: "AUTOGPT_NOT_FOUND",
+			message: "AutoGPT could not find the requested graph or execution.",
+			status: 502,
+			retryable: false,
+		});
+	}
+	if (status === 400 || status === 422) {
 		return new AutoGptRequestError({
 			code: "AUTOGPT_GRAPH_REJECTED",
 			message: "AutoGPT rejected the configured graph or its input.",
