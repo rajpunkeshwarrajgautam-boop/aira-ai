@@ -100,6 +100,18 @@ test("orchestrator blocks unknowable runtime outcomes and only retries known fai
 	assert.doesNotMatch(source, /clientRequestId:\s*task\.id,\s*\n\s*objective:\s*runtimeContext\.systemPrompt/);
 });
 
+test("uncertain linkage preserves the same attempt identity instead of advancing", () => {
+	const source = readFileSync(new URL("../lib/agent-platform/orchestrator.ts", import.meta.url), "utf8");
+	assert.match(source, /select:\s*\{ id: true, status: true \}/);
+	assert.match(source, /taskState\?\.status === "RUNNING" && taskState\.runtimeRunId === attemptRun\.id/);
+	assert.match(source, /reason:\s*"runtime_link_already_committed"/);
+	assert.match(source, /AgentRunStatus\.FAILED, AgentRunStatus\.TERMINATED/);
+	assert.match(source, /consumeAttempt:\s*false/);
+	assert.match(source, /type:\s*"task\.recovery_pending"/);
+	assert.match(source, /runtimeClientRequestId:\s*runtimeRequestId/);
+	assert.match(source, /Keeping the attempt counter unchanged guarantees/);
+});
+
 test("browser runtime remains disabled unless explicitly enabled", () => {
 	const previous = process.env.AIRA_BROWSER_RUNTIME_ENABLED;
 	try {
