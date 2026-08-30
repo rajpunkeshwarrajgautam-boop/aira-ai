@@ -153,3 +153,77 @@ jobs:
             echo "::error::A second migrate deploy changed the applied migration count ($before -> $after)."
             exit 1
           }
+
+      - name: Simulate an existing deployment before the additive ordering repair
+        run: |
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          delete from "_prisma_migrations"
+           where migration_name in (
+             '20260823_semantic_embedding_table_precondition',
+             '20260825_semantic_embedding_exact_route_enforcement'
+           );
+
+          drop index if exists public."UserMemorySemanticEmbedding_route_idx";
+          drop index if exists public."KnowledgeChunkSemanticEmbedding_route_idx";
+
+          create index if not exists "UserMemorySemanticEmbedding_free_hnsw_idx"
+            on public."UserMemorySemanticEmbedding"
+            using hnsw (embedding extensions.vector_cosine_ops)
+            with (m = 16, ef_construction = 64)
+            where tier = 'free';
+          create index if not exists "UserMemorySemanticEmbedding_pro_hnsw_idx"
+            on public."UserMemorySemanticEmbedding"
+            using hnsw (embedding extensions.vector_cosine_ops)
+            with (m = 16, ef_construction = 64)
+            where tier = 'pro';
+          create index if not exists "KnowledgeChunkSemanticEmbedding_free_hnsw_idx"
+            on public."KnowledgeChunkSemanticEmbedding"
+            using hnsw (embedding extensions.vector_cosine_ops)
+            with (m = 16, ef_construction = 64)
+            where tier = 'free';
+          create index if not exists "KnowledgeChunkSemanticEmbedding_pro_hnsw_idx"
+            on public."KnowledgeChunkSemanticEmbedding"
+            using hnsw (embedding extensions.vector_cosine_ops)
+            with (m = 16, ef_construction = 64)
+            where tier = 'pro';
+          SQL
+
+          missing_repair_rows="$(psql "$PSQL_URL" -Atc "select count(*) from \"_prisma_migrations\" where migration_name in ('20260823_semantic_embedding_table_precondition','20260825_semantic_embedding_exact_route_enforcement') and finished_at is not null and rolled_back_at is null;")"
+          test "$missing_repair_rows" = "0" || {
+            echo "::error::Existing-deployment simulation did not remove both repair ledger rows."
+            exit 1
+          }
+
+      - name: Prove an existing deployment can apply the additive repair out of historical order
+        run: |
+          before="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          pnpm exec prisma migrate deploy
+          after="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          test "$((after - before))" = "2" || {
+            echo "::error::Expected exactly two additive repair migrations to apply to the simulated existing deployment ($before -> $after)."
+            exit 1
+          }
+
+          repaired="$(psql "$PSQL_URL" -Atc "select count(*) from \"_prisma_migrations\" where migration_name in ('20260823_semantic_embedding_table_precondition','20260825_semantic_embedding_exact_route_enforcement') and finished_at is not null and rolled_back_at is null;")"
+          test "$repaired" = "2" || {
+            echo "::error::Both repair migrations were not recorded as successfully applied."
+            exit 1
+          }
+
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public."UserMemorySemanticEmbedding_route_idx"') is null
+              or to_regclass('public."KnowledgeChunkSemanticEmbedding_route_idx"') is null then
+              raise exception 'exact-route indexes were not restored by the repair';
+            end if;
+
+            if to_regclass('public."UserMemorySemanticEmbedding_free_hnsw_idx"') is not null
+              or to_regclass('public."UserMemorySemanticEmbedding_pro_hnsw_idx"') is not null
+              or to_regclass('public."KnowledgeChunkSemanticEmbedding_free_hnsw_idx"') is not null
+              or to_regclass('public."KnowledgeChunkSemanticEmbedding_pro_hnsw_idx"') is not null then
+              raise exception 'tier-only HNSW indexes survived the repair';
+            end if;
+          end
+          $$;
+          SQL
