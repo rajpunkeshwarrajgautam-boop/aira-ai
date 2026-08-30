@@ -673,7 +673,6 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 						taskId: entry.taskId,
 						status: entry.status,
 					})),
-				} : {}),
 			});
 			await recordAgentMessage({
 				projectId: run.projectId,
@@ -714,24 +713,70 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 			dispatched += 1;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Task dispatch failed.";
-			if (runtimeSubmissionOutcomeUnknown(error)) {
-				const ambiguousRun = await prisma.agentRun.findUnique({
+			const [attemptRun, taskState] = await Promise.all([
+				prisma.agentRun.findUnique({
 					where: { userId_clientRequestId: { userId, clientRequestId: runtimeRequestId } },
-					select: { id: true },
-				}).catch(() => null);
-				await blockClaimedTask({
-					run,
-					task: claimed,
+					select: { id: true, status: true },
+				}).catch(() => null),
+				prisma.agentTask.findUnique({
+					where: { id: task.id },
+					select: { status: true, runtimeRunId: true, leaseOwner: true },
+				}).catch(() => null),
+			]);
+
+			// If markTaskRunning committed but its response was lost, the durable task
+			// row is authoritative. Do not block or advance the attempt merely because
+			// later bookkeeping observed an error.
+			if (attemptRun && taskState?.status === "RUNNING" && taskState.runtimeRunId === attemptRun.id) {
+				await appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
 					agentId,
-					reason: "The runtime did not confirm whether it accepted this delegated task. AIRA blocked automatic retry to avoid duplicate autonomous work.",
-					reasonCode: "runtime_outcome_unknown",
-					risks: ["duplicate_execution"],
-					nextActions: ["reconcile the existing runtime execution before authorizing any retry"],
-					runtimeRunId: ambiguousRun?.id ?? null,
-					consumeAttempt: true,
-				});
+					type: "task.recovered",
+					payload: { reason: "runtime_link_already_committed", runtimeRunId: attemptRun.id, runtimeClientRequestId: runtimeRequestId },
+				}).catch(() => undefined);
+				dispatched += 1;
 				continue;
 			}
+
+			const attemptOutcomeUncertain =
+				runtimeSubmissionOutcomeUnknown(error) ||
+				Boolean(attemptRun && ![AgentRunStatus.FAILED, AgentRunStatus.TERMINATED].includes(attemptRun.status));
+			if (attemptOutcomeUncertain) {
+				if (taskState?.status === "CLAIMED" && taskState.leaseOwner === claimed.leaseOwner) {
+					await blockClaimedTask({
+						run,
+						task: claimed,
+						agentId,
+						reason: "A delegated runtime execution may already exist for this task attempt. AIRA preserved the same attempt identity and blocked automatic advancement until that execution is reconciled.",
+						reasonCode: "runtime_outcome_unknown",
+						risks: ["duplicate_execution"],
+						nextActions: ["reconcile the existing runtime execution before authorizing any new attempt"],
+						runtimeRunId: attemptRun?.id ?? null,
+						consumeAttempt: false,
+					});
+				} else {
+					// A task-claim recovery may already have moved this row back to QUEUED.
+					// Keeping the attempt counter unchanged guarantees that redispatch uses
+					// the same runtimeRequestId and therefore recovers idempotently instead
+					// of starting a new remote execution.
+					await appendEvent({
+						projectId: run.projectId,
+						runId: run.id,
+						taskId: task.id,
+						agentId,
+						type: "task.recovery_pending",
+						payload: {
+							reason: "runtime_link_unconfirmed",
+							runtimeRunId: attemptRun?.id ?? null,
+							runtimeClientRequestId: runtimeRequestId,
+						},
+					}).catch(() => undefined);
+				}
+				continue;
+			}
+
 			const attempted = await consumeClaimedDispatchAttempt(claimed);
 			const next = await failTask(attempted, message);
 			await appendEvent({
