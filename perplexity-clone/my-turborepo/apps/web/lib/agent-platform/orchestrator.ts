@@ -263,7 +263,6 @@ export async function startManagedRun(input: {
 			userId: input.userId,
 			projectId: input.projectId,
 			clientRequestId: input.clientRequestId,
-			objective: input.objective,
 			runtime: runtime.id,
 			budgets,
 			tasks,
