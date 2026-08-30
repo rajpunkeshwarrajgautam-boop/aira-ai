@@ -1,6 +1,8 @@
 import os
+import threading
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -42,6 +44,23 @@ where "id"=%s and "status"='CLAIMED' and "leaseOwner"=%s
 returning "id"
 '''
 
+CONSUME_ATTEMPT_SQL = '''
+update "AgentTask"
+set "attempt"="attempt"+1, "updatedAt"=current_timestamp
+where "id"=%s and "status"='CLAIMED' and "leaseOwner"=%s
+  and "leaseExpiresAt" >= current_timestamp
+returning "attempt","maxAttempts"
+'''
+
+FAIL_CONSUMED_ATTEMPT_SQL = '''
+update "AgentTask"
+set "status"=case when "attempt" < "maxAttempts" then 'QUEUED' else 'FAILED' end,
+    "leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
+where "id"=%s and "status"='CLAIMED' and "leaseOwner"=%s
+  and "leaseExpiresAt" >= current_timestamp
+returning "status","attempt","maxAttempts"
+'''
+
 FENCE_BLOCK_SQL = '''
 update "AgentTask"
 set "status"='BLOCKED', "leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
@@ -79,6 +98,7 @@ class TaskClaimIntegrationTests(unittest.TestCase):
                   "status" text not null default 'QUEUED',
                   "runtimeRunId" text,
                   "attempt" integer not null default 0,
+                  "maxAttempts" integer not null default 3,
                   "leaseOwner" text,
                   "leaseExpiresAt" timestamptz,
                   "heartbeatAt" timestamptz,
@@ -126,6 +146,33 @@ class TaskClaimIntegrationTests(unittest.TestCase):
                 )
             return recovered
 
+    def test_concurrent_dispatchers_have_exactly_one_claim_winner(self):
+        barrier = threading.Barrier(2)
+
+        def race(owner):
+            barrier.wait(timeout=5)
+            return self.claim(owner)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(race, ["worker-a", "worker-b"]))
+
+        winners = [row for row in results if row is not None]
+        self.assertEqual(len(winners), 1, results)
+        self.assertIn(winners[0][1], {"worker-a", "worker-b"})
+
+    def test_definitive_pre_runtime_failures_consume_bounded_attempts(self):
+        for expected_attempt in (1, 2, 3):
+            owner = f"worker-{expected_attempt}"
+            self.assertIsNotNone(self.claim(owner))
+            with psycopg.connect(DATABASE_URL) as connection:
+                consumed = connection.execute(CONSUME_ATTEMPT_SQL, ("task-1", owner)).fetchone()
+                outcome = connection.execute(FAIL_CONSUMED_ATTEMPT_SQL, ("task-1", owner)).fetchone()
+            self.assertEqual(consumed, (expected_attempt, 3))
+            expected_status = "FAILED" if expected_attempt == 3 else "QUEUED"
+            self.assertEqual(outcome, (expected_status, expected_attempt, 3))
+
+        self.assertIsNone(self.claim("worker-4"), "an exhausted task must never be dispatched again")
+
     def test_expired_claim_recovery_stops_pre_runtime_agent(self):
         self.assertIsNotNone(self.claim("worker-old"))
         self.assertEqual(self.create_agent("agent-old", "worker-old"), ("agent-old",))
@@ -171,16 +218,23 @@ class TaskClaimIntegrationTests(unittest.TestCase):
         self.assertIsNone(stale)
         self.assertEqual(state, ("CLAIMED", "worker-new"))
 
-    def test_typescript_store_fences_pre_runtime_transitions_by_exact_claim_owner(self):
-        store = Path(__file__).resolve().parents[2] / "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/store.ts"
-        source = store.read_text(encoding="utf-8")
-        compact = source.replace(" ", "")
-        self.assertIn("localTaskClaims", source)
-        self.assertIn('and"leaseOwner"=${expectedOwner}', compact)
-        self.assertIn('and"leaseExpiresAt">=current_timestamp', compact)
-        self.assertIn('and"leaseOwner"=${claimedOwner}', compact)
-        self.assertIn("TaskClaimLostError", source)
-        self.assertIn("currentTaskId\"=null", source)
+    def test_typescript_store_and_orchestrator_fence_retry_transitions(self):
+        root = Path(__file__).resolve().parents[2] / "perplexity-clone/my-turborepo/apps/web/lib/agent-platform"
+        store = (root / "store.ts").read_text(encoding="utf-8")
+        orchestrator = (root / "orchestrator.ts").read_text(encoding="utf-8")
+        compact_store = store.replace(" ", "")
+        compact_orchestrator = orchestrator.replace(" ", "")
+        self.assertIn("localTaskClaims", store)
+        self.assertIn('and"leaseOwner"=${expectedOwner}', compact_store)
+        self.assertIn('and"leaseExpiresAt">=current_timestamp', compact_store)
+        self.assertIn('and"leaseOwner"=${claimedOwner}', compact_store)
+        self.assertIn("TaskClaimLostError", store)
+        self.assertIn("currentTaskId\"=null", store)
+        self.assertIn("consumeClaimedDispatchAttempt", orchestrator)
+        self.assertIn('and"leaseOwner"=${task.leaseOwner}', compact_orchestrator)
+        self.assertIn('and"leaseExpiresAt">=current_timestamp', compact_orchestrator)
+        self.assertIn("runtimeAttemptRequestId", orchestrator)
+        self.assertIn("runtime_outcome_unknown", orchestrator)
 
 
 if __name__ == "__main__":
