@@ -263,6 +263,7 @@ export async function startManagedRun(input: {
 			userId: input.userId,
 			projectId: input.projectId,
 			clientRequestId: input.clientRequestId,
+			objective: input.objective,
 			runtime: runtime.id,
 			budgets,
 			tasks,
@@ -768,7 +769,12 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 			const taskState = taskRows[0] ?? null;
 
 			if (currentRun?.status === "CANCELLED" || taskState?.status === "CANCELLED") {
-				if (attemptRun && ![AgentRunStatus.FAILED, AgentRunStatus.TERMINATED].includes(attemptRun.status) && runtime.cancelRun) {
+				if (
+					attemptRun &&
+					attemptRun.status !== AgentRunStatus.FAILED &&
+					attemptRun.status !== AgentRunStatus.TERMINATED &&
+					runtime.cancelRun
+				) {
 					await runtime.cancelRun(userId, attemptRun.id).catch(() => null);
 				}
 				await appendEvent({
@@ -800,7 +806,11 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 
 			const attemptOutcomeUncertain =
 				runtimeSubmissionOutcomeUnknown(error) ||
-				Boolean(attemptRun && ![AgentRunStatus.FAILED, AgentRunStatus.TERMINATED].includes(attemptRun.status));
+				Boolean(
+					attemptRun &&
+					attemptRun.status !== AgentRunStatus.FAILED &&
+					attemptRun.status !== AgentRunStatus.TERMINATED,
+				);
 			if (attemptOutcomeUncertain) {
 				if (taskState?.status === "CLAIMED" && taskState.leaseOwner === claimed.leaseOwner) {
 					await blockClaimedTask({
