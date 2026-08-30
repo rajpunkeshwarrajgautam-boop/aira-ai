@@ -12,7 +12,7 @@ import {
 } from "@/lib/agent-platform/store";
 import {
 	createWorktreeRecord,
-	getWorktreeForUser,
+	getScopedWorktree,
 	updateWorktreeStatus,
 } from "@/lib/agent-platform/worktrees";
 import {
@@ -30,7 +30,7 @@ import {
 	terminalRuntimeHealth,
 } from "@/lib/terminal-runtime/client";
 
-import type { ToolAdapter } from "./types";
+import type { ToolAdapter, ToolContext } from "./types";
 import { ToolGatewayError } from "./types";
 
 const BrowserInputSchema = z.object({
@@ -112,10 +112,14 @@ function projectRepositoryBinding(config: Record<string, unknown>): { repository
 	return { repositoryUrl, baseRef, repositoryHost: new URL(repositoryUrl).hostname };
 }
 
-async function ownedWorktree(userId: string, runId: string, workspaceId: string) {
-	const record = await getWorktreeForUser(userId, workspaceId);
-	if (!record || record.runId !== runId) {
-		throw new ToolGatewayError({ code: "WORKTREE_NOT_FOUND", message: "Worktree not found in this mission.", status: 404 });
+async function ownedWorktree(
+	context: ToolContext,
+	workspaceId: string,
+	options: { readonly allowSiblingTask?: boolean } = {},
+) {
+	const record = await getScopedWorktree(context, workspaceId, options);
+	if (!record) {
+		throw new ToolGatewayError({ code: "WORKTREE_NOT_FOUND", message: "Worktree not found in this mission and task scope.", status: 404 });
 	}
 	return record;
 }
@@ -214,7 +218,7 @@ export const terminalToolAdapter: ToolAdapter = {
 		if (action === "status") {
 			const parsed = WorkspaceSchema.safeParse(input);
 			if (!parsed.success) invalidInput("Terminal workspace input is invalid.");
-			await ownedWorktree(context.userId, context.runId, parsed.data.workspaceId);
+			await ownedWorktree(context, parsed.data.workspaceId);
 			return { result: await getRemoteWorkspace(parsed.data.workspaceId) as Record<string, unknown> };
 		}
 		if (action !== "exec" && action !== "exec_readonly") {
@@ -222,7 +226,7 @@ export const terminalToolAdapter: ToolAdapter = {
 		}
 		const parsed = TerminalExecSchema.safeParse(input);
 		if (!parsed.success) invalidInput("Terminal command input is invalid.");
-		await ownedWorktree(context.userId, context.runId, parsed.data.workspaceId);
+		await ownedWorktree(context, parsed.data.workspaceId);
 		const result = await runRemoteCommand(parsed.data);
 		return { result };
 	},
@@ -278,7 +282,7 @@ export const gitToolAdapter: ToolAdapter = {
 		if (action === "status" || action === "diff" || action === "commit" || action === "cleanup_worktree") {
 			const parsed = (action === "commit" ? CommitSchema : WorkspaceSchema).safeParse(input);
 			if (!parsed.success) invalidInput("Git workspace input is invalid.");
-			const record = await ownedWorktree(context.userId, context.runId, parsed.data.workspaceId);
+			const record = await ownedWorktree(context, parsed.data.workspaceId);
 			if (action === "status") return { result: await getRemoteWorkspace(record.workspaceId) as Record<string, unknown> };
 			if (action === "diff") return { result: await getRemoteWorkspaceDiff(record.workspaceId) };
 			if (action === "commit") {
@@ -295,8 +299,8 @@ export const gitToolAdapter: ToolAdapter = {
 		if (action === "merge_local") {
 			const parsed = MergeSchema.safeParse(input);
 			if (!parsed.success) invalidInput("Git merge input is invalid.");
-			const target = await ownedWorktree(context.userId, context.runId, parsed.data.targetWorkspaceId);
-			const source = await ownedWorktree(context.userId, context.runId, parsed.data.sourceWorkspaceId);
+			const target = await ownedWorktree(context, parsed.data.targetWorkspaceId);
+			const source = await ownedWorktree(context, parsed.data.sourceWorkspaceId, { allowSiblingTask: true });
 			const result = await mergeRemoteWorkspace(target.workspaceId, source.branch);
 			const merged = result.merged === true;
 			await updateWorktreeStatus(context.userId, target.workspaceId, merged ? "DIRTY" : "CONFLICT", result);
