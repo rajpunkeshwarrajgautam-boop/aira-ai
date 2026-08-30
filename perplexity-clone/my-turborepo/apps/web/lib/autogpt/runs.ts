@@ -187,11 +187,11 @@ export async function submitAgentRun(options: {
 			prisma.agentRun.update({
 				where: { id: pendingRun.id },
 				data: {
-					status: AgentRunStatus.FAILED,
+					status: outcomeUnknown ? AgentRunStatus.REVIEW : AgentRunStatus.FAILED,
 					errorMessage: outcomeUnknown
-						? "AutoGPT did not confirm whether it accepted this task. Aira did not retry it to avoid duplicate work."
+						? "AutoGPT did not confirm whether it accepted this task. Aira will not retry it automatically because duplicate remote work is possible."
 						: "AutoGPT could not accept this task.",
-					completedAt: new Date(),
+					completedAt: outcomeUnknown ? null : new Date(),
 				},
 			}),
 			...(billable && !outcomeUnknown ? [refundAgentRunQuota(options.userId)] : []),
@@ -232,16 +232,16 @@ export async function refreshAgentRun(
 		createdAt: row.createdAt,
 	});
 	if (stale) {
-		const closed = await prisma.agentRun.update({
+		const reviewed = await prisma.agentRun.update({
 			where: { id: row.id },
 			data: {
-				status: AgentRunStatus.FAILED,
+				status: AgentRunStatus.REVIEW,
 				errorMessage: stale.errorMessage,
-				completedAt: new Date(),
+				completedAt: null,
 			},
 			select: RUN_SELECT,
 		});
-		return toAgentRunDto(closed);
+		return toAgentRunDto(reviewed);
 	}
 
 	if (!row.remoteExecutionId) {
