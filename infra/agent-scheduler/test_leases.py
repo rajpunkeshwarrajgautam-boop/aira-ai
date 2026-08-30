@@ -9,6 +9,7 @@ from pathlib import Path
 import psycopg
 
 DATABASE_URL = os.environ.get("AIRA_SCHEDULER_TEST_DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/postgres")
+MAX_CONSECUTIVE_SCHEDULER_FAILURES = 8
 
 CLAIM_SQL = '''
 with candidates as (
@@ -46,11 +47,22 @@ update "AgentPlatformRun"
 set "schedulerLeaseOwner"=null,
     "schedulerLeaseExpiresAt"=null,
     "schedulerFailureCount"="schedulerFailureCount"+1,
-    "nextSchedulerAttemptAt"=current_timestamp +
-      (least(300, greatest(5, ("schedulerFailureCount"+1) * 15)) * interval '1 second'),
+    "status"=case
+      when "schedulerFailureCount"+1 >= %s then 'BLOCKED'
+      else "status"
+    end,
+    "summary"=case
+      when "schedulerFailureCount"+1 >= %s then 'AIRA paused this mission after repeated scheduler or runtime reconciliation failures. Review worker and runtime health before resuming it.'
+      else "summary"
+    end,
+    "nextSchedulerAttemptAt"=case
+      when "schedulerFailureCount"+1 >= %s then null
+      else current_timestamp +
+        (least(300, greatest(5, ("schedulerFailureCount"+1) * 15)) * interval '1 second')
+    end,
     "updatedAt"=current_timestamp
 where "id"=%s and "schedulerLeaseOwner"=%s
-returning "schedulerFailureCount", "nextSchedulerAttemptAt"
+returning "schedulerFailureCount", "nextSchedulerAttemptAt", "status", "summary"
 '''
 
 
@@ -78,6 +90,7 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
                   "id" text primary key,
                   "userId" text not null,
                   "status" text not null,
+                  "summary" text,
                   "schedulerLeaseOwner" text,
                   "schedulerLeaseExpiresAt" timestamptz,
                   "schedulerFailureCount" integer not null default 0,
@@ -108,6 +121,19 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
                 rows = connection.execute(CLAIM_SQL, (limit, worker, 45)).fetchall()
                 time.sleep(hold_seconds)
                 return [row[0] for row in rows]
+
+    def release_failure(self, run_id, owner):
+        with psycopg.connect(DATABASE_URL) as connection:
+            return connection.execute(
+                FAILURE_RELEASE_SQL,
+                (
+                    MAX_CONSECUTIVE_SCHEDULER_FAILURES,
+                    MAX_CONSECUTIVE_SCHEDULER_FAILURES,
+                    MAX_CONSECUTIVE_SCHEDULER_FAILURES,
+                    run_id,
+                    owner,
+                ),
+            ).fetchone()
 
     def test_three_workers_never_claim_the_same_mission(self):
         for index in range(6):
@@ -174,8 +200,6 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
         thread = threading.Thread(target=heartbeat, daemon=True)
         thread.start()
         try:
-            # Wait past the original lease deadline. Repeated owner-scoped
-            # heartbeats must keep the mission unavailable to a competitor.
             time.sleep(2.6)
             self.assertTrue(any(renewals), renewals)
             self.assertEqual(self.claim("scheduler-b", limit=1, hold_seconds=0), [])
@@ -183,8 +207,6 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
             stop.set()
             thread.join(timeout=2)
 
-        # Once renewal stops and the latest lease really expires, another
-        # scheduler is allowed to recover the mission.
         time.sleep(2.2)
         self.assertEqual(self.claim("scheduler-b", limit=1, hold_seconds=0), ["long-tick"])
 
@@ -213,26 +235,61 @@ class SchedulerLeaseIntegrationTests(unittest.TestCase):
     def test_failure_release_is_owner_scoped_and_adds_backoff(self):
         self.insert_run("run-fail", lease_owner="scheduler-a", lease_expires_at=datetime.now(timezone.utc) + timedelta(seconds=45))
         before = datetime.now(timezone.utc)
-        with psycopg.connect(DATABASE_URL) as connection:
-            wrong = connection.execute(FAILURE_RELEASE_SQL, ("run-fail", "scheduler-b")).fetchone()
-            self.assertIsNone(wrong)
-            row = connection.execute(FAILURE_RELEASE_SQL, ("run-fail", "scheduler-a")).fetchone()
+        wrong = self.release_failure("run-fail", "scheduler-b")
+        self.assertIsNone(wrong)
+        row = self.release_failure("run-fail", "scheduler-a")
         self.assertIsNotNone(row)
-        failure_count, next_attempt = row
+        failure_count, next_attempt, status, summary = row
         self.assertEqual(failure_count, 1)
         self.assertGreaterEqual(next_attempt, before + timedelta(seconds=10))
+        self.assertEqual(status, "RUNNING")
+        self.assertIsNone(summary)
+
+    def test_repeated_scheduler_or_runtime_failures_block_instead_of_retrying_forever(self):
+        self.insert_run("persistent", lease_owner="scheduler-0", lease_expires_at=datetime.now(timezone.utc) + timedelta(seconds=45))
+        last = None
+        for attempt in range(1, MAX_CONSECUTIVE_SCHEDULER_FAILURES + 1):
+            owner = f"scheduler-{attempt - 1}"
+            last = self.release_failure("persistent", owner)
+            self.assertIsNotNone(last)
+            if attempt < MAX_CONSECUTIVE_SCHEDULER_FAILURES:
+                failure_count, next_attempt, status, summary = last
+                self.assertEqual(failure_count, attempt)
+                self.assertIsNotNone(next_attempt)
+                self.assertEqual(status, "RUNNING")
+                self.assertIsNone(summary)
+                with psycopg.connect(DATABASE_URL) as connection:
+                    connection.execute(
+                        '''update "AgentPlatformRun"
+                           set "schedulerLeaseOwner"=%s,
+                               "schedulerLeaseExpiresAt"=current_timestamp + interval '45 seconds',
+                               "nextSchedulerAttemptAt"=current_timestamp
+                           where "id"='persistent' ''',
+                        (f"scheduler-{attempt}",),
+                    )
+
+        failure_count, next_attempt, status, summary = last
+        self.assertEqual(failure_count, MAX_CONSECUTIVE_SCHEDULER_FAILURES)
+        self.assertIsNone(next_attempt)
+        self.assertEqual(status, "BLOCKED")
+        self.assertIn("repeated scheduler or runtime reconciliation failures", summary)
+        self.assertEqual(self.claim("scheduler-new", limit=1, hold_seconds=0), [])
 
     def test_typescript_scheduler_retains_canonical_locking_contract(self):
         scheduler = Path(__file__).resolve().parents[2] / "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/scheduler.ts"
         source = scheduler.read_text(encoding="utf-8").lower()
+        compact = source.replace(" ", "")
         self.assertIn("for update skip locked", source)
-        self.assertIn("'planning','running','waiting'", source.replace(" ", ""))
-        self.assertIn('"schedulerleaseowner"=${workerid}', source)
-        self.assertIn('where "id"=${runid} and "schedulerleaseowner"=${workerid}', source)
+        self.assertIn("'planning','running','waiting'", compact)
+        self.assertIn('"schedulerleaseowner"=${workerid}', compact)
+        self.assertIn('where"id"=${runid}and"schedulerleaseowner"=${workerid}', compact)
         self.assertIn("renewschedulerlease", source)
-        self.assertIn('"schedulerleaseexpiresat">=current_timestamp', source.replace(" ", ""))
+        self.assertIn('"schedulerleaseexpiresat">=current_timestamp', compact)
         self.assertIn("startschedulerleaseheartbeat", source)
-        self.assertNotIn("approval_required','blocked", source.replace(" ", ""))
+        self.assertNotIn("approval_required','blocked", compact)
+        self.assertIn("max_consecutive_scheduler_failures", source)
+        self.assertIn("then'blocked'", compact)
+        self.assertIn("repeated scheduler or runtime reconciliation failures", source)
 
 
 if __name__ == "__main__":
