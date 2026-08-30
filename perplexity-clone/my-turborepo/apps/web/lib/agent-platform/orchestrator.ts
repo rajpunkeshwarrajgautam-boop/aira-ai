@@ -693,12 +693,47 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
 				},
 			}).catch(() => undefined);
+
+			const beforeSubmission = await getRunForUser(userId, run.id);
+			if (!beforeSubmission || beforeSubmission.status === "CANCELLED") {
+				await setTaskStatus(task.id, "CANCELLED").catch(() => undefined);
+				await appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					agentId,
+					type: "task.cancelled",
+					payload: { reason: "run_cancelled_before_runtime_submission", runtimeClientRequestId: runtimeRequestId },
+				}).catch(() => undefined);
+				continue;
+			}
+
 			const submission = await runtime.createRun({
 				userId,
 				clientRequestId: runtimeRequestId,
 				objective: runtimeContext.systemPrompt,
 				billingMode: "DELEGATED",
 			});
+
+			const afterSubmission = await getRunForUser(userId, run.id);
+			if (!afterSubmission || afterSubmission.status === "CANCELLED") {
+				if (runtime.cancelRun) await runtime.cancelRun(userId, submission.run.id).catch(() => null);
+				await setTaskStatus(task.id, "CANCELLED").catch(() => undefined);
+				await appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					agentId,
+					type: "task.cancelled",
+					payload: {
+						reason: "run_cancelled_after_runtime_submission",
+						runtimeRunId: submission.run.id,
+						runtimeClientRequestId: runtimeRequestId,
+					},
+				}).catch(() => undefined);
+				continue;
+			}
+
 			await markTaskRunning(task.id, submission.run.id, agentId);
 			await appendEvent({
 				projectId: run.projectId,
@@ -717,7 +752,7 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 			dispatched += 1;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Task dispatch failed.";
-			const [attemptRun, taskRows] = await Promise.all([
+			const [attemptRun, taskRows, currentRun] = await Promise.all([
 				prisma.agentRun.findUnique({
 					where: { userId_clientRequestId: { userId, clientRequestId: runtimeRequestId } },
 					select: { id: true, status: true },
@@ -728,8 +763,24 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					where "id"=${task.id} and "runId"=${run.id} and "projectId"=${run.projectId}
 					limit 1
 				`.catch(() => []),
+				getRunForUser(userId, run.id).catch(() => null),
 			]);
 			const taskState = taskRows[0] ?? null;
+
+			if (currentRun?.status === "CANCELLED" || taskState?.status === "CANCELLED") {
+				if (attemptRun && ![AgentRunStatus.FAILED, AgentRunStatus.TERMINATED].includes(attemptRun.status) && runtime.cancelRun) {
+					await runtime.cancelRun(userId, attemptRun.id).catch(() => null);
+				}
+				await appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					agentId,
+					type: "task.cancelled",
+					payload: { reason: "run_cancelled_during_dispatch", runtimeRunId: attemptRun?.id ?? null, runtimeClientRequestId: runtimeRequestId },
+				}).catch(() => undefined);
+				continue;
+			}
 
 			// If markTaskRunning committed but its response was lost, the durable task
 			// row is authoritative. Do not block or advance the attempt merely because
@@ -907,18 +958,42 @@ export async function steerManagedTask(input: { readonly userId: string; readonl
 export async function cancelManagedRun(userId: string, runId: string): Promise<void> {
 	const run = await getRunForUser(userId, runId);
 	if (!run) throw new Error("Managed run not found.");
-	const tasks = await listTasks(run.id);
-	for (const task of tasks.filter((entry) => entry.runtimeRunId && (entry.status === "RUNNING" || entry.status === "WAITING" || entry.status === "CLAIMED"))) {
-		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId!, userId }, select: { provider: true } });
-		if (local) {
-			const runtime = getAgentRuntime(local.provider);
-			if (runtime.cancelRun) await runtime.cancelRun(userId, task.runtimeRunId!).catch(() => null);
-		}
-		await setTaskStatus(task.id, "CANCELLED");
-	}
-	for (const task of tasks.filter((entry) => entry.status === "QUEUED" || entry.status === "READY" || entry.status === "APPROVAL_REQUIRED" || entry.status === "BLOCKED")) {
-		await setTaskStatus(task.id, "CANCELLED");
-	}
+	if (run.status === "CANCELLED") return;
+	if (run.status === "COMPLETED" || run.status === "FAILED") return;
+
+	// Fence the mission first. Tool Gateway budget reservation already refuses
+	// terminal runs, so committing this state prevents any new privileged side
+	// effect while best-effort remote cancellation and local cleanup continue.
 	await setRunStatus(run.id, "CANCELLED");
-	await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.cancelled" });
+	await prisma.$transaction([
+		prisma.$executeRaw`
+			update "AgentTask"
+			set "status"='CANCELLED', "leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
+			where "runId"=${run.id} and "status" not in ('COMPLETED','FAILED','CANCELLED')
+		`,
+		prisma.$executeRaw`
+			update "AgentInstance"
+			set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp
+			where "runId"=${run.id} and "status" not in ('COMPLETED','FAILED','STOPPED')
+		`,
+		prisma.$executeRaw`
+			update "AgentToolCall"
+			set "status"='CANCELLED', "completedAt"=current_timestamp
+			where "runId"=${run.id} and "status" in ('PENDING','APPROVAL_REQUIRED')
+		`,
+		prisma.$executeRaw`
+			update "AgentApproval"
+			set "status"='REJECTED', "resolvedAt"=coalesce("resolvedAt", current_timestamp)
+			where "runId"=${run.id} and "status"='PENDING'
+		`,
+	]);
+
+	const cancelledTasks = await listTasks(run.id);
+	for (const task of cancelledTasks.filter((entry) => entry.runtimeRunId)) {
+		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId!, userId }, select: { provider: true } });
+		if (!local) continue;
+		const runtime = getAgentRuntime(local.provider);
+		if (runtime.cancelRun) await runtime.cancelRun(userId, task.runtimeRunId!).catch(() => null);
+	}
+	await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.cancelled", payload: { sideEffectFence: "terminal_run" } });
 }
