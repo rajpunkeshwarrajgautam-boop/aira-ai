@@ -608,9 +608,12 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 			});
 			reconciled += 1;
 		} else if (child.status === AgentRunStatus.REVIEW) {
-			await setTaskStatus(task.id, "WAITING");
-			await appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "task.blocked", payload: { reason: "runtime_review" } });
-			reconciled += 1;
+			if (await blockRunningTaskForUnknownRuntimeOutcome({
+				run,
+				task,
+				reasonCode: "runtime_review",
+				detail: child.errorMessage ?? "The delegated runtime requires review before AIRA can safely continue this task.",
+			})) reconciled += 1;
 		}
 	}
 	return reconciled;
