@@ -215,6 +215,18 @@ export async function submitAgentRun(options: {
 	return { run: toAgentRunDto(submitted), agentRunsRemaining: remaining };
 }
 
+async function reviewUncertainAutoGptRun(runId: string, errorMessage: string): Promise<SelectedRun> {
+	return prisma.agentRun.update({
+		where: { id: runId },
+		data: {
+			status: AgentRunStatus.REVIEW,
+			errorMessage,
+			completedAt: null,
+		},
+		select: RUN_SELECT,
+	});
+}
+
 export async function refreshAgentRun(
 	userId: string,
 	runId: string,
@@ -232,16 +244,7 @@ export async function refreshAgentRun(
 		createdAt: row.createdAt,
 	});
 	if (stale) {
-		const reviewed = await prisma.agentRun.update({
-			where: { id: row.id },
-			data: {
-				status: AgentRunStatus.REVIEW,
-				errorMessage: stale.errorMessage,
-				completedAt: null,
-			},
-			select: RUN_SELECT,
-		});
-		return toAgentRunDto(reviewed);
+		return toAgentRunDto(await reviewUncertainAutoGptRun(row.id, stale.errorMessage));
 	}
 
 	if (!row.remoteExecutionId) {
@@ -252,7 +255,23 @@ export async function refreshAgentRun(
 	}
 
 	const config = getAutoGptConfig();
-	const remote = await getAutoGptExecution(config, row.graphId, row.remoteExecutionId);
+	let remote: Awaited<ReturnType<typeof getAutoGptExecution>>;
+	try {
+		remote = await getAutoGptExecution(config, row.graphId, row.remoteExecutionId);
+	} catch (error) {
+		if (
+			error instanceof AutoGptRequestError &&
+			(error.code === "AUTOGPT_NOT_FOUND" || error.code === "AUTOGPT_TARGET_NOT_CONFIGURED")
+		) {
+			return toAgentRunDto(
+				await reviewUncertainAutoGptRun(
+					row.id,
+					"The AutoGPT execution that previously accepted this task can no longer be resolved. Its outcome is unknown, so AIRA requires review before any retry.",
+				),
+			);
+		}
+		throw error;
+	}
 	const status = statusFromProvider(remote.status);
 	const completedAt = isTerminal(status) ? row.completedAt ?? new Date() : null;
 	const storedOutput = safeStoredOutput(remote.output);
