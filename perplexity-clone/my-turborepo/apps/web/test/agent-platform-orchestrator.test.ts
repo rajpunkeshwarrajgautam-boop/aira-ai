@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { buildManagerDag } from "../lib/agent-platform/orchestrator";
+import {
+	buildManagerDag,
+	runtimeAttemptRequestId,
+	runtimeSubmissionOutcomeUnknown,
+} from "../lib/agent-platform/orchestrator";
 import { DEFAULT_RUN_BUDGETS } from "../lib/agent-platform/types";
 import {
 	getBrowserRuntimeConfig,
@@ -68,6 +72,32 @@ test("managed mission creation uses request-bound quota and does not refund a co
 	const concurrentReturn = source.indexOf("if (concurrent) return tickManagedRun", concurrent);
 	const refund = source.indexOf("refundManagedMissionQuota(input.userId, input.clientRequestId)", concurrent);
 	assert.ok(concurrent >= 0 && concurrentReturn > concurrent && refund > concurrentReturn, "a losing concurrent creator must reuse the winner before any quota refund");
+});
+
+test("delegated runtime retries use deterministic attempt-scoped idempotency identities", () => {
+	assert.equal(runtimeAttemptRequestId({ id: "task-1", attempt: 0 }), "task-1", "first attempt preserves the historical crash-recovery key");
+	assert.equal(runtimeAttemptRequestId({ id: "task-1", attempt: 1 }), "task-1:attempt:2");
+	assert.equal(runtimeAttemptRequestId({ id: "task-1", attempt: 2 }), "task-1:attempt:3");
+});
+
+test("runtime submission ambiguity is explicit and fail-closed", () => {
+	assert.equal(runtimeSubmissionOutcomeUnknown({ submissionOutcomeUnknown: true }), true);
+	assert.equal(runtimeSubmissionOutcomeUnknown({ submissionOutcomeUnknown: false }), false);
+	assert.equal(runtimeSubmissionOutcomeUnknown(new Error("ordinary failure")), false);
+	assert.equal(runtimeSubmissionOutcomeUnknown(null), false);
+});
+
+test("orchestrator blocks unknowable runtime outcomes and only retries known failures", () => {
+	const source = readFileSync(new URL("../lib/agent-platform/orchestrator.ts", import.meta.url), "utf8");
+	assert.match(source, /clientRequestId:\s*runtimeRequestId/);
+	assert.match(source, /billingMode:\s*"DELEGATED"/);
+	assert.match(source, /consumeClaimedDispatchAttempt\(claimed\)/);
+	assert.match(source, /reasonCode:\s*"runtime_outcome_unknown"/);
+	assert.match(source, /reasonCode:\s*"runtime_link_missing"/);
+	assert.match(source, /reasonCode:\s*"runtime_run_missing"/);
+	assert.match(source, /reasonCode:\s*"runtime_refresh_missing"/);
+	assert.match(source, /risks:\s*\["duplicate_execution"\]/);
+	assert.doesNotMatch(source, /clientRequestId:\s*task\.id,\s*\n\s*objective:\s*runtimeContext\.systemPrompt/);
 });
 
 test("browser runtime remains disabled unless explicitly enabled", () => {
