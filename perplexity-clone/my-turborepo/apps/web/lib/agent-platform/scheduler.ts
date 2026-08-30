@@ -16,6 +16,9 @@ export interface SchedulerResult {
 }
 
 const DEFAULT_LEASE_SECONDS = 45;
+const MAX_CONSECUTIVE_SCHEDULER_FAILURES = 8;
+const SCHEDULER_FAILURE_BLOCK_SUMMARY =
+	"AIRA paused this mission after repeated scheduler or runtime reconciliation failures. Review worker and runtime health before resuming it.";
 
 /**
  * Atomically leases schedulable missions. FOR UPDATE SKIP LOCKED makes
@@ -137,8 +140,19 @@ async function releaseSchedulerLease(
 		set "schedulerLeaseOwner"=null,
 			"schedulerLeaseExpiresAt"=null,
 			"schedulerFailureCount"="schedulerFailureCount"+1,
-			"nextSchedulerAttemptAt"=current_timestamp +
-				(least(300, greatest(5, ("schedulerFailureCount"+1) * 15)) * interval '1 second'),
+			"status"=case
+				when "schedulerFailureCount"+1 >= ${MAX_CONSECUTIVE_SCHEDULER_FAILURES} then 'BLOCKED'
+				else "status"
+			end,
+			"summary"=case
+				when "schedulerFailureCount"+1 >= ${MAX_CONSECUTIVE_SCHEDULER_FAILURES} then ${SCHEDULER_FAILURE_BLOCK_SUMMARY}
+				else "summary"
+			end,
+			"nextSchedulerAttemptAt"=case
+				when "schedulerFailureCount"+1 >= ${MAX_CONSECUTIVE_SCHEDULER_FAILURES} then null
+				else current_timestamp +
+					(least(300, greatest(5, ("schedulerFailureCount"+1) * 15)) * interval '1 second')
+			end,
 			"updatedAt"=current_timestamp
 		where "id"=${runId} and "schedulerLeaseOwner"=${workerId}
 	`;
