@@ -123,6 +123,23 @@ test("runtime REVIEW becomes a blocked mission condition instead of an undispatc
 	assert.doesNotMatch(reviewBranch, /setTaskStatus\(task\.id,\s*"WAITING"\)/);
 });
 
+test("mission cancellation fences dispatch before cleanup and closes pending privileged work", () => {
+	const source = readFileSync(new URL("../lib/agent-platform/orchestrator.ts", import.meta.url), "utf8");
+	const cancelStart = source.indexOf("export async function cancelManagedRun");
+	const cancelBody = source.slice(cancelStart);
+	const terminalFence = cancelBody.indexOf('setRunStatus(run.id, "CANCELLED")');
+	const taskFence = cancelBody.indexOf('update "AgentTask"');
+	const remoteCancel = cancelBody.indexOf("runtime.cancelRun");
+	assert.ok(cancelStart >= 0 && terminalFence >= 0 && taskFence > terminalFence && remoteCancel > taskFence);
+	assert.match(cancelBody, /"status" not in \('COMPLETED','FAILED','CANCELLED'\)/);
+	assert.match(cancelBody, /update "AgentInstance"[\s\S]*?"status"='STOPPED'/);
+	assert.match(cancelBody, /update "AgentToolCall"[\s\S]*?"status"='CANCELLED'/);
+	assert.match(cancelBody, /update "AgentApproval"[\s\S]*?"status"='REJECTED'/);
+	assert.match(source, /run_cancelled_before_runtime_submission/);
+	assert.match(source, /run_cancelled_after_runtime_submission/);
+	assert.match(source, /run_cancelled_during_dispatch/);
+});
+
 test("browser runtime remains disabled unless explicitly enabled", () => {
 	const previous = process.env.AIRA_BROWSER_RUNTIME_ENABLED;
 	try {
