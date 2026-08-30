@@ -105,7 +105,8 @@ test("uncertain linkage preserves the same attempt identity instead of advancing
 	assert.match(source, /select:\s*\{ id: true, status: true \}/);
 	assert.match(source, /taskState\?\.status === "RUNNING" && taskState\.runtimeRunId === attemptRun\.id/);
 	assert.match(source, /reason:\s*"runtime_link_already_committed"/);
-	assert.match(source, /AgentRunStatus\.FAILED, AgentRunStatus\.TERMINATED/);
+	assert.match(source, /attemptRun\.status !== AgentRunStatus\.FAILED/);
+	assert.match(source, /attemptRun\.status !== AgentRunStatus\.TERMINATED/);
 	assert.match(source, /consumeAttempt:\s*false/);
 	assert.match(source, /type:\s*"task\.recovery_pending"/);
 	assert.match(source, /runtimeClientRequestId:\s*runtimeRequestId/);
