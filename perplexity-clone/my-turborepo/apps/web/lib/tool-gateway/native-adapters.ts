@@ -13,6 +13,11 @@ import { createExaSearchService } from "@services/search";
 
 import type { ToolAdapter, ToolContext } from "./types";
 import { ToolGatewayError } from "./types";
+import {
+	publicWebUrl,
+	UNTRUSTED_WEB_CONTENT,
+	webSourceMatchesRequestedTarget,
+} from "./web-security";
 
 const WorkspacePathSchema = z.object({
 	workspaceId: z.string().min(8).max(128),
@@ -349,30 +354,48 @@ export const webToolAdapter: ToolAdapter = {
 				excludeDomains: parsed.data.excludeDomains,
 				contents: { textMaxCharacters: 3_500, highlightMaxCharacters: 1_800, highlightQuery: parsed.data.query },
 			});
-			return { result: {
-				requestId: search.requestId,
-				searchType: search.searchType,
-				sources: search.candidates.slice(0, parsed.data.numResults).map((source) => ({
+			const sources = search.candidates
+				.filter((source) => Boolean(publicWebUrl(source.url)))
+				.slice(0, parsed.data.numResults)
+				.map((source) => ({
 					url: source.url,
 					title: source.title,
 					publishedDate: source.publishedDate,
 					excerpt: source.excerpt.slice(0, 3_500),
-				})),
+					trust: UNTRUSTED_WEB_CONTENT,
+					provenance: { provider: "exa", requestId: search.requestId ?? null },
+				}));
+			return { result: {
+				requestId: search.requestId,
+				searchType: search.searchType,
+				trust: UNTRUSTED_WEB_CONTENT,
+				provenance: { provider: "exa", requestId: search.requestId ?? null },
+				sources,
 			} };
 		}
 		if (action === "open") {
 			const parsed = WebOpenSchema.safeParse(input);
 			if (!parsed.success) invalid("Web open input is invalid.");
-			const url = new URL(parsed.data.url);
-			if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) invalid("Only credential-free HTTP(S) URLs can be retrieved.");
+			const url = publicWebUrl(parsed.data.url);
+			if (!url) invalid("Only credential-free public HTTP(S) URLs can be retrieved.");
 			const search = await service.search(parsed.data.url, {
 				numResults: 3,
 				includeDomains: [url.hostname],
 				contents: { textMaxCharacters: 6_000, highlightMaxCharacters: 3_000, highlightQuery: parsed.data.url },
 			});
-			const exact = search.candidates.find((source) => source.url === parsed.data.url) ?? search.candidates[0];
-			if (!exact) throw new ToolGatewayError({ code: "WEB_RESOURCE_NOT_FOUND", message: "The web retrieval provider returned no public result for this URL.", status: 404 });
-			return { result: { url: exact.url, title: exact.title, publishedDate: exact.publishedDate, excerpt: exact.excerpt.slice(0, 6_000), provider: "exa" } };
+			const exact = search.candidates.find((source) => source.url === parsed.data.url && Boolean(publicWebUrl(source.url)))
+				?? search.candidates.find((source) => webSourceMatchesRequestedTarget(url, source.url));
+			if (!exact) throw new ToolGatewayError({ code: "WEB_RESOURCE_NOT_FOUND", message: "The web retrieval provider returned no public result in the requested host scope.", status: 404 });
+			return { result: {
+				requestedUrl: parsed.data.url,
+				url: exact.url,
+				title: exact.title,
+				publishedDate: exact.publishedDate,
+				excerpt: exact.excerpt.slice(0, 6_000),
+				provider: "exa",
+				trust: UNTRUSTED_WEB_CONTENT,
+				provenance: { provider: "exa", requestId: search.requestId ?? null, requestedHost: url.hostname },
+			} };
 		}
 		throw new ToolGatewayError({ code: "TOOL_ACTION_UNSUPPORTED", message: `Web action ${action} is not supported.`, status: 409 });
 	},
