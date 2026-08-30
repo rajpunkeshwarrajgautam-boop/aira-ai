@@ -39,14 +39,54 @@ function missionBranch(context: ToolContext): string {
 	return `aira/${context.runId.slice(0, 8)}/${(context.taskId ?? "manager").slice(0, 8)}`;
 }
 
-async function jsonFetch(url: string, init: RequestInit, timeoutMs = 20_000): Promise<unknown> {
+const DEFAULT_EXTERNAL_RESPONSE_BYTES = 2_000_000;
+export const MCP_MAX_ARGUMENT_BYTES = 262_144;
+export const MCP_MAX_RESPONSE_BYTES = 524_288;
+export const UNTRUSTED_MCP_CONTENT = "UNTRUSTED_EXTERNAL_CONTENT" as const;
+const MCP_MAX_ARGUMENT_DEPTH = 20;
+const MCP_MAX_ARGUMENT_NODES = 5_000;
+
+async function boundedResponseText(response: Response, maxBytes: number): Promise<string> {
+	const declared = Number(response.headers.get("content-length") ?? "0");
+	if (Number.isFinite(declared) && declared > maxBytes) {
+		throw new ToolGatewayError({ code: "EXTERNAL_TOOL_RESPONSE_TOO_LARGE", message: "External tool response exceeded the allowed size.", status: 502 });
+	}
+	if (!response.body) return "";
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder();
+	let total = 0;
+	let text = "";
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!value) continue;
+			total += value.byteLength;
+			if (total > maxBytes) {
+				await reader.cancel().catch(() => undefined);
+				throw new ToolGatewayError({ code: "EXTERNAL_TOOL_RESPONSE_TOO_LARGE", message: "External tool response exceeded the allowed size.", status: 502 });
+			}
+			text += decoder.decode(value, { stream: true });
+		}
+		text += decoder.decode();
+		return text;
+	} finally {
+		reader.releaseLock();
+	}
+}
+
+async function jsonFetch(
+	url: string,
+	init: RequestInit,
+	options: { readonly timeoutMs?: number; readonly maxResponseBytes?: number; readonly strictJson?: boolean } = {},
+): Promise<unknown> {
+	const timeoutMs = options.timeoutMs ?? 20_000;
+	const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_EXTERNAL_RESPONSE_BYTES;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	try {
 		const response = await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
-		const text = await response.text();
-		let body: unknown = {};
-		try { body = text ? JSON.parse(text) : {}; } catch { body = { text: text.slice(0, 2_000) }; }
+		const text = await boundedResponseText(response, maxResponseBytes);
 		if (!response.ok) {
 			throw new ToolGatewayError({
 				code: "EXTERNAL_TOOL_REQUEST_FAILED",
@@ -55,13 +95,71 @@ async function jsonFetch(url: string, init: RequestInit, timeoutMs = 20_000): Pr
 				retryable: response.status === 408 || response.status === 429 || response.status >= 500,
 			});
 		}
-		return body;
+		if (!text) return {};
+		try {
+			return JSON.parse(text) as unknown;
+		} catch {
+			if (options.strictJson) {
+				throw new ToolGatewayError({ code: "EXTERNAL_TOOL_RESPONSE_INVALID", message: "External tool returned an invalid JSON response.", status: 502 });
+			}
+			return { text: text.slice(0, 2_000) };
+		}
 	} catch (error) {
 		if (error instanceof ToolGatewayError) throw error;
 		throw new ToolGatewayError({ code: "EXTERNAL_TOOL_UNREACHABLE", message: "External tool endpoint is temporarily unreachable.", status: 503, retryable: true });
 	} finally {
 		clearTimeout(timer);
 	}
+}
+
+export function serializeMcpArguments(value: Record<string, unknown>): string {
+	const stack: Array<{ readonly value: unknown; readonly depth: number }> = [{ value, depth: 0 }];
+	const seen = new Set<object>();
+	let nodes = 0;
+	let approximateBytes = 2;
+	while (stack.length) {
+		const current = stack.pop()!;
+		nodes += 1;
+		if (nodes > MCP_MAX_ARGUMENT_NODES || current.depth > MCP_MAX_ARGUMENT_DEPTH) {
+			throw new ToolGatewayError({ code: "MCP_ARGUMENTS_TOO_COMPLEX", message: "MCP arguments exceed the allowed structural complexity.", status: 400 });
+		}
+		const currentValue = current.value;
+		if (typeof currentValue === "string") {
+			approximateBytes += Buffer.byteLength(currentValue, "utf8") + 2;
+		} else if (typeof currentValue === "number") {
+			if (!Number.isFinite(currentValue)) throw new ToolGatewayError({ code: "MCP_ARGUMENTS_INVALID", message: "MCP arguments must be JSON-compatible.", status: 400 });
+			approximateBytes += 32;
+		} else if (typeof currentValue === "boolean" || currentValue === null) {
+			approximateBytes += 5;
+		} else if (Array.isArray(currentValue)) {
+			if (seen.has(currentValue)) throw new ToolGatewayError({ code: "MCP_ARGUMENTS_INVALID", message: "MCP arguments must not contain cycles.", status: 400 });
+			seen.add(currentValue);
+			approximateBytes += currentValue.length + 2;
+			for (const child of currentValue) stack.push({ value: child, depth: current.depth + 1 });
+		} else if (currentValue && typeof currentValue === "object") {
+			if (seen.has(currentValue)) throw new ToolGatewayError({ code: "MCP_ARGUMENTS_INVALID", message: "MCP arguments must not contain cycles.", status: 400 });
+			const prototype = Object.getPrototypeOf(currentValue);
+			if (prototype !== Object.prototype && prototype !== null) throw new ToolGatewayError({ code: "MCP_ARGUMENTS_INVALID", message: "MCP arguments must be plain JSON objects.", status: 400 });
+			seen.add(currentValue);
+			const entries = Object.entries(currentValue as Record<string, unknown>);
+			approximateBytes += entries.length + 2;
+			for (const [key, child] of entries) {
+				if (key.length > 200) throw new ToolGatewayError({ code: "MCP_ARGUMENTS_INVALID", message: "MCP argument keys are too long.", status: 400 });
+				approximateBytes += Buffer.byteLength(key, "utf8") + 3;
+				stack.push({ value: child, depth: current.depth + 1 });
+			}
+		} else {
+			throw new ToolGatewayError({ code: "MCP_ARGUMENTS_INVALID", message: "MCP arguments must be JSON-compatible.", status: 400 });
+		}
+		if (approximateBytes > MCP_MAX_ARGUMENT_BYTES) {
+			throw new ToolGatewayError({ code: "MCP_ARGUMENTS_TOO_LARGE", message: "MCP arguments exceed the allowed size.", status: 400 });
+		}
+	}
+	const serialized = JSON.stringify(value);
+	if (Buffer.byteLength(serialized, "utf8") > MCP_MAX_ARGUMENT_BYTES) {
+		throw new ToolGatewayError({ code: "MCP_ARGUMENTS_TOO_LARGE", message: "MCP arguments exceed the allowed size.", status: 400 });
+	}
+	return serialized;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +243,6 @@ export const githubToolAdapter: ToolAdapter = {
 			try {
 				return { result: safeObject(await githubRequest("/git/refs", { method: "POST", body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: object.sha }) })) };
 			} catch (error) {
-				// Idempotent branch creation: if it already exists, return its state.
 				if (error instanceof ToolGatewayError && error.status === 422) return { result: safeObject(await githubRequest(`/git/ref/heads/${encodeURIComponent(branch)}`)) };
 				throw error;
 			}
@@ -208,7 +305,7 @@ async function vercelRequest(path: string, init: RequestInit = {}): Promise<unkn
 	return jsonFetch(url.toString(), {
 		...init,
 		headers: { Authorization: `Bearer ${cfg.token}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...(init.headers ?? {}) },
-	}, 30_000);
+	}, { timeoutMs: 30_000 });
 }
 
 export const vercelToolAdapter: ToolAdapter = {
@@ -338,7 +435,7 @@ export const supabaseToolAdapter: ToolAdapter = {
 // never become AIRA policy or authorization.
 // ---------------------------------------------------------------------------
 const McpCallSchema = z.object({ tool: z.string().trim().min(1).max(200), arguments: z.record(z.string(), z.unknown()).default({}) });
-function mcpConfig(): { url: string; token: string; allowed: Set<string> } {
+function mcpConfig(): { url: string; token: string; allowed: Set<string>; timeoutMs: number } {
 	const raw = requiredEnv("AIRA_MCP_TOOL_BRIDGE_URL");
 	const url = new URL(raw);
 	const loopback = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
@@ -346,7 +443,9 @@ function mcpConfig(): { url: string; token: string; allowed: Set<string> } {
 		throw new ToolGatewayError({ code: "MCP_BRIDGE_CONFIG_INVALID", message: "MCP bridge URL is invalid or insecure.", status: 503 });
 	}
 	const allowed = new Set((process.env.AIRA_MCP_ALLOWED_TOOLS ?? "").split(",").map((value) => value.trim()).filter(Boolean));
-	return { url: url.toString().replace(/\/$/, ""), token: requiredEnv("AIRA_MCP_TOOL_BRIDGE_TOKEN"), allowed };
+	const rawTimeout = Number(process.env.AIRA_MCP_TOOL_TIMEOUT_MS ?? "10000");
+	const timeoutMs = Number.isFinite(rawTimeout) ? Math.min(30_000, Math.max(500, Math.trunc(rawTimeout))) : 10_000;
+	return { url: url.toString().replace(/\/$/, ""), token: requiredEnv("AIRA_MCP_TOOL_BRIDGE_TOKEN"), allowed, timeoutMs };
 }
 
 export const mcpToolAdapter: ToolAdapter = {
@@ -360,11 +459,20 @@ export const mcpToolAdapter: ToolAdapter = {
 		if (!parsed.success) throw new ToolGatewayError({ code: "TOOL_INPUT_INVALID", message: "MCP call input is invalid.", status: 400 });
 		const cfg = mcpConfig();
 		if (!cfg.allowed.has(parsed.data.tool)) throw new ToolGatewayError({ code: "MCP_TOOL_NOT_ALLOWED", message: "This MCP tool is not server-allowlisted.", status: 403 });
+		const argumentsJson = serializeMcpArguments(parsed.data.arguments);
+		const body = `{"tool":${JSON.stringify(parsed.data.tool)},"arguments":${argumentsJson}}`;
 		const value = await jsonFetch(`${cfg.url}/call`, {
 			method: "POST",
 			headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
-			body: JSON.stringify({ tool: parsed.data.tool, arguments: parsed.data.arguments }),
-		});
-		return { result: safeObject(value) };
+			body,
+		}, { timeoutMs: cfg.timeoutMs, maxResponseBytes: MCP_MAX_RESPONSE_BYTES, strictJson: true });
+		if (!value || typeof value !== "object" || Array.isArray(value)) {
+			throw new ToolGatewayError({ code: "MCP_RESPONSE_INVALID", message: "MCP bridge must return a JSON object.", status: 502 });
+		}
+		return { result: {
+			data: safeObject(value),
+			trust: UNTRUSTED_MCP_CONTENT,
+			provenance: { provider: "mcp", tool: parsed.data.tool },
+		} };
 	},
 };
