@@ -112,6 +112,17 @@ test("uncertain linkage preserves the same attempt identity instead of advancing
 	assert.match(source, /Keeping the attempt counter unchanged guarantees/);
 });
 
+test("runtime REVIEW becomes a blocked mission condition instead of an undispatchable WAITING task", () => {
+	const source = readFileSync(new URL("../lib/agent-platform/orchestrator.ts", import.meta.url), "utf8");
+	const reviewBranch = source.slice(
+		source.indexOf("child.status === AgentRunStatus.REVIEW"),
+		source.indexOf("return reconciled;", source.indexOf("child.status === AgentRunStatus.REVIEW")),
+	);
+	assert.match(reviewBranch, /blockRunningTaskForUnknownRuntimeOutcome/);
+	assert.match(reviewBranch, /reasonCode:\s*"runtime_review"/);
+	assert.doesNotMatch(reviewBranch, /setTaskStatus\(task\.id,\s*"WAITING"\)/);
+});
+
 test("browser runtime remains disabled unless explicitly enabled", () => {
 	const previous = process.env.AIRA_BROWSER_RUNTIME_ENABLED;
 	try {
