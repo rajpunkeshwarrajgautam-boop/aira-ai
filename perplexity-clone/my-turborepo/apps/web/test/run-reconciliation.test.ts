@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -28,7 +29,7 @@ test("leaves a freshly created run alone while it may still be submitting", () =
 	);
 });
 
-test("closes a run that never recorded a remote execution id", () => {
+test("classifies a run that never recorded a remote execution id as uncertain", () => {
 	const decision = classifyStaleRun({
 		remoteExecutionId: null,
 		createdAt: agedBy(UNSUBMITTED_GRACE_MS),
@@ -49,7 +50,7 @@ test("leaves an accepted run alone for its full lifetime bound", () => {
 		}),
 		null,
 	);
-	// An accepted run is never closed by the shorter unsubmitted grace period.
+	// An accepted run is never classified by the shorter unsubmitted grace period.
 	assert.equal(
 		classifyStaleRun({
 			remoteExecutionId: "thread|run",
@@ -60,7 +61,7 @@ test("leaves an accepted run alone for its full lifetime bound", () => {
 	);
 });
 
-test("closes an accepted run that never reported a final state", () => {
+test("classifies an accepted run with no final state as uncertain rather than definitively failed", () => {
 	const decision = classifyStaleRun({
 		remoteExecutionId: "thread|run",
 		createdAt: agedBy(MAX_RUN_LIFETIME_MS),
@@ -68,6 +69,22 @@ test("closes an accepted run that never reported a final state", () => {
 	});
 	assert.equal(decision?.reason, "STALLED");
 	assert.match(decision!.errorMessage, /24 hours/);
+});
+
+test("AutoGPT keeps unknown submission and stale execution outcomes in REVIEW", () => {
+	const source = readFileSync(new URL("../lib/autogpt/runs.ts", import.meta.url), "utf8");
+	assert.match(source, /status:\s*outcomeUnknown\s*\?\s*AgentRunStatus\.REVIEW\s*:\s*AgentRunStatus\.FAILED/);
+	assert.match(source, /status:\s*AgentRunStatus\.REVIEW,[\s\S]*?errorMessage:\s*stale\.errorMessage/);
+	assert.match(source, /completedAt:\s*outcomeUnknown\s*\?\s*null\s*:\s*new Date\(\)/);
+});
+
+test("DeerFlow keeps unknown, stale and disappeared accepted executions in REVIEW", () => {
+	const source = readFileSync(new URL("../lib/deerflow/runs.ts", import.meta.url), "utf8");
+	assert.match(source, /status:\s*outcomeUnknown\s*\?\s*AgentRunStatus\.REVIEW\s*:\s*AgentRunStatus\.FAILED/);
+	assert.match(source, /async function reviewUncertainRun[\s\S]*?status:\s*AgentRunStatus\.REVIEW/);
+	assert.match(source, /if \(stale\) return toDto\(await reviewUncertainRun/);
+	assert.match(source, /error\.status === 404[\s\S]*?reviewUncertainRun/);
+	assert.doesNotMatch(source, /closeStaleRun/);
 });
 
 test("the unsubmitted bound is shorter than the accepted-run bound", () => {
