@@ -673,6 +673,7 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 						taskId: entry.taskId,
 						status: entry.status,
 					})),
+				} : {}),
 			});
 			await recordAgentMessage({
 				projectId: run.projectId,
