@@ -32,6 +32,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "../lib/cn";
 import { AiraLogo } from "./AiraLogo";
+import { UserMenu } from "./UserMenu";
 import styles from "./AiraV2Frame.module.css";
 
 type NavigationItem = {
@@ -252,29 +253,15 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
         aria-label="AIRA workspace navigation"
       >
         <div className={styles.brand}>
-          <span className={styles.brandMark}>
-            <AiraLogo />
-          </span>
+          <span className={styles.brandMark}><AiraLogo /></span>
           <div className={styles.brandCopy}>
             <strong>AIRA AI</strong>
             <small>Intelligent workspace</small>
           </div>
-          <button
-            type="button"
-            className={styles.collapseButton}
-            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-            onClick={toggleCollapsed}
-          >
+          <button type="button" className={styles.collapseButton} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} onClick={toggleCollapsed}>
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </button>
-          <button
-            type="button"
-            className={styles.mobileClose}
-            aria-label="Close navigation"
-            onClick={() => setMobileNavOpen(false)}
-          >
-            <X className="size-4" />
-          </button>
+          <button type="button" className={styles.mobileClose} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><X className="size-4" /></button>
         </div>
 
         <nav className={styles.nav} aria-label="Primary workspace">
@@ -285,9 +272,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
 
         <div className={styles.railFooter}>
           <button type="button" className={styles.commandButton} onClick={() => setPaletteOpen(true)}>
-            <Command className="size-[16px]" aria-hidden />
-            <span>Search & commands</span>
-            <kbd>⌘K</kbd>
+            <Command className="size-[16px]" aria-hidden /><span>Search & commands</span><kbd>⌘K</kbd>
           </button>
         </div>
       </aside>
@@ -295,43 +280,19 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       <div className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.topbarTitle}>
-            <button
-              type="button"
-              className={styles.mobileMenu}
-              aria-label="Open navigation"
-              onClick={() => setMobileNavOpen(true)}
-            >
-              <Menu className="size-[18px]" />
-            </button>
-            <span className={styles.topbarContextIcon}>
-              <CurrentIcon className="size-[16px]" strokeWidth={1.9} aria-hidden />
-            </span>
-            <div className={styles.topbarCopy}>
-              <strong>{current.label}</strong>
-              <small>{current.description}</small>
-            </div>
+            <button type="button" className={styles.mobileMenu} aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}><Menu className="size-[18px]" /></button>
+            <span className={styles.topbarContextIcon}><CurrentIcon className="size-[16px]" strokeWidth={1.9} aria-hidden /></span>
+            <div className={styles.topbarCopy}><strong>{current.label}</strong><small>{current.description}</small></div>
           </div>
           <div className={styles.topbarActions}>
             <span className={styles.workspaceStatus}>AIRA workspace</span>
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-              title={theme === "dark" ? "Light theme" : "Dark theme"}
-            >
+            <button type="button" className={styles.iconButton} onClick={toggleTheme} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} title={theme === "dark" ? "Light theme" : "Dark theme"}>
               {theme === "dark" ? <Sun className="size-[16px]" /> : <Moon className="size-[16px]" />}
             </button>
-            <button
-              type="button"
-              className={styles.topbarCommand}
-              onClick={() => setPaletteOpen(true)}
-              aria-label="Open search and commands"
-            >
-              <Command className="size-[15px]" aria-hidden />
-              <span>Search</span>
-              <kbd>⌘K</kbd>
+            <button type="button" className={styles.topbarCommand} onClick={() => setPaletteOpen(true)} aria-label="Open search and commands">
+              <Command className="size-[15px]" aria-hidden /><span>Search</span><kbd>⌘K</kbd>
             </button>
+            <UserMenu />
           </div>
         </header>
         <section className={cn("aira-v2-workspace-stage", styles.stage)}>{children}</section>
@@ -339,70 +300,36 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
 
       {paletteOpen ? (
         <div className={styles.paletteBackdrop} role="presentation" onMouseDown={() => setPaletteOpen(false)}>
-          <div
-            className={styles.palette}
-            role="dialog"
-            aria-modal="true"
-            aria-label="AIRA search and commands"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+          <div className={styles.palette} role="dialog" aria-modal="true" aria-label="AIRA search and commands" onMouseDown={(event) => event.stopPropagation()}>
             <div className={styles.paletteSearch}>
               <Search className="size-[18px]" aria-hidden />
-              <input
-                ref={inputRef}
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                placeholder="Search workspaces and commands…"
-                aria-label="Search AIRA destinations"
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setSelectedCommand((index) => Math.min(index + 1, Math.max(filteredCommands.length - 1, 0)));
-                  } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setSelectedCommand((index) => Math.max(index - 1, 0));
-                  } else if (event.key === "Enter" && filteredCommands[selectedCommand]) {
-                    event.preventDefault();
-                    navigate(filteredCommands[selectedCommand].href);
-                  }
-                }}
-              />
-              <button type="button" className={styles.paletteClose} onClick={() => setPaletteOpen(false)} aria-label="Close command palette">
-                <X className="size-4" />
-              </button>
+              <input ref={inputRef} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Search workspaces and commands…" aria-label="Search AIRA destinations" onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setSelectedCommand((index) => Math.min(index + 1, Math.max(filteredCommands.length - 1, 0)));
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setSelectedCommand((index) => Math.max(index - 1, 0));
+                } else if (event.key === "Enter" && filteredCommands[selectedCommand]) {
+                  event.preventDefault();
+                  navigate(filteredCommands[selectedCommand].href);
+                }
+              }} />
+              <button type="button" className={styles.paletteClose} onClick={() => setPaletteOpen(false)} aria-label="Close command palette"><X className="size-4" /></button>
             </div>
             <div className={styles.paletteResults}>
-              {filteredCommands.length ? (
-                filteredCommands.map((item, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.href}
-                      type="button"
-                      onMouseEnter={() => setSelectedCommand(index)}
-                      onClick={() => navigate(item.href)}
-                      className={cn(styles.paletteItem, index === selectedCommand && styles.selected)}
-                    >
-                      <span className={styles.paletteItemIcon}>
-                        <Icon className="size-[17px]" aria-hidden />
-                      </span>
-                      <span className={styles.paletteItemCopy}>
-                        <strong>{item.label}</strong>
-                        <small>{item.description}</small>
-                      </span>
-                      <span className={styles.paletteEnter}>↵</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <p className={styles.paletteEmpty}>No matching AIRA destination.</p>
-              )}
+              {filteredCommands.length ? filteredCommands.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <button key={item.href} type="button" onMouseEnter={() => setSelectedCommand(index)} onClick={() => navigate(item.href)} className={cn(styles.paletteItem, index === selectedCommand && styles.selected)}>
+                    <span className={styles.paletteItemIcon}><Icon className="size-[17px]" aria-hidden /></span>
+                    <span className={styles.paletteItemCopy}><strong>{item.label}</strong><small>{item.description}</small></span>
+                    <span className={styles.paletteEnter}>↵</span>
+                  </button>
+                );
+              }) : <p className={styles.paletteEmpty}>No matching AIRA destination.</p>}
             </div>
-            <div className={styles.paletteFooter}>
-              <Sparkles className="size-3.5" aria-hidden />
-              AIRA AI
-              <span>↑↓ navigate · Enter open · Esc close</span>
-            </div>
+            <div className={styles.paletteFooter}><Sparkles className="size-3.5" aria-hidden />AIRA AI<span>↑↓ navigate · Enter open · Esc close</span></div>
           </div>
         </div>
       ) : null}
