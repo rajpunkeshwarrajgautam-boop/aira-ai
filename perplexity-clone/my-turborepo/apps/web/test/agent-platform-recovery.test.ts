@@ -27,13 +27,14 @@ test("ambiguous reconciliation remains fail-closed and never advances the attemp
 	assert.doesNotMatch(recoverySource, /"attempt"\s*=\s*"attempt"\s*\+\s*1/);
 });
 
-test("reconciliation serializes with cancellation and guards the exact blocked task identity", () => {
+test("reconciliation serializes with cancellation and fences the exact blocked task attempt", () => {
 	assert.match(recoverySource, /from "AgentPlatformRun"[\s\S]*?for update/);
 	assert.match(recoverySource, /parentStatus !== "BLOCKED" && parentStatus !== "RUNNING"/);
 	assert.match(recoverySource, /and "runId"=\$\{run\.id\}/);
 	assert.match(recoverySource, /and "projectId"=\$\{run\.projectId\}/);
 	assert.match(recoverySource, /and "status"='BLOCKED'/);
 	assert.match(recoverySource, /and "runtimeRunId"=\$\{task\.runtimeRunId\}/);
+	assert.match(recoverySource, /and "attempt"=\$\{task\.attempt\}/);
 	assert.match(recoverySource, /set "status"='RUNNING', "lastError"=null/);
 });
 
