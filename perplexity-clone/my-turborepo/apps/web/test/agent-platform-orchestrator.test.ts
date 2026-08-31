@@ -141,6 +141,18 @@ test("mission cancellation fences dispatch before cleanup and closes pending pri
 	assert.match(source, /run_cancelled_during_dispatch/);
 });
 
+test("mission cancellation replays cleanup after a committed cancellation fence", () => {
+	const source = readFileSync(new URL("../lib/agent-platform/orchestrator.ts", import.meta.url), "utf8");
+	const cancelBody = source.slice(source.indexOf("export async function cancelManagedRun"));
+	assert.doesNotMatch(cancelBody, /if \(run\.status === "CANCELLED"\) return/);
+	assert.match(cancelBody, /if \(run\.status !== "CANCELLED"\) await setRunStatus\(run\.id, "CANCELLED"\)/);
+	assert.match(cancelBody, /completedAt"=coalesce\("completedAt", current_timestamp\)/);
+	assert.match(cancelBody, /local\.status === AgentRunStatus\.COMPLETED/);
+	assert.match(cancelBody, /local\.status === AgentRunStatus\.FAILED/);
+	assert.match(cancelBody, /local\.status === AgentRunStatus\.TERMINATED/);
+	assert.match(cancelBody, /cleanup:\s*"reconciled"/);
+});
+
 test("browser runtime remains disabled unless explicitly enabled", () => {
 	const previous = process.env.AIRA_BROWSER_RUNTIME_ENABLED;
 	try {

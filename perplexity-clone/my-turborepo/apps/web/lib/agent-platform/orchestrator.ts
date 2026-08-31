@@ -967,13 +967,12 @@ export async function steerManagedTask(input: { readonly userId: string; readonl
 export async function cancelManagedRun(userId: string, runId: string): Promise<void> {
 	const run = await getRunForUser(userId, runId);
 	if (!run) throw new Error("Managed run not found.");
-	if (run.status === "CANCELLED") return;
 	if (run.status === "COMPLETED" || run.status === "FAILED") return;
 
-	// Fence the mission first. Tool Gateway budget reservation already refuses
-	// terminal runs, so committing this state prevents any new privileged side
-	// effect while best-effort remote cancellation and local cleanup continue.
-	await setRunStatus(run.id, "CANCELLED");
+	// Fence the mission before cleanup on the first cancellation. If a previous
+	// process already committed CANCELLED and then crashed, do not return early:
+	// replay the idempotent cleanup below so local and known remote work converge.
+	if (run.status !== "CANCELLED") await setRunStatus(run.id, "CANCELLED");
 	await prisma.$transaction([
 		prisma.$executeRaw`
 			update "AgentTask"
@@ -987,7 +986,7 @@ export async function cancelManagedRun(userId: string, runId: string): Promise<v
 		`,
 		prisma.$executeRaw`
 			update "AgentToolCall"
-			set "status"='CANCELLED', "completedAt"=current_timestamp
+			set "status"='CANCELLED', "completedAt"=coalesce("completedAt", current_timestamp)
 			where "runId"=${run.id} and "status" in ('PENDING','APPROVAL_REQUIRED')
 		`,
 		prisma.$executeRaw`
@@ -999,10 +998,13 @@ export async function cancelManagedRun(userId: string, runId: string): Promise<v
 
 	const cancelledTasks = await listTasks(run.id);
 	for (const task of cancelledTasks.filter((entry) => entry.runtimeRunId)) {
-		const local = await prisma.agentRun.findFirst({ where: { id: task.runtimeRunId!, userId }, select: { provider: true } });
-		if (!local) continue;
+		const local = await prisma.agentRun.findFirst({
+			where: { id: task.runtimeRunId!, userId },
+			select: { provider: true, status: true },
+		});
+		if (!local || local.status === AgentRunStatus.COMPLETED || local.status === AgentRunStatus.FAILED || local.status === AgentRunStatus.TERMINATED) continue;
 		const runtime = getAgentRuntime(local.provider);
 		if (runtime.cancelRun) await runtime.cancelRun(userId, task.runtimeRunId!).catch(() => null);
 	}
-	await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.cancelled", payload: { sideEffectFence: "terminal_run" } });
+	await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.cancelled", payload: { sideEffectFence: "terminal_run", cleanup: "reconciled" } });
 }
