@@ -79,8 +79,10 @@ test("type=button controls are not decorative no-ops", () => {
 test("global search conversation results open any authenticated saved conversation", () => {
 	const api = read("app/api/global-search/route.ts");
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
-	assert.ok(api.includes("/api/conversations"));
-	assert.ok(api.includes("/api/memory"));
+	assert.ok(api.includes("listConversations(session.user.id"));
+	assert.ok(api.includes("listConversationMessages(session.user.id"));
+	assert.ok(api.includes("listUserMemories(session.user.id"));
+	assert.ok(api.includes("/?conversation=${encodeURIComponent(conversation.id)}"));
 	assert.ok(sidebar.includes('searchParams.get("conversation")'));
 	assert.ok(sidebar.includes("onSelectConversation(targetConversationId)"));
 });
