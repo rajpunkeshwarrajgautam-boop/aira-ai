@@ -3,19 +3,19 @@
 import { Loader2, MonitorUp, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
 import { CapabilityGate, type CapabilityState } from "@/components/CapabilityGate";
+import surface from "../workspace-surface.module.css";
 
 type LocalStatus = {
-  enabled?: boolean;
-  configured?: boolean;
-  model?: string | null;
-  health?: {
-    reachable?: boolean;
-    status?: string;
-    model?: string | null;
-    latencyMs?: number | null;
+  readonly enabled?: boolean;
+  readonly configured?: boolean;
+  readonly model?: string | null;
+  readonly health?: {
+    readonly reachable?: boolean;
+    readonly status?: string;
+    readonly model?: string | null;
+    readonly latencyMs?: number | null;
   };
 };
 
@@ -63,8 +63,8 @@ export default function BrowserAgentPage() {
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <main className="aira-os-page">
-          <div className="aira-os-page__inner">
+        <main className={surface.page}>
+          <div className={surface.inner}>
             <CapabilityGate
               eyebrow="Automation"
               title="Browser Agent"
@@ -77,20 +77,23 @@ export default function BrowserAgentPage() {
                 { href: "/agents", label: "Open Agents" },
               ]}
             >
-              <div className="aira-capability-facts" aria-label="Browser agent readiness">
+              <div className={surface.facts} aria-label="Browser agent readiness">
                 <div><span>Local runtime</span><strong>{loading ? "Checking…" : status?.health?.reachable ? "Reachable" : status?.configured ? "Unavailable" : "Not configured"}</strong></div>
                 <div><span>Model</span><strong>{status?.model ?? status?.health?.model ?? "—"}</strong></div>
                 <div><span>Live browser session API</span><strong>Not exposed</strong></div>
               </div>
-              <button type="button" className="aira-secondary-button" onClick={() => void refresh()} disabled={loading}>
+              <button type="button" className={surface.secondary} onClick={() => void refresh()} disabled={loading}>
                 {loading ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}
                 Refresh readiness
               </button>
             </CapabilityGate>
 
-            <section className="aira-os-note" aria-label="Browser execution contract">
+            <section className={surface.note} aria-label="Browser execution contract">
               <MonitorUp className="size-4" aria-hidden />
-              <div><strong>Why the live viewport is gated</strong><p>The Stitch screen describes request → session → actions → human approval → completion. Until the web app has a server-authorized session identifier and action/approval stream, those controls remain intentionally unavailable rather than mocked.</p></div>
+              <div>
+                <strong>Why the live viewport is gated</strong>
+                <p>A browser session UI becomes interactive only after the web app has a server-authorized session identifier plus action and approval streams. Until then AIRA intentionally exposes no simulated viewport or takeover controls.</p>
+              </div>
             </section>
           </div>
         </main>
