@@ -1,0 +1,142 @@
+.aira-intelligence-os .aira-v2-nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding-bottom: 12px;
+}
+
+.aira-intelligence-os .aira-v2-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.aira-intelligence-os .aira-v2-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aira-intelligence-os .aira-v2-nav-group + .aira-v2-nav-group {
+  margin-top: 20px;
+}
+
+.aira-intelligence-os .aira-v2-nav-label {
+  margin: 0 10px 7px;
+}
+
+.aira-intelligence-os .aira-v2-command-trigger {
+  flex: 0 0 auto;
+}
+
+.aira-v2-mobile-menu,
+.aira-v2-mobile-close,
+.aira-v2-mobile-backdrop {
+  display: none;
+}
+
+.aira-intelligence-os :where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid rgba(208, 174, 85, 0.72);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .aira-v2-frame.aira-intelligence-os {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aira-intelligence-os .aira-v2-rail {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 90;
+    width: min(286px, calc(100vw - 52px));
+    transform: translateX(-105%);
+    box-shadow: 24px 0 70px rgba(0, 0, 0, 0.42);
+    transition: transform 180ms ease;
+  }
+
+  .aira-intelligence-os .aira-v2-rail.is-mobile-open {
+    transform: translateX(0);
+  }
+
+  .aira-v2-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: block;
+    border: 0;
+    background: rgba(3, 5, 8, 0.68);
+    backdrop-filter: blur(4px);
+  }
+
+  .aira-v2-mobile-menu,
+  .aira-v2-mobile-close {
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.075);
+    background: #15191e;
+    color: #aeb3ba;
+    cursor: pointer;
+  }
+
+  .aira-v2-mobile-menu {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .aira-v2-mobile-close {
+    width: 30px;
+    height: 30px;
+    margin-left: auto;
+    border-radius: 8px;
+  }
+
+  .aira-intelligence-os .aira-v2-main {
+    width: 100%;
+  }
+
+  .aira-intelligence-os .aira-v2-topbar {
+    padding-inline: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .aira-intelligence-os .aira-v2-topbar {
+    height: 58px;
+  }
+
+  .aira-intelligence-os .aira-v2-topbar-title small,
+  .aira-intelligence-os .aira-v2-grounded-status,
+  .aira-intelligence-os .aira-v2-topbar-command span,
+  .aira-intelligence-os .aira-v2-topbar-command kbd {
+    display: none;
+  }
+
+  .aira-intelligence-os .aira-v2-topbar-command {
+    width: 34px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .aira-intelligence-os .aira-v2-stage {
+    min-height: calc(100dvh - 58px);
+  }
+
+  .aira-intelligence-os .aira-v2-palette-backdrop {
+    align-items: start;
+    padding: 72px 10px 10px;
+  }
+
+  .aira-intelligence-os .aira-v2-palette {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aira-intelligence-os .aira-v2-rail,
+  .aira-intelligence-os .aira-v2-nav-item,
+  .aira-intelligence-os .aira-v2-command-trigger,
+  .aira-intelligence-os .aira-v2-topbar-command {
+    transition: none !important;
+  }
+}
