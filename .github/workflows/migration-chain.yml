@@ -8,6 +8,10 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/migration-chain.yml"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/recovery.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/orchestrator.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/autogpt/**"
+      - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-recovery-real-db*"
   workflow_dispatch:
 
 permissions:
@@ -155,6 +159,15 @@ jobs:
             echo "::error::A second migrate deploy changed the applied migration count ($before -> $after)."
             exit 1
           }
+
+      - name: Prove blocked recovery semantics against real PostgreSQL
+        env:
+          AIRA_REAL_DB_RECOVERY_TESTS: "1"
+          DATABASE_POOL_MAX: "4"
+          NODE_ENV: test
+        run: |
+          pnpm --filter web run precheck-types
+          pnpm --filter web exec node --import ./test/resolver.mjs --test ./test/agent-platform-recovery-real-db.test.ts
 
       - name: Simulate an existing deployment before the additive ordering repair
         run: |
