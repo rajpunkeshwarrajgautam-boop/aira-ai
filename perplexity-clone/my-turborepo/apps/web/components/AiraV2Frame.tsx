@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   BarChart3,
   Bot,
   Brain,
@@ -263,7 +262,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             </button>
           </div>
         </header>
-        <section className="aira-v2-stage min-w-0 min-h-[calc(100dvh-64px)]">{children}</section>
+        <section className="aira-v2-workspace-stage aira-v2-stage min-w-0 min-h-[calc(100dvh-58px)]">{children}</section>
       </div>
 
       {paletteOpen ? (
