@@ -1,24 +1,11 @@
 "use client";
 
-import {
-	Bot,
-	Brain,
-	Cpu,
-	FolderOpen,
-	GitCompareArrows,
-	MessageSquare,
-	Plug,
-	Plus,
-	Search,
-	Settings2,
-	X,
-} from "lucide-react";
+import { Plus, Search, Settings2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "../../lib/cn";
-import { AiraLogo } from "../AiraLogo";
 import { UsageIndicator } from "../UsageIndicator";
 
 export interface ConversationSummary {
@@ -58,16 +45,6 @@ function groupLabel(iso: string): "Today" | "Previous 7 Days" | "Older" {
 	if (days < 7) return "Previous 7 Days";
 	return "Older";
 }
-
-const APP_RAIL = [
-	{ href: "/", label: "Chat", icon: MessageSquare },
-	{ href: "/agents", label: "Agents", icon: Bot },
-	{ href: "/knowledge", label: "Files", icon: FolderOpen },
-	{ href: "/local-ai", label: "Local AI", icon: Cpu },
-	{ href: "/compare", label: "Compare", icon: GitCompareArrows },
-	{ href: "/memory", label: "Memory", icon: Brain },
-	{ href: "/workspace-search", label: "Search", icon: Search },
-] as const;
 
 export function ConversationSidebar({
 	conversations,
@@ -137,44 +114,13 @@ export function ConversationSidebar({
 			)}
 			aria-label="Conversation sidebar"
 		>
-			<nav className="aira-app-rail flex w-[72px] shrink-0 flex-col items-center border-r border-border-subtle px-2 py-3" aria-label="AIRA applications">
-				<Link href="/" className="mb-4 grid size-11 place-items-center rounded-2xl border border-white/10 bg-[#11182a] text-[13px] font-semibold text-white shadow-sm" aria-label="AIRA AI home">
-					A
-				</Link>
-				<div className="flex w-full flex-1 flex-col items-center gap-1.5">
-					{APP_RAIL.map((item) => {
-						const Icon = item.icon;
-						const active = item.href === "/";
-						return (
-							<Link
-								key={item.href}
-								href={item.href}
-								className={cn(
-									"group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium text-content-tertiary transition",
-									active ? "bg-violet-500/15 text-violet-300" : "hover:bg-white/[0.045] hover:text-content-primary",
-								)}
-							>
-								<Icon className="size-[18px]" strokeWidth={1.65} aria-hidden />
-								<span>{item.label}</span>
-							</Link>
-						);
-					})}
-				</div>
-				<div className="mt-auto flex w-full flex-col items-center gap-1.5 border-t border-border-subtle pt-2">
-					<Link href="/settings#integrations" className="group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium text-content-tertiary transition hover:bg-white/[0.045] hover:text-content-primary">
-						<Plug className="size-[18px]" strokeWidth={1.65} aria-hidden />
-						<span>Integrations</span>
-					</Link>
-					<Link href="/settings" className="group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium text-content-tertiary transition hover:bg-white/[0.045] hover:text-content-primary">
-						<Settings2 className="size-[18px]" strokeWidth={1.65} aria-hidden />
-						<span>Settings</span>
-					</Link>
-				</div>
-			</nav>
-
 			<div className="aira-conversation-nav flex min-w-0 flex-1 flex-col bg-[#0c111d]">
-				<div className="flex h-16 items-center border-b border-border-subtle px-4">
-					<AiraLogo />
+				<div className="flex h-14 items-center justify-between border-b border-border-subtle px-4">
+					<div>
+						<p className="text-[11px] font-semibold text-content-primary">Conversations</p>
+						<p className="mt-0.5 text-[9px] text-content-tertiary">Research history</p>
+					</div>
+					<span className="rounded-md border border-white/[0.07] bg-white/[0.025] px-1.5 py-0.5 text-[8px] tabular-nums text-content-tertiary">{conversations.length}</span>
 				</div>
 
 				<div className="px-3 pb-2 pt-3">

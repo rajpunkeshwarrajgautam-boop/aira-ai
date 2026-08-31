@@ -10,9 +10,9 @@ function read(relative: string): string {
 	return readFileSync(path.join(WEB_ROOT, relative), "utf8");
 }
 
-test("chat home uses a single focused shell", () => {
+test("chat home uses the unified Intelligence OS shell", () => {
 	const page = read("app/page.tsx");
-	assert.ok(!page.includes("<AiraV2Frame>"), "home chat should not be nested inside the global workspace rail");
+	assert.ok(page.includes("<AiraV2Frame>"), "home chat should share the global AIRA application shell");
 	assert.ok(page.includes("<SearchLayout />"));
 	assert.ok(page.includes("impeccable-chat-v2.css"));
 });
@@ -31,13 +31,15 @@ test("composer exposes real commands, tools, and voice input", () => {
 	assert.ok(searchBox.includes("Start voice input"));
 });
 
-test("conversation sidebar matches reference app rail and searchable history", () => {
+test("conversation sidebar is context-only while the shared shell owns application navigation", () => {
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
-	assert.ok(sidebar.includes("aira-app-rail"));
+	const frame = read("components/AiraV2Frame.tsx");
+	assert.ok(!sidebar.includes("aira-app-rail"), "Research must not render a second application rail inside conversation history");
 	assert.ok(sidebar.includes("Search conversations"));
 	assert.ok(sidebar.includes("Previous 7 Days"));
-	for (const label of ["Chat", "Agents", "Files", "Local AI", "Compare", "Memory", "Search", "Integrations", "Settings"]) {
-		assert.ok(sidebar.includes(label), `expected ${label} in app rail`);
+	assert.ok(frame.includes('aria-label="AIRA workspace navigation"'));
+	for (const label of ["Research", "Agents", "Knowledge", "Local Runtime", "Model Lab", "Memory", "Global Search", "Integrations"]) {
+		assert.ok(frame.includes(label), `expected ${label} in shared workspace navigation`);
 	}
 	assert.ok(sidebar.includes("event.metaKey || event.ctrlKey"));
 	assert.ok(sidebar.includes("event.shiftKey"));
