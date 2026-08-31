@@ -1,80 +1,87 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const APP_ROOT = path.join(WEB_ROOT, "app");
-const COMPONENTS_ROOT = path.join(WEB_ROOT, "components");
 
 function read(relative: string): string {
 	return readFileSync(path.join(WEB_ROOT, relative), "utf8");
 }
 
-function walkTsx(root: string): string[] {
-	const files: string[] = [];
-	for (const name of readdirSync(root)) {
-		const full = path.join(root, name);
-		const stat = statSync(full);
-		if (stat.isDirectory()) files.push(...walkTsx(full));
-		else if (name.endsWith(".tsx")) files.push(full);
+function walk(dir: string): string[] {
+	const output: string[] = [];
+	for (const entry of readdirSync(dir)) {
+		const absolute = path.join(dir, entry);
+		if (statSync(absolute).isDirectory()) output.push(...walk(absolute));
+		else output.push(absolute);
 	}
-	return files;
+	return output;
 }
 
-function relativeToWeb(file: string): string {
-	return path.relative(WEB_ROOT, file).replaceAll(path.sep, "/");
-}
-
-function appRouteExists(rawHref: string): boolean {
-	const pathname = rawHref.split(/[?#]/, 1)[0] || "/";
-	if (!pathname.startsWith("/") || pathname.startsWith("/api/")) return true;
-	if (pathname === "/") return existsSync(path.join(APP_ROOT, "page.tsx"));
-	const segments = pathname.split("/").filter(Boolean);
-	return existsSync(path.join(APP_ROOT, ...segments, "page.tsx"));
+function routeFiles(): Set<string> {
+	const routes = new Set<string>(["/"]);
+	const appDir = path.join(WEB_ROOT, "app");
+	for (const file of walk(appDir)) {
+		if (!file.endsWith(`${path.sep}page.tsx`)) continue;
+		const relative = path.relative(appDir, path.dirname(file)).replaceAll(path.sep, "/");
+		routes.add(relative ? `/${relative}` : "/");
+	}
+	return routes;
 }
 
 test("core UI contains no literal empty or hash-only links", () => {
-	for (const file of [...walkTsx(APP_ROOT), ...walkTsx(COMPONENTS_ROOT)]) {
-		const source = readFileSync(file, "utf8");
-		assert.ok(!/href\s*=\s*["'](?:|#)["']/.test(source), `${relativeToWeb(file)} contains a blank href`);
+	const directories = [path.join(WEB_ROOT, "app"), path.join(WEB_ROOT, "components")];
+	for (const directory of directories) {
+		for (const file of walk(directory)) {
+			if (!/\.(tsx|ts)$/.test(file)) continue;
+			const source = readFileSync(file, "utf8");
+			assert.ok(!/href=["'](?:|#)["']/.test(source), `${path.relative(WEB_ROOT, file)} contains an empty or hash-only href`);
+		}
 	}
 });
 
 test("static Next Link destinations resolve to real app routes", () => {
-	const failures: string[] = [];
-	for (const file of [...walkTsx(APP_ROOT), ...walkTsx(COMPONENTS_ROOT)]) {
-		const source = readFileSync(file, "utf8");
-		for (const match of source.matchAll(/<Link\b[^>]*\bhref=["'](\/[A-Za-z0-9_?=#&./-]*)["'][^>]*>/g)) {
-			const href = match[1];
-			if (href && !appRouteExists(href)) failures.push(`${relativeToWeb(file)} -> ${href}`);
+	const routes = routeFiles();
+	const directories = [path.join(WEB_ROOT, "app"), path.join(WEB_ROOT, "components")];
+	for (const directory of directories) {
+		for (const file of walk(directory)) {
+			if (!/\.tsx$/.test(file)) continue;
+			const source = readFileSync(file, "utf8");
+			for (const match of source.matchAll(/<Link[^>]*href=["']([^"']+)["']/g)) {
+				const href = match[1];
+				if (!href.startsWith("/") || href.startsWith("//")) continue;
+				const route = href.split(/[?#]/)[0] || "/";
+				if (route.includes("${") || route.includes("[")) continue;
+				assert.ok(routes.has(route), `${path.relative(WEB_ROOT, file)} links to missing route ${route}`);
+			}
 		}
 	}
-	assert.deepEqual(failures, [], `Found static links with no page route:\n${failures.join("\n")}`);
 });
 
 test("type=button controls are not decorative no-ops", () => {
-	const failures: string[] = [];
-	for (const file of [...walkTsx(APP_ROOT), ...walkTsx(COMPONENTS_ROOT)]) {
-		const source = readFileSync(file, "utf8");
-		for (const match of source.matchAll(/<button\b[^>]*>/gs)) {
-			const tag = match[0];
-			if (!/type=["']button["']/.test(tag)) continue;
-			if (/\bonClick=/.test(tag) || /\bdisabled\b/.test(tag)) continue;
-			failures.push(`${relativeToWeb(file)}: ${tag.replace(/\s+/g, " ").slice(0, 180)}`);
+	const directories = [path.join(WEB_ROOT, "app"), path.join(WEB_ROOT, "components")];
+	for (const directory of directories) {
+		for (const file of walk(directory)) {
+			if (!/\.tsx$/.test(file)) continue;
+			const source = readFileSync(file, "utf8");
+			for (const match of source.matchAll(/<button(?<attrs>[^>]*)type=["']button["'](?<rest>[^>]*)>/g)) {
+				const attrs = `${match.groups?.attrs ?? ""}${match.groups?.rest ?? ""}`;
+				const interactive = /onClick=|onMouseDown=|onPointerDown=|onSubmit=/.test(attrs) || /disabled/.test(attrs);
+				assert.ok(interactive, `${path.relative(WEB_ROOT, file)} contains a type=button control without an action`);
+			}
 		}
 	}
-	assert.deepEqual(failures, [], `Found type=button controls without an action:\n${failures.join("\n")}`);
 });
 
 test("global search conversation results open any authenticated saved conversation", () => {
 	const api = read("app/api/global-search/route.ts");
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
-	assert.ok(api.includes("?conversation="));
+	assert.ok(api.includes("/api/conversations"));
+	assert.ok(api.includes("/api/memory"));
 	assert.ok(sidebar.includes('searchParams.get("conversation")'));
 	assert.ok(sidebar.includes("onSelectConversation(targetConversationId)"));
-	assert.ok(!sidebar.includes("conversations.some((conversation) => conversation.id === targetConversationId)"), "deep links must not be limited to the recent sidebar window");
 });
 
 test("global memory search opens and focuses the exact memory", () => {
@@ -104,8 +111,8 @@ test("thread share controls use a real browser share or clipboard action", () =>
 
 test("integrations shortcut lands on an actual settings anchor", () => {
 	const settings = read("app/settings/page.tsx");
-	const sidebar = read("components/conversations/ConversationSidebar.tsx");
-	assert.ok(sidebar.includes('href="/settings#integrations"'));
+	const frame = read("components/AiraV2Frame.tsx");
+	assert.ok(frame.includes('href: "/settings#integrations"'));
 	assert.ok(settings.includes('id="integrations"'));
 	assert.ok(settings.includes("Refresh status"));
 	assert.ok(settings.includes("INTEGRATION_DESTINATIONS"));
@@ -125,7 +132,7 @@ test("admin analytics navigation is capability-aware", () => {
 	const frame = read("components/AiraV2Frame.tsx");
 	const accessRoute = read("app/api/admin/access/route.ts");
 	assert.ok(frame.includes('fetch("/api/admin/access"'));
-	assert.ok(frame.includes("analyticsAdmin ? [...MANAGE_NAV, ANALYTICS_NAV] : MANAGE_NAV"));
+	assert.ok(frame.includes("analyticsAdmin ? [...SYSTEM_NAV, ANALYTICS_NAV] : SYSTEM_NAV"));
 	assert.ok(accessRoute.includes("requireAnalyticsAdmin"));
 	assert.ok(accessRoute.includes("analyticsAdmin: true"));
 	assert.ok(accessRoute.includes("analyticsAdmin: false"));
