@@ -4,7 +4,6 @@ import localFont from "next/font/local";
 import { Providers } from "./providers";
 import "./globals.css";
 import "./best-of-premium.css";
-import "./aira-intelligence-os.css";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
