@@ -52,6 +52,8 @@ const CORE_NAV: readonly NavigationItem[] = [
   { href: "/memory", label: "Memory", description: "Review remembered context", icon: Brain, keywords: "preferences context remembered pinned" },
 ] as const;
 
+const DEFAULT_NAV: NavigationItem = CORE_NAV[0]!;
+
 const TOOLS_NAV: readonly NavigationItem[] = [
   { href: "/compare", label: "Model Lab", description: "Compare configured providers", icon: Columns2, keywords: "models compare evaluation providers" },
   { href: "/local-ai", label: "Local AI", description: "Private local runtime", icon: Cpu, keywords: "llama cpp private model" },
@@ -169,8 +171,8 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
     [systemNav],
   );
 
-  const current = useMemo(
-    () => allCommands.find((item) => isActivePath(pathname, item.href)) ?? CORE_NAV[0],
+  const current = useMemo<NavigationItem>(
+    () => allCommands.find((item) => isActivePath(pathname, item.href)) ?? DEFAULT_NAV,
     [allCommands, pathname],
   );
 
