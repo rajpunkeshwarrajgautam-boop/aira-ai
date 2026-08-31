@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import type {
@@ -13,6 +14,7 @@ import type {
 	RunBudgets,
 	TaskSpec,
 } from "./types";
+import { usageFromRuntimeResult } from "./usage";
 
 /**
  * A claimed task is dispatched by the same Node process that obtained the DB
@@ -55,6 +57,31 @@ function taskRow(row: PlatformTask): PlatformTask {
 		inputArtifacts: stringArray(row.inputArtifacts),
 		outputArtifacts: stringArray(row.outputArtifacts),
 	};
+}
+
+async function accountLinkedRuntimeUsage(
+	tx: Prisma.TransactionClient,
+	runId: string,
+	runtimeRunId: string | null,
+): Promise<void> {
+	if (!runtimeRunId) return;
+	const rows = await tx.$queryRaw<Array<{ result: unknown }>>`
+		select "result" from "AgentRun" where "id"=${runtimeRunId} limit 1
+	`;
+	const usage = usageFromRuntimeResult(rows[0]?.result);
+	const input = Math.max(0, Math.trunc(usage.inputTokens ?? 0));
+	const output = Math.max(0, Math.trunc(usage.outputTokens ?? 0));
+	const cached = Math.max(0, Math.trunc(usage.cachedTokens ?? 0));
+	const cost = Math.max(0, usage.costUsd ?? 0);
+	await tx.$executeRaw`
+		update "AgentPlatformRun"
+		set "inputTokensUsed"="inputTokensUsed"+${input}::bigint,
+			"outputTokensUsed"="outputTokensUsed"+${output}::bigint,
+			"cachedTokensUsed"="cachedTokensUsed"+${cached}::bigint,
+			"knownCostUsd"="knownCostUsd"+${cost}::numeric,
+			"updatedAt"=current_timestamp
+		where "id"=${runId}
+	`;
 }
 
 export async function createProject(input: {
@@ -225,10 +252,7 @@ export async function claimTask(taskId: string, workerId: string, leaseSeconds =
 		  and ("leaseExpiresAt" is null or "leaseExpiresAt" < current_timestamp)
 		returning *
 	`;
-	if (!rows[0]) {
-		localTaskClaims.delete(taskId);
-		return null;
-	}
+	if (!rows[0]) return null;
 	localTaskClaims.set(taskId, workerId);
 	return taskRow(rows[0]);
 }
@@ -304,37 +328,76 @@ export async function createAgentInstance(input: {
 	return id;
 }
 
+/**
+ * Finalize one running delegated task exactly once. The task row lock is the
+ * ownership fence for runtime usage, artifacts and terminal state, so two
+ * concurrent coordinators cannot double-count provider usage or duplicate
+ * output artifacts for the same runtime attempt.
+ */
 export async function completeTask(taskId: string, outputArtifacts: readonly string[] = []): Promise<void> {
 	localTaskClaims.delete(taskId);
-	const operations = [
-		prisma.$executeRaw`
-			update "AgentTask" set "status"='COMPLETED', "outputArtifacts"=${JSON.stringify(outputArtifacts)}::jsonb, "leaseOwner"=null, "leaseExpiresAt"=null, "completedAt"=current_timestamp, "updatedAt"=current_timestamp where "id"=${taskId}
-		`,
-		prisma.$executeRaw`
-			update "AgentInstance" set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp where "currentTaskId"=${taskId}
-		`,
-		...outputArtifacts.slice(0, 50).map((uri) => prisma.$executeRaw`
-			insert into "AgentArtifact" ("id", "projectId", "runId", "taskId", "kind", "name", "uri", "metadata")
-			select ${crypto.randomUUID()}, "projectId", "runId", "id", 'runtime-output', ${uri.split('/').filter(Boolean).pop() ?? "artifact"}, ${uri}, '{}'::jsonb
-			from "AgentTask" where "id"=${taskId}
-		`),
-	];
-	await prisma.$transaction(operations);
+	await prisma.$transaction(async (tx) => {
+		const rows = await tx.$queryRaw<Array<{ runId: string; runtimeRunId: string | null; status: PlatformTaskStatus }>>`
+			select "runId", "runtimeRunId", "status"
+			from "AgentTask"
+			where "id"=${taskId}
+			for update
+		`;
+		const current = rows[0];
+		if (!current || current.status !== "RUNNING") throw new TaskClaimLostError(taskId);
+
+		await accountLinkedRuntimeUsage(tx, current.runId, current.runtimeRunId);
+		const changed = await tx.$executeRaw`
+			update "AgentTask"
+			set "status"='COMPLETED', "outputArtifacts"=${JSON.stringify(outputArtifacts)}::jsonb,
+				"leaseOwner"=null, "leaseExpiresAt"=null, "completedAt"=current_timestamp, "updatedAt"=current_timestamp
+			where "id"=${taskId} and "status"='RUNNING'
+		`;
+		if (changed !== 1) throw new TaskClaimLostError(taskId);
+
+		await tx.$executeRaw`
+			update "AgentInstance"
+			set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp
+			where "currentTaskId"=${taskId}
+		`;
+		for (const uri of outputArtifacts.slice(0, 50)) {
+			await tx.$executeRaw`
+				insert into "AgentArtifact" ("id", "projectId", "runId", "taskId", "kind", "name", "uri", "metadata")
+				select ${crypto.randomUUID()}, "projectId", "runId", "id", 'runtime-output', ${uri.split('/').filter(Boolean).pop() ?? "artifact"}, ${uri}, '{}'::jsonb
+				from "AgentTask" where "id"=${taskId}
+			`;
+		}
+	});
 }
 
 export async function failTask(task: PlatformTask, message: string): Promise<PlatformTaskStatus> {
 	const nextStatus: PlatformTaskStatus = task.attempt < task.maxAttempts ? "QUEUED" : "FAILED";
 	const claimedOwner = task.status === "CLAIMED" ? task.leaseOwner : null;
 	if (task.status === "CLAIMED" && !claimedOwner) throw new TaskClaimLostError(task.id);
+	if (task.status !== "CLAIMED" && task.status !== "RUNNING") throw new TaskClaimLostError(task.id);
 	try {
 		await prisma.$transaction(async (tx) => {
+			const currentRows = await tx.$queryRaw<Array<{ runId: string; status: PlatformTaskStatus; runtimeRunId: string | null; attempt: number; leaseOwner: string | null }>>`
+				select "runId", "status", "runtimeRunId", "attempt", "leaseOwner"
+				from "AgentTask"
+				where "id"=${task.id}
+				for update
+			`;
+			const current = currentRows[0];
+			if (!current || current.status !== task.status || current.attempt !== task.attempt) throw new TaskClaimLostError(task.id);
+			if (task.status === "RUNNING" && current.runtimeRunId !== task.runtimeRunId) throw new TaskClaimLostError(task.id);
+
+			if (task.status === "RUNNING") {
+				await accountLinkedRuntimeUsage(tx, current.runId, current.runtimeRunId);
+			}
+
 			const changed = claimedOwner
 				? await tx.$executeRaw`
 					update "AgentTask"
 					set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null,
 						"lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp,
 						"completedAt"=${nextStatus === "FAILED" ? new Date() : null}
-					where "id"=${task.id} and "status"='CLAIMED' and "leaseOwner"=${claimedOwner}
+					where "id"=${task.id} and "status"='CLAIMED' and "attempt"=${task.attempt} and "leaseOwner"=${claimedOwner}
 					  and "leaseExpiresAt" >= current_timestamp
 				`
 				: await tx.$executeRaw`
@@ -342,11 +405,14 @@ export async function failTask(task: PlatformTask, message: string): Promise<Pla
 					set "status"=${nextStatus}, "runtimeRunId"=null, "leaseOwner"=null, "leaseExpiresAt"=null,
 						"lastError"=${message.slice(0, 4000)}, "updatedAt"=current_timestamp,
 						"completedAt"=${nextStatus === "FAILED" ? new Date() : null}
-					where "id"=${task.id}
+					where "id"=${task.id} and "status"='RUNNING' and "attempt"=${task.attempt}
+					  and "runtimeRunId" is not distinct from ${task.runtimeRunId}
 				`;
 			if (changed !== 1) throw new TaskClaimLostError(task.id);
 			await tx.$executeRaw`
-				update "AgentInstance" set "status"=${nextStatus === "FAILED" ? "FAILED" : "STOPPED"}, "currentTaskId"=null, "updatedAt"=current_timestamp where "currentTaskId"=${task.id}
+				update "AgentInstance"
+				set "status"=${nextStatus === "FAILED" ? "FAILED" : "STOPPED"}, "currentTaskId"=null, "updatedAt"=current_timestamp
+				where "currentTaskId"=${task.id}
 			`;
 		});
 		return nextStatus;
