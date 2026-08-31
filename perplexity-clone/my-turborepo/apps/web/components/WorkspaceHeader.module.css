@@ -7,6 +7,10 @@
   backdrop-filter: blur(18px);
 }
 
+:global(.aira-v2-workspace-stage) .header {
+  display: none;
+}
+
 .inner {
   display: grid;
   grid-template-columns: 1fr auto;
