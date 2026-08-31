@@ -17,7 +17,7 @@
 }
 
 .aira-intelligence-os .aira-v2-nav-group + .aira-v2-nav-group {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .aira-intelligence-os .aira-v2-nav-label {
@@ -35,27 +35,98 @@
 }
 
 .aira-intelligence-os :where(a, button, input, textarea, select):focus-visible {
-  outline: 2px solid rgba(208, 174, 85, 0.72);
+  outline: 2px solid rgba(139, 92, 246, 0.78);
   outline-offset: 2px;
 }
 
 @media (max-width: 900px) {
-  .aira-v2-frame.aira-intelligence-os {
-    grid-template-columns: minmax(0, 1fr);
+  .aira-v2-frame.aira-v2-frame.aira-intelligence-os {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .aira-intelligence-os .aira-v2-rail {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 90;
-    width: min(286px, calc(100vw - 52px));
+  .aira-intelligence-os .aira-v2-rail.aira-v2-rail {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 90 !important;
+    width: min(286px, calc(100vw - 52px)) !important;
+    padding: 14px 12px 12px !important;
     transform: translateX(-105%);
     box-shadow: 24px 0 70px rgba(0, 0, 0, 0.42);
     transition: transform 180ms ease;
   }
 
-  .aira-intelligence-os .aira-v2-rail.is-mobile-open {
+  .aira-intelligence-os .aira-v2-rail.aira-v2-rail.is-mobile-open {
     transform: translateX(0);
+  }
+
+  .aira-intelligence-os .aira-v2-brand.aira-v2-brand {
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    padding: 0 4px !important;
+  }
+
+  .aira-intelligence-os .aira-v2-brand.aira-v2-brand > :first-child {
+    max-width: 42px !important;
+    transform: scale(.82) !important;
+    transform-origin: left center !important;
+  }
+
+  .aira-intelligence-os .aira-v2-brand-copy.aira-v2-brand-copy {
+    display: flex !important;
+    flex: 1 1 auto;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-label.aira-v2-nav-label {
+    display: block !important;
+    margin: 0 8px 6px !important;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-group + .aira-v2-nav-group {
+    margin-top: 18px;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-item.aira-v2-nav-item {
+    min-height: 50px !important;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    padding: 7px 9px !important;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-item.aira-v2-nav-item.is-active::before {
+    left: -13px !important;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy {
+    display: flex !important;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    text-align: left;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy strong {
+    font-size: 11.5px !important;
+    line-height: 1.25;
+    text-align: left;
+  }
+
+  .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy small {
+    display: block !important;
+    margin-top: 2px;
+    font-size: 9.5px !important;
+  }
+
+  .aira-intelligence-os .aira-v2-command-trigger.aira-v2-command-trigger {
+    grid-template-columns: 24px 1fr auto !important;
+    min-height: 42px !important;
+    place-items: center stretch;
+    padding: 7px 9px !important;
+  }
+
+  .aira-intelligence-os .aira-v2-command-trigger.aira-v2-command-trigger span,
+  .aira-intelligence-os .aira-v2-command-trigger.aira-v2-command-trigger kbd {
+    display: inline !important;
   }
 
   .aira-v2-mobile-backdrop {
@@ -73,7 +144,7 @@
     display: grid;
     place-items: center;
     border: 1px solid rgba(255,255,255,.075);
-    background: #15191e;
+    background: #111827;
     color: #aeb3ba;
     cursor: pointer;
   }
@@ -91,35 +162,36 @@
     border-radius: 8px;
   }
 
-  .aira-intelligence-os .aira-v2-main {
+  .aira-intelligence-os .aira-v2-main.aira-v2-main {
     width: 100%;
   }
 
-  .aira-intelligence-os .aira-v2-topbar {
-    padding-inline: 14px;
+  .aira-intelligence-os .aira-v2-topbar.aira-v2-topbar {
+    padding-inline: 14px !important;
   }
 }
 
 @media (max-width: 640px) {
-  .aira-intelligence-os .aira-v2-topbar {
-    height: 58px;
+  .aira-intelligence-os .aira-v2-topbar.aira-v2-topbar {
+    height: 58px !important;
   }
 
   .aira-intelligence-os .aira-v2-topbar-title small,
   .aira-intelligence-os .aira-v2-grounded-status,
   .aira-intelligence-os .aira-v2-topbar-command span,
   .aira-intelligence-os .aira-v2-topbar-command kbd {
-    display: none;
+    display: none !important;
   }
 
-  .aira-intelligence-os .aira-v2-topbar-command {
+  .aira-intelligence-os .aira-v2-topbar-command.aira-v2-topbar-command {
     width: 34px;
     justify-content: center;
-    padding: 0;
+    padding: 0 !important;
   }
 
-  .aira-intelligence-os .aira-v2-stage {
-    min-height: calc(100dvh - 58px);
+  .aira-intelligence-os .aira-v2-workspace-stage.aira-v2-workspace-stage,
+  .aira-intelligence-os .aira-v2-stage.aira-v2-stage {
+    min-height: calc(100dvh - 58px) !important;
   }
 
   .aira-intelligence-os .aira-v2-palette-backdrop {
