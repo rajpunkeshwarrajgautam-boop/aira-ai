@@ -37,7 +37,10 @@ function endpoint(target: AutoGptTarget, path: string): URL {
 	return new URL(`${target.baseUrl.toString().replace(/\/$/, "")}${path}`);
 }
 
-async function readLimitedText(response: Response): Promise<string> {
+async function readLimitedText(
+	response: Response,
+	submissionOutcomeUnknown: boolean,
+): Promise<string> {
 	if (!response.body) return "";
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
@@ -55,7 +58,7 @@ async function readLimitedText(response: Response): Promise<string> {
 				message: "The AutoGPT response exceeded Aira's safe response limit.",
 				status: 502,
 				retryable: false,
-				submissionOutcomeUnknown: true,
+				submissionOutcomeUnknown,
 			});
 		}
 		value += decoder.decode(chunk.value, { stream: true });
@@ -64,7 +67,10 @@ async function readLimitedText(response: Response): Promise<string> {
 	return value + decoder.decode();
 }
 
-function errorForProviderStatus(status: number): AutoGptRequestError {
+function errorForProviderStatus(
+	status: number,
+	submissionOutcomeUnknown: boolean,
+): AutoGptRequestError {
 	if (status === 401 || status === 403) {
 		return new AutoGptRequestError({
 			code: "AUTOGPT_AUTH_FAILED",
@@ -103,6 +109,7 @@ function errorForProviderStatus(status: number): AutoGptRequestError {
 			message: "AutoGPT is rate limiting new requests. Retry shortly.",
 			status: 503,
 			retryable: true,
+			submissionOutcomeUnknown,
 		});
 	}
 	return new AutoGptRequestError({
@@ -110,7 +117,12 @@ function errorForProviderStatus(status: number): AutoGptRequestError {
 		message: "AutoGPT is temporarily unavailable.",
 		status: 502,
 		retryable: true,
+		submissionOutcomeUnknown,
 	});
+}
+
+function submissionStatusMayHideAcceptance(status: number): boolean {
+	return status === 408 || status === 409 || status >= 500;
 }
 
 async function requestJson(
@@ -135,8 +147,13 @@ async function requestJson(
 				...(init.headers ?? {}),
 			},
 		});
-		const raw = await readLimitedText(response);
-		if (!response.ok) throw errorForProviderStatus(response.status);
+		const raw = await readLimitedText(response, submissionOutcomeUnknown);
+		if (!response.ok) {
+			throw errorForProviderStatus(
+				response.status,
+				submissionOutcomeUnknown && submissionStatusMayHideAcceptance(response.status),
+			);
+		}
 		try {
 			return JSON.parse(raw) as unknown;
 		} catch {
@@ -145,7 +162,7 @@ async function requestJson(
 				message: "AutoGPT returned an invalid response.",
 				status: 502,
 				retryable: true,
-				submissionOutcomeUnknown: true,
+				submissionOutcomeUnknown,
 			});
 		}
 	} catch (error) {

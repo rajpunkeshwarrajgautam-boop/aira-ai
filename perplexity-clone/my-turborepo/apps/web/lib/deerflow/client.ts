@@ -126,6 +126,20 @@ function logUpstreamFailure(operation: string, status: number, detail?: string):
 	console.warn("[deerflow:upstream]", JSON.stringify({ operation, status, detail: detail ?? null }));
 }
 
+function invalidResponseError(submissionOutcomeUnknown: boolean): DeerFlowRequestError {
+	return new DeerFlowRequestError({
+		code: "DEERFLOW_INVALID_RESPONSE",
+		message: "DeerFlow returned an invalid response.",
+		status: 502,
+		retryable: true,
+		submissionOutcomeUnknown,
+	});
+}
+
+function submissionStatusMayHideAcceptance(status: number): boolean {
+	return status === 408 || status === 409 || status >= 500;
+}
+
 async function requestJson<T>(options: {
 	readonly config: DeerFlowConfig;
 	readonly ownerUserId: string;
@@ -173,12 +187,18 @@ async function requestJson<T>(options: {
 			message: safeMessageForStatus(response.status),
 			status: response.status,
 			retryable,
-			// A concrete HTTP response proves the Gateway processed the request boundary.
-			submissionOutcomeUnknown: false,
+			// A 408/409/5xx response may be emitted after the Gateway accepted work.
+			// Keep submissions fail-closed unless the response proves rejection.
+			submissionOutcomeUnknown:
+				Boolean(options.submission) && submissionStatusMayHideAcceptance(response.status),
 			upstreamDetail: detail,
 		});
 	}
-	return (await response.json()) as T;
+	try {
+		return (await response.json()) as T;
+	} catch {
+		throw invalidResponseError(Boolean(options.submission));
+	}
 }
 
 export async function checkDeerFlowHealth(config: DeerFlowConfig): Promise<boolean> {
@@ -214,7 +234,10 @@ export async function createDeerFlowThread(
 			metadata: { source: "aira-ai", aira_run_id: localRunId },
 		},
 	});
-	return thread.thread_id;
+	const returnedThreadId =
+		typeof thread?.thread_id === "string" ? thread.thread_id.trim() : "";
+	if (!returnedThreadId) throw invalidResponseError(false);
+	return returnedThreadId;
 }
 
 export async function createDeerFlowRun(
@@ -235,7 +258,7 @@ export async function createDeerFlowRun(
 	};
 	if (config.modelName) context.model_name = config.modelName;
 
-	return requestJson<DeerFlowRun>({
+	const run = await requestJson<DeerFlowRun>({
 		config,
 		ownerUserId,
 		path: `/api/threads/${encodeURIComponent(threadId)}/runs`,
@@ -250,6 +273,17 @@ export async function createDeerFlowRun(
 			if_not_exists: "create",
 		},
 	});
+	if (
+		typeof run?.run_id !== "string" ||
+		!run.run_id.trim() ||
+		typeof run.thread_id !== "string" ||
+		!run.thread_id.trim() ||
+		typeof run.status !== "string" ||
+		!run.status.trim()
+	) {
+		throw invalidResponseError(true);
+	}
+	return run;
 }
 
 export async function getDeerFlowRun(

@@ -181,18 +181,50 @@ test("a transport failure marks the submission outcome unknown", async () => {
 	assert.equal(read.submissionOutcomeUnknown, false);
 });
 
-test("an HTTP response resolves submission ambiguity", async () => {
-	stubFetch(() => json(500, { detail: "boom" }));
-	const error = await createDeerFlowRun(CONFIG, "u", "t", "o", "l").then(
+test("submission responses distinguish proven rejection from ambiguous server failure", async () => {
+	for (const status of [422, 429]) {
+		stubFetch(() => json(status, { detail: "rejected" }));
+		const rejected = await createDeerFlowRun(CONFIG, "u", "t", "o", "l").then(
+			() => null,
+			(caught: unknown) => caught,
+		);
+		assert.ok(rejected instanceof DeerFlowRequestError);
+		assert.equal(rejected.submissionOutcomeUnknown, false, `status ${status} proves rejection`);
+	}
+
+	for (const status of [408, 409, 500, 503]) {
+		stubFetch(() => json(status, { detail: "acceptance unknown" }));
+		const ambiguous = await createDeerFlowRun(CONFIG, "u", "t", "o", "l").then(
+			() => null,
+			(caught: unknown) => caught,
+		);
+		assert.ok(ambiguous instanceof DeerFlowRequestError);
+		assert.equal(
+			ambiguous.submissionOutcomeUnknown,
+			true,
+			`status ${status} may be emitted after remote acceptance`,
+		);
+	}
+});
+
+test("malformed successful submissions remain ambiguous", async () => {
+	stubFetch(() => new Response("not-json", { status: 200 }));
+	const invalidJson = await createDeerFlowRun(CONFIG, "u", "t", "o", "l").then(
 		() => null,
 		(caught: unknown) => caught,
 	);
-	assert.ok(error instanceof DeerFlowRequestError);
-	assert.equal(
-		error.submissionOutcomeUnknown,
-		false,
-		"a concrete status proves the Gateway processed the request boundary",
+	assert.ok(invalidJson instanceof DeerFlowRequestError);
+	assert.equal(invalidJson.code, "DEERFLOW_INVALID_RESPONSE");
+	assert.equal(invalidJson.submissionOutcomeUnknown, true);
+
+	stubFetch(() => json(200, { status: "pending" }));
+	const missingIdentity = await createDeerFlowRun(CONFIG, "u", "t", "o", "l").then(
+		() => null,
+		(caught: unknown) => caught,
 	);
+	assert.ok(missingIdentity instanceof DeerFlowRequestError);
+	assert.equal(missingIdentity.code, "DEERFLOW_INVALID_RESPONSE");
+	assert.equal(missingIdentity.submissionOutcomeUnknown, true);
 });
 
 test("health probing is a boolean that never throws", async () => {
