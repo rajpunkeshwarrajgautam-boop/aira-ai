@@ -3,6 +3,7 @@
 import {
   BarChart3,
   Bot,
+  Boxes,
   Brain,
   Columns2,
   Command,
@@ -12,8 +13,11 @@ import {
   Gauge,
   History,
   Menu,
+  MonitorUp,
+  Network,
   Search,
   Settings2,
+  ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
@@ -38,9 +42,16 @@ const INTELLIGENCE_NAV = [
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
 ] as const;
 
+const AUTOMATION_NAV = [
+  { href: "/browser-agent", label: "Browser Agent", description: "Browser execution readiness", icon: MonitorUp },
+  { href: "/swarms", label: "Swarms", description: "Multi-agent orchestration", icon: Network },
+  { href: "/projects", label: "Projects", description: "Context, runs and artifacts", icon: Boxes },
+] as const;
+
 const SYSTEM_NAV = [
   { href: "/workspace-search", label: "Global Search", description: "Chats, messages and memory", icon: Search },
   { href: "/settings#integrations", label: "Integrations", description: "Providers and runtime status", icon: Settings2 },
+  { href: "/governance", label: "Governance", description: "Enterprise policy readiness", icon: ShieldCheck },
   { href: "/pricing", label: "Plans", description: "Usage and upgrades", icon: CreditCard },
 ] as const;
 
@@ -54,6 +65,7 @@ const ANALYTICS_NAV = {
 type NavigationItem =
   | (typeof OPERATE_NAV)[number]
   | (typeof INTELLIGENCE_NAV)[number]
+  | (typeof AUTOMATION_NAV)[number]
   | (typeof SYSTEM_NAV)[number]
   | typeof ANALYTICS_NAV;
 
@@ -138,7 +150,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   );
 
   const allCommands = useMemo<readonly NavigationItem[]>(
-    () => [...OPERATE_NAV, ...INTELLIGENCE_NAV, ...systemNav],
+    () => [...OPERATE_NAV, ...INTELLIGENCE_NAV, ...AUTOMATION_NAV, ...systemNav],
     [systemNav],
   );
 
@@ -221,6 +233,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
         <nav className="aira-v2-nav" aria-label="Primary workspace">
           <NavGroup label="Operate" items={OPERATE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
           <NavGroup label="Intelligence" items={INTELLIGENCE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+          <NavGroup label="Automation" items={AUTOMATION_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
           <NavGroup label="System" items={systemNav} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
         </nav>
 
@@ -251,10 +264,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             </div>
           </div>
           <div className="aira-v2-topbar-actions">
-            <span className="aira-v2-grounded-status">
-              <span className="aira-v2-status-dot" aria-hidden />
-              AIRA online
-            </span>
+            <span className="aira-v2-grounded-status">AIRA workspace</span>
             <button
               type="button"
               className="aira-v2-topbar-command"
