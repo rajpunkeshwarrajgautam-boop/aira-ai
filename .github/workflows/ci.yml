@@ -122,14 +122,11 @@ jobs:
 
       - name: Confirm the free-tier module creates no billable resource
         run: |
-          # These resource types all bill on OCI. None may appear in the module
-          # that exists specifically to cost nothing.
           if grep -rnE 'oci_core_nat_gateway|oci_load_balancer|oci_network_load_balancer|oci_database_autonomous_database|oci_containerengine_cluster|oci_database_db_system' \
                infra/deerflow-runner/terraform-oci; then
             echo "::error::A billable OCI resource appears in the Always Free module."
             exit 1
           fi
-          # The shape lock and the SSH guard must both survive.
           grep -q 'var.shape == "VM.Standard.A1.Flex"' infra/deerflow-runner/terraform-oci/variables.tf \
             || { echo "::error::The Always Free shape lock was removed."; exit 1; }
           grep -q 'contains(var.admin_ipv4_cidrs, "0.0.0.0/0")' infra/deerflow-runner/terraform-oci/variables.tf \
@@ -138,9 +135,6 @@ jobs:
 
       - name: Confirm the sandbox image is pinned, not :latest
         run: |
-          # Upstream's :latest on this mirror is a frozen pre-1.9.3 digest that
-          # lacks the /v1/bash/* routes, and upstream's own Compose defaults to
-          # it. The override must keep an explicit version.
           if grep -nE 'all-in-one-sandbox:latest' infra/deerflow-runner/compose.free-tier.yaml infra/deerflow-runner/config.free-tier.example.yaml; then
             echo "::error::The AIO sandbox image must be pinned to a version, not :latest."
             exit 1
@@ -236,6 +230,9 @@ jobs:
       AIRA_ACME_EMAIL: ci@example.invalid
       AIRA_CONTROL_HOST: control.203-0-113-10.sslip.io
       AIRA_SANDBOX_HOST: sandbox.203-0-113-10.sslip.io
+      AIRA_BROWSER_HOST: browser.203-0-113-10.sslip.io
+      AIRA_TERMINAL_HOST: terminal.203-0-113-10.sslip.io
+      AIRA_TERMINAL_PORT: "8093"
       AIRA_DEERFLOW_HOST: deerflow.203-0-113-10.sslip.io
       AIRA_AUTOGPT_PRIMARY_HOST: autogpt-primary.203-0-113-10.sslip.io
       AIRA_AUTOGPT_SECONDARY_HOST: autogpt-secondary.203-0-113-10.sslip.io
@@ -270,10 +267,10 @@ jobs:
       - name: Validate the edge Caddyfile
         run: |
           docker run --rm \
-            -e AIRA_ACME_EMAIL -e AIRA_CONTROL_HOST -e AIRA_SANDBOX_HOST \
-            -e AIRA_DEERFLOW_HOST -e AIRA_AUTOGPT_PRIMARY_HOST -e AIRA_AUTOGPT_SECONDARY_HOST \
-            -e AIRA_CONTROL_PORT=8090 -e AIRA_SANDBOX_PORT=8091 -e AIRA_DEERFLOW_PORT=2026 \
-            -e AIRA_AUTOGPT_PRIMARY_PORT=8096 -e AIRA_AUTOGPT_SECONDARY_PORT=8097 \
+            -e AIRA_ACME_EMAIL -e AIRA_CONTROL_HOST -e AIRA_SANDBOX_HOST -e AIRA_BROWSER_HOST \
+            -e AIRA_TERMINAL_HOST -e AIRA_DEERFLOW_HOST -e AIRA_AUTOGPT_PRIMARY_HOST -e AIRA_AUTOGPT_SECONDARY_HOST \
+            -e AIRA_CONTROL_PORT=8090 -e AIRA_SANDBOX_PORT=8091 -e AIRA_BROWSER_PORT=8092 -e AIRA_TERMINAL_PORT \
+            -e AIRA_DEERFLOW_PORT=2026 -e AIRA_AUTOGPT_PRIMARY_PORT=8096 -e AIRA_AUTOGPT_SECONDARY_PORT=8097 \
             -v "$PWD/infra/aira-runtime/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2.10.0-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
