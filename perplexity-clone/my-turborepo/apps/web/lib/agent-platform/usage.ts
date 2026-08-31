@@ -30,7 +30,9 @@ export function usageFromRuntimeResult(result: unknown): UsageDelta {
  * Keeping this pre-hook side-effect free prevents concurrent coordinators from
  * double-counting tokens/cost before one of them wins the task row lock.
  */
-export function applyRuntimeUsage(_runId: string, _usage: UsageDelta): Promise<void> {
+export function applyRuntimeUsage(runId: string, usage: UsageDelta): Promise<void> {
+	void runId;
+	void usage;
 	return Promise.resolve();
 }
 

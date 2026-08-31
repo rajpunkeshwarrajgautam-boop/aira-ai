@@ -161,7 +161,7 @@ test(
 			cachedTokensUsed: bigint;
 			knownCostUsd: string;
 		}>>`
-			select "inputTokensUsed", "outputTokensUsed", "cachedTokensUsed", "knownCostUsd"::text as "knownCostUsd"
+			select "inputTokensUsed", "outputTokensUsed", "cachedTokensUsed", trim_scale("knownCostUsd")::text as "knownCostUsd"
 			from "AgentPlatformRun" where "id"=${completionRun.id}
 		`;
 		assert.deepEqual(completionUsage[0], {
@@ -178,6 +178,20 @@ test(
 			() => completeTask(completionTask.id, ["artifact://result.json"]),
 			(error: unknown) => error instanceof TaskClaimLostError,
 		);
+		const completionUsageAfterReplay = await prisma.$queryRaw<Array<{
+			inputTokensUsed: bigint;
+			outputTokensUsed: bigint;
+			cachedTokensUsed: bigint;
+			knownCostUsd: string;
+		}>>`
+			select "inputTokensUsed", "outputTokensUsed", "cachedTokensUsed", trim_scale("knownCostUsd")::text as "knownCostUsd"
+			from "AgentPlatformRun" where "id"=${completionRun.id}
+		`;
+		assert.deepEqual(completionUsageAfterReplay, completionUsage);
+		const artifactCountAfterReplay = await prisma.$queryRaw<Array<{ count: bigint }>>`
+			select count(*)::bigint as "count" from "AgentArtifact" where "taskId"=${completionTask.id}
+		`;
+		assert.equal(artifactCountAfterReplay[0]?.count, 1n);
 
 		// The same terminal fence also protects definitive remote failures/retries
 		// from double-counting provider usage under concurrent reconciliation.
@@ -218,7 +232,7 @@ test(
 			outputTokensUsed: bigint;
 			knownCostUsd: string;
 		}>>`
-			select "inputTokensUsed", "outputTokensUsed", "knownCostUsd"::text as "knownCostUsd"
+			select "inputTokensUsed", "outputTokensUsed", trim_scale("knownCostUsd")::text as "knownCostUsd"
 			from "AgentPlatformRun" where "id"=${failureRun.id}
 		`;
 		assert.deepEqual(failureUsage[0], {
@@ -226,5 +240,18 @@ test(
 			outputTokensUsed: 3n,
 			knownCostUsd: "0.1",
 		});
+		await assert.rejects(
+			() => failTask(runningFailureTask, "late duplicate runtime failure"),
+			(error: unknown) => error instanceof TaskClaimLostError,
+		);
+		const failureUsageAfterReplay = await prisma.$queryRaw<Array<{
+			inputTokensUsed: bigint;
+			outputTokensUsed: bigint;
+			knownCostUsd: string;
+		}>>`
+			select "inputTokensUsed", "outputTokensUsed", trim_scale("knownCostUsd")::text as "knownCostUsd"
+			from "AgentPlatformRun" where "id"=${failureRun.id}
+		`;
+		assert.deepEqual(failureUsageAfterReplay, failureUsage);
 	},
 );
