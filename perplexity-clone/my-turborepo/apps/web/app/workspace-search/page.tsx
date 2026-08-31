@@ -1,21 +1,48 @@
 "use client";
 
-import { Brain, Loader2, MessageSquare, Search as SearchIcon } from "lucide-react";
+import {
+  Brain,
+  FileText,
+  Loader2,
+  MessageSquare,
+  MessagesSquare,
+  Search as SearchIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
+import styles from "./workspace-search.module.css";
 
 type SearchResult = {
-  type: "conversation" | "message" | "memory";
-  id: string;
-  title: string;
-  snippet: string;
-  role?: string;
-  updatedAt?: string;
-  href: string;
+  readonly type: "conversation" | "message" | "memory" | "knowledge";
+  readonly id: string;
+  readonly title: string;
+  readonly snippet: string;
+  readonly role?: string;
+  readonly status?: string;
+  readonly updatedAt?: string;
+  readonly href: string;
 };
+
+function resultIcon(type: SearchResult["type"]) {
+  if (type === "memory") return Brain;
+  if (type === "knowledge") return FileText;
+  if (type === "conversation") return MessagesSquare;
+  return MessageSquare;
+}
+
+function relativeDate(value?: string): string {
+  if (!value) return "";
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return "";
+  const delta = Date.now() - timestamp;
+  if (delta < 60_000) return "Now";
+  if (delta < 3_600_000) return `${Math.max(1, Math.floor(delta / 60_000))}m`;
+  if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h`;
+  if (delta < 604_800_000) return `${Math.floor(delta / 86_400_000)}d`;
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(timestamp));
+}
 
 export default function WorkspaceSearchPage() {
   const [query, setQuery] = useState("");
@@ -25,40 +52,119 @@ export default function WorkspaceSearchPage() {
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) { setResults([]); setMessage(null); return; }
+    if (q.length < 2) {
+      setResults([]);
+      setMessage(null);
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void fetch(`/api/global-search?q=${encodeURIComponent(q)}`, { cache: "no-store", signal: controller.signal })
-        .then(async (r) => {
-          const data = (await r.json()) as { results?: SearchResult[]; error?: { message?: string } };
-          if (!r.ok) throw new Error(data.error?.message ?? "Search failed.");
+      void fetch(`/api/global-search?q=${encodeURIComponent(q)}`, {
+        cache: "no-store",
+        credentials: "include",
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          const data = (await response.json()) as {
+            results?: SearchResult[];
+            error?: { message?: string };
+          };
+          if (!response.ok) throw new Error(data.error?.message ?? "Search failed.");
           setResults(data.results ?? []);
           setMessage(null);
         })
-        .catch((e: unknown) => {
-          if (e instanceof DOMException && e.name === "AbortError") return;
-          setMessage(e instanceof Error ? e.message : "Search failed.");
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setMessage(error instanceof Error ? error.message : "Search failed.");
+          setResults([]);
         })
-        .finally(() => setLoading(false));
-    }, 260);
-    return () => { window.clearTimeout(timer); controller.abort(); };
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
+
+  const resultKinds = useMemo(() => new Set(results.map((result) => result.type)).size, [results]);
+  const hasQuery = query.trim().length >= 2;
 
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <main className="min-h-[calc(100dvh-58px)] bg-[#0a0c0f] px-5 py-7 md:px-8">
-          <div className="mx-auto max-w-5xl">
-            <div className="mb-7"><p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">Global search</p><h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">Find anything AIRA remembers</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9098]">Search persisted conversation titles, individual messages, and long-term memory from one place.</p></div>
-            <div className="relative mb-5"><SearchIcon className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#6d7279]" /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search conversations and memory…" className="h-14 w-full rounded-2xl border border-white/[0.09] bg-[#101318] pl-11 pr-12 text-sm text-[#f0f0ed] outline-none placeholder:text-[#626770] focus:border-[#c9a84c]/45" />{loading ? <Loader2 className="absolute right-4 top-1/2 size-4 -translate-y-1/2 animate-spin text-[#a98b43]" /> : null}</div>
-            {message ? <div className="mb-4 rounded-xl border border-red-400/15 bg-red-400/[0.05] px-4 py-3 text-sm text-red-200">{message}</div> : null}
-            <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1216]">
-              <div className="border-b border-white/[0.07] px-5 py-4 text-xs text-[#737880]">{query.trim().length >= 2 ? `${results.length} matches` : "Type at least two characters"}</div>
-              {results.length ? <ul className="divide-y divide-white/[0.06]">{results.map((result) => {
-                const Icon = result.type === "memory" ? Brain : MessageSquare;
-                return <li key={`${result.type}:${result.id}`}><Link href={result.href} className="flex gap-4 px-5 py-4 transition hover:bg-white/[0.025]"><span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-[#171a1f] text-[#9ca1a8]"><Icon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-medium text-[#e9e9e6]">{result.title}</p><span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[#777c84]">{result.type}</span>{result.role ? <span className="text-[10px] uppercase text-[#686d75]">{result.role}</span> : null}</div><p className="mt-1 line-clamp-2 text-sm leading-6 text-[#858a92]">{result.snippet}</p></div></Link></li>;
-              })}</ul> : <div className="px-6 py-16 text-center text-sm text-[#686d75]">{query.trim().length >= 2 && !loading ? "No matches found." : "Search your AIRA workspace."}</div>}
+        <main className={styles.page}>
+          <div className={styles.inner}>
+            <header className={styles.header}>
+              <p className={styles.eyebrow}>Workspace search</p>
+              <h1 className={styles.title}>Find work across AIRA</h1>
+              <p className={styles.description}>
+                Search saved conversations, individual messages, long-term memory, and indexed file metadata from one place.
+              </p>
+            </header>
+
+            <div className={styles.search}>
+              <SearchIcon className={styles.searchIcon} aria-hidden />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search conversations, messages, memory, files…"
+                className={styles.input}
+                aria-label="Search AIRA workspace"
+                aria-describedby="workspace-search-summary"
+              />
+              {loading ? <Loader2 className={styles.spinner} aria-hidden /> : null}
+            </div>
+
+            {message ? <p className={styles.error} role="alert">{message}</p> : null}
+
+            <section className={styles.results} aria-label="Workspace search results">
+              <div className={styles.summary} id="workspace-search-summary" aria-live="polite">
+                <span>
+                  {!hasQuery
+                    ? "Type at least two characters"
+                    : loading
+                      ? "Searching your workspace…"
+                      : `${results.length} ${results.length === 1 ? "match" : "matches"}${results.length ? ` across ${resultKinds} ${resultKinds === 1 ? "type" : "types"}` : ""}`}
+                </span>
+                <kbd>⌘K</kbd>
+              </div>
+
+              {results.length ? (
+                <ul className={styles.list}>
+                  {results.map((result) => {
+                    const Icon = resultIcon(result.type);
+                    return (
+                      <li key={`${result.type}:${result.id}`} className={styles.row}>
+                        <Link href={result.href} className={styles.result}>
+                          <span className={styles.icon} aria-hidden><Icon className="size-4" /></span>
+                          <span className={styles.copy}>
+                            <span className={styles.resultTitle}>{result.title}</span>
+                            <span className={styles.meta}>
+                              <span className={styles.type}>{result.type}</span>
+                              {result.role ? <span>{result.role}</span> : null}
+                              {result.status ? <span>{result.status}</span> : null}
+                            </span>
+                            <span className={styles.snippet}>{result.snippet}</span>
+                          </span>
+                          <span className={styles.time}>{relativeDate(result.updatedAt)}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className={styles.empty}>
+                  <strong>{hasQuery && !loading ? "No matching workspace content" : "Search your AIRA workspace"}</strong>
+                  <span>{hasQuery && !loading ? "Try a broader phrase or search a different workspace term." : "Conversation, memory, and available knowledge results will appear here."}</span>
+                </div>
+              )}
             </section>
           </div>
         </main>
