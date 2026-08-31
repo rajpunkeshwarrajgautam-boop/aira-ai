@@ -3,18 +3,19 @@
 import { Building2, CheckCircle2, Cpu, Loader2, Mail, RefreshCw, Send, XCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
+import { cn } from "@/lib/cn";
+import styles from "./local-ai.module.css";
 
 type RuntimeStatus = {
-  enabled: boolean;
-  configured: boolean;
-  localFirst: boolean;
-  required: boolean;
-  model: string | null;
-  health: { reachable: boolean; status: string; latencyMs: number | null; error?: string };
-  models: string[];
-  capabilities: Record<string, boolean>;
+  readonly enabled: boolean;
+  readonly configured: boolean;
+  readonly localFirst: boolean;
+  readonly required: boolean;
+  readonly model: string | null;
+  readonly health: { readonly reachable: boolean; readonly status: string; readonly latencyMs: number | null; readonly error?: string };
+  readonly models: string[];
+  readonly capabilities: Record<string, boolean>;
 };
 
 type Mode = "chat" | "lead" | "email";
@@ -22,12 +23,23 @@ type Mode = "chat" | "lead" | "email";
 async function postJson(path: string, body: unknown): Promise<unknown> {
   const response = await fetch(path, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await response.json()) as { error?: { message?: string } } & Record<string, unknown>;
-  if (!response.ok) throw new Error(data.error?.message ?? "Request failed.");
+  const data = (await response.json().catch(() => null)) as ({ error?: { message?: string } } & Record<string, unknown>) | null;
+  if (!response.ok) throw new Error(data?.error?.message ?? "Request failed.");
   return data;
+}
+
+function renderResult(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value === null || value === undefined) return "";
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 export default function LocalAiPage() {
@@ -41,18 +53,22 @@ export default function LocalAiPage() {
   const [lead, setLead] = useState({ name: "", company: "", role: "", source: "", notes: "" });
   const [email, setEmail] = useState({ from: "", subject: "", body: "" });
 
-  const loadStatus = useCallback(() => {
+  const loadStatus = useCallback(async () => {
     setStatusError(null);
-    void fetch("/api/local-ai/status", { cache: "no-store" })
-      .then(async (response) => {
-        const data = (await response.json()) as RuntimeStatus & { error?: { message?: string } };
-        if (!response.ok) throw new Error(data.error?.message ?? "Could not load local AI status.");
-        setStatus(data);
-      })
-      .catch((caught: unknown) => setStatusError(caught instanceof Error ? caught.message : "Could not load local AI status."));
+    try {
+      const response = await fetch("/api/local-ai/status", { credentials: "include", cache: "no-store" });
+      const data = (await response.json().catch(() => null)) as (RuntimeStatus & { error?: { message?: string } }) | null;
+      if (!response.ok || !data) throw new Error(data?.error?.message ?? "Could not load local AI status.");
+      setStatus(data);
+    } catch (caught) {
+      setStatus(null);
+      setStatusError(caught instanceof Error ? caught.message : "Could not load local AI status.");
+    }
   }, []);
 
-  useEffect(() => loadStatus(), [loadStatus]);
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
 
   const run = async () => {
     setLoading(true);
@@ -61,7 +77,7 @@ export default function LocalAiPage() {
     try {
       if (mode === "chat") {
         if (prompt.trim().length < 2) throw new Error("Enter a task for the local worker.");
-        setResult(await postJson("/api/local-ai/chat", { prompt, useWorkspaceContext: true, useTools: true }));
+        setResult(await postJson("/api/local-ai/chat", { prompt: prompt.trim(), useWorkspaceContext: true, useTools: true }));
       } else if (mode === "lead") {
         if (lead.notes.trim().length < 2) throw new Error("Add lead notes to qualify the prospect.");
         setResult(await postJson("/api/local-ai/business/lead", lead));
@@ -77,49 +93,125 @@ export default function LocalAiPage() {
   };
 
   const reachable = Boolean(status?.health.reachable);
+  const resultProvider = result && typeof result === "object" && "provider" in result
+    ? String((result as { provider?: unknown }).provider ?? "")
+    : null;
 
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <main className="min-h-[calc(100dvh-58px)] bg-[#0a0c0f] px-5 py-7 md:px-8">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
+        <main className={styles.page}>
+          <div className={styles.inner}>
+            <header className={styles.header}>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">Virexa local intelligence</p>
-                <h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">Local AI Engine</h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#8b9098]">Run routine private work on MiniCPM through llama.cpp, search your AIRA memory and knowledge with tools, and fall back to stronger configured providers when the task is not suitable for the 1B worker.</p>
+                <p className={styles.eyebrow}>Private intelligence</p>
+                <h1 className={styles.title}>Local AI Engine</h1>
+                <p className={styles.description}>
+                  Run supported private work through the configured llama.cpp worker. This surface reports the real local runtime state and invokes the existing chat, lead-qualification and email-triage endpoints without exposing runtime credentials.
+                </p>
               </div>
-              <button type="button" onClick={loadStatus} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.09] bg-[#111419] px-3 py-2 text-xs font-medium text-[#c8c9c6] hover:bg-[#171a1f]"><RefreshCw className="size-3.5" />Refresh status</button>
-            </div>
+              <button type="button" onClick={() => void loadStatus()} className={styles.button}>
+                <RefreshCw className="size-3.5" aria-hidden /> Refresh status
+              </button>
+            </header>
 
-            {statusError ? <div className="mb-5 rounded-xl border border-red-400/15 bg-red-400/[0.05] px-4 py-3 text-sm text-red-200">{statusError}</div> : null}
+            {statusError ? <p className={styles.statusError} role="alert">{statusError}</p> : null}
 
-            <section className="mb-5 grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5 lg:col-span-2">
-                <div className="flex flex-wrap items-center gap-4">
-                  <span className={`grid size-11 place-items-center rounded-xl ${reachable ? "bg-emerald-400/[0.08] text-emerald-300" : "bg-[#181b20] text-[#777c84]"}`}><Cpu className="size-5" /></span>
-                  <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#eeeeeb]">{status?.model ?? "MiniCPM / llama.cpp"}</p><p className="mt-1 text-xs text-[#72777f]">{status ? `${status.health.status}${status.health.latencyMs !== null ? ` · ${status.health.latencyMs} ms health check` : ""}` : "Checking runtime…"}</p></div>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${reachable ? "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-300" : "border-white/[0.08] bg-[#12151a] text-[#747981]"}`}>{reachable ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}{reachable ? "Local runtime online" : "Local runtime offline"}</span>
+            <section className={styles.statusGrid} aria-label="Local runtime status">
+              <article className={styles.panel}>
+                <div className={styles.runtime}>
+                  <span className={cn(styles.runtimeIcon, reachable && styles.runtimeOnline)}>
+                    <Cpu className="size-5" aria-hidden />
+                  </span>
+                  <div className={styles.runtimeCopy}>
+                    <strong>{status?.model ?? "Configured local model"}</strong>
+                    <span>{status ? `${status.health.status}${status.health.latencyMs !== null ? ` · ${status.health.latencyMs} ms health latency` : ""}` : "Checking runtime…"}</span>
+                  </div>
+                  <span className={cn(styles.badge, reachable && styles.badgeOn)}>
+                    {reachable ? <CheckCircle2 className="size-3.5" aria-hidden /> : <XCircle className="size-3.5" aria-hidden />}
+                    {reachable ? "Online" : status?.configured ? "Offline" : "Not configured"}
+                  </span>
                 </div>
-                {status?.health.error ? <p className="mt-4 rounded-lg bg-[#0b0e11] px-3 py-2 text-xs leading-5 text-[#858a92]">{status.health.error}</p> : null}
-              </div>
-              <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#777c84]">Routing policy</p><dl className="mt-4 grid gap-2 text-xs"><div className="flex justify-between"><dt className="text-[#72777f]">Local first</dt><dd className="text-[#d4d6d7]">{status?.localFirst ? "On" : "Selective"}</dd></div><div className="flex justify-between"><dt className="text-[#72777f]">Cloud fallback</dt><dd className="text-[#d4d6d7]">{status?.required ? "Off" : "On"}</dd></div><div className="flex justify-between"><dt className="text-[#72777f]">Tool calling</dt><dd className="text-[#d4d6d7]">Enabled</dd></div><div className="flex justify-between"><dt className="text-[#72777f]">Workspace RAG</dt><dd className="text-[#d4d6d7]">Enabled</dd></div></dl></div>
+                {status?.health.error ? <p className={styles.healthError}>{status.health.error}</p> : null}
+              </article>
+
+              <article className={styles.panel}>
+                <p className={styles.policyTitle}>Routing policy</p>
+                <dl className={styles.facts}>
+                  <div className={styles.fact}><dt>Local first</dt><dd>{status?.localFirst ? "On" : "Selective"}</dd></div>
+                  <div className={styles.fact}><dt>Cloud fallback</dt><dd>{status?.required ? "Off" : "Allowed"}</dd></div>
+                  <div className={styles.fact}><dt>Configured</dt><dd>{status?.configured ? "Yes" : "No"}</dd></div>
+                  <div className={styles.fact}><dt>Advertised capabilities</dt><dd>{status ? Object.values(status.capabilities).filter(Boolean).length : "—"}</dd></div>
+                </dl>
+              </article>
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1216]">
-              <div className="flex flex-wrap gap-2 border-b border-white/[0.07] px-4 py-3">
-                {(["chat", "lead", "email"] as const).map((item) => <button key={item} type="button" onClick={() => { setMode(item); setResult(null); setError(null); }} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${mode === item ? "bg-[#201d15] text-[#d7b85d]" : "text-[#7f848c] hover:bg-[#15181d] hover:text-[#c9cbcc]"}`}>{item === "chat" ? <Cpu className="size-3.5" /> : item === "lead" ? <Building2 className="size-3.5" /> : <Mail className="size-3.5" />}{item === "chat" ? "Local workspace" : item === "lead" ? "Lead worker" : "Email triage"}</button>)}
+            <section className={styles.workspace} aria-label="Local AI workers">
+              <div className={styles.tabs} role="tablist" aria-label="Local AI work mode">
+                {(["chat", "lead", "email"] as const).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === item}
+                    onClick={() => { setMode(item); setResult(null); setError(null); }}
+                    className={cn(styles.tab, mode === item && styles.tabActive)}
+                  >
+                    {item === "chat" ? <Cpu className="size-3.5" aria-hidden /> : item === "lead" ? <Building2 className="size-3.5" aria-hidden /> : <Mail className="size-3.5" aria-hidden />}
+                    {item === "chat" ? "Local workspace" : item === "lead" ? "Lead worker" : "Email triage"}
+                  </button>
+                ))}
               </div>
 
-              <div className="grid gap-0 lg:grid-cols-[1.05fr_.95fr]">
-                <div className="border-b border-white/[0.07] p-5 lg:border-b-0 lg:border-r">
-                  {mode === "chat" ? <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={13} placeholder="Ask MiniCPM to summarize, extract, classify, rewrite, search Virexa memory, or work with your uploaded knowledge…" className="w-full resize-y rounded-xl border border-white/[0.08] bg-[#0a0d10] px-4 py-3 text-sm leading-6 text-[#e7e8e5] outline-none placeholder:text-[#555b63] focus:border-[#a98b43]/40" /> : null}
-                  {mode === "lead" ? <div className="grid gap-3"><div className="grid gap-3 sm:grid-cols-2"><input value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} placeholder="Lead name" className="rounded-lg border border-white/[0.08] bg-[#0a0d10] px-3 py-2.5 text-sm text-[#e7e8e5] outline-none" /><input value={lead.company} onChange={(e) => setLead({ ...lead, company: e.target.value })} placeholder="Company" className="rounded-lg border border-white/[0.08] bg-[#0a0d10] px-3 py-2.5 text-sm text-[#e7e8e5] outline-none" /><input value={lead.role} onChange={(e) => setLead({ ...lead, role: e.target.value })} placeholder="Role" className="rounded-lg border border-white/[0.08] bg-[#0a0d10] px-3 py-2.5 text-sm text-[#e7e8e5] outline-none" /><input value={lead.source} onChange={(e) => setLead({ ...lead, source: e.target.value })} placeholder="Source" className="rounded-lg border border-white/[0.08] bg-[#0a0d10] px-3 py-2.5 text-sm text-[#e7e8e5] outline-none" /></div><textarea value={lead.notes} onChange={(e) => setLead({ ...lead, notes: e.target.value })} rows={8} placeholder="Paste prospect notes, bio, requirements, or CRM context…" className="resize-y rounded-xl border border-white/[0.08] bg-[#0a0d10] px-4 py-3 text-sm leading-6 text-[#e7e8e5] outline-none placeholder:text-[#555b63]" /></div> : null}
-                  {mode === "email" ? <div className="grid gap-3"><input value={email.from} onChange={(e) => setEmail({ ...email, from: e.target.value })} placeholder="From" className="rounded-lg border border-white/[0.08] bg-[#0a0d10] px-3 py-2.5 text-sm text-[#e7e8e5] outline-none" /><input value={email.subject} onChange={(e) => setEmail({ ...email, subject: e.target.value })} placeholder="Subject" className="rounded-lg border border-white/[0.08] bg-[#0a0d10] px-3 py-2.5 text-sm text-[#e7e8e5] outline-none" /><textarea value={email.body} onChange={(e) => setEmail({ ...email, body: e.target.value })} rows={8} placeholder="Paste the email body…" className="resize-y rounded-xl border border-white/[0.08] bg-[#0a0d10] px-4 py-3 text-sm leading-6 text-[#e7e8e5] outline-none placeholder:text-[#555b63]" /></div> : null}
-                  <button type="button" disabled={loading} onClick={() => void run()} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#c3a24a] px-4 py-2.5 text-sm font-semibold text-[#11110e] hover:bg-[#d0ae50] disabled:cursor-not-allowed disabled:opacity-50">{loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{loading ? "Running…" : "Run worker"}</button>
-                  {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+              <div className={styles.split}>
+                <div className={styles.inputPane}>
+                  {mode === "chat" ? (
+                    <label>
+                      <span className="sr-only">Local AI task</span>
+                      <textarea
+                        value={prompt}
+                        onChange={(event) => setPrompt(event.target.value)}
+                        rows={12}
+                        placeholder="Ask the local worker to summarize, extract, classify, rewrite, use workspace context, or call supported tools…"
+                        className={styles.textarea}
+                      />
+                    </label>
+                  ) : null}
+
+                  {mode === "lead" ? (
+                    <div className={styles.fieldGrid}>
+                      <div className={styles.fieldGrid2}>
+                        <input value={lead.name} onChange={(event) => setLead({ ...lead, name: event.target.value })} placeholder="Lead name" className={styles.input} aria-label="Lead name" />
+                        <input value={lead.company} onChange={(event) => setLead({ ...lead, company: event.target.value })} placeholder="Company" className={styles.input} aria-label="Company" />
+                        <input value={lead.role} onChange={(event) => setLead({ ...lead, role: event.target.value })} placeholder="Role" className={styles.input} aria-label="Role" />
+                        <input value={lead.source} onChange={(event) => setLead({ ...lead, source: event.target.value })} placeholder="Source" className={styles.input} aria-label="Source" />
+                      </div>
+                      <textarea value={lead.notes} onChange={(event) => setLead({ ...lead, notes: event.target.value })} rows={8} placeholder="Prospect notes, bio, requirements, or CRM context…" className={styles.textarea} aria-label="Lead notes" />
+                    </div>
+                  ) : null}
+
+                  {mode === "email" ? (
+                    <div className={styles.fieldGrid}>
+                      <input value={email.from} onChange={(event) => setEmail({ ...email, from: event.target.value })} placeholder="From" className={styles.input} aria-label="Email sender" />
+                      <input value={email.subject} onChange={(event) => setEmail({ ...email, subject: event.target.value })} placeholder="Subject" className={styles.input} aria-label="Email subject" />
+                      <textarea value={email.body} onChange={(event) => setEmail({ ...email, body: event.target.value })} rows={8} placeholder="Paste the email body…" className={styles.textarea} aria-label="Email body" />
+                    </div>
+                  ) : null}
+
+                  <button type="button" disabled={loading || !reachable} onClick={() => void run()} className={styles.primary}>
+                    {loading ? <Loader2 className={cn("size-4", styles.spin)} aria-hidden /> : <Send className="size-4" aria-hidden />}
+                    {loading ? "Running…" : "Run worker"}
+                  </button>
+                  {error ? <p className={styles.error} role="alert">{error}</p> : null}
                 </div>
-                <div className="min-h-[360px] bg-[#0b0e11] p-5"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#777c84]">Result</p>{result && typeof result === "object" && result !== null && "provider" in result ? <span className="rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-[#858a92]">{String((result as { provider?: unknown }).provider)}</span> : null}</div>{result ? <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-[#d6d8d9]">{typeof result === "object" ? JSON.stringify(result, null, 2) : String(result)}</pre> : <p className="text-sm leading-6 text-[#656b73]">Run a task to see the local worker output, routing decision, model, and fallback information.</p>}</div>
+
+                <div className={styles.resultPane}>
+                  <div className={styles.resultHeader}>
+                    <span>Result</span>
+                    {resultProvider ? <span className={styles.provider}>{resultProvider}</span> : null}
+                  </div>
+                  {result ? <pre className={styles.result}>{renderResult(result)}</pre> : <p className={styles.empty}>Run a supported task to inspect the worker output and any routing information returned by the server.</p>}
+                </div>
               </div>
             </section>
           </div>
