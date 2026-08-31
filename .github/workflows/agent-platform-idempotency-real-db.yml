@@ -1,0 +1,107 @@
+name: Agent Platform Idempotency REAL_DB
+
+on:
+  pull_request:
+    paths:
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/agent-platform-idempotency-real-db.yml"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/store.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/usage.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idempotency-real-db.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-platform-idempotency-real-db-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  idempotency-real-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aira_idempotency_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d aira_idempotency_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/aira_idempotency_ci?schema=public
+      PSQL_URL: postgresql://postgres:postgres@127.0.0.1:5432/aira_idempotency_ci
+      PGPASSWORD: postgres
+      AIRA_REAL_DB_RECOVERY_TESTS: "1"
+      DATABASE_POOL_MAX: "4"
+      NODE_ENV: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Prepare migration principals
+        run: |
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists extensions;
+          do $$
+          begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin bypassrls;
+            end if;
+          end
+          $$;
+          SQL
+
+      - name: Materialize CI-only historical baseline
+        run: |
+          test ! -e prisma/migrations/20260429_initial_schema || {
+            echo "::error::Historical baseline must remain outside committed Prisma migrations."
+            exit 1
+          }
+          mkdir prisma/migrations/20260429_initial_schema
+          cp prisma/baseline/20260429_initial_schema.sql prisma/migrations/20260429_initial_schema/migration.sql
+
+      - name: Apply complete schema
+        run: pnpm exec prisma migrate deploy
+
+      - name: Prove duplicate execution fences on real PostgreSQL
+        run: |
+          pnpm --filter web run precheck-types
+          pnpm --filter web exec node --import ./test/resolver.mjs --test ./test/agent-platform-idempotency-real-db.test.ts
