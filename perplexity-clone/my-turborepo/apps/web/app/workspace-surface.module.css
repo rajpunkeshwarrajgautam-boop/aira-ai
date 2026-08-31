@@ -1,0 +1,35 @@
+.page { min-height:calc(100dvh - 58px); background:hsl(var(--background)); color:hsl(var(--content-primary)); padding:28px 20px 48px; }
+.inner { width:min(100%,1120px); margin:0 auto; display:grid; gap:14px; }
+.facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.facts > div { border:1px solid hsl(var(--border-subtle)); border-radius:var(--aira-radius-md); background:hsl(var(--surface-inset)); padding:10px 11px; }
+.facts span { display:block; color:hsl(var(--content-tertiary)); font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+.facts strong { display:block; margin-top:4px; color:hsl(var(--content-primary)); font-size:11px; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.secondary { display:inline-flex; width:fit-content; min-height:34px; align-items:center; justify-content:center; gap:7px; border:1px solid hsl(var(--border-subtle)); border-radius:var(--aira-radius-md); background:hsl(var(--surface-inset)); color:hsl(var(--content-secondary)); padding:0 10px; font:600 10px/1 var(--font-geist-sans),sans-serif; cursor:pointer; }
+.secondary:hover:not(:disabled) { border-color:hsl(var(--accent)/.28); color:hsl(var(--accent)); }
+.secondary:disabled { opacity:.42; cursor:not-allowed; }
+.secondary:focus-visible,.featureGrid a:focus-visible { outline:2px solid hsl(var(--accent)); outline-offset:2px; }
+.note { display:flex; align-items:flex-start; gap:10px; border:1px solid hsl(var(--border-subtle)); border-radius:var(--aira-radius-lg); background:hsl(var(--surface)); padding:13px 14px; color:hsl(var(--content-secondary)); }
+.note > svg { margin-top:2px; flex:0 0 auto; color:hsl(var(--accent)); }
+.note strong { display:block; color:hsl(var(--content-primary)); font-size:11px; font-weight:650; }
+.note p { margin:4px 0 0; font-size:11px; line-height:1.6; }
+.panel { overflow:hidden; border:1px solid hsl(var(--border-subtle)); border-radius:var(--aira-radius-xl); background:hsl(var(--surface)); }
+.panelHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:54px; border-bottom:1px solid hsl(var(--border-subtle)); padding:10px 14px; }
+.panelHeader span { display:block; color:hsl(var(--accent)); font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.panelHeader h2 { margin:3px 0 0; color:hsl(var(--content-primary)); font-size:13px; font-weight:650; }
+.panelHeader > svg { color:hsl(var(--content-tertiary)); }
+.featureGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.featureGrid article { min-width:0; padding:16px; }
+.featureGrid article + article { border-left:1px solid hsl(var(--border-subtle)); }
+.featureGrid svg { color:hsl(var(--accent)); }
+.featureGrid strong { display:block; margin-top:11px; font-size:12px; }
+.featureGrid p { margin:5px 0 0; color:hsl(var(--content-tertiary)); font-size:10px; line-height:1.55; }
+.runList { margin:0; padding:0; list-style:none; }
+.runList li { display:grid; grid-template-columns:30px minmax(0,1fr) auto; align-items:center; gap:10px; min-height:58px; padding:10px 14px; }
+.runList li + li { border-top:1px solid hsl(var(--border-subtle)); }
+.runIcon { display:grid; place-items:center; width:30px; height:30px; border-radius:var(--aira-radius-md); background:hsl(var(--surface-inset)); color:hsl(var(--content-secondary)); }
+.runList strong { display:block; font-size:11px; font-weight:650; }
+.runList p { margin:3px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:hsl(var(--content-tertiary)); font-size:10px; }
+.runStatus { border-radius:999px; background:hsl(var(--surface-inset)); color:hsl(var(--content-secondary)); padding:4px 7px; font-size:9px; font-weight:650; text-transform:capitalize; }
+.empty { display:grid; min-height:150px; place-items:center; padding:24px; text-align:center; color:hsl(var(--content-tertiary)); font-size:11px; }
+.empty svg { margin:0 auto 8px; }
+@media(max-width:720px){.page{padding:22px 14px 36px}.facts,.featureGrid{grid-template-columns:1fr}.featureGrid article + article{border-left:0;border-top:1px solid hsl(var(--border-subtle))}.secondary{width:100%}.runList li{grid-template-columns:28px minmax(0,1fr)}.runStatus{grid-column:2;width:fit-content}}
