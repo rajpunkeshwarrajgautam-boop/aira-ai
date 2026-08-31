@@ -16,23 +16,24 @@ test("workspace frame is isolated from deprecated research-stage CSS", () => {
 
   assert.ok(frame.includes("aira-v2-workspace-stage"), "workspace frame must use its isolated stage class");
   assert.ok(!frame.includes('className="aira-v2-stage"'), "workspace pages must never re-enter deprecated research-stage selectors");
-  assert.ok(css.includes('.aira-v2-stage main > div:first-child { display: none !important; }'), "test should continue protecting against the known destructive legacy selector until it is removed");
+  assert.ok(!css.includes(".aira-v2-stage"), "the narrow SearchLayout bridge must not contain the retired destructive stage selector");
+  assert.ok(css.includes(".aira-core-search"), "the remaining bridge should be explicitly scoped to SearchLayout");
 });
 
-test("all framed workspaces render real content below the shared shell", () => {
+test("all framed workspaces render real connected content below the shared shell", () => {
   const pages = [
-    ["app/knowledge/page.tsx", "Files that AIRA can actually use"],
-    ["app/settings/page.tsx", "Runtime & integrations"],
-    ["app/compare/page.tsx", "Compare models side by side"],
-    ["app/local-ai/page.tsx", "Local AI Engine"],
-    ["app/runs/page.tsx", "Run"],
-    ["app/workspace-search/page.tsx", "search"],
+    ["app/knowledge/page.tsx", "/api/knowledge/library"],
+    ["app/settings/page.tsx", "/api/integrations/status"],
+    ["app/compare/page.tsx", "/api/compare"],
+    ["app/local-ai/page.tsx", "/api/local-ai/status"],
+    ["app/runs/page.tsx", "/api/agents/runs"],
+    ["app/workspace-search/page.tsx", "/api/global-search"],
   ] as const;
 
-  for (const [file, marker] of pages) {
+  for (const [file, capability] of pages) {
     const source = read(file);
     assert.ok(source.includes("<AiraV2Frame>"), `${file} must remain inside the shared workspace shell`);
-    assert.ok(source.toLowerCase().includes(marker.toLowerCase()), `${file} must contain its workspace content marker`);
+    assert.ok(source.includes(capability), `${file} must remain connected to ${capability}`);
   }
 });
 
@@ -44,4 +45,5 @@ test("pricing remains a real public comparison page", () => {
   assert.ok(pricing.includes("Start free"), "public pricing should expose the guest start path");
   assert.ok(pricing.includes("Upgrade to Pro"));
   assert.ok(pricing.includes("Choose Team"));
+  assert.ok(pricing.includes('fetch("/api/billing/status"'));
 });
