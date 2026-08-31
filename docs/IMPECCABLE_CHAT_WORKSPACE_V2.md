@@ -22,7 +22,7 @@ Make the AIRA home experience feel like a focused, premium AI workspace rather t
 - Client-side search over saved conversation titles.
 - Recent threads grouped into Today, Previous 7 days, and Older.
 - `Cmd/Ctrl + Shift + O` creates a new chat.
-- Direct workspace navigation to Files, Agents, Local AI, Compare, Memory, and global conversation/memory search.
+- Direct workspace navigation to Files, Agents, OmniRoute, Compare, Memory, and global conversation/memory search.
 - Settings & Integrations is available directly from the chat sidebar.
 
 ### Composer
@@ -43,7 +43,7 @@ Make the AIRA home experience feel like a focused, premium AI workspace rather t
 ### Empty state
 
 - Prompt starters remain direct prompt actions.
-- Real connected entry points are added for Files & Knowledge, Agents, and Local AI.
+- Real connected entry points are added for Files & Knowledge, Agents, and OmniRoute.
 - Copy emphasizes what the user can do rather than marketing the interface.
 
 ## Preserved behavior
@@ -59,6 +59,5 @@ This pass does not change:
 - authentication
 - memory behavior
 - agent runtime
-- Local AI runtime
 
-The changes are deliberately UI-focused and reuse existing connected AIRA capabilities.
+The Local AI runtime is intentionally retired. OmniRoute now owns upstream model/provider routing while AIRA retains its existing research, safety, citation, publication, memory, and agent behavior.

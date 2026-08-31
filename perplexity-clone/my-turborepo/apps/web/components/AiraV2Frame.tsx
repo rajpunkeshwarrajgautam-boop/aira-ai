@@ -6,12 +6,12 @@ import {
   Brain,
   Columns2,
   Command,
-  Cpu,
   CreditCard,
   FolderOpen,
   Globe2,
   Hammer,
   History,
+  Network,
   Search,
   Settings2,
   Sparkles,
@@ -30,7 +30,7 @@ const PRIMARY_NAV = [
   { href: "/browser", label: "Browser", description: "Operate and take control", icon: Globe2 },
   { href: "/agents", label: "Agents", description: "Design autonomous work", icon: Bot },
   { href: "/compare", label: "Compare", description: "Test models side by side", icon: Columns2 },
-  { href: "/local-ai", label: "Local AI", description: "MiniCPM private worker", icon: Cpu },
+  { href: "/omniroute", label: "OmniRoute", description: "Smart multi-provider gateway", icon: Network },
   { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
 ] as const;
@@ -62,6 +62,8 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   const [filter, setFilter] = useState("");
   const [analyticsAdmin, setAnalyticsAdmin] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +123,31 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       setFilter("");
       return;
     }
-    requestAnimationFrame(() => inputRef.current?.focus());
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusFrame = requestAnimationFrame(() => inputRef.current?.focus());
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = paletteRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", trapFocus);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", trapFocus);
+      requestAnimationFrame(() => previouslyFocusedRef.current?.focus());
+    };
   }, [paletteOpen]);
 
   const navigate = (href: string) => {
@@ -182,7 +208,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             <div><strong>{current.label}</strong><small>{current.description}</small></div>
           </div>
           <div className="aira-v2-topbar-actions">
-            <span className="aira-v2-grounded-status"><span className="aira-v2-status-dot" aria-hidden />Connected workspace</span>
+            <span className="aira-v2-grounded-status"><span className="aira-v2-status-dot" aria-hidden />AIRA workspace</span>
             <button type="button" className="aira-v2-topbar-command" onClick={() => setPaletteOpen(true)} aria-label="Open command palette">
               <Command className="size-[15px]" aria-hidden /><span>Navigate</span><kbd>⌘K</kbd>
             </button>
@@ -193,10 +219,10 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
 
       {paletteOpen ? (
         <div className="aira-v2-palette-backdrop" role="presentation" onMouseDown={() => setPaletteOpen(false)}>
-          <div className="aira-v2-palette" role="dialog" aria-modal="true" aria-label="AIRA command palette" onMouseDown={(event) => event.stopPropagation()}>
+          <div ref={paletteRef} className="aira-v2-palette" role="dialog" aria-modal="true" aria-label="AIRA command palette" onMouseDown={(event) => event.stopPropagation()}>
             <div className="aira-v2-palette-search">
               <Search className="size-[18px]" aria-hidden />
-              <input ref={inputRef} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Go to build, browser, research, local AI, compare, knowledge, runs…" aria-label="Filter destinations" onKeyDown={(event) => { if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href); }} />
+              <input ref={inputRef} value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Go to build, browser, research, OmniRoute, compare, knowledge, runs…" aria-label="Filter destinations" onKeyDown={(event) => { if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href); }} />
               <button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette"><X className="size-4" /></button>
             </div>
             <div className="aira-v2-palette-results">

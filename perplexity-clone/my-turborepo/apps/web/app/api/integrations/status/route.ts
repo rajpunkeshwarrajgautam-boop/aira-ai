@@ -2,7 +2,8 @@ import { auth } from "@/auth";
 import { isAutoGptConfigured, isAutoGptEnabled } from "@/lib/autogpt/config";
 import { isDeerFlowConfigured, isDeerFlowEnabled } from "@/lib/deerflow/config";
 import { knowledgeStorageConfigured } from "@/lib/foundation-storage";
-import { getLocalAiConfigOrDisabled } from "@services/local-ai/config";
+import { getOmniRouteConfigOrDisabled } from "@services/omniroute/config";
+import { DEFAULT_NVIDIA_MODEL } from "@services/providers/nvidia-provider";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,17 +18,17 @@ export async function GET(): Promise<Response> {
     return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
   }
 
-  const local = getLocalAiConfigOrDisabled();
+  const omniRoute = getOmniRouteConfigOrDisabled();
   const integrations = [
-    item("openai", "OpenAI", Boolean(process.env.OPENAI_API_KEY), "Cloud model provider", process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini"),
-    item("nvidia", "NVIDIA", Boolean(process.env.NVIDIA_API_KEY), "Cloud fallback/provider", process.env.NVIDIA_CHAT_MODEL ?? "meta/llama-3.1-70b-instruct"),
     item(
-      "self-hosted",
-      "Virexa Local AI",
-      local.configured,
-      "llama.cpp private worker · chat, routing, RAG, tools and business workers",
-      local.model || undefined,
+      "omniroute",
+      "OmniRoute",
+      omniRoute.configured,
+      "OpenAI-compatible smart routing gateway with automatic provider selection and fallback",
+      omniRoute.model,
     ),
+    item("openai", "OpenAI", Boolean(process.env.OPENAI_API_KEY), "Direct cloud model provider", process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini"),
+    item("nvidia", "NVIDIA", Boolean(process.env.NVIDIA_API_KEY), "Direct cloud fallback/provider", process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL),
     item("exa", "Exa Search", Boolean(process.env.EXA_API_KEY), "Live web retrieval and citations"),
     item(
       "knowledge",
@@ -44,9 +45,9 @@ export async function GET(): Promise<Response> {
     {
       integrations,
       defaults: {
-        primaryProvider: process.env.DEFAULT_PRO_PROVIDER ?? "openai",
+        primaryProvider: process.env.DEFAULT_PRO_PROVIDER ?? "omniroute",
         fallbackProvider: process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
-        localRouting: local.localFirst ? "local-first" : "selective",
+        omniRouteModel: omniRoute.model,
       },
     },
     { headers: { "Cache-Control": "no-store" } },

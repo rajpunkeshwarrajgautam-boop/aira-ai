@@ -50,6 +50,14 @@ enum AgentRunStatus {
   REVIEW
 }
 
+enum AgentToolApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+  EXPIRED
+}
+
 enum ConversationMessageRole {
   USER
   ASSISTANT
@@ -68,22 +76,23 @@ enum UserMemoryKind {
 }
 
 model User {
-  id                  String                 @id @default(cuid())
-  name                String?
-  email               String?                @unique
-  emailVerified       DateTime?
-  image               String?
+  id                   String                @id @default(cuid())
+  name                 String?
+  email                String?               @unique
+  emailVerified        DateTime?
+  image                String?
   /** E.164 or local digits — required for Cashfree subscription checkout when absent. */
-  billingPhone        String?
-  billingPlan         BillingPlan            @default(FREE)
-  accounts            Account[]
-  sessions            Session[]
-  billingSubscription BillingSubscription?
-  usageRecords        UsageRecord[]
-  agentRuns           AgentRun[]
-  conversations       Conversation[]
-  researchHistory     ResearchHistory[]
-  memories            UserMemory[]
+  billingPhone         String?
+  billingPlan          BillingPlan           @default(FREE)
+  accounts             Account[]
+  sessions             Session[]
+  billingSubscription  BillingSubscription?
+  usageRecords         UsageRecord[]
+  agentRuns            AgentRun[]
+  conversations        Conversation[]
+  researchHistory      ResearchHistory[]
+  memories             UserMemory[]
+  mcpServerPreferences McpServerPreference[]
 }
 
 model Account {
@@ -138,8 +147,8 @@ model BillingSubscription {
   currentPeriodEnd         DateTime?
   cancelAtPeriodEnd        Boolean             @default(false)
   teamSeats                Int                 @default(1)
-  createdAt                DateTime            @default(now())
-  updatedAt                DateTime            @updatedAt
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 }
 
 /// Monthly search usage (UTC calendar month), enforced per billing user.
@@ -156,7 +165,7 @@ model UsageRecord {
   @@unique([userId, periodStart])
 }
 
-/// A user-owned execution submitted to the AutoGPT External API.
+/// A user-owned execution submitted to the autonomous agent runtimes.
 /// Only provider identifiers and execution results are stored; API keys remain server-only.
 model AgentRun {
   id                String         @id @default(cuid())
@@ -175,10 +184,66 @@ model AgentRun {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   completedAt       DateTime?
+  events            AgentRunEvent[]
+  approvals         AgentToolApproval[]
 
   @@unique([userId, clientRequestId])
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, status, updatedAt(sort: Desc)])
+}
+
+/// Immutable, run-owned lifecycle facts surfaced in the Agent Run Center.
+/// Ownership is inherited from AgentRun; direct Supabase Data API access remains denied.
+model AgentRunEvent {
+  id        String         @id @default(cuid())
+  runId     String
+  run       AgentRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  eventKey  String
+  type      String
+  status    AgentRunStatus?
+  message   String         @db.Text
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  @@unique([runId, eventKey])
+  @@index([runId, createdAt])
+}
+
+/// Durable human authorization for a privileged agent tool action.
+/// Creation is server-internal; users may only resolve approvals for runs they own.
+model AgentToolApproval {
+  id             String                  @id @default(cuid())
+  runId          String
+  run            AgentRun                @relation(fields: [runId], references: [id], onDelete: Cascade)
+  approvalKey    String
+  toolId         String
+  permission     String
+  mode           String
+  summary        String                  @db.Text
+  request        Json?
+  status         AgentToolApprovalStatus @default(PENDING)
+  requestedAt    DateTime                @default(now())
+  resolvedAt     DateTime?
+  resolverUserId String?
+
+  @@unique([runId, approvalKey])
+  @@index([runId, status, requestedAt])
+  @@index([resolverUserId, resolvedAt])
+}
+
+/// User-owned activation preference for deployment-approved MCP servers.
+/// Endpoints and credentials remain deployment/server configuration and are never stored here.
+model McpServerPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, serverId])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 /// Cashfree PG webhook idempotency (SHA-256 hex of raw body after signature verification).
@@ -281,32 +346,32 @@ model ResearchHistory {
 }
 
 model AnalyticsVisitorState {
-  anonymousId String   @id
+  anonymousId   String   @id
   firstLandedAt DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model AnalyticsSignupState {
-  userId String @id
+  userId      String   @id
   anonymousId String?
-  signupAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  signupAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AnalyticsEvent {
-  id String @id @default(cuid())
-  type AnalyticsEventType
+  id        String             @id @default(cuid())
+  type      AnalyticsEventType
   /** UTC day boundary for fast day-level aggregation. */
-  eventDay DateTime
-  createdAt DateTime @default(now())
+  eventDay  DateTime
+  createdAt DateTime           @default(now())
 
   anonymousId String?
-  userId String?
-  plan BillingPlan?
-  metadata Json?
+  userId      String?
+  plan        BillingPlan?
+  metadata    Json?
 
   @@index([eventDay])
   @@index([type, eventDay])
@@ -315,19 +380,19 @@ model AnalyticsEvent {
 }
 
 model ProductAnalyticsEvent {
-  id              String   @id @default(cuid())
-  event           String
-  surface         String?
-  userType        String?
-  queryLength     Int?
-  sourceCount     Int?
-  citationCount   Int?
-  citationIndex   Int?
-  sourceDomain    String?
-  conversationId  String?
-  messageId       String?
-  errorCode       String?
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  event          String
+  surface        String?
+  userType       String?
+  queryLength    Int?
+  sourceCount    Int?
+  citationCount  Int?
+  citationIndex  Int?
+  sourceDomain   String?
+  conversationId String?
+  messageId      String?
+  errorCode      String?
+  createdAt      DateTime @default(now())
 
   @@index([createdAt])
   @@index([event, createdAt])

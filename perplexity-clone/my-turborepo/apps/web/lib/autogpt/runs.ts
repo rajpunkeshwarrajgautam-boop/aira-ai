@@ -5,6 +5,10 @@ import {
 	getEffectiveEntitlements,
 	refundAgentRunQuota,
 } from "@/lib/billing/plan-enforcement";
+import {
+	recordRemoteAcceptedCheckpoint,
+	recoverRemoteExecutionIdFromCheckpoint,
+} from "@/lib/agents/run-checkpoints";
 import { classifyStaleRun } from "@/lib/agents/run-reconciliation";
 import { prisma } from "@/lib/prisma";
 
@@ -199,6 +203,22 @@ export async function submitAgentRun(options: {
 		throw error;
 	}
 
+	let checkpointSaved = false;
+	try {
+		await recordRemoteAcceptedCheckpoint({
+			runId: pendingRun.id,
+			provider: "AUTOGPT",
+			remoteExecutionId,
+			status: pendingRun.status,
+		});
+		checkpointSaved = true;
+	} catch (error) {
+		console.error("[agents:autogpt:checkpoint]", {
+			runId: pendingRun.id,
+			error: error instanceof Error ? error.message : "checkpoint persistence failed",
+		});
+	}
+
 	const persistRemoteId = () =>
 		prisma.agentRun.update({
 			where: { id: pendingRun.id },
@@ -209,6 +229,19 @@ export async function submitAgentRun(options: {
 	try {
 		submitted = await persistRemoteId();
 	} catch {
+		if (!checkpointSaved) {
+			try {
+				await recordRemoteAcceptedCheckpoint({
+					runId: pendingRun.id,
+					provider: "AUTOGPT",
+					remoteExecutionId,
+					status: pendingRun.status,
+				});
+				checkpointSaved = true;
+			} catch {
+				// The local row retry below is still safe and does not resubmit remote work.
+			}
+		}
 		// Retrying this local write is safe: the remote graph is not submitted again.
 		submitted = await persistRemoteId();
 	}
@@ -239,25 +272,32 @@ export async function refreshAgentRun(
 		return toAgentRunDto(row);
 	}
 
+	const remoteExecutionId =
+		row.remoteExecutionId ??
+		(await recoverRemoteExecutionIdFromCheckpoint({
+			userId,
+			runId: row.id,
+			provider: "AUTOGPT",
+		}));
 	const stale = classifyStaleRun({
-		remoteExecutionId: row.remoteExecutionId,
+		remoteExecutionId,
 		createdAt: row.createdAt,
 	});
 	if (stale) {
 		return toAgentRunDto(await reviewUncertainAutoGptRun(row.id, stale.errorMessage));
 	}
 
-	if (!row.remoteExecutionId) {
+	if (!remoteExecutionId) {
 		return toAgentRunDto(row);
 	}
-	if (Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) {
+	if (row.remoteExecutionId && Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) {
 		return toAgentRunDto(row);
 	}
 
 	const config = getAutoGptConfig();
 	let remote: Awaited<ReturnType<typeof getAutoGptExecution>>;
 	try {
-		remote = await getAutoGptExecution(config, row.graphId, row.remoteExecutionId);
+		remote = await getAutoGptExecution(config, row.graphId, remoteExecutionId);
 	} catch (error) {
 		if (
 			error instanceof AutoGptRequestError &&

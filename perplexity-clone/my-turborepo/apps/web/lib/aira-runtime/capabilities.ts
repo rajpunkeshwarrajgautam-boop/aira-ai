@@ -26,10 +26,6 @@ export interface CapabilityManifest {
 	}>;
 }
 
-function truthy(value: string | undefined): boolean {
-	return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
-}
-
 export async function buildCapabilityManifest(userId: string): Promise<CapabilityManifest> {
 	const [tools, runtimes, entitlements] = await Promise.all([
 		toolAvailability(),
@@ -63,10 +59,9 @@ export async function buildCapabilityManifest(userId: string): Promise<Capabilit
 		supabase: tools.supabase,
 		mcp: tools.mcp,
 		imageGeneration: false,
-		localModels:
-			truthy(process.env.VIREXA_LOCAL_AI_ENABLED) ||
-			truthy(process.env.AIRA_LOCAL_FIRST_ENABLED) ||
-			Boolean(process.env.SELF_HOSTED_LLM_BASE_URL?.trim()),
+		// OmniRoute owns inference placement. Do not advertise a local execution
+		// capability from retired provider-specific environment variables.
+		localModels: false,
 		autonomousRuns: Boolean(entitlements && entitlements.monthlyAgentRunLimit > 0 && runtimes.some((runtime) => runtime.ready)),
 		runtimes: runtimeMap,
 	};

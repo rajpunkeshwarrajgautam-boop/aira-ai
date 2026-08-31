@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
+import {
+	agentRunStatusToStepStatus,
+	recordAgentRunStepBestEffort,
+} from "@/lib/agents/run-steps";
 import {
 	getAgentRuntimeStates,
 	runtimeStatesById,
@@ -40,6 +45,13 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 	const headers = new Headers(init?.headers);
 	headers.set("Cache-Control", "no-store");
 	return Response.json(body, { ...init, headers });
+}
+
+function runtimeLabel(provider: string): string {
+	if (provider === "DEERFLOW") return "DeerFlow 2.0";
+	if (provider === "AUTOGPT") return "AutoGPT";
+	if (provider === "AGENT_SWARM") return "Agent Swarm";
+	return provider;
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -162,6 +174,32 @@ export async function POST(req: Request): Promise<Response> {
 			clientRequestId: parsed.data.clientRequestId,
 			objective: parsed.data.objective,
 		});
+
+		await Promise.all([
+			recordAgentRunEventBestEffort({
+				runId: submitted.run.id,
+				eventKey: "submitted",
+				type: "SUBMITTED",
+				status: submitted.run.status,
+				message: `Task accepted by ${runtimeLabel(submitted.run.provider)}.`,
+				metadata: { provider: submitted.run.provider },
+			}),
+			recordAgentRunStepBestEffort({
+				runId: submitted.run.id,
+				stepKey: "provider-submission",
+				type: "PROVIDER_SUBMISSION",
+				label: `Submit task to ${runtimeLabel(submitted.run.provider)}`,
+				status: "COMPLETED",
+			}),
+			recordAgentRunStepBestEffort({
+				runId: submitted.run.id,
+				stepKey: "provider-execution",
+				type: "PROVIDER_EXECUTION",
+				label: `${runtimeLabel(submitted.run.provider)} execution`,
+				status: agentRunStatusToStepStatus(submitted.run.status),
+			}),
+		]);
+
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
 		if (error instanceof PlanEnforcementError) {

@@ -98,6 +98,11 @@ function looksLikePrivateAuditLeak(text: string): boolean {
 	return markerHits >= 3;
 }
 
+function containsVerifierEnvelopeMarkup(text: string): boolean {
+	const normalized = text.toLowerCase();
+	return normalized.includes("<aira_final>") || normalized.includes("</aira_final>");
+}
+
 function extractVerifierFinalEnvelope(text: string): string | null {
 	const open = "<aira_final>";
 	const close = "</aira_final>";
@@ -107,7 +112,7 @@ function extractVerifierFinalEnvelope(text: string): string | null {
 	const end = text.indexOf(close, contentStart);
 	if (end < 0) return null;
 	const finalText = text.slice(contentStart, end).trim();
-	if (finalText.length < 80 || looksLikePrivateAuditLeak(finalText)) return null;
+	if (!finalText || looksLikePrivateAuditLeak(finalText)) return null;
 	return finalText;
 }
 
@@ -272,7 +277,7 @@ async function generateSafeVerifierText(
 
 	if (!safeCandidate) {
 		const firstTrimmed = first.trim();
-		if (firstTrimmed.length >= 120 && !looksLikePrivateAuditLeak(firstTrimmed)) {
+		if (firstTrimmed && !containsVerifierEnvelopeMarkup(firstTrimmed) && !looksLikePrivateAuditLeak(firstTrimmed)) {
 			safeCandidate = firstTrimmed;
 		}
 	}

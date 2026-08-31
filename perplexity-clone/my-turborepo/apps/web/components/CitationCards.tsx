@@ -2,8 +2,8 @@
 
 import { ExternalLink } from "lucide-react";
 import Image from "next/image";
+import { useId } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { cn } from "../lib/cn";
 import { logProductEvent } from "../lib/log-product-event";
 
@@ -121,143 +121,78 @@ export function cleanTitle(title: unknown, url: string, snippet?: string | null)
 }
 
 export function CitationCards({ citations, className, citedIndices }: CitationCardsProps) {
+	const headingId = useId();
 	if (citations.length === 0) return null;
+	const directlyCitedCount = citedIndices
+		? citations.filter((citation) => citedIndices.includes(citation.index)).length
+		: citations.length;
 
 	return (
-		<Card
-			className={cn(
-				"scroll-mt-6 overflow-hidden rounded-3xl border-border-subtle/80 bg-surface-elevated/75 shadow-float ring-1 ring-white/45 backdrop-blur-sm md:backdrop-blur-xl",
-				className,
-			)}
-			aria-label="Sources"
-		>
-			<div className="h-0.5 w-full bg-gradient-to-r from-accent/0 via-accent/50 to-accent/0" aria-hidden />
-			<CardHeader className="flex flex-col gap-1 px-6 py-5 pb-2">
-				<div className="flex flex-row items-center justify-between gap-3">
-					<div className="flex items-center gap-2.5">
-						<div className="flex size-7 items-center justify-center rounded-xl bg-accent/12 ring-1 ring-accent/20">
-							<div className="size-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_hsl(var(--accent)/0.5)]" />
-						</div>
-						<CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-content-tertiary/80">
-							Sources Retrieved
-						</CardTitle>
-					</div>
-					<span className="rounded-full bg-surface-inset/80 px-3 py-1 text-[11px] font-bold tabular-nums text-accent ring-1 ring-border-subtle/50">
-						{citations.length}
-					</span>
-				</div>
-				{citedIndices && citedIndices.length < citations.length && (
-					<p className="text-[11px] text-content-tertiary mt-1">
-						Some sources were retrieved for context but not directly cited.
+		<section className={cn("aira-sources scroll-mt-6", className)} aria-labelledby={headingId}>
+			<header className="aira-sources-header flex flex-col gap-1 border-b border-border-subtle/70 pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+				<div>
+					<h3 id={headingId} className="text-[13px] font-semibold tracking-[-0.01em] text-content-primary">
+						Sources
+					</h3>
+					<p className="mt-1 text-[11px] leading-5 text-content-tertiary">
+						{directlyCitedCount === citations.length
+							? `${citations.length} source${citations.length === 1 ? "" : "s"} cited in this answer.`
+							: `${directlyCitedCount} cited · ${citations.length - directlyCitedCount} retrieved for context.`}
 					</p>
-				)}
-			</CardHeader>
-			<CardContent className="px-6 pb-6 pt-3">
-				<ul className="grid gap-3 sm:grid-cols-2">
-					{citations.map((c) => {
-						const host = hostnameFromUrl(c.url);
-						const favicon = `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(host)}`;
-						const dateLabel = formatDate(c.publishedDate);
-						const snippet = previewSnippet(c.excerpt, 220);
-						const isCited = citedIndices ? citedIndices.includes(c.index) : true;
+				</div>
+				<span className="text-[11px] tabular-nums text-content-tertiary">
+					{citations.length} retrieved
+				</span>
+			</header>
+			<ul className="aira-source-grid grid gap-x-5 lg:grid-cols-2">
+				{citations.map((c) => {
+					const host = hostnameFromUrl(c.url);
+					const favicon = `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(host)}`;
+					const dateLabel = formatDate(c.publishedDate);
+					const snippet = previewSnippet(c.excerpt, 220);
+					const isCited = citedIndices ? citedIndices.includes(c.index) : true;
 
-						return (
-							<li key={`${c.index}-${c.url}`} id={`source-${c.index}`} className="scroll-mt-24">
-								<a
-									href={c.url}
-									target="_blank"
-									rel="noopener noreferrer"
-									onClick={() => {
-										try {
-											logProductEvent({
-												event: "source_opened",
-												surface: "source_cards",
-												citationIndex: c.index,
-												sourceDomain: host,
-											});
-										} catch {
-											// ignore analytics
-										}
-									}}
-									className={cn(
-										"group relative flex flex-col gap-3 rounded-2xl border border-border-subtle/50 bg-surface-inset/50 p-4 shadow-sm ring-1 ring-white/30 transition-all duration-300 ease-out backdrop-blur-sm md:backdrop-blur-md",
-										"hover:border-accent/45 hover:bg-surface-elevated/90 hover:shadow-panel hover:-translate-y-0.5",
-										!isCited && "opacity-75 grayscale-[20%]"
-									)}
-								>
-									<div className="flex items-center justify-between gap-3">
-										<div className="relative size-10 shrink-0">
-											{isCited && <div className="absolute inset-0 animate-pulse rounded-lg bg-accent/5" />}
-											<Image
-												src={favicon}
-												alt=""
-												width={40}
-												height={40}
-												className="relative size-10 shrink-0 rounded-lg bg-surface-elevated object-contain p-1.5 shadow-sm ring-1 ring-border-subtle/50 transition-transform group-hover:scale-110"
-												unoptimized
-											/>
-										</div>
-										<div className="flex flex-col items-end gap-1">
-											<div className="flex items-center gap-1.5">
-												{!isCited && (
-													<span
-														className="rounded-md bg-surface-inset/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-content-tertiary ring-1 ring-border-subtle/50"
-														title="Retrieved during research but not directly cited in the answer."
-														aria-label="Retrieved during research but not directly cited in the answer."
-													>
-														Not directly cited
-													</span>
-												)}
-												<span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20 transition-colors group-hover:bg-accent group-hover:text-white">
-													{c.index}
-												</span>
-											</div>
-											{c.sourceQuality && c.sourceQuality !== "Unknown" ? (
-												<span
-													className="max-w-[7.5rem] truncate rounded-md bg-surface-elevated/90 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-content-tertiary/80 ring-1 ring-border-subtle/40"
-													title={c.sourceQuality}
-												>
-													{c.sourceQuality}
-												</span>
-											) : null}
-										</div>
-									</div>
-									
-									<div className="flex flex-1 flex-col justify-between">
-										<p className="line-clamp-2 text-[13px] font-semibold leading-relaxed text-content-primary transition-colors group-hover:text-accent">
-											{cleanTitle(c.title, c.url, snippet)}
-										</p>
-										{snippet ? (
-											<p className="mt-1.5 line-clamp-2 text-[12px] md:text-[11px] leading-snug text-content-tertiary/90">
-												{snippet}
-											</p>
-										) : null}
-										<div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle/20 pt-3">
-											<div className="flex items-center gap-2 overflow-hidden">
-												<p className="truncate text-[12px] md:text-[11px] font-medium text-content-tertiary">
-													{host}
-												</p>
-												{dateLabel ? (
-													<>
-														<span className="text-[10px] text-content-tertiary/40">•</span>
-														<p className="shrink-0 text-[11px] md:text-[10px] font-bold tabular-nums text-content-tertiary/60">
-															{dateLabel}
-														</p>
-													</>
-												) : null}
-											</div>
-											<div className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-accent opacity-90 transition-opacity group-hover:opacity-100">
-												<span>Open source</span>
-												<ExternalLink className="size-3" />
-											</div>
-										</div>
-									</div>
-								</a>
-							</li>
-						);
-					})}
-				</ul>
-			</CardContent>
-		</Card>
+					return (
+						<li key={`${c.index}-${c.url}`} id={`source-${c.index}`} className="scroll-mt-24 border-b border-border-subtle/60">
+							<a
+								href={c.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								onClick={() => {
+									try {
+										logProductEvent({
+											event: "source_opened",
+											surface: "source_cards",
+											citationIndex: c.index,
+											sourceDomain: host,
+										});
+									} catch {
+										// ignore analytics
+									}
+								}}
+								className="group grid min-h-[144px] grid-cols-[32px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-4 text-left transition-colors duration-150 hover:bg-white/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+							>
+								<Image src={favicon} alt="" width={32} height={32} className="row-span-2 size-8 rounded-lg bg-surface-elevated object-contain p-1 ring-1 ring-border-subtle/70" unoptimized />
+								<div className="min-w-0">
+									<p className="line-clamp-2 text-[13px] font-semibold leading-5 text-content-primary transition-colors group-hover:text-accent">
+										{cleanTitle(c.title, c.url, snippet)}
+									</p>
+									<p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-content-tertiary">
+										<span className="max-w-[15rem] truncate">{host}</span>
+										{dateLabel ? <span className="tabular-nums">{dateLabel}</span> : null}
+										{c.sourceQuality && c.sourceQuality !== "Unknown" ? <span>{c.sourceQuality}</span> : null}
+									</p>
+								</div>
+								<span className={cn("inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-semibold", isCited ? "bg-accent/12 text-accent" : "bg-white/[0.04] text-content-tertiary")} title={isCited ? `Citation ${c.index}` : "Retrieved for context; not directly cited"}>
+									{isCited ? c.index : "Context"}
+								</span>
+								{snippet ? <p className="col-span-2 col-start-2 line-clamp-2 text-[11px] leading-5 text-content-tertiary">{snippet}</p> : null}
+								<span className="col-span-2 col-start-2 inline-flex items-center gap-1 text-[10px] font-medium text-content-secondary transition-colors group-hover:text-accent">Open source <ExternalLink className="size-3" aria-hidden /></span>
+							</a>
+						</li>
+					);
+				})}
+			</ul>
+		</section>
 	);
 }
