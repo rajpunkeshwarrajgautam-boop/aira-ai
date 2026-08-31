@@ -39,10 +39,10 @@ type ProviderChoice = "AUTO" | "DEERFLOW" | "AUTOGPT";
 const ACTIVE_STATUSES = new Set(["QUEUED", "RUNNING", "REVIEW", "INCOMPLETE"]);
 
 function statusClass(status: string): string {
-  if (["COMPLETED"].includes(status)) return styles.statusSuccess;
-  if (["FAILED", "TERMINATED", "CANCELLED"].includes(status)) return styles.statusDanger;
-  if (["REVIEW", "INCOMPLETE"].includes(status)) return styles.statusReview;
-  if (["QUEUED", "RUNNING"].includes(status)) return styles.statusActive;
+  if (["COMPLETED"].includes(status)) return styles.statusSuccess ?? "";
+  if (["FAILED", "TERMINATED", "CANCELLED"].includes(status)) return styles.statusDanger ?? "";
+  if (["REVIEW", "INCOMPLETE"].includes(status)) return styles.statusReview ?? "";
+  if (["QUEUED", "RUNNING"].includes(status)) return styles.statusActive ?? "";
   return "";
 }
 
