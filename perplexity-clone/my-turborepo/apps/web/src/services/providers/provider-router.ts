@@ -19,6 +19,8 @@ import {
 	recordProviderSuccess,
 	shouldFailOverProviderError,
 } from "./provider-health";
+import { preferredProviderId } from "./provider-preference";
+import { currentProviderPreference } from "./provider-request-context";
 import { providerAllowedByResidency } from "./residency-policy";
 import {
 	resolveProviderRoute,
@@ -111,10 +113,13 @@ export class ProviderRouter {
 		const { NVIDIAProvider } = await import("./nvidia-provider");
 		const { SelfHostedProvider } = await import("./self-hosted-provider");
 		const providerRoute = resolveProviderRoute(tier);
-		const router = new ProviderRouter(
-			providerRoute.primaryProviderId,
-			providerRoute.fallbackProviderId,
-		);
+		const requestedPreference = currentProviderPreference();
+		const preferred = preferredProviderId(tier, requestedPreference);
+		const primaryProviderId = preferred ?? providerRoute.primaryProviderId;
+		const fallbackProviderId = primaryProviderId === "nvidia"
+			? "nvidia"
+			: providerRoute.fallbackProviderId;
+		const router = new ProviderRouter(primaryProviderId, fallbackProviderId);
 
 		const openAiKey = process.env.OPENAI_API_KEY;
 		if (openAiKey) router.registerProvider(new OpenAIProvider(openAiKey));
