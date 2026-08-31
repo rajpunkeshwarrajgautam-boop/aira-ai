@@ -1,0 +1,51 @@
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid hsl(var(--aira-border-subtle));
+  border-radius: var(--aira-radius-lg);
+  background: hsl(var(--aira-surface-1));
+}
+
+.link {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border-radius: var(--aira-radius-md);
+  color: hsl(var(--aira-text-secondary));
+  font-size: 13px;
+  font-weight: 520;
+  text-decoration: none;
+  transition:
+    background-color var(--aira-motion-micro) ease,
+    color var(--aira-motion-micro) ease;
+}
+
+.link:hover {
+  color: hsl(var(--aira-text));
+  background: hsl(var(--aira-surface-2));
+}
+
+.link[data-active="true"] {
+  color: hsl(var(--aira-text));
+  background: hsl(var(--aira-accent-subtle));
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.label {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .label {
+    display: inline;
+  }
+}
