@@ -140,3 +140,24 @@ test("admin analytics navigation is capability-aware", () => {
 	assert.ok(accessRoute.includes("analyticsAdmin: true"));
 	assert.ok(accessRoute.includes("analyticsAdmin: false"));
 });
+
+test("Automation navigation resolves to truthful capability-aware routes", () => {
+	const frame = read("components/AiraV2Frame.tsx");
+	const browserAgent = read("app/browser-agent/page.tsx");
+	const swarms = read("app/swarms/page.tsx");
+	const projects = read("app/projects/page.tsx");
+	const governance = read("app/governance/page.tsx");
+
+	for (const destination of ["/browser-agent", "/swarms", "/projects", "/governance"]) {
+		assert.ok(frame.includes(`href: "${destination}"`), `expected ${destination} in the unified shell`);
+	}
+	assert.ok(frame.includes('label="Automation"'));
+	assert.ok(browserAgent.includes('fetch("/api/local-ai/status"'));
+	assert.ok(browserAgent.includes("does not yet expose a durable browser-session control contract"));
+	assert.ok(swarms.includes('fetch("/api/agents/runs?limit=12"'));
+	assert.ok(swarms.includes("does not fabricate a control-room graph"));
+	assert.ok(projects.includes('state="unsupported"'));
+	assert.ok(projects.includes("durable Project entity"));
+	assert.ok(governance.includes('fetch("/api/admin/access"'));
+	assert.ok(governance.includes("does not yet have a complete server-side policy contract"));
+});
