@@ -3,6 +3,8 @@
 import {
 	ArrowUp,
 	Bot,
+	ChevronDown,
+	Columns2,
 	Command,
 	Cpu,
 	FileText,
@@ -11,7 +13,6 @@ import {
 	MicOff,
 	Plus,
 	Square,
-	WandSparkles,
 	X,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,8 +26,8 @@ import {
 	useState,
 } from "react";
 
-import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
+import styles from "./SearchBox.module.css";
 
 export interface SearchBoxProps {
 	readonly value: string;
@@ -70,15 +71,17 @@ const QUICK_COMMANDS: readonly QuickCommand[] = [
 ] as const;
 
 export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
-	{ value, onChange, onSubmit, onCancel, disabled, isBusy, placeholder = "Ask anything…", className },
+	{ value, onChange, onSubmit, onCancel, disabled, isBusy, placeholder = "Ask AIRA anything…", className },
 	ref,
 ) {
 	const taRef = useRef<HTMLTextAreaElement>(null);
 	const pendingCommandRef = useRef<string | null>(null);
 	const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 	const [contextMenuOpen, setContextMenuOpen] = useState(false);
+	const [modelMenuOpen, setModelMenuOpen] = useState(false);
 	const [listening, setListening] = useState(false);
 	const [voiceAvailable, setVoiceAvailable] = useState(false);
+
 	const resize = useCallback(() => {
 		const el = taRef.current;
 		if (!el) return;
@@ -135,13 +138,16 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	}, [isBusy, onSubmit, value]);
 
 	useEffect(() => {
-		if (!contextMenuOpen) return;
+		if (!contextMenuOpen && !modelMenuOpen) return;
 		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") setContextMenuOpen(false);
+			if (event.key === "Escape") {
+				setContextMenuOpen(false);
+				setModelMenuOpen(false);
+			}
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [contextMenuOpen]);
+	}, [contextMenuOpen, modelMenuOpen]);
 
 	const busy = Boolean(disabled || isBusy);
 	const canSubmit = Boolean(value.trim()) && !busy;
@@ -193,33 +199,179 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	useImperativeHandle(ref, () => ({ focus: () => taRef.current?.focus(), submit: handleSubmit }));
 
 	return (
-		<form onSubmit={(event) => { event.preventDefault(); handleSubmit(); }} className={cn("relative mx-auto w-full max-w-[780px]", className)} aria-label="Ask AiraAI">
+		<form
+			onSubmit={(event) => {
+				event.preventDefault();
+				handleSubmit();
+			}}
+			className={cn(styles.form, className)}
+			aria-label="Ask AiraAI"
+		>
 			{showCommandMenu ? (
-				<div className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-xl border border-white/[0.09] bg-[#111827] shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
-					<div className="flex items-center gap-2 border-b border-white/[0.07] px-3 py-2 text-[9px] font-medium uppercase tracking-[0.12em] text-content-tertiary"><Command className="size-3.5" aria-hidden />Commands</div>
-					<div className="p-1.5">{commandMatches.map((item) => <button key={item.command} type="button" onClick={() => { if (item.command === "/history") { window.location.assign("/workspace-search"); return; } onChange(item.command); requestAnimationFrame(() => taRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"><span className="w-14 shrink-0 font-mono text-[10px] text-violet-300">{item.command.trim()}</span><span className="min-w-0"><strong className="block text-[11px] font-medium text-content-primary">{item.label}</strong><small className="mt-0.5 block truncate text-[9px] text-content-tertiary">{item.description}</small></span></button>)}</div>
+				<div className={cn(styles.menu, styles.menuWide)}>
+					<div className={styles.menuHeader}>
+						<Command className="size-3.5" aria-hidden /> Commands
+					</div>
+					<div className={styles.menuBody}>
+						{commandMatches.map((item) => (
+							<button
+								key={item.command}
+								type="button"
+								onClick={() => {
+									if (item.command === "/history") {
+										window.location.assign("/workspace-search");
+										return;
+									}
+									onChange(item.command);
+									requestAnimationFrame(() => taRef.current?.focus());
+								}}
+								className={styles.menuItem}
+							>
+								<span className={styles.commandCode}>{item.command.trim()}</span>
+								<span className={styles.menuItemCopy}>
+									<strong>{item.label}</strong>
+									<small>{item.description}</small>
+								</span>
+							</button>
+						))}
+					</div>
 				</div>
 			) : null}
 
-			<div className={cn("aira-enterprise-composer overflow-visible rounded-2xl border border-white/[0.1] bg-[#0d1423] shadow-[0_18px_50px_rgba(0,0,0,0.24)]", busy && "opacity-95")}>
+			<div className={cn("aira-enterprise-composer", styles.composer, busy && styles.composerBusy)}>
 				<label htmlFor="search-query" className="sr-only">Message AIRA AI</label>
-				<textarea ref={taRef} id="search-query" name="query" rows={1} value={value} disabled={busy} onChange={(event) => { onChange(event.target.value); resize(); }} onInput={resize} onKeyDown={(event) => { if (event.key === "Escape" && contextMenuOpen) { setContextMenuOpen(false); return; } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleSubmit(); } }} placeholder={placeholder} className="min-h-[76px] w-full resize-none rounded-t-2xl bg-transparent px-4 pb-2 pt-4 text-[14px] leading-6 text-content-primary outline-none placeholder:text-content-tertiary disabled:cursor-not-allowed sm:px-5 sm:text-[15px]" />
+				<textarea
+					ref={taRef}
+					id="search-query"
+					name="query"
+					rows={1}
+					value={value}
+					disabled={busy}
+					onChange={(event) => {
+						onChange(event.target.value);
+						resize();
+					}}
+					onInput={resize}
+					onKeyDown={(event) => {
+						if (event.key === "Escape" && (contextMenuOpen || modelMenuOpen)) {
+							setContextMenuOpen(false);
+							setModelMenuOpen(false);
+							return;
+						}
+						if (event.key === "Enter" && !event.shiftKey) {
+							event.preventDefault();
+							handleSubmit();
+						}
+					}}
+					placeholder={placeholder}
+					className={styles.textarea}
+				/>
 
-				<div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 sm:px-4">
-					<div className="relative flex min-w-0 flex-wrap items-center gap-1.5">
-						<button type="button" onClick={() => setContextMenuOpen((open) => !open)} className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary", contextMenuOpen && "bg-white/[0.06] text-content-primary")} aria-label="Add context or open a workspace" aria-expanded={contextMenuOpen}>{contextMenuOpen ? <X className="size-4" aria-hidden /> : <Plus className="size-4" strokeWidth={1.8} aria-hidden />}</button>
-						{contextMenuOpen ? <div className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-64 overflow-hidden rounded-xl border border-white/[0.09] bg-[#111827] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.42)]"><p className="px-2.5 pb-1.5 pt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-content-tertiary">Add context</p><Link href="/knowledge" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] text-content-secondary transition hover:bg-white/[0.045] hover:text-content-primary" onClick={() => setContextMenuOpen(false)}><FileText className="size-4" strokeWidth={1.7} aria-hidden />Files & knowledge</Link><Link href="/agents" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] text-content-secondary transition hover:bg-white/[0.045] hover:text-content-primary" onClick={() => setContextMenuOpen(false)}><Bot className="size-4" strokeWidth={1.7} aria-hidden />Agent task</Link><Link href="/local-ai" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] text-content-secondary transition hover:bg-white/[0.045] hover:text-content-primary" onClick={() => setContextMenuOpen(false)}><Cpu className="size-4" strokeWidth={1.7} aria-hidden />Private Local AI</Link></div> : null}
-						<button type="button" onClick={() => onChange("/deep ")} disabled={busy} className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[9px] font-medium text-content-secondary transition hover:border-violet-400/25 hover:bg-violet-500/[0.06] hover:text-violet-200 sm:flex"><Globe2 className="size-3.5" strokeWidth={1.6} />Deep Research</button>
-						<Link href="/agents" className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[9px] font-medium text-content-secondary transition hover:border-violet-400/25 hover:bg-violet-500/[0.06] hover:text-violet-200 md:flex"><WandSparkles className="size-3.5" strokeWidth={1.6} />Agents</Link>
-						<Link href="/local-ai" className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[9px] font-medium text-content-secondary transition hover:border-violet-400/25 hover:bg-violet-500/[0.06] hover:text-violet-200 lg:flex"><Cpu className="size-3.5" strokeWidth={1.6} />Local AI</Link>
+				<div className={styles.toolbar}>
+					<div className={styles.toolbarGroup}>
+						<button
+							type="button"
+							onClick={() => {
+								setContextMenuOpen((open) => !open);
+								setModelMenuOpen(false);
+							}}
+							className={cn(styles.iconControl, contextMenuOpen && styles.active)}
+							aria-label="Add context or assign work"
+							aria-expanded={contextMenuOpen}
+						>
+							{contextMenuOpen ? <X className="size-4" aria-hidden /> : <Plus className="size-4" strokeWidth={1.8} aria-hidden />}
+						</button>
+
+						{contextMenuOpen ? (
+							<div className={styles.menu}>
+								<div className={styles.menuHeader}>Add context or work mode</div>
+								<div className={styles.menuBody}>
+									<Link href="/knowledge" className={styles.menuItem} onClick={() => setContextMenuOpen(false)}>
+										<span className={styles.menuItemIcon}><FileText className="size-4" strokeWidth={1.7} aria-hidden /></span>
+										<span className={styles.menuItemCopy}><strong>Files & knowledge</strong><small>Work with uploaded and indexed context</small></span>
+									</Link>
+									<Link href="/agents" className={styles.menuItem} onClick={() => setContextMenuOpen(false)}>
+										<span className={styles.menuItemIcon}><Bot className="size-4" strokeWidth={1.7} aria-hidden /></span>
+										<span className={styles.menuItemCopy}><strong>Assign to an agent</strong><small>Move from conversation to autonomous execution</small></span>
+									</Link>
+									<Link href="/local-ai" className={styles.menuItem} onClick={() => setContextMenuOpen(false)}>
+										<span className={styles.menuItemIcon}><Cpu className="size-4" strokeWidth={1.7} aria-hidden /></span>
+										<span className={styles.menuItemCopy}><strong>Private Local AI</strong><small>Open the configured local runtime workspace</small></span>
+									</Link>
+								</div>
+							</div>
+						) : null}
+
+						<button
+							type="button"
+							onClick={() => onChange("/deep ")}
+							disabled={busy}
+							className={cn(styles.chip, styles.chipPrimary)}
+						>
+							<Globe2 className="size-3.5" strokeWidth={1.7} aria-hidden /> Deep Research
+						</button>
+
+						<div className="relative">
+							<button
+								type="button"
+								onClick={() => {
+									setModelMenuOpen((open) => !open);
+									setContextMenuOpen(false);
+								}}
+								className={cn(styles.chip, styles.desktopChip)}
+								aria-label="Model routing"
+								aria-expanded={modelMenuOpen}
+							>
+								<span className={styles.autoBadge}><span className={styles.statusDot} />Auto</span>
+								<ChevronDown className="size-3" aria-hidden />
+							</button>
+							{modelMenuOpen ? (
+								<div className={cn(styles.menu, styles.modelMenu)}>
+									<div className={styles.modelSummary}>
+										<strong>Automatic model routing</strong>
+										<p>Search currently chooses from available providers server-side. Manual chat-model selection is not exposed by the search API, so AIRA does not pretend otherwise.</p>
+									</div>
+									<div className={styles.menuBody}>
+										<Link href="/compare" className={styles.menuItem} onClick={() => setModelMenuOpen(false)}>
+											<span className={styles.menuItemIcon}><Columns2 className="size-4" aria-hidden /></span>
+											<span className={styles.menuItemCopy}><strong>Open Model Lab</strong><small>Compare configured providers side by side</small></span>
+										</Link>
+										<Link href="/local-ai" className={styles.menuItem} onClick={() => setModelMenuOpen(false)}>
+											<span className={styles.menuItemIcon}><Cpu className="size-4" aria-hidden /></span>
+											<span className={styles.menuItemCopy}><strong>Use Local AI</strong><small>Open the private local-model workspace</small></span>
+										</Link>
+									</div>
+								</div>
+							) : null}
+						</div>
 					</div>
-					<div className="flex items-center gap-2">
-						{voiceAvailable ? <button type="button" onClick={toggleVoice} disabled={busy} className={cn("grid size-9 place-items-center rounded-xl border border-white/[0.07] text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary", listening && "border-violet-400/30 bg-violet-500/10 text-violet-200")} aria-label={listening ? "Stop voice input" : "Start voice input"}>{listening ? <MicOff className="size-4" strokeWidth={1.7} /> : <Mic className="size-4" strokeWidth={1.7} />}</button> : null}
-						{isBusy && onCancel ? <Button type="button" onClick={onCancel} size="icon" className="size-9 rounded-xl border border-white/[0.08] bg-white/[0.05] text-content-primary shadow-none hover:bg-white/[0.08]" aria-label="Stop generating"><Square className="size-3.5 fill-current" strokeWidth={1.8} aria-hidden /></Button> : <Button type="submit" disabled={!canSubmit} size="icon" className="size-9 rounded-xl border-0 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-[0_7px_18px_rgba(91,70,220,.3)] transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:bg-none disabled:bg-white/[0.06] disabled:text-content-tertiary disabled:shadow-none" aria-label="Send to AIRA AI"><ArrowUp className="size-4" strokeWidth={2} aria-hidden /></Button>}
+
+					<div className={styles.actions}>
+						{voiceAvailable ? (
+							<button
+								type="button"
+								onClick={toggleVoice}
+								disabled={busy}
+								className={cn(styles.iconControl, listening && styles.active)}
+								aria-label={listening ? "Stop voice input" : "Start voice input"}
+							>
+								{listening ? <MicOff className="size-4" strokeWidth={1.7} /> : <Mic className="size-4" strokeWidth={1.7} />}
+							</button>
+						) : null}
+
+						{isBusy && onCancel ? (
+							<button type="button" onClick={onCancel} className={styles.stop} aria-label="Stop generating">
+								<Square className="size-3.5 fill-current" strokeWidth={1.8} aria-hidden />
+							</button>
+						) : (
+							<button type="submit" disabled={!canSubmit} className={styles.send} aria-label="Send to AIRA AI">
+								<ArrowUp className="size-4" strokeWidth={2} aria-hidden />
+							</button>
+						)}
 					</div>
 				</div>
 			</div>
-			<div className="mt-2 flex items-center justify-center gap-3 text-[9px] text-content-tertiary/80"><span>AIRA can make mistakes. Verify important information.</span></div>
+			<p className={styles.disclaimer}>AIRA can make mistakes. Verify important information.</p>
 		</form>
 	);
 });
