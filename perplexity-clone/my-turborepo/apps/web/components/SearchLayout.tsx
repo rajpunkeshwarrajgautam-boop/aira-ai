@@ -160,7 +160,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [researchMode, setResearchMode] = useState<ResearchMode>("standard");
 	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
 	const [billing, setBilling] = useState<BillingStatusPayload | null>(null);
-	const [statusText, setStatusText] = useState("Searching the web...");
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
@@ -209,6 +208,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		[busy, streamingUserQuery, streamingAssistantMarkdown],
 	);
 
+	const statusText = useMemo(() => {
+		if (!showAssistantSkeleton) return researchMode === "deep" ? "Deep Research ready." : "Ready.";
+		const sourceCount = streamingCitations.length;
+		if (sourceCount > 0) {
+			const sourceLabel = `${sourceCount} ${sourceCount === 1 ? "source" : "sources"} available`;
+			return researchMode === "deep"
+				? `Deep Research in progress · ${sourceLabel}`
+				: `Generating grounded answer · ${sourceLabel}`;
+		}
+		return researchMode === "deep" ? "Deep Research in progress…" : "Working on your request…";
+	}, [researchMode, showAssistantSkeleton, streamingCitations.length]);
+
 	const showConversationEmpty = useMemo(
 		() =>
 			messages.length === 0 &&
@@ -221,39 +232,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		() => phase !== "error" || !showConversationEmpty,
 		[phase, showConversationEmpty],
 	);
-
-	useEffect(() => {
-		if (!showAssistantSkeleton) {
-			setStatusText("Searching the web...");
-			return;
-		}
-
-		const hasCitations = streamingCitations.length > 0;
-		const texts = hasCitations
-			? ["Reading sources...", "Preparing answer...", "Writing answer..."]
-			: ["Searching the web...", "Reading sources...", "Writing answer..."];
-
-		// Initialize text if it doesn't match the current state constraints
-		setStatusText((current) => {
-			if (hasCitations && current === "Searching the web...") {
-				return "Reading sources...";
-			}
-			return current;
-		});
-
-		let idx = 0;
-		const id = setInterval(() => {
-			setStatusText((current) => {
-				// Find current index to step sequentially
-				idx = texts.indexOf(current);
-				if (idx === -1) idx = 0;
-				const nextIdx = (idx + 1) % texts.length;
-				return texts[nextIdx] as string;
-			});
-		}, 2500);
-
-		return () => clearInterval(id);
-	}, [showAssistantSkeleton, streamingCitations.length]);
 
 	const apiFetchJson = useCallback(
 		async <T,>(url: string, options?: RequestInit): Promise<T> => {
@@ -512,7 +490,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							btn.click();
 							break;
 						}
-					}
 					return;
 				} else {
 					return;
