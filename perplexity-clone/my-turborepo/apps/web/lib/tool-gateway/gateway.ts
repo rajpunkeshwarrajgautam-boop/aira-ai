@@ -202,6 +202,7 @@ export async function executeTool(
 		stored.runId !== context.runId ||
 		stored.projectId !== context.projectId ||
 		stored.taskId !== (context.taskId ?? null) ||
+		stored.agentId !== (context.agentId ?? null) ||
 		stored.inputHash !== inputHash
 	)) {
 		throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "This tool request id is already bound to a different exact operation.", status: 409 });
