@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import type { UsageDelta } from "@/lib/tool-gateway/types";
 
 function record(value: unknown): Record<string, unknown> {
@@ -24,20 +23,15 @@ export function usageFromRuntimeResult(result: unknown): UsageDelta {
 	};
 }
 
-export async function applyRuntimeUsage(runId: string, usage: UsageDelta): Promise<void> {
-	const input = Math.max(0, Math.trunc(usage.inputTokens ?? 0));
-	const output = Math.max(0, Math.trunc(usage.outputTokens ?? 0));
-	const cached = Math.max(0, Math.trunc(usage.cachedTokens ?? 0));
-	const cost = Math.max(0, usage.costUsd ?? 0);
-	await prisma.$executeRaw`
-		update "AgentPlatformRun"
-		set "inputTokensUsed"="inputTokensUsed"+${input}::bigint,
-			"outputTokensUsed"="outputTokensUsed"+${output}::bigint,
-			"cachedTokensUsed"="cachedTokensUsed"+${cached}::bigint,
-			"knownCostUsd"="knownCostUsd"+${cost}::numeric,
-			"updatedAt"=current_timestamp
-		where "id"=${runId}
-	`;
+/**
+ * Compatibility barrier for the orchestrator's pre-terminal usage hook.
+ * Runtime usage is intentionally accounted inside store.completeTask/failTask,
+ * in the same PostgreSQL transaction that owns the terminal task transition.
+ * Keeping this pre-hook side-effect free prevents concurrent coordinators from
+ * double-counting tokens/cost before one of them wins the task row lock.
+ */
+export function applyRuntimeUsage(_runId: string, _usage: UsageDelta): Promise<void> {
+	return Promise.resolve();
 }
 
 export function missionBudgetExceeded(input: {
