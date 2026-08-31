@@ -157,6 +157,7 @@ export async function reconcileBlockedManagedTask(input: {
 			  and "projectId"=${run.projectId}
 			  and "status"='BLOCKED'
 			  and "runtimeRunId"=${task.runtimeRunId}
+			  and "attempt"=${task.attempt}
 		`;
 		if (taskChanged !== 1) return false;
 
