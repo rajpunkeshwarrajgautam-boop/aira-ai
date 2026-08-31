@@ -1,0 +1,73 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid hsl(var(--aira-border-subtle));
+  background: hsl(var(--aira-bg) / 0.92);
+  backdrop-filter: blur(18px);
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--aira-space-4);
+  width: min(100%, 1480px);
+  height: 60px;
+  margin: 0 auto;
+  padding: 0 var(--aira-space-4);
+}
+
+.brand {
+  justify-self: start;
+  min-width: 0;
+}
+
+.nav {
+  display: none;
+}
+
+.account {
+  justify-self: end;
+}
+
+.skeleton {
+  width: 116px;
+  height: 36px;
+  border-radius: var(--aira-radius-lg);
+  background: hsl(var(--aira-surface-2));
+  animation: header-pulse 1.4s ease-in-out infinite;
+}
+
+@media (min-width: 640px) {
+  .inner {
+    padding-inline: var(--aira-space-6);
+  }
+}
+
+@media (min-width: 768px) {
+  .inner {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .nav {
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .inner {
+    padding-inline: var(--aira-space-8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+@keyframes header-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
