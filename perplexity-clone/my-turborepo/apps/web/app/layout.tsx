@@ -4,9 +4,7 @@ import localFont from "next/font/local";
 import { Providers } from "./providers";
 import "./globals.css";
 import "./best-of-premium.css";
-import "./impeccable-workspace-v3.css";
 import "./aira-intelligence-os.css";
-import "./aira-visual-redesign.css";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -18,10 +16,25 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AiraAI — grounded answers with live citations",
+  title: "AIRA AI — intelligent research and execution workspace",
   description:
-    "Research with live web citations, save persistent threads, and run controlled autonomous tasks from one workspace.",
+    "Chat, research with live citations, work with knowledge, compare models, and run controlled AI workflows from one workspace.",
 };
+
+const themeBootstrap = `
+(() => {
+  try {
+    const saved = localStorage.getItem("aira:theme");
+    const theme = saved === "light" || saved === "dark"
+      ? saved
+      : window.matchMedia("(prefers-color-scheme: light)").matches
+        ? "light"
+        : "dark";
+    document.documentElement.dataset.theme = theme;
+  } catch {
+    document.documentElement.dataset.theme = "dark";
+  }
+})();`;
 
 export default function RootLayout({
   children,
@@ -29,7 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
