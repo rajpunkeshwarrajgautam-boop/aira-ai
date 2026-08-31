@@ -27,7 +27,7 @@ export default function Home() {
       <AiraPreloader />
       <AiraV2Frame>
         <Suspense fallback={<HomeSkeleton />}>
-          <SearchLayout />
+          <SearchLayout className="aira-core-search" />
         </Suspense>
       </AiraV2Frame>
     </div>
