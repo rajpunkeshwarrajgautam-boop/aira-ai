@@ -40,7 +40,7 @@ const INTELLIGENCE_NAV = [
 
 const SYSTEM_NAV = [
   { href: "/workspace-search", label: "Global Search", description: "Chats, messages and memory", icon: Search },
-  { href: "/settings", label: "Integrations", description: "Providers and runtime status", icon: Settings2 },
+  { href: "/settings#integrations", label: "Integrations", description: "Providers and runtime status", icon: Settings2 },
   { href: "/pricing", label: "Plans", description: "Usage and upgrades", icon: CreditCard },
 ] as const;
 
@@ -57,8 +57,13 @@ type NavigationItem =
   | (typeof SYSTEM_NAV)[number]
   | typeof ANALYTICS_NAV;
 
+function routeFromHref(href: string): string {
+  return href.split(/[?#]/, 1)[0] || "/";
+}
+
 function isActivePath(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const route = routeFromHref(href);
+  return route === "/" ? pathname === "/" : pathname.startsWith(route);
 }
 
 function NavGroup({
