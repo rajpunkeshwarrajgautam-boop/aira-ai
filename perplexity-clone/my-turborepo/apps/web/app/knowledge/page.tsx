@@ -42,9 +42,9 @@ function matchesFilter(asset: Asset, filter: Filter): boolean {
 }
 
 function statusClass(status: AssetStatus): string {
-  if (status === "READY") return styles.ready;
-  if (status === "FAILED") return styles.failed;
-  return styles.processing;
+  if (status === "READY") return styles.ready ?? "";
+  if (status === "FAILED") return styles.failed ?? "";
+  return styles.processing ?? "";
 }
 
 export default function KnowledgePage() {
