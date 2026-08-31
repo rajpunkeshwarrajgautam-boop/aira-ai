@@ -2,6 +2,9 @@ import { ArrowUpRight, CircleAlert, CircleCheck, CircleDashed, CircleOff } from 
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/cn";
+import styles from "./CapabilityGate.module.css";
+
 export type CapabilityState = "available" | "not-configured" | "offline" | "unsupported" | "permission-required";
 
 const STATE_COPY: Record<CapabilityState, { label: string; icon: typeof CircleCheck }> = {
@@ -10,6 +13,14 @@ const STATE_COPY: Record<CapabilityState, { label: string; icon: typeof CircleCh
   offline: { label: "Offline", icon: CircleOff },
   unsupported: { label: "Backend contract required", icon: CircleAlert },
   "permission-required": { label: "Permission required", icon: CircleAlert },
+};
+
+const STATE_CLASS: Record<CapabilityState, string | undefined> = {
+  available: styles.stateAvailable,
+  "not-configured": undefined,
+  offline: styles.stateOffline,
+  unsupported: styles.stateUnsupported,
+  "permission-required": styles.statePermission,
 };
 
 export function CapabilityGate({
@@ -33,35 +44,37 @@ export function CapabilityGate({
   const StateIcon = meta.icon;
 
   return (
-    <section className="aira-capability-gate" aria-labelledby="capability-title">
-      <div className="aira-capability-gate__eyebrow">{eyebrow}</div>
-      <div className="aira-capability-gate__head">
+    <section className={styles.gate} aria-labelledby="capability-title">
+      <div className={styles.eyebrow}>{eyebrow}</div>
+      <div className={styles.head}>
         <div>
           <h1 id="capability-title">{title}</h1>
           <p>{description}</p>
         </div>
-        <span className={`aira-capability-state is-${state}`}>
+        <span className={cn(styles.state, STATE_CLASS[state])}>
           <StateIcon className="size-3.5" aria-hidden />
           {meta.label}
         </span>
       </div>
 
-      <div className="aira-capability-gate__body">
-        <div className="aira-capability-gate__detail">
+      <div className={styles.body}>
+        <div className={styles.detail}>
           <strong>Current capability</strong>
           <p>{detail}</p>
         </div>
         {children}
       </div>
 
-      <div className="aira-capability-gate__actions" aria-label="Capability actions">
-        {actions.map((action) => (
-          <Link key={`${action.href}:${action.label}`} href={action.href} className="aira-capability-action">
-            {action.label}
-            <ArrowUpRight className="size-3.5" aria-hidden />
-          </Link>
-        ))}
-      </div>
+      {actions.length ? (
+        <div className={styles.actions} aria-label="Capability actions">
+          {actions.map((action) => (
+            <Link key={`${action.href}:${action.label}`} href={action.href} className={styles.action}>
+              {action.label}
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
