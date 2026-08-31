@@ -5,6 +5,8 @@ import {
   Bot,
   Boxes,
   Brain,
+  ChevronLeft,
+  ChevronRight,
   Columns2,
   Command,
   Cpu,
@@ -14,12 +16,15 @@ import {
   History,
   Menu,
   MonitorUp,
+  Moon,
   Network,
   Search,
   Settings2,
   ShieldCheck,
   Sparkles,
+  Sun,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -27,47 +32,46 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "../lib/cn";
 import { AiraLogo } from "./AiraLogo";
+import styles from "./AiraV2Frame.module.css";
 
-const OPERATE_NAV = [
-  { href: "/control-center", label: "Control Center", description: "System health and activity", icon: Gauge },
-  { href: "/", label: "Research", description: "Ask, investigate, cite", icon: Search },
-  { href: "/runs", label: "Workflows", description: "Launch and monitor runs", icon: History },
-  { href: "/agents", label: "Agents", description: "Design autonomous work", icon: Bot },
+type NavigationItem = {
+  readonly href: string;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: LucideIcon;
+  readonly keywords?: string;
+};
+
+const CORE_NAV: readonly NavigationItem[] = [
+  { href: "/", label: "Ask AIRA", description: "Chat, search and research", icon: Sparkles, keywords: "new task home research chat" },
+  { href: "/workspace-search", label: "Search", description: "Find work across AIRA", icon: Search, keywords: "global conversations messages memory" },
+  { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen, keywords: "files upload documents rag" },
+  { href: "/agents", label: "Agents", description: "Assign autonomous work", icon: Bot, keywords: "agent task automation" },
+  { href: "/runs", label: "Runs", description: "Monitor active workflows", icon: History, keywords: "workflows execution history" },
 ] as const;
 
-const INTELLIGENCE_NAV = [
-  { href: "/compare", label: "Model Lab", description: "Compare models side by side", icon: Columns2 },
-  { href: "/local-ai", label: "Local Runtime", description: "Private llama.cpp worker", icon: Cpu },
-  { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
-  { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
+const TOOLS_NAV: readonly NavigationItem[] = [
+  { href: "/compare", label: "Model Lab", description: "Compare configured providers", icon: Columns2, keywords: "models compare evaluation providers" },
+  { href: "/local-ai", label: "Local AI", description: "Private local runtime", icon: Cpu, keywords: "llama cpp private model" },
+  { href: "/browser-agent", label: "Browser Agent", description: "Browser execution", icon: MonitorUp, keywords: "browser automation web" },
+  { href: "/swarms", label: "Swarms", description: "Multi-agent orchestration", icon: Network, keywords: "multi agent manager" },
+  { href: "/projects", label: "Projects", description: "Context, runs and artifacts", icon: Boxes, keywords: "workspace project artifacts" },
 ] as const;
 
-const AUTOMATION_NAV = [
-  { href: "/browser-agent", label: "Browser Agent", description: "Browser execution readiness", icon: MonitorUp },
-  { href: "/swarms", label: "Swarms", description: "Multi-agent orchestration", icon: Network },
-  { href: "/projects", label: "Projects", description: "Context, runs and artifacts", icon: Boxes },
+const SYSTEM_NAV: readonly NavigationItem[] = [
+  { href: "/control-center", label: "Control Center", description: "System health and activity", icon: Gauge, keywords: "status health operations" },
+  { href: "/settings#integrations", label: "Settings", description: "Models, providers and integrations", icon: Settings2, keywords: "integrations providers preferences" },
+  { href: "/governance", label: "Governance", description: "Policy and enterprise controls", icon: ShieldCheck, keywords: "security policy enterprise" },
+  { href: "/pricing", label: "Plans", description: "Usage and upgrades", icon: CreditCard, keywords: "billing pricing subscription" },
 ] as const;
 
-const SYSTEM_NAV = [
-  { href: "/workspace-search", label: "Global Search", description: "Chats, messages and memory", icon: Search },
-  { href: "/settings#integrations", label: "Integrations", description: "Providers and runtime status", icon: Settings2 },
-  { href: "/governance", label: "Governance", description: "Enterprise policy readiness", icon: ShieldCheck },
-  { href: "/pricing", label: "Plans", description: "Usage and upgrades", icon: CreditCard },
-] as const;
-
-const ANALYTICS_NAV = {
+const ANALYTICS_NAV: NavigationItem = {
   href: "/admin/analytics",
   label: "Analytics",
   description: "Owner telemetry",
   icon: BarChart3,
-} as const;
-
-type NavigationItem =
-  | (typeof OPERATE_NAV)[number]
-  | (typeof INTELLIGENCE_NAV)[number]
-  | (typeof AUTOMATION_NAV)[number]
-  | (typeof SYSTEM_NAV)[number]
-  | typeof ANALYTICS_NAV;
+  keywords: "admin metrics telemetry",
+};
 
 function routeFromHref(href: string): string {
   return href.split(/[?#]/, 1)[0] || "/";
@@ -90,8 +94,8 @@ function NavGroup({
   readonly onNavigate?: () => void;
 }) {
   return (
-    <div className="aira-v2-nav-group">
-      <p className="aira-v2-nav-label">{label}</p>
+    <div className={styles.navGroup}>
+      <p className={styles.navLabel}>{label}</p>
       {items.map((item) => {
         const active = isActivePath(pathname, item.href);
         const Icon = item.icon;
@@ -99,14 +103,15 @@ function NavGroup({
           <Link
             key={item.href}
             href={item.href}
+            title={item.label}
             onClick={onNavigate}
-            className={cn("aira-v2-nav-item", active && "is-active")}
+            className={cn("aira-v2-nav-item", styles.navItem, active && styles.active)}
             aria-current={active ? "page" : undefined}
           >
-            <span className="aira-v2-nav-icon">
-              <Icon className="size-[18px]" strokeWidth={1.8} aria-hidden />
+            <span className={styles.navIcon} aria-hidden>
+              <Icon className="size-[17px]" strokeWidth={1.8} />
             </span>
-            <span className="aira-v2-nav-copy">
+            <span className={styles.navCopy}>
               <strong>{item.label}</strong>
               <small>{item.description}</small>
             </span>
@@ -122,9 +127,19 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [filter, setFilter] = useState("");
   const [analyticsAdmin, setAnalyticsAdmin] = useState(false);
+  const [selectedCommand, setSelectedCommand] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const savedCollapsed = window.localStorage.getItem("aira:shell-collapsed");
+    setCollapsed(savedCollapsed === "true");
+    const currentTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+    setTheme(currentTheme);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,12 +165,12 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   );
 
   const allCommands = useMemo<readonly NavigationItem[]>(
-    () => [...OPERATE_NAV, ...INTELLIGENCE_NAV, ...AUTOMATION_NAV, ...systemNav],
+    () => [...CORE_NAV, ...TOOLS_NAV, ...systemNav],
     [systemNav],
   );
 
   const current = useMemo(
-    () => allCommands.find((item) => isActivePath(pathname, item.href)) ?? OPERATE_NAV[1],
+    () => allCommands.find((item) => isActivePath(pathname, item.href)) ?? CORE_NAV[0],
     [allCommands, pathname],
   );
 
@@ -163,9 +178,13 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
     const needle = filter.trim().toLowerCase();
     if (!needle) return allCommands;
     return allCommands.filter((item) =>
-      `${item.label} ${item.description}`.toLowerCase().includes(needle),
+      `${item.label} ${item.description} ${item.keywords ?? ""}`.toLowerCase().includes(needle),
     );
   }, [allCommands, filter]);
+
+  useEffect(() => {
+    setSelectedCommand(0);
+  }, [filter, paletteOpen]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -200,29 +219,57 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
     router.push(href);
   };
 
+  const toggleCollapsed = () => {
+    setCollapsed((currentCollapsed) => {
+      const next = !currentCollapsed;
+      window.localStorage.setItem("aira:shell-collapsed", String(next));
+      return next;
+    });
+  };
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    window.localStorage.setItem("aira:theme", next);
+    setTheme(next);
+  };
+
   const CurrentIcon = current.icon;
 
   return (
-    <div className="aira-v2-frame aira-intelligence-os">
+    <div className={cn("aira-v2-frame", styles.frame, collapsed && styles.collapsed)}>
       {mobileNavOpen ? (
         <button
           type="button"
-          className="aira-v2-mobile-backdrop"
+          className={styles.mobileBackdrop}
           aria-label="Close navigation"
           onClick={() => setMobileNavOpen(false)}
         />
       ) : null}
 
-      <aside className={cn("aira-v2-rail", mobileNavOpen && "is-mobile-open")} aria-label="AIRA workspace navigation">
-        <div className="aira-v2-brand">
-          <AiraLogo />
-          <div className="aira-v2-brand-copy">
-            <span>AIRA AI</span>
-            <small>Intelligence OS</small>
+      <aside
+        className={cn("aira-v2-rail", styles.rail, mobileNavOpen && styles.mobileOpen)}
+        aria-label="AIRA workspace navigation"
+      >
+        <div className={styles.brand}>
+          <span className={styles.brandMark}>
+            <AiraLogo />
+          </span>
+          <div className={styles.brandCopy}>
+            <strong>AIRA AI</strong>
+            <small>Intelligent workspace</small>
           </div>
           <button
             type="button"
-            className="aira-v2-mobile-close"
+            className={styles.collapseButton}
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            onClick={toggleCollapsed}
+          >
+            {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          </button>
+          <button
+            type="button"
+            className={styles.mobileClose}
             aria-label="Close navigation"
             onClick={() => setMobileNavOpen(false)}
           >
@@ -230,101 +277,131 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="aira-v2-nav" aria-label="Primary workspace">
-          <NavGroup label="Operate" items={OPERATE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
-          <NavGroup label="Intelligence" items={INTELLIGENCE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
-          <NavGroup label="Automation" items={AUTOMATION_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+        <nav className={styles.nav} aria-label="Primary workspace">
+          <NavGroup label="Workspace" items={CORE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+          <NavGroup label="Tools" items={TOOLS_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
           <NavGroup label="System" items={systemNav} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
         </nav>
 
-        <button type="button" className="aira-v2-command-trigger" onClick={() => setPaletteOpen(true)}>
-          <Command className="size-[16px]" aria-hidden />
-          <span>Quick switch</span>
-          <kbd>⌘K</kbd>
-        </button>
+        <div className={styles.railFooter}>
+          <button type="button" className={styles.commandButton} onClick={() => setPaletteOpen(true)}>
+            <Command className="size-[16px]" aria-hidden />
+            <span>Search & commands</span>
+            <kbd>⌘K</kbd>
+          </button>
+        </div>
       </aside>
 
-      <div className="aira-v2-main">
-        <header className="aira-v2-topbar">
-          <div className="aira-v2-topbar-title">
+      <div className={styles.main}>
+        <header className={styles.topbar}>
+          <div className={styles.topbarTitle}>
             <button
               type="button"
-              className="aira-v2-mobile-menu"
+              className={styles.mobileMenu}
               aria-label="Open navigation"
               onClick={() => setMobileNavOpen(true)}
             >
               <Menu className="size-[18px]" />
             </button>
-            <span className="aira-v2-topbar-icon">
+            <span className={styles.topbarContextIcon}>
               <CurrentIcon className="size-[16px]" strokeWidth={1.9} aria-hidden />
             </span>
-            <div>
+            <div className={styles.topbarCopy}>
               <strong>{current.label}</strong>
               <small>{current.description}</small>
             </div>
           </div>
-          <div className="aira-v2-topbar-actions">
-            <span className="aira-v2-grounded-status">AIRA workspace</span>
+          <div className={styles.topbarActions}>
+            <span className={styles.workspaceStatus}>AIRA workspace</span>
             <button
               type="button"
-              className="aira-v2-topbar-command"
+              className={styles.iconButton}
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              title={theme === "dark" ? "Light theme" : "Dark theme"}
+            >
+              {theme === "dark" ? <Sun className="size-[16px]" /> : <Moon className="size-[16px]" />}
+            </button>
+            <button
+              type="button"
+              className={styles.topbarCommand}
               onClick={() => setPaletteOpen(true)}
-              aria-label="Open command palette"
+              aria-label="Open search and commands"
             >
               <Command className="size-[15px]" aria-hidden />
-              <span>Navigate</span>
+              <span>Search</span>
               <kbd>⌘K</kbd>
             </button>
           </div>
         </header>
-        <section className="aira-v2-workspace-stage min-w-0 min-h-[calc(100dvh-58px)]">{children}</section>
+        <section className={cn("aira-v2-workspace-stage", styles.stage)}>{children}</section>
       </div>
 
       {paletteOpen ? (
-        <div className="aira-v2-palette-backdrop" role="presentation" onMouseDown={() => setPaletteOpen(false)}>
+        <div className={styles.paletteBackdrop} role="presentation" onMouseDown={() => setPaletteOpen(false)}>
           <div
-            className="aira-v2-palette"
+            className={styles.palette}
             role="dialog"
             aria-modal="true"
-            aria-label="AIRA command palette"
+            aria-label="AIRA search and commands"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="aira-v2-palette-search">
+            <div className={styles.paletteSearch}>
               <Search className="size-[18px]" aria-hidden />
               <input
                 ref={inputRef}
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                placeholder="Search AIRA workspaces…"
-                aria-label="Filter destinations"
+                placeholder="Search workspaces and commands…"
+                aria-label="Search AIRA destinations"
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href);
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setSelectedCommand((index) => Math.min(index + 1, Math.max(filteredCommands.length - 1, 0)));
+                  } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setSelectedCommand((index) => Math.max(index - 1, 0));
+                  } else if (event.key === "Enter" && filteredCommands[selectedCommand]) {
+                    event.preventDefault();
+                    navigate(filteredCommands[selectedCommand].href);
+                  }
                 }}
               />
-              <button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette">
+              <button type="button" className={styles.paletteClose} onClick={() => setPaletteOpen(false)} aria-label="Close command palette">
                 <X className="size-4" />
               </button>
             </div>
-            <div className="aira-v2-palette-results">
+            <div className={styles.paletteResults}>
               {filteredCommands.length ? (
-                filteredCommands.map((item) => {
+                filteredCommands.map((item, index) => {
                   const Icon = item.icon;
                   return (
-                    <button key={item.href} type="button" onClick={() => navigate(item.href)} className="aira-v2-palette-item">
-                      <span className="aira-v2-palette-item-icon"><Icon className="size-[17px]" aria-hidden /></span>
-                      <span><strong>{item.label}</strong><small>{item.description}</small></span>
-                      <span className="aira-v2-palette-enter">↵</span>
+                    <button
+                      key={item.href}
+                      type="button"
+                      onMouseEnter={() => setSelectedCommand(index)}
+                      onClick={() => navigate(item.href)}
+                      className={cn(styles.paletteItem, index === selectedCommand && styles.selected)}
+                    >
+                      <span className={styles.paletteItemIcon}>
+                        <Icon className="size-[17px]" aria-hidden />
+                      </span>
+                      <span className={styles.paletteItemCopy}>
+                        <strong>{item.label}</strong>
+                        <small>{item.description}</small>
+                      </span>
+                      <span className={styles.paletteEnter}>↵</span>
                     </button>
                   );
                 })
               ) : (
-                <p className="aira-v2-palette-empty">No matching workspace.</p>
+                <p className={styles.paletteEmpty}>No matching AIRA destination.</p>
               )}
             </div>
-            <div className="aira-v2-palette-footer">
+            <div className={styles.paletteFooter}>
               <Sparkles className="size-3.5" aria-hidden />
-              AIRA Intelligence OS
-              <span>Esc to close</span>
+              AIRA AI
+              <span>↑↓ navigate · Enter open · Esc close</span>
             </div>
           </div>
         </div>
