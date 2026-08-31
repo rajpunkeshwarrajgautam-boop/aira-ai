@@ -47,7 +47,7 @@ export async function GET(req: Request): Promise<Response> {
       id: conversation.id,
       title: conversation.title,
       snippet: "Saved conversation",
-      updatedAt: conversation.lastMessageAt,
+      updatedAt: conversation.lastMessageAt.toISOString(),
       href: `/?conversation=${encodeURIComponent(conversation.id)}`,
     });
   }
@@ -59,7 +59,7 @@ export async function GET(req: Request): Promise<Response> {
       id: memory.id,
       title: memory.kind,
       snippet: memory.content,
-      updatedAt: memory.updatedAt,
+      updatedAt: memory.updatedAt.toISOString(),
       href: `/memory?memory=${encodeURIComponent(memory.id)}`,
     });
   }
@@ -99,7 +99,7 @@ export async function GET(req: Request): Promise<Response> {
         title: conversation.title,
         snippet,
         role: message.role,
-        updatedAt: message.createdAt,
+        updatedAt: message.createdAt.toISOString(),
         href: `/?conversation=${encodeURIComponent(conversation.id)}`,
       });
       if (results.length >= 80) break;
