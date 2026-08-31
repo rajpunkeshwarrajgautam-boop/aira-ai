@@ -82,8 +82,8 @@ test(
 			`,
 			prisma.$executeRaw`
 				insert into "AgentToolCall"
-				("id","clientRequestId","userId","projectId","runId","taskId","agentId","tool","action","risk","status","approvalId")
-				values (${toolCallId},${`cancel-tool-request-${suffix}`},${userId},${project.id},${run.id},${task.id},${agentId},'web','open','HIGH','APPROVAL_REQUIRED',${approvalId})
+				("id","clientRequestId","userId","projectId","runId","taskId","agentId","tool","action","risk","status","approvalId","inputHash")
+				values (${toolCallId},${`cancel-tool-request-${suffix}`},${userId},${project.id},${run.id},${task.id},${agentId},'web','open','HIGH','APPROVAL_REQUIRED',${approvalId},${`fixture:${suffix}`})
 			`,
 		]);
 
