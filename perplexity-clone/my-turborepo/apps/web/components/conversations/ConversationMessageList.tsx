@@ -114,15 +114,18 @@ function AssistantSkeleton({ sourceCount }: { readonly sourceCount: number }) {
 			<div className={styles.assistantAvatar}>A</div>
 			<div className={styles.skeletonBody}>
 				<div className={styles.skeletonTitle}>
-					<span>{sourceCount > 0 ? "Sources received" : "Working on your request…"}</span>
+					<span>{sourceCount > 0 ? "Sources available" : "Working on your request…"}</span>
 					<span className={styles.pulseDot} aria-hidden />
 				</div>
-				<p>{sourceCount > 0 ? `${sourceCount} sources available · preparing the response` : "AIRA is processing the request."}</p>
+				<p>{sourceCount > 0 ? `${sourceCount} ${sourceCount === 1 ? "source" : "sources"} available · AIRA is generating the response.` : "AIRA is processing the request."}</p>
 				<div className={styles.skeletonLines} aria-hidden>
 					<div className={styles.skeletonLine} style={{ width: "88%" }} />
 					<div className={styles.skeletonLine} style={{ width: "72%" }} />
 					<div className={styles.skeletonLine} style={{ width: "58%" }} />
 				</div>
+				<span className="sr-only" role="status" aria-live="polite">
+					{sourceCount > 0 ? `${sourceCount} ${sourceCount === 1 ? "source is" : "sources are"} available. AIRA is generating the response.` : "AIRA is working on the request."}
+				</span>
 			</div>
 		</div>
 	);

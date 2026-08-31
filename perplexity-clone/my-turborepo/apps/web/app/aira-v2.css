@@ -29,7 +29,6 @@
   margin: 0 !important;
 }
 
-/* Authenticated thread list becomes the secondary navigation column. */
 .aira-core-search > div > div:has(> aside[aria-label="Conversation sidebar"]) {
   width: 258px !important;
   flex: 0 0 258px !important;
@@ -50,11 +49,11 @@
   overflow: hidden !important;
 }
 
-/* The canonical AIRA shell now owns product context/account chrome. */
 .aira-core-search main > div:first-child,
 .aira-core-search main > header,
 .aira-core-search [aria-label="Plan and usage"],
-.aira-core-search [aria-label="Research history"] {
+.aira-core-search [aria-label="Research history"],
+.aira-core-search p.sr-only[aria-live="polite"] {
   display: none !important;
 }
 
@@ -85,7 +84,6 @@
   background: hsl(var(--aira-bg)) !important;
 }
 
-/* Composer dock. Real mode/model behavior remains inside SearchBox/SearchLayout. */
 .aira-core-search main > div[class*="max-w-4xl"] > div:has(form[aria-label="Ask AiraAI"]) {
   position: relative !important;
   z-index: 22 !important;
@@ -102,7 +100,6 @@
   margin-inline: auto !important;
 }
 
-/* Deep Research is exposed coherently from the composer instead of duplicated. */
 .aira-core-search [aria-label="Search mode"],
 .aira-core-search [aria-label="Deep Research requires a signed-in account"] {
   display: none !important;
@@ -123,7 +120,6 @@
   display: none !important;
 }
 
-/* Existing error/continuation regions retain semantics but lose glass styling. */
 .aira-core-search [role="alert"],
 .aira-core-search [aria-label="Continue research"] {
   border-color: hsl(var(--aira-border-subtle)) !important;

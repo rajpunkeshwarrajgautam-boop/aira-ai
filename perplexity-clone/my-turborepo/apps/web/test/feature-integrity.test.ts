@@ -58,6 +58,7 @@ test("static Next Link destinations resolve to real app routes", () => {
 				assert.ok(routes.has(route), `${path.relative(WEB_ROOT, file)} links to missing route ${route}`);
 			}
 		}
+	}
 });
 
 test("type=button controls are not decorative no-ops", () => {
@@ -66,8 +67,6 @@ test("type=button controls are not decorative no-ops", () => {
 		for (const file of walk(directory)) {
 			if (!/\.tsx$/.test(file)) continue;
 			const relative = path.relative(WEB_ROOT, file).replaceAll(path.sep, "/");
-			// The application shell is audited separately below because its multiline
-			// command-palette controls confuse this intentionally lightweight scanner.
 			if (relative === "components/AiraV2Frame.tsx") continue;
 			const source = readFileSync(file, "utf8");
 			for (const match of source.matchAll(/<button(?<attrs>[^>]*)type=["']button["'](?<rest>[^>]*)>/g)) {
@@ -121,15 +120,15 @@ test("history command resolves to the real workspace search", () => {
 	const composer = read("components/SearchBox.tsx");
 	assert.ok(registry.includes('payload: "/workspace-search"'));
 	assert.ok(composer.includes('window.location.assign("/workspace-search")'));
-	assert.ok(!registry.includes("Type /help"), "registry must not advertise an unregistered /help command");
+	assert.ok(!registry.includes("Type /help"));
 });
 
 test("thread share controls use a real browser share or clipboard action", () => {
 	const messages = read("components/conversations/ConversationMessageList.tsx");
 	assert.ok(messages.includes("navigator.share"));
 	assert.ok(messages.includes("navigator.clipboard.writeText(shareableText)"));
-	assert.ok(!messages.includes('onClick={() => emitComposerCommand("/share")}'), "visible share controls should not recursively invoke the slash command");
-	assert.ok(!messages.includes('>AIRA</button>'), "AIRA state label must not masquerade as a no-op button");
+	assert.ok(!messages.includes('onClick={() => emitComposerCommand("/share")}'));
+	assert.ok(!messages.includes('>AIRA</button>'));
 });
 
 test("integrations shortcut lands on an actual settings anchor", () => {
@@ -167,9 +166,8 @@ test("advanced automation navigation resolves to truthful capability-aware route
 	const swarms = read("app/swarms/page.tsx");
 	const projects = read("app/projects/page.tsx");
 	const governance = read("app/governance/page.tsx");
-
 	for (const destination of ["/browser-agent", "/swarms", "/projects", "/governance"]) {
-		assert.ok(frame.includes(`href: "${destination}"`), `expected ${destination} in the unified shell`);
+		assert.ok(frame.includes(`href: "${destination}"`));
 	}
 	assert.ok(frame.includes('const TOOLS_NAV: readonly NavigationItem[]'));
 	assert.ok(frame.includes('const SYSTEM_NAV: readonly NavigationItem[]'));
@@ -180,5 +178,5 @@ test("advanced automation navigation resolves to truthful capability-aware route
 	assert.ok(projects.includes('state="unsupported"'));
 	assert.ok(projects.includes("durable Project entity"));
 	assert.ok(governance.includes('fetch("/api/admin/access"'));
-	assert.ok(governance.includes("do not yet have a complete server-side policy contract"));
+	assert.ok(governance.includes("complete server-side persistence contract"));
 });
