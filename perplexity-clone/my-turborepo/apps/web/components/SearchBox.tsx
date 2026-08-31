@@ -350,7 +350,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									<div className={styles.menuBody}>
 										<button type="button" disabled={modelSaving} onClick={() => void selectProvider("auto")} className={cn(styles.menuItem, modelState?.selected === "auto" && "bg-accent/10 text-content-primary")}>
 											<span className={styles.menuItemIcon}>{modelState?.selected === "auto" ? <Check className="size-4" /> : <Globe2 className="size-4" />}</span>
-											<span className={styles.menuItemCopy}><strong>Auto · best available</strong><small>Use AIRA's plan-aware primary provider and safe fallback policy</small></span>
+											<span className={styles.menuItemCopy}><strong>Auto · best available</strong><small>Use the plan-aware AIRA primary provider and safe fallback policy</small></span>
 										</button>
 										{modelState?.providers.map((provider) => {
 											const selected = modelState.selected === provider.id;
