@@ -8,8 +8,10 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/agent-platform-idempotency-real-db.yml"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/orchestrator.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/store.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/usage.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-cancellation-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idempotency-real-db.test.ts"
   workflow_dispatch:
 
@@ -101,7 +103,9 @@ jobs:
       - name: Apply complete schema
         run: pnpm exec prisma migrate deploy
 
-      - name: Prove duplicate execution fences on real PostgreSQL
+      - name: Prove duplicate and cancellation fences on real PostgreSQL
         run: |
           pnpm --filter web run precheck-types
-          pnpm --filter web exec node --import ./test/resolver.mjs --test ./test/agent-platform-idempotency-real-db.test.ts
+          pnpm --filter web exec node --import ./test/resolver.mjs --test \
+            ./test/agent-platform-idempotency-real-db.test.ts \
+            ./test/agent-platform-cancellation-real-db.test.ts
