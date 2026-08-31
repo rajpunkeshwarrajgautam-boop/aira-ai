@@ -179,6 +179,21 @@ function replayStored(existing: Awaited<ReturnType<typeof getToolCallByRequest>>
 	return null;
 }
 
+function storedOperationConflicts(
+	stored: NonNullable<Awaited<ReturnType<typeof getToolCallByRequest>>>,
+	context: ToolContext,
+	request: ToolExecutionRequest,
+	inputHash: string,
+): boolean {
+	return stored.tool !== request.tool ||
+		stored.action !== request.action ||
+		stored.runId !== context.runId ||
+		stored.projectId !== context.projectId ||
+		stored.taskId !== (context.taskId ?? null) ||
+		stored.agentId !== (context.agentId ?? null) ||
+		stored.inputHash !== inputHash;
+}
+
 export async function executeTool(
 	context: ToolContext,
 	request: ToolExecutionRequest,
@@ -196,15 +211,7 @@ export async function executeTool(
 	const inputHash = toolInputHash(request.input);
 	const safeInputSummary = auditInputSummary(request.tool, request.action, request.input);
 	let stored = await getToolCallByRequest(context.userId, request.clientRequestId);
-	if (stored && (
-		stored.tool !== request.tool ||
-		stored.action !== request.action ||
-		stored.runId !== context.runId ||
-		stored.projectId !== context.projectId ||
-		stored.taskId !== (context.taskId ?? null) ||
-		stored.agentId !== (context.agentId ?? null) ||
-		stored.inputHash !== inputHash
-	)) {
+	if (stored && storedOperationConflicts(stored, context, request, inputHash)) {
 		throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "This tool request id is already bound to a different exact operation.", status: 409 });
 	}
 	const replay = replayStored(stored);
@@ -218,8 +225,8 @@ export async function executeTool(
 
 	if (!stored) {
 		stored = await createToolCall({ context, clientRequestId: request.clientRequestId, tool: request.tool, action: request.action, risk, inputHash, inputSummary: safeInputSummary });
-		if (stored.inputHash !== inputHash) {
-			throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "Concurrent tool request id collision detected.", status: 409 });
+		if (storedOperationConflicts(stored, context, request, inputHash)) {
+			throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "Concurrent tool request id collision detected across different operation scope.", status: 409 });
 		}
 	}
 
@@ -254,7 +261,9 @@ export async function executeTool(
 	const claimed = await claimToolCallForExecution({ userId: context.userId, toolCallId: stored.id, inputHash, approvalSatisfied });
 	if (!claimed) {
 		const latest = await getToolCallByRequest(context.userId, request.clientRequestId);
-		if (latest?.inputHash !== inputHash) throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "The tool operation changed before execution.", status: 409 });
+		if (!latest || storedOperationConflicts(latest, context, request, inputHash)) {
+			throw new ToolGatewayError({ code: "TOOL_IDEMPOTENCY_CONFLICT", message: "The tool operation changed before execution.", status: 409 });
+		}
 		const latestReplay = replayStored(latest);
 		if (latestReplay) return latestReplay;
 		throw new ToolGatewayError({ code: "TOOL_EXECUTION_STATE_CONFLICT", message: "The tool request changed state before it could execute.", status: 409, retryable: true });
