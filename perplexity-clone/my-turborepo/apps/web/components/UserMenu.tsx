@@ -1,11 +1,10 @@
 "use client";
 
-import { Bot, Brain, ChevronDown, LogOut } from "lucide-react";
+import { Bot, Brain, ChevronDown, LogOut, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
-import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
 import { logProductEvent } from "../lib/log-product-event";
 
@@ -22,55 +21,54 @@ export function UserMenu({ className }: { readonly className?: string }) {
 	const returnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
 	if (status === "loading") {
-		return <div className={cn("h-10 w-[124px] animate-pulse rounded-xl bg-surface-inset", className)} aria-hidden />;
+		return <div className={cn("h-9 w-20 animate-pulse rounded-lg border border-border-subtle bg-surface-elevated", className)} aria-hidden />;
 	}
 
 	if (!session?.user) {
 		return (
-			<Button variant="default" size="sm" asChild className={cn("aira-shine-button h-10 rounded-xl px-4 text-sm font-semibold shadow-[0_7px_20px_hsl(var(--accent)/0.16)]", className)}>
-				<Link
-					href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
-					onClick={() => {
-						try { logProductEvent({ event: "sign_in_clicked", surface: "auth", userType: "guest" }); } catch { /* noop */ }
-					}}
-				>
-					Sign in
-				</Link>
-			</Button>
+			<Link
+				href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
+				onClick={() => {
+					try { logProductEvent({ event: "sign_in_clicked", surface: "auth", userType: "guest" }); } catch { /* analytics is best effort */ }
+				}}
+				className={cn("inline-flex h-9 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 px-3 text-[11px] font-semibold text-accent transition hover:bg-accent/15", className)}
+			>
+				Sign in
+			</Link>
 		);
 	}
 
 	const label = session.user.name ?? session.user.email ?? "Account";
 	const shortLabel = session.user.name?.split(/\s+/)[0] ?? "Account";
+	const itemClass = "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[11px] text-content-secondary transition hover:bg-surface-inset hover:text-content-primary";
 
 	return (
 		<details className={cn("group relative", className)}>
-			<summary className="aira-profile-pill flex h-10 cursor-pointer list-none items-center gap-2 rounded-xl border px-2 pr-2.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
-				<span className="aira-profile-avatar flex size-7 items-center justify-center rounded-lg text-[10px] font-bold tracking-[0.02em] text-accent">
+			<summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg border border-border-subtle bg-surface-elevated px-1.5 pr-2 text-[11px] text-content-secondary transition hover:border-border hover:bg-surface-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+				<span className="grid size-6 place-items-center rounded-md border border-accent/20 bg-accent/10 text-[9px] font-bold tracking-[0.02em] text-accent">
 					{initials(label)}
 				</span>
-				<span className="hidden max-w-[112px] truncate text-[13px] font-medium text-content-primary sm:inline">{shortLabel}</span>
-				<ChevronDown className="size-3.5 text-content-tertiary transition-transform duration-150 group-open:rotate-180" strokeWidth={1.8} aria-hidden />
+				<span className="hidden max-w-[96px] truncate font-medium text-content-primary sm:inline">{shortLabel}</span>
+				<ChevronDown className="size-3 text-content-tertiary transition-transform duration-150 group-open:rotate-180" strokeWidth={1.8} aria-hidden />
 			</summary>
 
-			<div className="aira-popover aira-enter absolute right-0 z-50 mt-2.5 w-56 overflow-hidden rounded-2xl border p-1.5">
-				<div className="border-b border-black/[0.045] px-3 py-2.5">
-					<p className="truncate text-sm font-semibold text-content-primary">{label}</p>
-					{session.user.email && session.user.name ? <p className="mt-0.5 truncate text-xs text-content-tertiary">{session.user.email}</p> : null}
+			<div className="aira-enter absolute right-0 z-[140] mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface-elevated p-1.5 shadow-[var(--aira-shadow-popover)]">
+				<div className="border-b border-border-subtle px-2.5 py-2">
+					<p className="truncate text-[11px] font-semibold text-content-primary">{label}</p>
+					{session.user.email && session.user.name ? <p className="mt-0.5 truncate text-[9px] text-content-tertiary">{session.user.email}</p> : null}
 				</div>
-				<Link href="/memory" className="mt-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-content-secondary transition-colors hover:bg-black/[0.03] hover:text-content-primary">
-					<Brain className="size-4 text-accent" strokeWidth={1.8} aria-hidden /> Memory
-				</Link>
-				<Link href="/agents" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-content-secondary transition-colors hover:bg-black/[0.03] hover:text-content-primary">
-					<Bot className="size-4 text-accent" strokeWidth={1.8} aria-hidden /> Agents
-				</Link>
-				<div className="my-1 h-px bg-black/[0.045]" />
+				<div className="pt-1">
+					<Link href="/settings" className={itemClass}><Settings2 className="size-3.5 text-content-tertiary" strokeWidth={1.8} aria-hidden /> Settings</Link>
+					<Link href="/memory" className={itemClass}><Brain className="size-3.5 text-content-tertiary" strokeWidth={1.8} aria-hidden /> Memory</Link>
+					<Link href="/agents" className={itemClass}><Bot className="size-3.5 text-content-tertiary" strokeWidth={1.8} aria-hidden /> Agents</Link>
+				</div>
+				<div className="my-1 h-px bg-border-subtle" />
 				<button
 					type="button"
 					onClick={() => void signOut({ callbackUrl: "/" })}
-					className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-content-secondary transition-colors hover:bg-red-50/70 hover:text-red-600"
+					className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[11px] text-content-secondary transition hover:bg-red-400/[0.06] hover:text-red-300"
 				>
-					<LogOut className="size-4" strokeWidth={1.8} aria-hidden /> Sign out
+					<LogOut className="size-3.5" strokeWidth={1.8} aria-hidden /> Sign out
 				</button>
 			</div>
 		</details>
