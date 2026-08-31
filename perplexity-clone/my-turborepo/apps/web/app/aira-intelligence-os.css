@@ -39,6 +39,30 @@
   outline-offset: 2px;
 }
 
+/* Research now uses the same application rail as every other AIRA workspace.
+   Keep the conversation column useful without consuming half the canvas. */
+.aira-home.aira-home .aira-intelligence-os div:has(> aside[aria-label="Conversation sidebar"]) {
+  width: 292px !important;
+  max-width: 292px !important;
+  flex: 0 0 292px !important;
+}
+
+.aira-home.aira-home .aira-intelligence-os aside[aria-label="Conversation sidebar"] {
+  width: 292px !important;
+  min-width: 292px !important;
+  max-width: 292px !important;
+}
+
+@media (min-width: 1700px) {
+  .aira-home.aira-home .aira-intelligence-os div:has(> aside[aria-label="Conversation sidebar"]),
+  .aira-home.aira-home .aira-intelligence-os aside[aria-label="Conversation sidebar"] {
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+    flex-basis: 320px !important;
+  }
+}
+
 @media (max-width: 900px) {
   .aira-v2-frame.aira-v2-frame.aira-intelligence-os {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -189,8 +213,7 @@
     padding: 0 !important;
   }
 
-  .aira-intelligence-os .aira-v2-workspace-stage.aira-v2-workspace-stage,
-  .aira-intelligence-os .aira-v2-stage.aira-v2-stage {
+  .aira-intelligence-os .aira-v2-workspace-stage.aira-v2-workspace-stage {
     min-height: calc(100dvh - 58px) !important;
   }
 
