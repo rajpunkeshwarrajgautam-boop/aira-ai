@@ -5,7 +5,7 @@ PR: #124
 
 ## Current phase
 
-**Foundation + canonical product integration**
+**Release gate — final documentation head validation before merge**
 
 ## Completed
 
@@ -15,6 +15,7 @@ PR: #124
 - Created duplicate/variant reconciliation in `docs/stitch/CANONICALIZATION.md`.
 - Frozen the production IA in `docs/architecture/FRONTEND_IA.md`.
 - Recorded frontend migration risks in `docs/audits/FRONTEND_AUDIT.md`.
+- Published `docs/reports/STITCH_FRONTEND_INTEGRATION_REPORT.md`.
 - Mounted Research inside the shared Intelligence OS shell.
 - Removed the duplicate global app rail from Research conversation history.
 - Added Control Center backed by live integration/local runtime/agent-run APIs.
@@ -32,6 +33,10 @@ PR: #124
 - Updated stale architecture tests that required the superseded duplicated Research app rail.
 - Fixed static-link integrity test strict TypeScript handling.
 - Realigned global-search integrity assertions with the route's direct authenticated conversation/memory stores.
+- Added integrity tests for real/capability-aware Automation surfaces.
+- Fixed the Automation regression test's governance wording mismatch; no production code change was needed.
+- Declared all five real `AIRA_FREE_EMBEDDING_*` Vercel variables in `turbo.json`.
+- Verified the embedding-environment Turborepo warning disappeared from the later Vercel build.
 
 ## Architectural decisions
 
@@ -43,20 +48,51 @@ PR: #124
 6. **Telemetry is admin Analytics** — no separate fake telemetry product.
 7. **Quiet Power is semantic** — new shell/surfaces use `--aira-*` tokens; legacy domains migrate incrementally.
 8. **Light theme is token-ready, not auto-enabled** — mixed legacy hardcoded dark surfaces make automatic switching unsafe in this sprint.
+9. **Browser E2E evidence is not invented** — the web package does not currently install Playwright/axe, so browser/device and automated WCAG evidence is documented as deferred rather than mislabeled.
 
 ## CI history
 
-### Earlier integration head
+### Architecture-integration failures resolved
 
-- Runtime jobs: passed.
-- Lint: passed.
-- TypeScript: passed after strict capture fix.
-- Tests: one stale global-search integrity assertion failed because the implementation uses direct authenticated stores instead of literal `/api/conversations` and `/api/memory` strings.
-- Fix committed: assert the actual `listConversations(session.user.id)`, `listConversationMessages(session.user.id)` and `listUserMemories(session.user.id)` ownership behavior.
+The branch surfaced several stale/strict test issues during convergence:
+- strict optional match capture in static-link integrity test;
+- global-search test assumed route-to-route HTTP strings while implementation uses direct authenticated user-scoped stores;
+- older tests required the superseded nested Research app rail;
+- one newly added Automation assertion had a literal grammar mismatch (`does` vs `do`).
 
-### Current head
+All were fixed at the assertion/architecture-contract level without weakening the security/runtime tests.
 
-Pending the automatically triggered CI run after the latest integration commits.
+### Release code baseline
+
+Commit `a75f9184d383bba8c476f1c51122a6d297829311` — GitHub Actions CI run **#848: SUCCESS**.
+
+Successful jobs:
+- `quality`
+- `autogpt-runner`
+- `deerflow-runner`
+- `foundation-services`
+- `aira-runtime`
+
+The `quality` job ran the repository's production dependency audit, ESLint, TypeScript/Next type generation, full Node test suite and production Next.js build.
+
+### Final documentation head
+
+The report + this ledger modify documentation only. Merge remains blocked until GitHub CI also succeeds on this exact final head.
+
+## Vercel validation
+
+Release code baseline `a75f918...` preview: **READY**.
+
+Verified from build output:
+- production Next build succeeds;
+- TypeScript succeeds;
+- all 21 static pages generate;
+- canonical existing routes compile;
+- new `/browser-agent`, `/swarms`, `/projects`, `/governance` routes compile;
+- deployment completes;
+- the earlier missing `AIRA_FREE_EMBEDDING_*` Turborepo warning is absent.
+
+Protected `/browser-agent` was also observed redirecting unauthenticated access to `/signin?callbackUrl=%2Fbrowser-agent`, confirming the route goes through the application's authentication boundary rather than exposing a public static mock.
 
 ## Files introduced/changed in this sprint slice
 
@@ -66,6 +102,7 @@ Pending the automatically triggered CI run after the latest integration commits.
 - `docs/architecture/FRONTEND_IA.md`
 - `docs/audits/FRONTEND_AUDIT.md`
 - `docs/reports/AIRA_48H_SPRINT_LOG.md`
+- `docs/reports/STITCH_FRONTEND_INTEGRATION_REPORT.md`
 
 ### Shared UI
 - `apps/web/components/AiraV2Frame.tsx`
@@ -74,38 +111,47 @@ Pending the automatically triggered CI run after the latest integration commits.
 - Research conversation sidebar integration files/tests from earlier PR commits
 
 ### New routes
-- `apps/web/app/control-center/page.tsx` (earlier PR commit)
+- `apps/web/app/control-center/page.tsx`
 - `apps/web/app/browser-agent/page.tsx`
 - `apps/web/app/swarms/page.tsx`
 - `apps/web/app/projects/page.tsx`
 - `apps/web/app/governance/page.tsx`
 
-### Tests
+### Tests / build contract
 - `apps/web/test/feature-integrity.test.ts`
-- `apps/web/test/impeccable-chat-v2.test.ts` (earlier PR commit)
+- `apps/web/test/impeccable-chat-v2.test.ts`
+- `turbo.json`
 
 ## Known blockers / deferred contracts
 
-### Browser Agent
+### Browser Agent — CONDITIONAL
 Blocked for live web viewport/control until a durable server-authorized browser session/action/approval contract exists. Local runtime readiness is real and visible.
 
-### Swarms
+### Swarms — CONDITIONAL
 Agent/run execution data is real. Durable swarm membership/topology and multi-agent control-plane mutations are not yet exposed by the web contract.
 
-### Projects
+### Projects — CONDITIONAL
 Knowledge, runs and artifacts exist, but a durable Project entity with ownership/authorization/migration semantics is not yet exposed.
 
-### Governance
+### Governance — CONDITIONAL
 Admin capability can be verified. Stitch policy mutation/sovereignty controls require server persistence and authorization contracts before they can be interactive.
 
-### Light theme
-Semantic tokens exist; full activation is deferred until legacy core workspaces remove hardcoded dark surfaces.
+### Light theme — DEFERRED
+Semantic warm-paper tokens exist; full activation is deferred until legacy core workspaces remove hardcoded dark surfaces.
 
-## Next actions
+### Browser E2E / automated accessibility — DEFERRED
+The current web package has no Playwright/axe dependency or browser fixture framework. Source-level accessibility/responsive behaviors are implemented, but full automated multi-viewport/WCAG browser evidence is a follow-up epic.
 
-1. Inspect final-head GitHub Actions quality job and fix any lint/type/test/build failure at root cause.
-2. Verify Vercel branch preview reaches `READY`.
-3. Smoke-test `/`, `/control-center`, `/browser-agent`, `/swarms`, `/projects`, `/governance`, `/agents`, `/runs`, `/knowledge`, `/memory`, `/compare`, `/local-ai`, `/settings`.
-4. Add/adjust integrity tests for Automation routes and capability gates if CI does not already exercise them.
-5. Produce `docs/reports/STITCH_FRONTEND_INTEGRATION_REPORT.md` with COMPLETE / CONDITIONAL / BLOCKED / DEFERRED classifications.
-6. Merge only after final CI + deployment gates are green.
+## Release decision
+
+- P0 introduced by this frontend integration: **0 known**.
+- P1 introduced by this frontend integration: **0 known** on the green release-code baseline.
+- Full original Stitch vision: **CONDITIONAL** because Browser Sessions, durable Projects, Swarm topology and Governance policy mutation still require backend contracts.
+- Intelligence OS architecture/integration baseline: **READY FOR MERGE once final documentation-head CI is green**.
+
+## Next action
+
+1. Require GitHub CI success on the exact final documentation head.
+2. Require matching Vercel preview `READY`.
+3. Merge PR #124 only if both gates remain green.
+4. After merge, verify the `main` Vercel deployment before treating the architecture baseline as production-integrated.
