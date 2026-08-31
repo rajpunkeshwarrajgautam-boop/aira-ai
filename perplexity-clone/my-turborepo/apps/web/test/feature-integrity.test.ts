@@ -159,5 +159,5 @@ test("Automation navigation resolves to truthful capability-aware routes", () =>
 	assert.ok(projects.includes('state="unsupported"'));
 	assert.ok(projects.includes("durable Project entity"));
 	assert.ok(governance.includes('fetch("/api/admin/access"'));
-	assert.ok(governance.includes("does not yet have a complete server-side policy contract"));
+	assert.ok(governance.includes("do not yet have a complete server-side policy contract"));
 });
