@@ -343,9 +343,10 @@ export const vercelToolAdapter: ToolAdapter = {
 };
 
 // ---------------------------------------------------------------------------
-// Supabase/Postgres — fixed database URL. No arbitrary SQL. Read queries are
-// generated from identifiers + parameterized values; optional dev writes allow
-// INSERT only and are disabled for production environments.
+// Supabase/Postgres — fixed database URL. No arbitrary SQL. Table-level access
+// is additionally restricted by a server-owned allowlist because the configured
+// connection may use a role that bypasses tenant RLS. Optional writes are INSERT
+// only, disabled in production, and never echo generated/default row columns.
 // ---------------------------------------------------------------------------
 let supabasePool: Pool | null = null;
 function dbPool(): Pool {
@@ -354,6 +355,27 @@ function dbPool(): Pool {
 	}
 	return supabasePool;
 }
+
+function supabaseAllowedTables(): Set<string> {
+	return new Set(
+		(process.env.AIRA_SUPABASE_TOOL_ALLOWED_TABLES ?? "")
+			.split(",")
+			.map((value) => value.trim())
+			.filter((value) => /^[A-Za-z_][A-Za-z0-9_$]{0,62}\.[A-Za-z_][A-Za-z0-9_$]{0,62}$/.test(value)),
+	);
+}
+
+function assertSupabaseTableAllowed(schema: string, table: string): void {
+	const allowed = supabaseAllowedTables();
+	if (!allowed.has(`${schema}.${table}`)) {
+		throw new ToolGatewayError({
+			code: "SUPABASE_TABLE_NOT_ALLOWED",
+			message: "This database table is not in AIRA's server-owned Supabase tool allowlist.",
+			status: 403,
+		});
+	}
+}
+
 const ScalarSchema = z.union([z.string().max(10_000), z.number(), z.boolean(), z.null()]);
 const SupabaseSelectSchema = z.object({
 	schema: z.string().default("public"),
@@ -379,12 +401,17 @@ export const supabaseToolAdapter: ToolAdapter = {
 				await client.query("BEGIN READ ONLY");
 				const summary = await client.query<{ database: string; user: string }>("select current_database() as database, current_user as user");
 				await client.query("COMMIT");
-				return { result: { database: summary.rows[0]?.database, role: summary.rows[0]?.user, environment: process.env.AIRA_SUPABASE_TOOL_ENVIRONMENT ?? "unspecified", writesEnabled: enabled("AIRA_SUPABASE_TOOL_ALLOW_WRITES") && !/^prod(?:uction)?$/i.test(process.env.AIRA_SUPABASE_TOOL_ENVIRONMENT ?? "") } };
+				return { result: { database: summary.rows[0]?.database, role: summary.rows[0]?.user, environment: process.env.AIRA_SUPABASE_TOOL_ENVIRONMENT ?? "unspecified", writesEnabled: enabled("AIRA_SUPABASE_TOOL_ALLOW_WRITES") && !/^prod(?:uction)?$/i.test(process.env.AIRA_SUPABASE_TOOL_ENVIRONMENT ?? ""), allowedTableCount: supabaseAllowedTables().size } };
 			} catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); }
 		}
 		if (action === "inspect_schema") {
-			const result = await pool.query(`select table_schema,table_name,column_name,data_type,is_nullable from information_schema.columns where table_schema not in ('pg_catalog','information_schema') order by table_schema,table_name,ordinal_position limit 2000`);
-			return { result: { columns: result.rows } };
+			const allowed = [...supabaseAllowedTables()];
+			if (!allowed.length) return { result: { columns: [], allowedTableCount: 0 } };
+			const result = await pool.query(
+				`select table_schema,table_name,column_name,data_type,is_nullable from information_schema.columns where (table_schema || '.' || table_name)=any($1::text[]) order by table_schema,table_name,ordinal_position limit 2000`,
+				[allowed],
+			);
+			return { result: { columns: result.rows, allowedTableCount: allowed.length } };
 		}
 		if (action === "read_migrations") {
 			try {
@@ -397,6 +424,7 @@ export const supabaseToolAdapter: ToolAdapter = {
 		if (action === "query_readonly") {
 			const parsed = SupabaseSelectSchema.safeParse(input);
 			if (!parsed.success) throw new ToolGatewayError({ code: "TOOL_INPUT_INVALID", message: "Supabase select input is invalid.", status: 400 });
+			assertSupabaseTableAllowed(parsed.data.schema, parsed.data.table);
 			const schema = safeIdentifier(parsed.data.schema, "schema");
 			const table = safeIdentifier(parsed.data.table, "table");
 			const columns = parsed.data.columns.map((column) => safeIdentifier(column, "column")).join(",");
@@ -418,12 +446,13 @@ export const supabaseToolAdapter: ToolAdapter = {
 			}
 			const parsed = SupabaseInsertSchema.safeParse(input);
 			if (!parsed.success) throw new ToolGatewayError({ code: "TOOL_INPUT_INVALID", message: "Supabase insert input is invalid.", status: 400 });
+			assertSupabaseTableAllowed(parsed.data.schema, parsed.data.table);
 			const entries = Object.entries(parsed.data.values);
 			const columns = entries.map(([key]) => safeIdentifier(key, "column")).join(",");
 			const placeholders = entries.map((_, index) => `$${index + 1}`).join(",");
-			const sql = `insert into ${safeIdentifier(parsed.data.schema, "schema")}.${safeIdentifier(parsed.data.table, "table")} (${columns}) values (${placeholders}) returning *`;
+			const sql = `insert into ${safeIdentifier(parsed.data.schema, "schema")}.${safeIdentifier(parsed.data.table, "table")} (${columns}) values (${placeholders})`;
 			const result = await pool.query(sql, entries.map(([, value]) => value));
-			return { result: { inserted: result.rows.slice(0, 1), rowCount: result.rowCount ?? 0 } };
+			return { result: { rowCount: result.rowCount ?? 0 } };
 		}
 		throw new ToolGatewayError({ code: "TOOL_ACTION_UNSUPPORTED", message: `Supabase action ${action} is not exposed. Arbitrary SQL, migrations and destructive operations are intentionally unavailable.`, status: 409 });
 	},
