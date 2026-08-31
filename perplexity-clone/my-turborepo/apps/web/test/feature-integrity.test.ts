@@ -51,6 +51,7 @@ test("static Next Link destinations resolve to real app routes", () => {
 			const source = readFileSync(file, "utf8");
 			for (const match of source.matchAll(/<Link[^>]*href=["']([^"']+)["']/g)) {
 				const href = match[1];
+				if (!href) continue;
 				if (!href.startsWith("/") || href.startsWith("//")) continue;
 				const route = href.split(/[?#]/)[0] || "/";
 				if (route.includes("${") || route.includes("[")) continue;
