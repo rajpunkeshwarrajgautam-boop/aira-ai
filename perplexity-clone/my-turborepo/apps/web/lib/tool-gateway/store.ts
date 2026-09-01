@@ -268,25 +268,27 @@ export async function completeToolCall(input: {
 	readonly result: Record<string, unknown>;
 	readonly usage: UsageDelta;
 }): Promise<void> {
-	await prisma.$transaction([
-		prisma.$executeRaw`
+	// The parent-run accounting must be causally bound to the terminal state
+	// transition. A delivery replay can find an already completed call, but it
+	// must not charge the mission a second time.
+	await prisma.$executeRaw`
+		with completed as (
 			update "AgentToolCall"
 			set "status"='COMPLETED', "resultSummary"=${JSON.stringify(input.result)}::jsonb,
 				"usage"=${JSON.stringify(input.usage)}::jsonb, "completedAt"=current_timestamp
 			where "id"=${input.toolCallId} and "status"='EXECUTING'
-		`,
-		prisma.$executeRaw`
-			update "AgentPlatformRun" r
-			set "inputTokensUsed"="inputTokensUsed"+${Math.max(0, Math.trunc(input.usage.inputTokens ?? 0))}::bigint,
-				"outputTokensUsed"="outputTokensUsed"+${Math.max(0, Math.trunc(input.usage.outputTokens ?? 0))}::bigint,
-				"cachedTokensUsed"="cachedTokensUsed"+${Math.max(0, Math.trunc(input.usage.cachedTokens ?? 0))}::bigint,
-				"knownCostUsd"="knownCostUsd"+${Math.max(0, input.usage.costUsd ?? 0)}::numeric,
-				"costAccountingComplete"="costAccountingComplete" and ${input.usage.costKnown === true},
-				"updatedAt"=current_timestamp
-			from "AgentToolCall" c
-			where c."id"=${input.toolCallId} and r."id"=c."runId"
-		`,
-	]);
+			returning "runId"
+		)
+		update "AgentPlatformRun" r
+		set "inputTokensUsed"="inputTokensUsed"+${Math.max(0, Math.trunc(input.usage.inputTokens ?? 0))}::bigint,
+			"outputTokensUsed"="outputTokensUsed"+${Math.max(0, Math.trunc(input.usage.outputTokens ?? 0))}::bigint,
+			"cachedTokensUsed"="cachedTokensUsed"+${Math.max(0, Math.trunc(input.usage.cachedTokens ?? 0))}::bigint,
+			"knownCostUsd"="knownCostUsd"+${Math.max(0, input.usage.costUsd ?? 0)}::numeric,
+			"costAccountingComplete"="costAccountingComplete" and ${input.usage.costKnown === true},
+			"updatedAt"=current_timestamp
+		from completed c
+		where r."id"=c."runId"
+	`;
 }
 
 export async function failToolCall(
