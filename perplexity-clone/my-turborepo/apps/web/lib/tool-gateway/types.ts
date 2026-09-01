@@ -69,6 +69,8 @@ export type ToolExecutionResult =
 		readonly toolCallId: string;
 		readonly result: Record<string, unknown>;
 		readonly usage: UsageDelta;
+		/** A first delivery returns the bounded adapter result; idempotent replays return the persisted audit summary. */
+		readonly resultFidelity: "FULL" | "SUMMARY";
 	}
 	| {
 		readonly status: "APPROVAL_REQUIRED";

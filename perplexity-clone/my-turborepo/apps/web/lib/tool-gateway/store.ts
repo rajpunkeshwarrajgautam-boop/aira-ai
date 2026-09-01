@@ -267,11 +267,11 @@ export async function completeToolCall(input: {
 	readonly toolCallId: string;
 	readonly result: Record<string, unknown>;
 	readonly usage: UsageDelta;
-}): Promise<void> {
+}): Promise<boolean> {
 	// The parent-run accounting must be causally bound to the terminal state
 	// transition. A delivery replay can find an already completed call, but it
 	// must not charge the mission a second time.
-	await prisma.$executeRaw`
+	const rows = await prisma.$queryRaw<Array<{ id: string }>>`
 		with completed as (
 			update "AgentToolCall"
 			set "status"='COMPLETED', "resultSummary"=${JSON.stringify(input.result)}::jsonb,
@@ -288,7 +288,9 @@ export async function completeToolCall(input: {
 			"updatedAt"=current_timestamp
 		from completed c
 		where r."id"=c."runId"
+		returning c."id" as "id"
 	`;
+	return Boolean(rows[0]);
 }
 
 export async function failToolCall(
@@ -300,6 +302,19 @@ export async function failToolCall(
 		update "AgentToolCall"
 		set "status"=${status}, "errorCode"=${code.slice(0, 120)}, "completedAt"=current_timestamp
 		where "id"=${toolCallId} and "status" not in ('COMPLETED','DENIED','CANCELLED')
+	`;
+}
+
+/**
+ * An adapter may have completed an external action even when its durable
+ * completion transaction fails. Keep the call executing, but persist a
+ * recovery marker so retries cannot silently create a second side effect.
+ */
+export async function markToolCallOutcomeUnknown(toolCallId: string): Promise<void> {
+	await prisma.$executeRaw`
+		update "AgentToolCall"
+		set "errorCode"='TOOL_COMPLETION_OUTCOME_UNKNOWN'
+		where "id"=${toolCallId} and "status"='EXECUTING'
 	`;
 }
 

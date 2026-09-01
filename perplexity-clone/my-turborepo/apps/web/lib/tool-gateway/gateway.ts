@@ -19,6 +19,7 @@ import {
 	failToolCall,
 	getToolCallByRequest,
 	isToolApprovalApproved,
+	markToolCallOutcomeUnknown,
 	reserveToolBudget,
 } from "./store";
 import type {
@@ -166,6 +167,7 @@ function replayStored(existing: Awaited<ReturnType<typeof getToolCallByRequest>>
 			toolCallId: existing.id,
 			result: existing.resultSummary ?? {},
 			usage: existing.usage as UsageDelta,
+			resultFidelity: "SUMMARY",
 		};
 	}
 	if (existing.status === "DENIED") {
@@ -199,14 +201,6 @@ export async function executeTool(
 	request: ToolExecutionRequest,
 ): Promise<ToolExecutionResult> {
 	await assertToolContextOwnership(context);
-	const adapter = adapters.get(request.tool);
-	if (!adapter) {
-		throw new ToolGatewayError({ code: "TOOL_NOT_IMPLEMENTED", message: `${request.tool} is not available through the AIRA Tool Gateway.`, status: 409 });
-	}
-	if (!(await adapter.isAvailable().catch(() => false))) {
-		throw new ToolGatewayError({ code: "TOOL_UNAVAILABLE", message: `${request.tool} is not currently available.`, status: 503, retryable: true });
-	}
-
 	const risk = classifyToolRisk(request.tool, request.action);
 	const inputHash = toolInputHash(request.input);
 	const safeInputSummary = auditInputSummary(request.tool, request.action, request.input);
@@ -217,10 +211,21 @@ export async function executeTool(
 	const replay = replayStored(stored);
 	if (replay) return replay;
 	if (stored?.status === "EXECUTING") {
+		if (stored.errorCode === "TOOL_COMPLETION_OUTCOME_UNKNOWN") {
+			throw new ToolGatewayError({ code: "TOOL_COMPLETION_OUTCOME_UNKNOWN", message: "This tool may have completed, but AIRA could not durably record the result. Do not retry automatically; reconcile this request before any retry.", status: 503 });
+		}
 		throw new ToolGatewayError({ code: "TOOL_ALREADY_EXECUTING", message: "This tool request is already executing.", status: 409, retryable: true });
 	}
 	if (stored?.status === "FAILED" || stored?.status === "CANCELLED") {
 		throw new ToolGatewayError({ code: "TOOL_RETRY_REQUIRES_NEW_REQUEST_ID", message: "This tool request ended without a confirmed success. Use a new request id for an explicit retry so side effects cannot be duplicated silently.", status: 409 });
+	}
+
+	const adapter = adapters.get(request.tool);
+	if (!adapter) {
+		throw new ToolGatewayError({ code: "TOOL_NOT_IMPLEMENTED", message: `${request.tool} is not available through the AIRA Tool Gateway.`, status: 409 });
+	}
+	if (!(await adapter.isAvailable().catch(() => false))) {
+		throw new ToolGatewayError({ code: "TOOL_UNAVAILABLE", message: `${request.tool} is not currently available.`, status: 503, retryable: true });
 	}
 
 	if (!stored) {
@@ -269,17 +274,28 @@ export async function executeTool(
 		throw new ToolGatewayError({ code: "TOOL_EXECUTION_STATE_CONFLICT", message: "The tool request changed state before it could execute.", status: 409, retryable: true });
 	}
 
+	let adapterExecutionReturned = false;
+	let completionCommitted = false;
 	try {
 		await reserveToolBudget(context.runId);
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.started", payload: { toolCallId: stored.id, tool: request.tool, action: request.action, risk, inputHash } });
 		const executed = await adapter.execute(context, request.action, request.input);
+		adapterExecutionReturned = true;
 		const usage = usageOrDefault(executed.usage);
 		const safeResult = sanitizedResult(executed.result);
 		const storedResult = summary(safeResult);
-		await completeToolCall({ toolCallId: stored.id, result: storedResult, usage });
-		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.completed", payload: { toolCallId: stored.id, tool: request.tool, action: request.action } });
-		return { status: "COMPLETED", toolCallId: stored.id, result: safeResult, usage };
+		if (!(await completeToolCall({ toolCallId: stored.id, result: storedResult, usage }))) {
+			throw new Error("Tool completion did not claim the executing request.");
+		}
+		completionCommitted = true;
+		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.completed", payload: { toolCallId: stored.id, tool: request.tool, action: request.action } }).catch(() => undefined);
+		return { status: "COMPLETED", toolCallId: stored.id, result: safeResult, usage, resultFidelity: "FULL" };
 	} catch (error) {
+		if (adapterExecutionReturned && !completionCommitted) {
+			await markToolCallOutcomeUnknown(stored.id).catch(() => undefined);
+			await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.recovery_required", payload: { toolCallId: stored.id, tool: request.tool, action: request.action, code: "TOOL_COMPLETION_OUTCOME_UNKNOWN" } }).catch(() => undefined);
+			throw new ToolGatewayError({ code: "TOOL_COMPLETION_OUTCOME_UNKNOWN", message: "The tool may have completed but AIRA could not durably record the result. Do not retry automatically; reconcile this request before any retry.", status: 503 });
+		}
 		const code = error instanceof ToolGatewayError ? error.code : error instanceof Error ? error.name : "TOOL_EXECUTION_FAILED";
 		await failToolCall(stored.id, code).catch(() => undefined);
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.failed", payload: { toolCallId: stored.id, tool: request.tool, action: request.action, code } }).catch(() => undefined);

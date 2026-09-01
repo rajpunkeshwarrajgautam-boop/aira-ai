@@ -9,6 +9,7 @@ import {
 	completeToolCall,
 	createToolCall,
 } from "@/lib/tool-gateway/store";
+import { executeTool, toolInputHash } from "@/lib/tool-gateway/gateway";
 import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
@@ -91,5 +92,55 @@ test(
 		`;
 		assert.equal(completed[0]?.status, "COMPLETED");
 		assert.ok(completed[0]?.completedAt);
+	},
+);
+
+test(
+	"REAL_DB: an exact completed web request replays while its adapter is unavailable",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-replay-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool replay ${suffix}`, objective: "Replay a completed request without provider availability." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-replay-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = {
+			clientRequestId: `tool-replay-call-${suffix}`,
+			tool: "web" as const,
+			action: "retrieve",
+			input: { query: "replay-only proof", numResults: 1 },
+		};
+		const call = await createToolCall({
+			context,
+			clientRequestId: request.clientRequestId,
+			tool: request.tool,
+			action: request.action,
+			risk: "LOW",
+			inputHash: toolInputHash(request.input),
+			inputSummary: { query: request.input.query },
+		});
+		assert.equal(await claimToolCallForExecution({ userId, toolCallId: call.id, inputHash: call.inputHash, approvalSatisfied: false }), true);
+		assert.equal(await completeToolCall({ toolCallId: call.id, result: { answer: "persisted summary" }, usage: { costKnown: true } }), true);
+
+		const priorExaKey = process.env.EXA_API_KEY;
+		delete process.env.EXA_API_KEY;
+		t.after(() => {
+			if (priorExaKey === undefined) delete process.env.EXA_API_KEY;
+			else process.env.EXA_API_KEY = priorExaKey;
+		});
+		const replay = await executeTool(context, request);
+		assert.deepEqual(replay, {
+			status: "COMPLETED",
+			toolCallId: call.id,
+			result: { answer: "persisted summary" },
+			usage: { costKnown: true },
+			resultFidelity: "SUMMARY",
+		});
 	},
 );
