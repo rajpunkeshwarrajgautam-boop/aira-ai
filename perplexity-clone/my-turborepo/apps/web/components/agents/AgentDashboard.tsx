@@ -450,6 +450,7 @@ export function AgentDashboard() {
 							</div>
 							<textarea
 								id="agent-objective"
+								aria-labelledby="new-agent-task-heading"
 								value={objective}
 								onChange={(event) => setObjective(event.target.value.slice(0, 4_000))}
 								rows={8}

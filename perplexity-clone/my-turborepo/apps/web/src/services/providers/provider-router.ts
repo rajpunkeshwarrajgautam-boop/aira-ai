@@ -112,6 +112,7 @@ export class ProviderRouter {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
 		const { SelfHostedProvider } = await import("./self-hosted-provider");
+		const { getLocalAiConfigOrDisabled } = await import("../local-ai/config");
 		const providerRoute = resolveProviderRoute(tier);
 		const requestedPreference = currentProviderPreference();
 		const preferred = preferredProviderId(tier, requestedPreference);
@@ -127,15 +128,13 @@ export class ProviderRouter {
 		const nvidiaKey = process.env.NVIDIA_API_KEY;
 		if (nvidiaKey) router.registerProvider(new NVIDIAProvider(nvidiaKey));
 
-		const selfHostedBaseURL = process.env.SELF_HOSTED_LLM_BASE_URL?.trim();
-		const selfHostedApiKey = process.env.SELF_HOSTED_LLM_API_KEY?.trim();
-		const selfHostedModel = process.env.SELF_HOSTED_LLM_MODEL?.trim();
-		if (selfHostedBaseURL && selfHostedApiKey && selfHostedModel) {
+		const local = getLocalAiConfigOrDisabled();
+		if (local.configured) {
 			router.registerProvider(
 				new SelfHostedProvider({
-					baseURL: selfHostedBaseURL,
-					apiKey: selfHostedApiKey,
-					model: selfHostedModel,
+					baseURL: local.baseURL,
+					apiKey: local.apiKey,
+					model: local.model,
 				}),
 			);
 		}

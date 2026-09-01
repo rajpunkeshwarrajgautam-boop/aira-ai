@@ -147,13 +147,12 @@ export default function LocalAiPage() {
             </section>
 
             <section className={styles.workspace} aria-label="Local AI workers">
-              <div className={styles.tabs} role="tablist" aria-label="Local AI work mode">
+              <div className={styles.tabs} role="group" aria-label="Local AI work mode">
                 {(["chat", "lead", "email"] as const).map((item) => (
                   <button
                     key={item}
                     type="button"
-                    role="tab"
-                    aria-selected={mode === item}
+                    aria-pressed={mode === item}
                     onClick={() => { setMode(item); setResult(null); setError(null); }}
                     className={cn(styles.tab, mode === item && styles.tabActive)}
                   >

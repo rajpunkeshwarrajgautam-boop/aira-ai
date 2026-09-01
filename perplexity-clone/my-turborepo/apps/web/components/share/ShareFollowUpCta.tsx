@@ -47,6 +47,8 @@ export function ShareFollowUpCta({
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 					<input
 						type="text"
+						name="followUp"
+						aria-label="Follow-up question"
 						value={followUp}
 						onChange={(e) => setFollowUp(e.target.value)}
 						placeholder="Ask a follow-up…"

@@ -129,6 +129,7 @@ export function MemoryManager() {
   }
 
   async function removeMemory(memory: MemoryItem) {
+    if (!window.confirm("Delete this memory? This action cannot be undone.")) return;
     setBusyId(memory.id);
     setError(null);
     try {

@@ -200,6 +200,43 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	} | null>(null);
 
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+	const mobileSidebarDialogRef = useRef<HTMLDivElement>(null);
+	const mobileSidebarTriggerRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		if (!mobileSidebarOpen) return;
+		const trigger = mobileSidebarTriggerRef.current;
+		const dialog = mobileSidebarDialogRef.current;
+		const focusable = Array.from(
+			dialog?.querySelectorAll<HTMLElement>(
+				'button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+			) ?? [],
+		).filter((element) => element.getClientRects().length > 0);
+		focusable[0]?.focus();
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				event.preventDefault();
+				setMobileSidebarOpen(false);
+				return;
+			}
+			if (event.key !== "Tab" || !focusable.length) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
+				event.preventDefault();
+				last?.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first?.focus();
+			}
+		};
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("keydown", onKeyDown);
+			if (trigger?.isConnected) trigger.focus();
+		};
+	}, [mobileSidebarOpen]);
 
 	const showAssistantSkeleton = useMemo(
 		() =>
@@ -1031,6 +1068,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								{isAuthed ? (
 									<>
 										<button
+											ref={mobileSidebarTriggerRef}
 											type="button"
 											onClick={() => setMobileSidebarOpen(true)}
 											className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border-subtle bg-surface-elevated/80 text-content-primary shadow-panel backdrop-blur-sm md:hidden hover:bg-surface-elevated active:scale-95 transition-transform"
@@ -1513,7 +1551,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			</div>
 
 			{isAuthed && mobileSidebarOpen ? (
-				<div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true">
+				<div ref={mobileSidebarDialogRef} className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Conversation navigation">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
 						onClick={() => setMobileSidebarOpen(false)}

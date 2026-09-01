@@ -71,7 +71,7 @@ export default function SettingsPage() {
                 <p className={styles.eyebrow}>Settings</p>
                 <h1 className={styles.title}>Runtime & integrations</h1>
                 <p className={styles.description}>
-                  A live view of services actually configured on this AIRA deployment. Provider credentials and private endpoints stay server-side; this screen only exposes operational readiness and safe model metadata.
+                  A live view of services configured on this AIRA deployment. Provider credentials and private endpoints stay server-side; this screen exposes configuration state and safe model metadata, not an uptime guarantee.
                 </p>
               </div>
               <button type="button" onClick={() => void loadStatus()} disabled={loading} className={styles.button}>
@@ -107,7 +107,7 @@ export default function SettingsPage() {
                   <article className={styles.panel}>
                     <div className={styles.panelHeader}>
                       <span className={styles.panelIcon}><ShieldCheck className="size-4" aria-hidden /></span>
-                      <div><h2>Server-side trust boundary</h2><p>Readiness without credential exposure</p></div>
+                      <div><h2>Server-side trust boundary</h2><p>Configuration without credential exposure</p></div>
                     </div>
                     <p>
                       Integration credentials and infrastructure endpoints remain deployment-level configuration. AIRA reports whether a capability is configured without returning API keys or private endpoint URLs to the browser.
@@ -115,9 +115,9 @@ export default function SettingsPage() {
                   </article>
                 </section>
 
-                <section id="integrations" className={styles.services} aria-label="Connected services">
+                <section id="integrations" className={styles.services} aria-label="Integration status">
                   <header className={styles.servicesHeader}>
-                    <h2>Connected services</h2>
+                    <h2>Integration status</h2>
                     <p>Live configuration state reported by the current deployment.</p>
                   </header>
                   <ul className={styles.list}>

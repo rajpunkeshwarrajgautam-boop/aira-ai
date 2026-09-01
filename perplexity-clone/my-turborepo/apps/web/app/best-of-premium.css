@@ -49,10 +49,8 @@ body {
 }
 
 .aira-gradient-text {
-	background: linear-gradient(108deg, hsl(var(--accent)) 4%, hsl(var(--accent-violet)) 58%, hsl(var(--accent-cyan)) 108%);
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
+	background: none;
+	color: hsl(var(--accent));
 }
 
 /* Surfaces: fewer visible borders, better shadow hierarchy. */

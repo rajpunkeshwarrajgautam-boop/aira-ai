@@ -48,6 +48,25 @@ test("conversation sidebar is context-only while the shared shell owns applicati
 	assert.ok(sidebar.includes('event.key.toLowerCase() === "o"'));
 });
 
+test("shared navigation and modal surfaces preserve keyboard focus", () => {
+	const frame = read("components/AiraV2Frame.tsx");
+	const frameCss = read("components/AiraV2Frame.module.css");
+	const searchLayout = read("components/SearchLayout.tsx");
+	assert.ok(frame.includes('href="#aira-main-content"'));
+	assert.ok(frame.includes('id="aira-main-content"'));
+	assert.ok(frame.includes('event.key !== "Tab"'));
+	assert.ok(frame.includes("previouslyFocused.focus()"));
+	assert.ok(frame.includes("mobileNavRef"));
+	assert.ok(frame.includes("mobileNavCloseRef"));
+	assert.ok(frame.includes('role={mobileNavOpen ? "dialog" : undefined}'));
+	assert.ok(frame.includes('aria-modal={mobileNavOpen ? "true" : undefined}'));
+	assert.ok(frameCss.includes("visibility: hidden"));
+	assert.ok(frameCss.includes("pointer-events: none"));
+	assert.ok(searchLayout.includes('aria-label="Conversation navigation"'));
+	assert.ok(searchLayout.includes('event.key === "Escape"'));
+	assert.ok(searchLayout.includes('event.key !== "Tab"'));
+});
+
 test("message workspace exposes grounded inspector and real non-placeholder actions", () => {
 	const messages = read("components/conversations/ConversationMessageList.tsx");
 	assert.ok(messages.includes('import styles from "./ConversationMessageList.module.css"'));

@@ -139,6 +139,7 @@ export default function UpgradePage() {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Seats</span>
               <input
+                name="teamSeats"
                 type="number"
                 min={2}
                 max={100}
@@ -153,6 +154,7 @@ export default function UpgradePage() {
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Phone number</span>
             <input
+              name="customerPhone"
               type="tel"
               inputMode="tel"
               autoComplete="tel"

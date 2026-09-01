@@ -137,6 +137,9 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   const [analyticsAdmin, setAnalyticsAdmin] = useState(false);
   const [selectedCommand, setSelectedCommand] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const mobileNavCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem("aira:shell-collapsed") === "true");
@@ -208,12 +211,79 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       setFilter("");
       return;
     }
-    requestAnimationFrame(() => inputRef.current?.focus());
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        paletteRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !paletteRef.current?.contains(document.activeElement))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
   }, [paletteOpen]);
 
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const frame = requestAnimationFrame(() => mobileNavCloseRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        mobileNavRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+      if (!focusable.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !mobileNavRef.current?.contains(document.activeElement))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [mobileNavOpen]);
 
   const navigate = (href: string) => {
     setPaletteOpen(false);
@@ -240,6 +310,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
 
   return (
     <div className={cn("aira-v2-frame", styles.frame, collapsed && styles.collapsed)}>
+      <a href="#aira-main-content" className={styles.skipLink}>Skip to main content</a>
       {mobileNavOpen ? (
         <button
           type="button"
@@ -250,7 +321,10 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       ) : null}
 
       <aside
+        ref={mobileNavRef}
         className={cn("aira-v2-rail", styles.rail, mobileNavOpen && styles.mobileOpen)}
+        role={mobileNavOpen ? "dialog" : undefined}
+        aria-modal={mobileNavOpen ? "true" : undefined}
         aria-label="AIRA workspace navigation"
       >
         <div className={styles.brand}>
@@ -267,7 +341,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           >
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </button>
-          <button type="button" className={styles.mobileClose} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
+          <button ref={mobileNavCloseRef} type="button" className={styles.mobileClose} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
             <X className="size-4" />
           </button>
         </div>
@@ -320,12 +394,13 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             </Suspense>
           </div>
         </header>
-        <section className={cn("aira-v2-workspace-stage", styles.stage)}>{children}</section>
+        <section id="aira-main-content" tabIndex={-1} className={cn("aira-v2-workspace-stage", styles.stage)}>{children}</section>
       </div>
 
       {paletteOpen ? (
         <div className={styles.paletteBackdrop} role="presentation" onMouseDown={() => setPaletteOpen(false)}>
           <div
+            ref={paletteRef}
             className={styles.palette}
             role="dialog"
             aria-modal="true"

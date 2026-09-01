@@ -179,8 +179,8 @@ export default function ControlCenterPage() {
                 )}
               </section>
 
-              <section className={styles.panel} aria-label="Connected stack">
-                <header className={styles.panelHeader}><div><h2>Connected stack</h2><p>Deployment capability state</p></div></header>
+              <section className={styles.panel} aria-label="Integration stack">
+                <header className={styles.panelHeader}><div><h2>Integration stack</h2><p>Deployment capability state</p></div></header>
                 {loading && !state.integrations ? (
                   <div className={styles.empty}><Loader2 className={cn("size-5", styles.spin)} aria-label="Loading integrations" /></div>
                 ) : state.integrations ? (

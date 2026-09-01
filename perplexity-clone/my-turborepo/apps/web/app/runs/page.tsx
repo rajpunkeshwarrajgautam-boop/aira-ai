@@ -142,6 +142,7 @@ export default function RunsPage() {
                     <h2 className={styles.panelTitle}>Assign autonomous work</h2>
                     <p className={styles.panelNote}>Describe the deliverable, constraints, and stopping condition. AIRA submits the objective to a real configured agent runtime.</p>
                     <textarea
+                      aria-label="Autonomous run objective"
                       value={objective}
                       onChange={(event) => setObjective(event.target.value)}
                       rows={4}

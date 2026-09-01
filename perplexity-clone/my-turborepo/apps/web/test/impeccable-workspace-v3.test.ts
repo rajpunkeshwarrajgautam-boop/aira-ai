@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -83,4 +83,20 @@ test("agents and memory continue to share the authenticated AIRA frame", () => {
   const memory = read("app/memory/page.tsx");
   assert.ok(agents.includes("<AiraV2Frame>"));
   assert.ok(memory.includes("<AiraV2Frame>"));
+});
+
+test("retired global layers and orphaned UI components stay deleted", () => {
+  for (const relative of [
+    "app/impeccable-workspace-v3.css",
+    "app/aira-visual-redesign.css",
+    "app/aira-reference.css",
+    "app/impeccable-polish.css",
+    "app/impeccable-chat-v2.css",
+    "components/AiraPreloader.tsx",
+    "components/AnswerStream.tsx",
+    "components/share/ShareResearchButton.tsx",
+    "components/ui/input.tsx",
+  ]) {
+    assert.equal(existsSync(path.join(WEB_ROOT, relative)), false, `${relative} should remain retired`);
+  }
 });
