@@ -1,59 +1,59 @@
 # AIRA semantic-memory tiers
 
-Semantic memory is a derived retrieval index. `UserMemory` remains canonical and normal lexical recall must continue to work when semantic embeddings are disabled or unavailable.
+Semantic memory is a derived retrieval index. `UserMemory` remains canonical and lexical recall must continue to work when semantic embeddings are disabled or unavailable.
 
 ## Product policy
 
-- **FREE** uses a dedicated self-hosted/low-cost OpenAI-compatible embedding endpoint. The default model contract is `nomic-embed-text-v1.5` at its native 768 dimensions. FREE never falls through to the PRO credential or to `OPENAI_API_KEY`.
-- **PRO / TEAM** use the richer dedicated embedding route. The default is OpenAI `text-embedding-3-small` with the response explicitly requested at 768 dimensions.
-- If either tier's embedding route is unavailable, AIRA degrades to lexical memory rather than crossing tiers.
+- **FREE** → Cloudflare Workers AI, provider `cloudflare`, model `@cf/baai/bge-base-en-v1.5`, 768 dimensions.
+- **PRO / TEAM** → richer dedicated semantic route, default OpenAI `text-embedding-3-small` requested at 768 dimensions.
+- FREE never reads `AIRA_PRO_EMBEDDING_API_KEY`, legacy `AIRA_EMBEDDING_API_KEY`, or `OPENAI_API_KEY`.
+- Either tier degrades to lexical memory on semantic-provider failure instead of crossing tiers.
 
-The two models do **not** share an embedding space even though both routes use 768-dimensional storage. AIRA stores tier/provider/model metadata and queries only rows matching the user's current server-side route. A plan upgrade/downgrade therefore never compares a FREE vector against a PRO query vector or vice versa.
+Same dimension does not mean same vector space. Retrieval is filtered by the authenticated user's exact `tier + provider + model` before similarity ranking, so Cloudflare BGE vectors are never compared with OpenAI vectors.
 
-## FREE endpoint topology
+## FREE Cloudflare configuration
 
-`AIRA_FREE_EMBEDDING_BASE_URL` must be reachable from the AIRA server process and expose an OpenAI-compatible `/v1/embeddings` API. `llama.cpp` supports an OpenAI-compatible embeddings route when an embedding-capable model is served in embedding mode.
+Use the OpenAI-compatible Workers AI base URL:
 
-A public Vercel deployment cannot reach a user's Windows `localhost` or `127.0.0.1`. A production FREE embedding service must therefore run on infrastructure reachable by Vercel, normally an AIRA-controlled HTTPS host/private gateway or another explicitly approved low-cost endpoint.
+`https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1`
 
-The FREE API key is optional for self-hosted endpoints that do not require authentication. If the service requires authentication, configure `AIRA_FREE_EMBEDDING_API_KEY` server-side.
+Server-only variables:
 
-## Nomic retrieval contract
+```text
+SEMANTIC_MEMORY_ENABLED=true
+AIRA_FREE_EMBEDDING_PROVIDER=cloudflare
+AIRA_FREE_EMBEDDING_BASE_URL=https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1
+AIRA_FREE_EMBEDDING_API_KEY=<dedicated Workers AI token>
+AIRA_FREE_EMBEDDING_MODEL=@cf/baai/bge-base-en-v1.5
+AIRA_FREE_EMBEDDING_DIMENSIONS=768
+```
 
-`nomic-embed-text-v1.5` requires task prefixes for retrieval. AIRA emits:
+The token must never use a `NEXT_PUBLIC_` variable or be committed. Missing/invalid FREE configuration returns no semantic route, so callers remain on lexical memory.
 
-- `search_document: ...` for memory/document vectors
-- `search_query: ...` for retrieval queries
+Cloudflare currently includes 10,000 Workers AI neurons/day on the Free plan. Exhaustion returns a provider rate-limit failure; AIRA remains on lexical fallback rather than crossing to the PRO route.
 
-The model's native 768-dimensional representation is used; vectors are not padded, truncated, duplicated, or projected.
+A user-run verification on 2026-08-24 confirmed the real endpoint returned 768 finite values for `@cf/baai/bge-base-en-v1.5` with observed latency 946 ms. The token and vector were not shared.
 
-## PRO / TEAM contract
+## PRO / TEAM
 
-Configure the rich route with `AIRA_PRO_EMBEDDING_*`. `AIRA_PRO_EMBEDDING_API_KEY` is intentionally separate from the normal chat-generation `OPENAI_API_KEY`.
+Configure `AIRA_PRO_EMBEDDING_*`. `AIRA_PRO_EMBEDDING_API_KEY` stays separate from normal chat `OPENAI_API_KEY`. Legacy `AIRA_EMBEDDING_*` is only a temporary PRO/TEAM compatibility alias.
 
-Legacy `AIRA_EMBEDDING_*` variables are accepted only as a temporary PRO/TEAM compatibility alias. The FREE route never reads them.
+## Storage
 
-## Storage and model-space isolation
-
-Tier-aware embeddings are stored in additive derived-index tables:
+Derived indexes:
 
 - `UserMemorySemanticEmbedding`
 - `KnowledgeChunkSemanticEmbedding`
 
-Both use 768-dimensional pgvector columns and include `tier`, `provider`, `model`, and content-hash metadata. Canonical memory/document rows are not deleted when embeddings fail.
+Both use `vector(768)` and store tier/provider/model metadata. `UserMemory` remains canonical. Exact filtered vector scoring is used; there is no tier-only HNSW index.
 
-The legacy 1536-dimensional embedding columns/tables remain untouched by this migration. New tier-aware code does not query them.
+## Production gate
 
-AIRA deliberately uses exact vector ordering after filtering the current user's exact `tier + provider + model` route. It does **not** maintain a tier-only HNSW index. During provider/model migrations, a tier can temporarily contain rows from more than one incompatible embedding space; a tier-only approximate index could traverse those mixed vectors before provider/model filtering and weaken retrieval correctness. Route metadata has normal B-tree indexes for filtering, and exact vector scoring is used until AIRA has a provider/model-specific ANN indexing strategy justified by real scale measurements.
+Keep Production semantic memory disabled until Preview proves:
 
-## Rollout gate
-
-Keep `SEMANTIC_MEMORY_ENABLED=false` in Production until all of the following are true:
-
-1. the tier-aware migration is applied;
-2. a real FREE embedding endpoint exists and is reachable from Production;
-3. the FREE model contract is verified;
-4. the PRO/TEAM embedding credential is configured if paid semantic memory will be enabled;
-5. Preview proves FREE never consumes the PRO credential;
-6. provider failure degrades to lexical memory;
-7. runtime logs contain no secrets or memory/document content.
+1. FREE write creates a `tier=free`, `provider=cloudflare`, BGE 768-dimensional row;
+2. FREE semantic query uses the same route;
+3. FREE works while the PRO semantic route is unusable;
+4. controlled Cloudflare failure degrades to lexical memory with zero paid embedding attempts;
+5. no secret/content leakage occurs;
+6. CI and the exact Preview deployment are green.

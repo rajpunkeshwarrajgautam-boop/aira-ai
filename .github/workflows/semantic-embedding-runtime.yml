@@ -1,0 +1,85 @@
+name: Semantic Embedding Runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/semantic-embedding-runtime.yml"
+      - ".env.example"
+      - "infra/semantic-embedding/**"
+      - "docs/SEMANTIC_MEMORY_TIERS.md"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/semantic-embedding-runtime-assets.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/semantic-embedding-tier-policy.test.ts"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/semantic-embedding-runtime.yml"
+      - ".env.example"
+      - "infra/semantic-embedding/**"
+      - "docs/SEMANTIC_MEMORY_TIERS.md"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/semantic-embedding-runtime-assets.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/semantic-embedding-tier-policy.test.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semantic-embedding-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate endpoint verifier
+        run: |
+          python -m py_compile infra/semantic-embedding/scripts/verify_endpoint.py
+          python infra/semantic-embedding/scripts/verify_endpoint.py --help >/dev/null
+
+      - name: Confirm Cloudflare FREE runtime contract
+        run: |
+          policy=perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts
+          grep -Fq 'DEFAULT_FREE_EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5"' "$policy" \
+            || { echo "::error::Cloudflare BGE FREE model contract changed."; exit 1; }
+          grep -Fq 'providerId !== "cloudflare"' "$policy" \
+            || { echo "::error::FREE semantic route is no longer Cloudflare-only."; exit 1; }
+          grep -Fq 'SEMANTIC_EMBEDDING_DIMENSIONS = 768' "$policy" \
+            || { echo "::error::FREE semantic dimensions changed from 768."; exit 1; }
+          grep -Fq 'AIRA_FREE_EMBEDDING_PROVIDER=cloudflare' .env.example \
+            || { echo "::error::.env.example does not document the Cloudflare FREE provider."; exit 1; }
+          grep -Fq 'AIRA_FREE_EMBEDDING_MODEL=@cf/baai/bge-base-en-v1.5' .env.example \
+            || { echo "::error::.env.example does not document the Cloudflare BGE model."; exit 1; }
+
+      - name: Confirm no retired host runtime or committed credential remains
+        run: |
+          if git grep -nE 'terraform-oci|VM\.Standard\.A1\.Flex|bootstrap-host\.sh|nomic-embed-text-v1\.5' -- infra/semantic-embedding docs/SEMANTIC_MEMORY_TIERS.md perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts .env.example; then
+            echo "::error::Retired OCI/Nomic FREE runtime material remains in the active semantic rollout."
+            exit 1
+          fi
+          if git ls-files infra/semantic-embedding | grep -E '(^|/)\.env($|\.(local|production|preview|development)$)|\.(pem|key)$'; then
+            echo "::error::A private environment, key, or certificate file is tracked."
+            exit 1
+          fi
+          if git grep -nE '(sk-[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' -- infra/semantic-embedding docs/SEMANTIC_MEMORY_TIERS.md perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts .env.example; then
+            echo "::error::A credential-shaped literal is present in semantic embedding assets."
+            exit 1
+          fi
+          if git grep -nE 'NEXT_PUBLIC_.*EMBEDDING.*KEY' -- infra/semantic-embedding docs/SEMANTIC_MEMORY_TIERS.md perplexity-clone/my-turborepo/apps/web/lib/semantic-memory.ts perplexity-clone/my-turborepo/apps/web/lib/semantic-embedding-policy.ts .env.example; then
+            echo "::error::An embedding secret is exposed through a NEXT_PUBLIC variable."
+            exit 1
+          fi
+          echo "Cloudflare semantic runtime contract is source-clean."

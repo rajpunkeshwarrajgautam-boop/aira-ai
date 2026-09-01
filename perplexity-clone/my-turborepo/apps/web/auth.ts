@@ -10,6 +10,26 @@ import {
 } from "./lib/oauth-env";
 import { prisma } from "./lib/prisma";
 
+function previewAuthUrl(): string | undefined {
+	if (process.env.VERCEL_ENV !== "preview") return undefined;
+	const rawBranchUrl = process.env.VERCEL_BRANCH_URL?.trim();
+	if (!rawBranchUrl) return undefined;
+	const host = rawBranchUrl.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+	if (!/^[a-z0-9.-]+\.vercel\.app$/i.test(host)) return undefined;
+	return `https://${host}`;
+}
+
+const resolvedPreviewAuthUrl = previewAuthUrl();
+if (resolvedPreviewAuthUrl) {
+	// Auth.js otherwise honors a project-level AUTH_URL/NEXTAUTH_URL that can
+	// point a Preview OAuth callback back at Production. Keep Preview sessions
+	// on Vercel's stable Git branch URL; Production configuration is untouched.
+	// Preview OAuth credential-scope changes require a fresh deployment before
+	// the provider set can be verified against this stable callback host.
+	process.env.AUTH_URL = resolvedPreviewAuthUrl;
+	process.env.NEXTAUTH_URL = resolvedPreviewAuthUrl;
+}
+
 const resolvedSecret =
 	process.env.NEXTAUTH_SECRET ??
 	process.env.AUTH_SECRET ??
@@ -52,6 +72,7 @@ const authDiagnostics = {
 	authSecretExists: !!process.env.AUTH_SECRET || !!process.env.NEXTAUTH_SECRET,
 	authUrlExists: !!process.env.AUTH_URL,
 	nextauthUrlExists: !!process.env.NEXTAUTH_URL,
+	previewAuthUrlOverride: !!resolvedPreviewAuthUrl,
 };
 
 if (process.env.NODE_ENV !== "production" || process.env.AUTH_DEBUG === "true") {

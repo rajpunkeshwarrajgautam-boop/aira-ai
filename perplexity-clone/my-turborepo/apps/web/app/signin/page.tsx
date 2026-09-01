@@ -17,7 +17,19 @@ function oauthFlags() {
 	};
 }
 
+function previewCanonicalOrigin(): string | undefined {
+	if (process.env.VERCEL_ENV !== "preview") return undefined;
+	const rawBranchUrl = process.env.VERCEL_BRANCH_URL?.trim();
+	if (!rawBranchUrl) return undefined;
+	const host = rawBranchUrl.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+	if (!/^[a-z0-9.-]+\.vercel\.app$/i.test(host)) return undefined;
+	return `https://${host}`;
+}
+
 function canonicalOrigin(): string | undefined {
+	const previewOrigin = previewCanonicalOrigin();
+	if (previewOrigin) return previewOrigin;
+
 	const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
 	if (!configuredUrl) return undefined;
 

@@ -102,21 +102,21 @@ export async function createManualMemory(
 	args: Parameters<typeof createCoreManualMemory>[0],
 ): Promise<Awaited<ReturnType<typeof createCoreManualMemory>>> {
 	const memory = await createCoreManualMemory(args);
-	void resolveSemanticEmbeddingRouteForUser(args.userId)
-		.then((route) => {
-			if (!route) return;
-			return upsertUserMemoryEmbedding({
+	try {
+		const route = await resolveSemanticEmbeddingRouteForUser(args.userId);
+		if (route) {
+			await upsertUserMemoryEmbedding({
 				memoryId: memory.id,
 				userId: args.userId,
 				content: memory.content,
 				route,
 			});
-		})
-		.catch((error) =>
-			console.warn(
-				"[AIRA semantic memory] Manual memory embedding failed:",
-				error instanceof Error ? error.message : String(error),
-			),
+		}
+	} catch (error) {
+		console.warn(
+			"[AIRA semantic memory] Manual memory embedding failed; lexical memory remains available:",
+			error instanceof Error ? error.message : String(error),
 		);
+	}
 	return memory;
 }

@@ -20,19 +20,21 @@ test("maps Free to the free embedding tier and paid plans to the rich tier", () 
 test("keeps all semantic embedding routes disabled behind the feature flag", () => {
 	const env = {
 		SEMANTIC_MEMORY_ENABLED: "false",
-		AIRA_FREE_EMBEDDING_BASE_URL: "http://embedding.test/v1",
+		AIRA_FREE_EMBEDDING_BASE_URL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+		AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
 		AIRA_PRO_EMBEDDING_API_KEY: "pro-test-key",
 	};
 	assert.equal(resolveSemanticEmbeddingRoute("free", env), null);
 	assert.equal(resolveSemanticEmbeddingRoute("pro", env), null);
 });
 
-test("free embeddings use only the dedicated self-hosted route", () => {
+test("free embeddings use only the dedicated Cloudflare route", () => {
 	const route = resolveSemanticEmbeddingRoute("free", {
 		SEMANTIC_MEMORY_ENABLED: "true",
-		AIRA_FREE_EMBEDDING_PROVIDER: "self-hosted",
-		AIRA_FREE_EMBEDDING_BASE_URL: "http://embedding.test/v1",
-		AIRA_FREE_EMBEDDING_MODEL: "nomic-embed-text-v1.5",
+		AIRA_FREE_EMBEDDING_PROVIDER: "cloudflare",
+		AIRA_FREE_EMBEDDING_BASE_URL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+		AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
+		AIRA_FREE_EMBEDDING_MODEL: "@cf/baai/bge-base-en-v1.5",
 		AIRA_FREE_EMBEDDING_DIMENSIONS: String(SEMANTIC_EMBEDDING_DIMENSIONS),
 		AIRA_PRO_EMBEDDING_API_KEY: "pro-test-key",
 		AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
@@ -40,21 +42,46 @@ test("free embeddings use only the dedicated self-hosted route", () => {
 	});
 	assert.deepEqual(route, {
 		tier: "free",
-		providerId: "self-hosted",
-		baseURL: "http://embedding.test/v1",
-		apiKey: undefined,
-		model: "nomic-embed-text-v1.5",
+		providerId: "cloudflare",
+		baseURL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+		apiKey: "free-test-key",
+		model: "@cf/baai/bge-base-en-v1.5",
 		dimensions: SEMANTIC_EMBEDDING_DIMENSIONS,
 	});
 });
 
 test("free provider misconfiguration degrades closed instead of inheriting paid credentials", () => {
-	assert.equal(
-		resolveSemanticEmbeddingRoute("free", {
+	for (const env of [
+		{
 			SEMANTIC_MEMORY_ENABLED: "true",
 			AIRA_PRO_EMBEDDING_API_KEY: "pro-test-key",
 			AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
 			OPENAI_API_KEY: "general-generation-test-key",
+		},
+		{
+			SEMANTIC_MEMORY_ENABLED: "true",
+			AIRA_FREE_EMBEDDING_BASE_URL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+			AIRA_PRO_EMBEDDING_API_KEY: "pro-test-key",
+			AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
+			OPENAI_API_KEY: "general-generation-test-key",
+		},
+		{
+			SEMANTIC_MEMORY_ENABLED: "true",
+			AIRA_FREE_EMBEDDING_BASE_URL: "http://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+			AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
+		},
+	]) {
+		assert.equal(resolveSemanticEmbeddingRoute("free", env), null);
+	}
+});
+
+test("rejects the retired self-hosted FREE provider contract", () => {
+	assert.equal(
+		resolveSemanticEmbeddingRoute("free", {
+			SEMANTIC_MEMORY_ENABLED: "true",
+			AIRA_FREE_EMBEDDING_PROVIDER: "self-hosted",
+			AIRA_FREE_EMBEDDING_BASE_URL: "https://embedding.test/v1",
+			AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
 		}),
 		null,
 	);
@@ -83,9 +110,10 @@ test("legacy embedding credential is a Pro-only compatibility alias", () => {
 	const env = {
 		SEMANTIC_MEMORY_ENABLED: "true",
 		AIRA_EMBEDDING_API_KEY: "legacy-paid-test-key",
-		AIRA_FREE_EMBEDDING_BASE_URL: "http://embedding.test/v1",
+		AIRA_FREE_EMBEDDING_BASE_URL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+		AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
 	};
-	assert.equal(resolveSemanticEmbeddingRoute("free", env)?.apiKey, undefined);
+	assert.equal(resolveSemanticEmbeddingRoute("free", env)?.apiKey, "free-test-key");
 	assert.equal(resolveSemanticEmbeddingRoute("pro", env)?.apiKey, "legacy-paid-test-key");
 });
 
@@ -93,7 +121,8 @@ test("rejects dimensions that do not match the tier-aware vector schema", () => 
 	assert.equal(
 		resolveSemanticEmbeddingRoute("free", {
 			SEMANTIC_MEMORY_ENABLED: "true",
-			AIRA_FREE_EMBEDDING_BASE_URL: "http://embedding.test/v1",
+			AIRA_FREE_EMBEDDING_BASE_URL: "https://api.cloudflare.test/client/v4/accounts/account/ai/v1",
+			AIRA_FREE_EMBEDDING_API_KEY: "free-test-key",
 			AIRA_FREE_EMBEDDING_DIMENSIONS: "1536",
 		}),
 		null,
@@ -108,11 +137,11 @@ test("rejects dimensions that do not match the tier-aware vector schema", () => 
 	);
 });
 
-test("Nomic free embeddings preserve retrieval task prefixes", () => {
+test("Cloudflare BGE inputs are preserved without Nomic-specific task prefixes", () => {
 	const route = {
-		providerId: "self-hosted" as const,
-		model: "nomic-embed-text-v1.5",
+		providerId: "cloudflare" as const,
+		model: "@cf/baai/bge-base-en-v1.5",
 	};
-	assert.equal(formatSemanticEmbeddingInput(route, "where is Tokyo?", "query"), "search_query: where is Tokyo?");
-	assert.equal(formatSemanticEmbeddingInput(route, "Tokyo is in Japan.", "document"), "search_document: Tokyo is in Japan.");
+	assert.equal(formatSemanticEmbeddingInput(route, " where is Tokyo? ", "query"), "where is Tokyo?");
+	assert.equal(formatSemanticEmbeddingInput(route, " Tokyo is in Japan. ", "document"), "Tokyo is in Japan.");
 });

@@ -1,11 +1,11 @@
 import { BillingPlan } from "@/generated/prisma/enums";
 
 export type SemanticEmbeddingTier = "free" | "pro";
-export type SemanticEmbeddingProviderId = "self-hosted" | "openai";
+export type SemanticEmbeddingProviderId = "cloudflare" | "openai";
 export type SemanticEmbeddingWorkload = "query" | "document";
 
 export const SEMANTIC_EMBEDDING_DIMENSIONS = 768;
-export const DEFAULT_FREE_EMBEDDING_MODEL = "nomic-embed-text-v1.5";
+export const DEFAULT_FREE_EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5";
 export const DEFAULT_PRO_EMBEDDING_MODEL = "text-embedding-3-small";
 
 export interface SemanticEmbeddingRoute {
@@ -53,16 +53,17 @@ export function resolveSemanticEmbeddingRoute(
 	if (!semanticMemoryEnabled(env)) return null;
 
 	if (tier === "free") {
-		const providerId = value(env, "AIRA_FREE_EMBEDDING_PROVIDER") ?? "self-hosted";
-		if (providerId !== "self-hosted") return null;
+		const providerId = value(env, "AIRA_FREE_EMBEDDING_PROVIDER") ?? "cloudflare";
+		if (providerId !== "cloudflare") return null;
 		const baseURL = value(env, "AIRA_FREE_EMBEDDING_BASE_URL");
+		const apiKey = value(env, "AIRA_FREE_EMBEDDING_API_KEY");
 		const dimensions = configuredDimensions(env, "AIRA_FREE_EMBEDDING_DIMENSIONS");
-		if (!baseURL || dimensions === null) return null;
+		if (!baseURL || !baseURL.startsWith("https://") || !apiKey || dimensions === null) return null;
 		return {
 			tier,
 			providerId,
 			baseURL,
-			apiKey: value(env, "AIRA_FREE_EMBEDDING_API_KEY"),
+			apiKey,
 			model: value(env, "AIRA_FREE_EMBEDDING_MODEL") ?? DEFAULT_FREE_EMBEDDING_MODEL,
 			dimensions,
 		};
@@ -86,16 +87,17 @@ export function resolveSemanticEmbeddingRoute(
 	};
 }
 
-/** Nomic's retrieval model requires explicit query/document task prefixes. */
+/**
+ * Keep provider-specific input shaping explicit. Cloudflare's BGE endpoint
+ * accepts normal text inputs, while richer providers currently do not require
+ * AIRA-side query/document prefixes.
+ */
 export function formatSemanticEmbeddingInput(
 	route: Pick<SemanticEmbeddingRoute, "providerId" | "model">,
 	text: string,
 	workload: SemanticEmbeddingWorkload,
 ): string {
-	const input = text.trim();
-	if (!input) return "";
-	if (route.providerId === "self-hosted" && route.model.toLowerCase().includes("nomic-embed-text")) {
-		return `${workload === "query" ? "search_query" : "search_document"}: ${input}`;
-	}
-	return input;
+	void route;
+	void workload;
+	return text.trim();
 }

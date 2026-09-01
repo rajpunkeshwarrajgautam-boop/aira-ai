@@ -103,6 +103,17 @@ test("never exposes a secret through a NEXT_PUBLIC_ name", () => {
 	}
 });
 
+test("documents the Cloudflare FREE semantic route without a credential", () => {
+	assert.equal(assignments.get("AIRA_FREE_EMBEDDING_PROVIDER"), "cloudflare");
+	assert.equal(assignments.get("AIRA_FREE_EMBEDDING_MODEL"), "@cf/baai/bge-base-en-v1.5");
+	assert.equal(assignments.get("AIRA_FREE_EMBEDDING_DIMENSIONS"), "768");
+	assert.match(
+		assignments.get("AIRA_FREE_EMBEDDING_BASE_URL") ?? "",
+		/^https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/<ACCOUNT_ID>\/ai\/v1$/,
+	);
+	assert.equal(assignments.get("AIRA_FREE_EMBEDDING_API_KEY"), "");
+});
+
 test("keeps every externally gated runtime disabled by default", () => {
 	// Shipping a default of `true` for any of these would activate a capability
 	// whose external infrastructure is not proven to exist.
