@@ -43,7 +43,6 @@
 .pinned { color:hsl(var(--content-secondary)); font-size:10px; font-weight:600; }
 .searchResult { color:hsl(var(--accent)); font-size:10px; }
 .content { margin:8px 0 0; color:hsl(var(--content-primary)); font-size:12px; line-height:1.62; white-space:pre-wrap; overflow-wrap:anywhere; }
-metrics { display:block; }
 .metrics { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:9px; color:hsl(var(--content-tertiary)); font-size:9px; text-transform:uppercase; letter-spacing:.035em; }
 .actions { display:flex; align-items:flex-start; gap:4px; }
 .iconButton { display:grid; place-items:center; width:30px; height:30px; border:0; border-radius:var(--aira-radius-sm); background:transparent; color:hsl(var(--content-tertiary)); cursor:pointer; }

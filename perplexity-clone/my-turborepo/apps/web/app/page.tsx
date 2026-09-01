@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import "./aira-v2.css";
-import { AiraPreloader } from "../components/AiraPreloader";
 import { AiraV2Frame } from "../components/AiraV2Frame";
 import { SearchLayout } from "../components/SearchLayout";
 
@@ -24,7 +23,6 @@ function HomeSkeleton() {
 export default function Home() {
   return (
     <div className="min-h-dvh bg-surface text-content-primary">
-      <AiraPreloader />
       <AiraV2Frame>
         <Suspense fallback={<HomeSkeleton />}>
           <SearchLayout className="aira-core-search" />

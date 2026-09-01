@@ -2,7 +2,7 @@
 
 import { FileText, Loader2, RefreshCw, Search, UploadCloud } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AiraV2Frame } from "@/components/AiraV2Frame";
 import { cn } from "@/lib/cn";
@@ -47,7 +47,7 @@ function statusClass(status: AssetStatus): string {
   return styles.processing ?? "";
 }
 
-export default function KnowledgePage() {
+function KnowledgeWorkspace() {
   const searchParams = useSearchParams();
   const highlightedAsset = searchParams.get("asset");
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -131,9 +131,7 @@ export default function KnowledgePage() {
   ];
 
   return (
-    <div className="aira-v2-page">
-      <AiraV2Frame>
-        <main className={styles.page}>
+    <main className={styles.page}>
           <div className={styles.inner}>
             <header className={styles.header}>
               <div>
@@ -231,7 +229,25 @@ export default function KnowledgePage() {
               )}
             </section>
           </div>
-        </main>
+    </main>
+  );
+}
+
+export default function KnowledgePage() {
+  return (
+    <div className="aira-v2-page">
+      <AiraV2Frame>
+        <Suspense
+          fallback={(
+            <main className={styles.page} aria-label="Loading knowledge workspace" aria-busy="true">
+              <div className={styles.loading}>
+                <Loader2 className={cn("size-5", styles.spin)} aria-hidden />
+              </div>
+            </main>
+          )}
+        >
+          <KnowledgeWorkspace />
+        </Suspense>
       </AiraV2Frame>
     </div>
   );

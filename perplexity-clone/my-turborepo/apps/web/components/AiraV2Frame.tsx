@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "../lib/cn";
 import { AiraLogo } from "./AiraLogo";
@@ -315,7 +315,9 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
               <span>Search</span>
               <kbd>⌘K</kbd>
             </button>
-            <UserMenu />
+            <Suspense fallback={<div className={styles.accountSkeleton} aria-hidden />}>
+              <UserMenu />
+            </Suspense>
           </div>
         </header>
         <section className={cn("aira-v2-workspace-stage", styles.stage)}>{children}</section>

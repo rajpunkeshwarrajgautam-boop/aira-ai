@@ -351,6 +351,14 @@
   gap: 8px;
 }
 
+.accountSkeleton {
+  width: 80px;
+  height: 36px;
+  border: 1px solid hsl(var(--aira-border-subtle));
+  border-radius: var(--aira-radius-md);
+  background: hsl(var(--aira-surface-1));
+}
+
 .workspaceStatus {
   color: hsl(var(--aira-text-tertiary));
   font-size: 10px;

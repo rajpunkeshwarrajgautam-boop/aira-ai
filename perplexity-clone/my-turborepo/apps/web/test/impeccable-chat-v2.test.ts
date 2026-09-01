@@ -16,6 +16,7 @@ test("chat home uses the canonical AIRA shell and narrow SearchLayout bridge", (
 	assert.ok(page.includes('<SearchLayout className="aira-core-search" />'));
 	assert.ok(page.includes('import "./aira-v2.css"'));
 	assert.ok(!page.includes("impeccable-chat-v2.css"), "home must not restore the retired polish layer");
+	assert.ok(!page.includes("AiraPreloader"), "home must not mount the preloader after its legacy stylesheet was retired");
 });
 
 test("composer exposes real commands, tools, and voice input", () => {

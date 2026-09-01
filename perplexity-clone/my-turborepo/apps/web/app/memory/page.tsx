@@ -1,5 +1,6 @@
 import { Brain } from "lucide-react";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { auth } from "@/auth";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
@@ -26,7 +27,15 @@ export default async function MemoryPage() {
                 <Brain className="size-5" />
               </span>
             </header>
-            <MemoryManager />
+            <Suspense
+              fallback={(
+                <div className="grid min-h-[220px] place-items-center text-xs text-[hsl(var(--content-tertiary))]" aria-label="Loading memory" aria-busy="true">
+                  Loading memory…
+                </div>
+              )}
+            >
+              <MemoryManager />
+            </Suspense>
           </div>
         </main>
       </AiraV2Frame>
