@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -7,47 +7,96 @@ import test from "node:test";
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative: string) => readFileSync(path.join(WEB_ROOT, relative), "utf8");
 
-test("root layout loads the unified workspace design layer", () => {
+test("root layout no longer globally loads obsolete workspace override layers", () => {
   const layout = read("app/layout.tsx");
-  assert.ok(layout.includes('import "./impeccable-workspace-v3.css"'));
+  assert.ok(layout.includes('import "./globals.css"'));
+  assert.ok(!layout.includes('import "./impeccable-workspace-v3.css"'));
+  assert.ok(!layout.includes('import "./aira-visual-redesign.css"'));
+  assert.ok(layout.includes('localStorage.getItem("aira:theme")'));
 });
 
-test("chat is full width and keeps a real conversation plus inspector layout", () => {
-  const css = read("app/impeccable-workspace-v3.css");
-  assert.ok(css.includes(".aira-home.aira-home .max-w-7xl"));
-  assert.ok(css.includes("max-width: none !important"));
-  assert.ok(css.includes("width: 360px !important"));
-  assert.ok(css.includes("grid-template-columns: minmax(0, 1fr) 320px !important"));
-  assert.ok(css.includes("max-width: 940px !important"));
+test("global styles expose canonical AIRA semantic light and dark tokens", () => {
+  const css = read("app/globals.css");
+  for (const token of [
+    "--aira-bg",
+    "--aira-surface-1",
+    "--aira-border",
+    "--aira-text",
+    "--aira-accent",
+    "--aira-motion-micro",
+  ]) {
+    assert.ok(css.includes(token), `missing ${token}`);
+  }
+  assert.ok(css.includes('html[data-theme="light"]'));
+  assert.ok(css.includes('html[data-theme="dark"]'));
+  assert.ok(!css.includes("radial-gradient(80% 55%"));
 });
 
-test("authenticated workspace frame uses the compact application rail", () => {
-  const css = read("app/impeccable-workspace-v3.css");
-  assert.ok(css.includes("grid-template-columns: 88px minmax(0, 1fr) !important"));
-  assert.ok(css.includes(".aira-v2-workspace-stage.aira-v2-workspace-stage"));
-  assert.ok(css.includes("max-width: 1440px !important"));
+test("workspace shell is component scoped and keeps real navigation behavior", () => {
+  const frame = read("components/AiraV2Frame.tsx");
+  const css = read("components/AiraV2Frame.module.css");
+  assert.ok(frame.includes('import styles from "./AiraV2Frame.module.css"'));
+  assert.ok(frame.includes('label: "Ask AIRA"'));
+  assert.ok(frame.includes('label: "Knowledge"'));
+  assert.ok(frame.includes('label: "Agents"'));
+  assert.ok(frame.includes('label: "Runs"'));
+  assert.ok(frame.includes("aira:shell-collapsed"));
+  assert.ok(frame.includes("<UserMenu />"));
+  assert.ok(css.includes("--shell-rail: 252px"));
+  assert.ok(css.includes("--shell-rail: 72px"));
+  assert.ok(css.includes("@media (max-width: 768px)"));
 });
 
-test("agents and memory share the authenticated AIRA frame", () => {
+test("core chat and composer use scoped AIRA styles instead of violet gradients", () => {
+  const composer = read("components/SearchBox.tsx");
+  const messages = read("components/conversations/ConversationMessageList.tsx");
+  const sidebar = read("components/conversations/ConversationSidebar.tsx");
+  assert.ok(composer.includes('import styles from "./SearchBox.module.css"'));
+  assert.ok(messages.includes('import styles from "./ConversationMessageList.module.css"'));
+  assert.ok(sidebar.includes('import styles from "./ConversationSidebar.module.css"'));
+  assert.ok(!composer.includes("from-violet"));
+  assert.ok(!messages.includes("from-violet"));
+  assert.ok(!sidebar.includes("from-violet"));
+  assert.ok(composer.includes('fetch("/api/model-preference"'));
+});
+
+test("home route retires the stacked legacy page design layers", () => {
+  const page = read("app/page.tsx");
+  assert.ok(page.includes('import "./aira-v2.css"'));
+  assert.ok(page.includes('className="aira-core-search"'));
+  assert.ok(!page.includes('import "./aira-reference.css"'));
+  assert.ok(!page.includes('import "./impeccable-polish.css"'));
+  assert.ok(!page.includes('import "./impeccable-chat-v2.css"'));
+});
+
+test("aira-v2 is now a narrow SearchLayout migration bridge rather than shell override CSS", () => {
+  const css = read("app/aira-v2.css");
+  assert.ok(css.includes("AIRA core workspace migration bridge"));
+  assert.ok(css.includes(".aira-core-search"));
+  assert.ok(!css.includes(".aira-v2-frame {"));
+  assert.ok(!css.includes(".aira-v2-palette-backdrop"));
+  assert.ok(!css.includes("background: #0b0d10"));
+});
+
+test("agents and memory continue to share the authenticated AIRA frame", () => {
   const agents = read("app/agents/page.tsx");
   const memory = read("app/memory/page.tsx");
   assert.ok(agents.includes("<AiraV2Frame>"));
-  assert.ok(agents.includes("aira-agent-workspace aira-v2-page"));
   assert.ok(memory.includes("<AiraV2Frame>"));
-  assert.ok(memory.includes("aira-memory-workspace aira-v2-page"));
-  assert.ok(!memory.includes("<WorkspaceHeader"));
 });
 
-test("operational dark surfaces override legacy light content tokens", () => {
-  const css = read("app/impeccable-workspace-v3.css");
-  assert.ok(css.includes("--content-primary: 220 20% 95% !important"));
-  assert.ok(css.includes("--content-secondary: 220 12% 72% !important"));
-  assert.ok(css.includes("--memory-panel: #101725 !important"));
-});
-
-test("standalone workspace header no longer renders as a bright light bar", () => {
-  const header = read("components/WorkspaceHeader.tsx");
-  assert.ok(header.includes("aira-public-workspace-header"));
-  assert.ok(header.includes("bg-[#080d16]/95"));
-  assert.ok(!header.includes("bg-white/[0.74]"));
+test("retired global layers and orphaned UI components stay deleted", () => {
+  for (const relative of [
+    "app/impeccable-workspace-v3.css",
+    "app/aira-visual-redesign.css",
+    "app/aira-reference.css",
+    "app/impeccable-polish.css",
+    "app/impeccable-chat-v2.css",
+    "components/AiraPreloader.tsx",
+    "components/AnswerStream.tsx",
+    "components/share/ShareResearchButton.tsx",
+    "components/ui/input.tsx",
+  ]) {
+    assert.equal(existsSync(path.join(WEB_ROOT, relative)), false, `${relative} should remain retired`);
+  }
 });

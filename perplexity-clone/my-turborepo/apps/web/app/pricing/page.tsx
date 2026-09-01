@@ -1,138 +1,150 @@
 "use client";
 
-import { Check, Crown, Shield, Sparkles, Zap, type LucideIcon } from "lucide-react";
+import { Check, Crown, Shield, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import styles from "../commerce.module.css";
 
 interface PricingPlan {
-	readonly name: "Free" | "Pro" | "Team";
-	readonly price: string;
-	readonly priceNote?: string;
-	readonly description: string;
-	readonly features: readonly string[];
-	readonly icon: LucideIcon;
-	readonly highlight?: boolean;
-	readonly eyebrow: string;
+  readonly name: "Free" | "Pro" | "Team";
+  readonly price: string;
+  readonly priceNote?: string;
+  readonly description: string;
+  readonly features: readonly string[];
+  readonly icon: LucideIcon;
+  readonly highlight?: boolean;
+  readonly eyebrow: string;
 }
 
 type BillingPlan = "FREE" | "PRO" | "TEAM";
 
 const PLANS: readonly PricingPlan[] = [
-	{
-		name: "Free",
-		price: "$0",
-		eyebrow: "Explore",
-		description: "A generous place to think, ask, and research with Aira.",
-		features: ["250 searches per month", "Standard search", "Grounded citations", "Persistent conversation history", "Memory controls"],
-		icon: Zap,
-	},
-	{
-		name: "Pro",
-		price: "$20",
-		eyebrow: "Go deeper",
-		description: "For people who use Aira as a serious research and execution partner.",
-		features: ["2,000 searches per month", "Deep Research", "50 autonomous agent tasks", "Advanced citation ranking", "Priority support"],
-		icon: Crown,
-		highlight: true,
-	},
-	{
-		name: "Team",
-		price: "$15",
-		priceNote: "per user / month",
-		eyebrow: "Build together",
-		description: "Shared intelligence, higher limits, and cleaner operations for teams.",
-		features: ["10,000 searches per seat", "250 agent tasks per seat", "Centralized billing", "Team-wide research history", "Admin controls"],
-		icon: Shield,
-	},
+  {
+    name: "Free",
+    price: "$0",
+    eyebrow: "Explore",
+    description: "For everyday questions, grounded research, persistent conversations and user-controlled memory.",
+    features: ["250 searches per month", "Standard search", "Grounded citations", "Persistent conversation history", "Memory controls"],
+    icon: Zap,
+  },
+  {
+    name: "Pro",
+    price: "$20",
+    eyebrow: "Go deeper",
+    description: "For individual power users who rely on AIRA for deeper research and autonomous work.",
+    features: ["2,000 searches per month", "Deep Research", "50 autonomous agent tasks", "Advanced citation ranking", "Priority support"],
+    icon: Crown,
+    highlight: true,
+  },
+  {
+    name: "Team",
+    price: "$15",
+    priceNote: "per user / month",
+    eyebrow: "Operate together",
+    description: "For teams that need shared capacity, centralized billing and higher operational limits.",
+    features: ["10,000 searches per seat", "250 agent tasks per seat", "Centralized billing", "Team-wide research history", "Admin controls"],
+    icon: Shield,
+  },
 ];
 
 function planKey(name: PricingPlan["name"]): BillingPlan {
-	return name.toUpperCase() as BillingPlan;
+  return name.toUpperCase() as BillingPlan;
 }
 
 export default function PricingPage() {
-	const { status: sessionStatus } = useSession();
-	const [activePlan, setActivePlan] = useState<BillingPlan | null>(null);
-	const [checkingPlan, setCheckingPlan] = useState(false);
+  const { status: sessionStatus } = useSession();
+  const [activePlan, setActivePlan] = useState<BillingPlan | null>(null);
+  const [checkingPlan, setCheckingPlan] = useState(false);
 
-	useEffect(() => {
-		if (sessionStatus !== "authenticated") {
-			setActivePlan(null);
-			setCheckingPlan(false);
-			return;
-		}
-		let cancelled = false;
-		setCheckingPlan(true);
-		void fetch("/api/billing/status", { credentials: "include", cache: "no-store" })
-			.then(async (response) => {
-				if (!response.ok) throw new Error("Could not load billing status.");
-				const body = (await response.json()) as { billingPlan?: string };
-				if (!cancelled && ["FREE", "PRO", "TEAM"].includes(body.billingPlan ?? "")) {
-					setActivePlan(body.billingPlan as BillingPlan);
-				}
-			})
-			.catch(() => undefined)
-			.finally(() => {
-				if (!cancelled) setCheckingPlan(false);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [sessionStatus]);
+  useEffect(() => {
+    if (sessionStatus !== "authenticated") {
+      setActivePlan(null);
+      setCheckingPlan(false);
+      return;
+    }
+    let cancelled = false;
+    setCheckingPlan(true);
+    void fetch("/api/billing/status", { credentials: "include", cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load billing status.");
+        const body = (await response.json()) as { billingPlan?: string };
+        if (!cancelled && ["FREE", "PRO", "TEAM"].includes(body.billingPlan ?? "")) {
+          setActivePlan(body.billingPlan as BillingPlan);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setCheckingPlan(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionStatus]);
 
-	return (
-		<main className="aira-shell min-h-dvh overflow-hidden text-content-primary">
-			<WorkspaceHeader />
-			<div className="relative mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 md:py-16">
-				<div className="aira-orb aira-orb-blue -left-12 top-20 size-24 opacity-45" aria-hidden />
-				<div className="aira-orb aira-orb-violet -right-10 top-8 size-28 opacity-50" aria-hidden />
+  return (
+    <main className={styles.page}>
+      <WorkspaceHeader />
+      <div className={styles.container}>
+        <header className={styles.hero}>
+          <p className={styles.eyebrow}><Shield className="size-3.5" aria-hidden /> Plans</p>
+          <h1 className={styles.title}>Choose the AIRA capacity you actually need.</h1>
+          <p className={styles.description}>
+            Start free, then upgrade when deeper research, higher usage or autonomous execution is saving enough time to justify it.
+          </p>
+        </header>
 
-				<div className="aira-enter relative mx-auto max-w-3xl text-center">
-					<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border-subtle bg-white/75 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-content-secondary shadow-sm backdrop-blur"><Sparkles className="size-3.5 text-accent" aria-hidden /> Simple pricing</div>
-					<h1 className="aira-display mt-5 text-4xl sm:text-5xl md:text-6xl">Choose how far <span className="aira-gradient-text">Aira can go.</span></h1>
-					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-content-tertiary sm:text-base">Start free. Move up when deeper research, more usage, or autonomous work starts saving you real time.</p>
-				</div>
+        <div className={styles.planGrid}>
+          {PLANS.map((plan) => {
+            const Icon = plan.icon;
+            const key = planKey(plan.name);
+            const isCurrent = activePlan === key;
+            const checkoutHref = plan.name === "Team" ? "/upgrade?plan=team" : "/upgrade?plan=pro";
+            const checking = sessionStatus === "loading" || (sessionStatus === "authenticated" && checkingPlan);
 
-				<div className="relative mt-11 grid gap-4 md:grid-cols-3 md:items-stretch">
-					{PLANS.map((plan) => {
-						const Icon = plan.icon;
-						const key = planKey(plan.name);
-						const isCurrent = activePlan === key;
-						const checkoutHref = plan.name === "Team" ? "/upgrade?plan=team" : "/upgrade?plan=pro";
-						return (
-							<section key={plan.name} className={cn("aira-premium-card aira-card-hover relative flex flex-col overflow-hidden rounded-[28px] p-6", plan.highlight && "aira-pro-glow border-accent/25 md:-translate-y-2")}>
-								{plan.highlight ? <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.15),transparent_72%)]" aria-hidden /> : null}
-								<div className="relative flex items-start justify-between gap-3">
-									<span className={cn("flex size-11 items-center justify-center rounded-2xl", plan.highlight ? "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] text-white shadow-[0_10px_28px_hsl(var(--accent)/0.22)]" : "aira-icon-pop")}><Icon className="size-4.5" aria-hidden /></span>
-									{plan.highlight ? <span className="rounded-full bg-content-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">Most popular</span> : null}
-								</div>
-								<p className="relative mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-content-tertiary">{plan.eyebrow}</p>
-								<h2 className="relative mt-1 text-xl font-semibold">{plan.name}</h2>
-								<p className="relative mt-2 min-h-[48px] text-sm leading-6 text-content-tertiary">{plan.description}</p>
-								<div className="relative mt-6 flex items-end gap-2"><span className="text-4xl font-semibold tracking-tight">{plan.price}</span>{plan.name !== "Free" ? <span className="pb-1 text-xs text-content-tertiary">/ month</span> : null}</div>
-								{plan.priceNote ? <p className="relative mt-1 text-[11px] text-content-tertiary">{plan.priceNote}</p> : null}
-								<ul className="relative my-6 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex items-start gap-2.5 text-sm leading-5 text-content-secondary"><span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full", plan.highlight ? "bg-accent/10 text-accent" : "bg-surface-inset text-content-secondary")}><Check className="size-3" aria-hidden /></span>{feature}</li>)}</ul>
+            return (
+              <section key={plan.name} className={cn(styles.plan, plan.highlight && styles.featured)} aria-label={`${plan.name} plan`}>
+                <div className={styles.planTop}>
+                  <span className={styles.planIcon}><Icon className="size-4" aria-hidden /></span>
+                  {plan.highlight ? <span className={styles.badge}>Recommended</span> : null}
+                </div>
+                <p className={styles.planEyebrow}>{plan.eyebrow}</p>
+                <h2 className={styles.planName}>{plan.name}</h2>
+                <p className={styles.planDescription}>{plan.description}</p>
+                <div className={styles.priceRow}>
+                  <span className={styles.price}>{plan.price}</span>
+                  {plan.name !== "Free" ? <span className={styles.pricePeriod}>/ month</span> : null}
+                </div>
+                {plan.priceNote ? <p className={styles.priceNote}>{plan.priceNote}</p> : null}
 
-								{(sessionStatus === "loading" || (sessionStatus === "authenticated" && checkingPlan)) ? (
-									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Checking plan…</Button>
-								) : isCurrent ? (
-									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Current plan</Button>
-								) : plan.name === "Free" ? (
-									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-surface-inset/60"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
-								) : (
-									<Button asChild className={cn("aira-shine-button relative h-11 w-full rounded-xl shadow-sm", plan.highlight ? "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] hover:opacity-95" : "bg-content-primary hover:bg-content-primary/90")}><Link href={checkoutHref}>{plan.name === "Pro" ? "Upgrade to Pro" : "Choose Team"}</Link></Button>
-								)}
-							</section>
-						);
-					})}
-				</div>
-				<div className="mt-10 flex items-center justify-center gap-2 text-center text-xs text-content-tertiary"><Zap className="size-3.5 text-accent" aria-hidden /> Stay on Free as long as you like. No card required to start.</div>
-			</div>
-		</main>
-	);
+                <ul className={styles.featureList}>
+                  {plan.features.map((feature) => (
+                    <li key={feature} className={styles.featureItem}>
+                      <Check className={styles.check} strokeWidth={2} aria-hidden />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {checking ? (
+                  <span className={styles.disabledCta} aria-live="polite">Checking plan…</span>
+                ) : isCurrent ? (
+                  <span className={styles.disabledCta}>Current plan</span>
+                ) : plan.name === "Free" ? (
+                  <Link href="/" className={styles.secondaryCta}>{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link>
+                ) : (
+                  <Link href={checkoutHref} className={styles.cta}>{plan.name === "Pro" ? "Upgrade to Pro" : "Choose Team"}</Link>
+                )}
+              </section>
+            );
+          })}
+        </div>
+
+        <p className={styles.note}><Zap className="size-3.5" aria-hidden /> Free remains available without a card.</p>
+      </div>
+    </main>
+  );
 }

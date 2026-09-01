@@ -2,6 +2,12 @@ import { auth } from "@/auth";
 import { isAutoGptConfigured, isAutoGptEnabled } from "@/lib/autogpt/config";
 import { isDeerFlowConfigured, isDeerFlowEnabled } from "@/lib/deerflow/config";
 import { knowledgeStorageConfigured } from "@/lib/foundation-storage";
+import {
+  githubClientId,
+  githubClientSecret,
+  googleClientId,
+  googleClientSecret,
+} from "@/lib/oauth-env";
 import { getLocalAiConfigOrDisabled } from "@services/local-ai/config";
 
 export const runtime = "nodejs";
@@ -37,7 +43,8 @@ export async function GET(): Promise<Response> {
     ),
     item("deerflow", "DeerFlow", isDeerFlowEnabled() && isDeerFlowConfigured(), "Long-horizon autonomous agent runtime"),
     item("autogpt", "AutoGPT", isAutoGptEnabled() && isAutoGptConfigured(), "Autonomous agent fallback/runtime"),
-    item("google-oauth", "Google OAuth", Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET), "Google sign-in"),
+    item("google-oauth", "Google OAuth", Boolean(googleClientId() && googleClientSecret()), "Google sign-in"),
+    item("github-oauth", "GitHub OAuth", Boolean(githubClientId() && githubClientSecret()), "GitHub sign-in"),
   ];
 
   return Response.json(

@@ -3,6 +3,19 @@
  */
 
 .aira-impeccable-surface {
+  color-scheme: dark;
+  --aira-text: 60 7% 94%;
+  --aira-text-secondary: 40 7% 71%;
+  --aira-text-tertiary: 40 4% 48%;
+  --content-primary: var(--aira-text);
+  --content-secondary: var(--aira-text-secondary);
+  --content-tertiary: var(--aira-text-tertiary);
+  --surface: 0 0% 4%;
+  --surface-elevated: 0 0% 7%;
+  --surface-inset: 0 0% 9%;
+  --border-subtle: 0 0% 17%;
+  --border: 0 0% 22%;
+  --accent: 43 50% 58%;
   --imp-bg: #090909;
   --imp-panel: #111111;
   --imp-panel-2: #151515;
@@ -71,33 +84,6 @@
 .aira-auth-surface h1 { font-size: clamp(2rem, 6vw, 2.6rem) !important; }
 .aira-auth-surface p { color: var(--imp-text-2) !important; }
 
-/* Pricing */
-.aira-pricing-surface .aira-premium-card {
-  border-radius: 18px !important;
-  padding: 24px !important;
-}
-.aira-pricing-surface .aira-premium-card.md\:-translate-y-2 { transform: none !important; }
-.aira-pricing-surface .aira-premium-card[class*="border-accent"] {
-  border-color: rgba(201,168,76,.36) !important;
-  background: #13120e !important;
-}
-.aira-pricing-surface [class*="radial-gradient"],
-.aira-pricing-surface [class*="linear-gradient"] { background-image: none !important; }
-.aira-pricing-surface .aira-icon-pop,
-.aira-pricing-surface section span[class*="size-11"] {
-  background: var(--imp-panel-3) !important;
-  color: var(--imp-text-2) !important;
-  box-shadow: none !important;
-}
-.aira-pricing-surface section[class*="border-accent"] span[class*="size-11"] {
-  background: var(--imp-accent-soft) !important;
-  color: #d8bd72 !important;
-}
-.aira-pricing-surface ul li { color: #bbb9b4 !important; }
-.aira-pricing-surface ul li span { background: #1c1c1c !important; }
-.aira-pricing-surface .aira-shine-button { background: #ecebe7 !important; color: #111 !important; box-shadow: none !important; }
-.aira-pricing-surface .aira-shine-button:hover { background: #fff !important; }
-
 /* Checkout */
 .aira-upgrade-surface .aira-gradient-frame { max-width: 570px; border-radius: 18px !important; }
 .aira-upgrade-surface .aira-glass { border-radius: 17px !important; padding: 24px !important; }
@@ -148,7 +134,6 @@
 
 @media (max-width: 767px) {
   .aira-impeccable-surface .aira-display { letter-spacing: -.028em; }
-  .aira-pricing-surface .aira-premium-card { border-radius: 15px !important; padding: 20px !important; }
   .aira-share-surface [aria-label="Research answer"] { padding: 18px !important; }
   .aira-admin-surface { padding-inline: 12px !important; }
 }

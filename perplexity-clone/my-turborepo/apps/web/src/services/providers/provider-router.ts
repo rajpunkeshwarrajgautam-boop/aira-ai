@@ -19,6 +19,8 @@ import {
 	recordProviderSuccess,
 	shouldFailOverProviderError,
 } from "./provider-health";
+import { preferredProviderId } from "./provider-preference";
+import { currentProviderPreference } from "./provider-request-context";
 import { providerAllowedByResidency } from "./residency-policy";
 import {
 	resolveProviderRoute,
@@ -110,11 +112,15 @@ export class ProviderRouter {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
 		const { SelfHostedProvider } = await import("./self-hosted-provider");
+		const { getLocalAiConfigOrDisabled } = await import("../local-ai/config");
 		const providerRoute = resolveProviderRoute(tier);
-		const router = new ProviderRouter(
-			providerRoute.primaryProviderId,
-			providerRoute.fallbackProviderId,
-		);
+		const requestedPreference = currentProviderPreference();
+		const preferred = preferredProviderId(tier, requestedPreference);
+		const primaryProviderId = preferred ?? providerRoute.primaryProviderId;
+		const fallbackProviderId = primaryProviderId === "nvidia"
+			? "nvidia"
+			: providerRoute.fallbackProviderId;
+		const router = new ProviderRouter(primaryProviderId, fallbackProviderId);
 
 		const openAiKey = process.env.OPENAI_API_KEY;
 		if (openAiKey) router.registerProvider(new OpenAIProvider(openAiKey));
@@ -122,15 +128,13 @@ export class ProviderRouter {
 		const nvidiaKey = process.env.NVIDIA_API_KEY;
 		if (nvidiaKey) router.registerProvider(new NVIDIAProvider(nvidiaKey));
 
-		const selfHostedBaseURL = process.env.SELF_HOSTED_LLM_BASE_URL?.trim();
-		const selfHostedApiKey = process.env.SELF_HOSTED_LLM_API_KEY?.trim();
-		const selfHostedModel = process.env.SELF_HOSTED_LLM_MODEL?.trim();
-		if (selfHostedBaseURL && selfHostedApiKey && selfHostedModel) {
+		const local = getLocalAiConfigOrDisabled();
+		if (local.configured) {
 			router.registerProvider(
 				new SelfHostedProvider({
-					baseURL: selfHostedBaseURL,
-					apiKey: selfHostedApiKey,
-					model: selfHostedModel,
+					baseURL: local.baseURL,
+					apiKey: local.apiKey,
+					model: local.model,
 				}),
 			);
 		}

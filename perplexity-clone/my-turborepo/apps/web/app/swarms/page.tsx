@@ -3,22 +3,22 @@
 import { Bot, CircleAlert, Loader2, RefreshCw, Workflow } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
 import { CapabilityGate, type CapabilityState } from "@/components/CapabilityGate";
+import surface from "../workspace-surface.module.css";
 
 type AgentRun = {
-  id: string;
-  provider: string;
-  objective: string;
-  status: string;
-  createdAt: string;
+  readonly id: string;
+  readonly provider: string;
+  readonly objective: string;
+  readonly status: string;
+  readonly createdAt: string;
 };
 
 type RunsPayload = {
-  runs?: AgentRun[];
-  feature?: { enabled?: boolean; configured?: boolean; ready?: boolean };
-  error?: { message?: string };
+  readonly runs?: AgentRun[];
+  readonly feature?: { readonly enabled?: boolean; readonly configured?: boolean; readonly ready?: boolean };
+  readonly error?: { readonly message?: string };
 };
 
 const ACTIVE = new Set(["QUEUED", "RUNNING", "REVIEW", "INCOMPLETE"]);
@@ -60,51 +60,54 @@ export default function SwarmsPage() {
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <main className="aira-os-page">
-          <div className="aira-os-page__inner">
+        <main className={surface.page}>
+          <div className={surface.inner}>
             <CapabilityGate
               eyebrow="Automation"
               title="Swarm Management"
               description="Coordinate multi-agent work without inventing topology that the runtime does not persist."
               state={state}
               detail={error ?? (payload?.feature?.ready
-                ? "The autonomous run fabric is ready and the activity below is live. A durable swarm-membership/topology contract is not exposed yet, so AIRA does not fabricate a control-room graph."
+                ? "The autonomous run fabric is ready and the activity below is live. A durable swarm-membership or dependency-topology contract is not exposed yet, so AIRA does not fabricate a control-room graph."
                 : "The autonomous execution fabric must be configured and reachable before swarm coordination can be enabled.")}
               actions={[
-                { href: "/agents", label: "Configure Agents" },
-                { href: "/runs", label: "Open Workflows" },
+                { href: "/agents", label: "Open Agents" },
+                { href: "/runs", label: "Open Run Center" },
                 { href: "/control-center", label: "Open Control Center" },
               ]}
             >
-              <div className="aira-capability-facts" aria-label="Live orchestration facts">
+              <div className={surface.facts} aria-label="Live orchestration facts">
                 <div><span>Execution fabric</span><strong>{loading ? "Checking…" : payload?.feature?.ready ? "Ready" : "Unavailable"}</strong></div>
                 <div><span>Recent runs</span><strong>{loading ? "—" : runs.length}</strong></div>
                 <div><span>Active runs</span><strong>{loading ? "—" : activeRuns.length}</strong></div>
               </div>
-              <button type="button" className="aira-secondary-button" onClick={() => void refresh()} disabled={loading}>
+              <button type="button" className={surface.secondary} onClick={() => void refresh()} disabled={loading}>
                 {loading ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}
                 Refresh orchestration
               </button>
             </CapabilityGate>
 
-            <section className="aira-os-panel" aria-labelledby="swarm-activity-heading">
-              <div className="aira-os-panel__header"><div><span>Live data</span><h2 id="swarm-activity-heading">Autonomous activity</h2></div><Workflow className="size-4" aria-hidden /></div>
+            <section className={surface.panel} aria-labelledby="swarm-activity-heading">
+              <div className={surface.panelHeader}>
+                <div><span>Live data</span><h2 id="swarm-activity-heading">Autonomous activity</h2></div>
+                <Workflow className="size-4" aria-hidden />
+              </div>
               {loading ? (
-                <div className="aira-os-empty"><Loader2 className="size-4 animate-spin" aria-hidden /><p>Loading persisted runs…</p></div>
+                <div className={surface.empty}><div><Loader2 className="size-4 animate-spin" aria-hidden /><p>Loading persisted runs…</p></div></div>
               ) : error ? (
-                <div className="aira-os-empty"><CircleAlert className="size-4" aria-hidden /><p>{error}</p></div>
+                <div className={surface.empty}><div><CircleAlert className="size-4" aria-hidden /><p>{error}</p></div></div>
               ) : runs.length ? (
-                <ul className="aira-run-list">
+                <ul className={surface.runList}>
                   {runs.map((run) => (
                     <li key={run.id}>
-                      <span className="aira-run-list__icon"><Bot className="size-3.5" aria-hidden /></span>
-                      <div><strong>{run.provider}</strong><p>{run.objective}</p></div>
-                      <span className="aira-run-list__status">{run.status.toLowerCase().replaceAll("_", " ")}</span>
+                      <span className={surface.runIcon}><Bot className="size-3.5" aria-hidden /></span>
+                      <div><strong>{run.provider}</strong><p title={run.objective}>{run.objective}</p></div>
+                      <span className={surface.runStatus}>{run.status.toLowerCase().replaceAll("_", " ")}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <div className="aira-os-empty"><Bot className="size-4" aria-hidden /><p>No persisted autonomous runs yet.</p></div>
+                <div className={surface.empty}><div><Bot className="size-4" aria-hidden /><p>No persisted autonomous runs yet.</p></div></div>
               )}
             </section>
           </div>

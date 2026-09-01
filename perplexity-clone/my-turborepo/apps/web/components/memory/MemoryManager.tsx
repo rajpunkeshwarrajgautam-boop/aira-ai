@@ -1,167 +1,293 @@
 "use client";
 
-import { Brain, Pin, PinOff, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Brain, Pin, PinOff, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import styles from "./MemoryManager.module.css";
 
 interface MemoryItem {
-	readonly id: string;
-	readonly memoryKey: string;
-	readonly kind: string;
-	readonly content: string;
-	readonly importance: number;
-	readonly confidence: number;
-	readonly pinned: boolean;
-	readonly recallCount: number;
-	readonly updatedAt: string;
+  readonly id: string;
+  readonly memoryKey: string;
+  readonly kind: string;
+  readonly content: string;
+  readonly importance: number;
+  readonly confidence: number;
+  readonly pinned: boolean;
+  readonly recallCount: number;
+  readonly updatedAt: string;
 }
 
-const KIND_OPTIONS = ["OTHER", "PREFERENCE", "GOAL", "PROJECT", "DECISION", "CONSTRAINT", "PROFILE", "RELATIONSHIP"] as const;
+const KIND_OPTIONS = [
+  "OTHER",
+  "PREFERENCE",
+  "GOAL",
+  "PROJECT",
+  "DECISION",
+  "CONSTRAINT",
+  "PROFILE",
+  "RELATIONSHIP",
+] as const;
+
+function dateLabel(value: string): string {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return "Unknown date";
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(timestamp));
+}
 
 export function MemoryManager() {
-	const searchParams = useSearchParams();
-	const selectedMemoryId = searchParams.get("memory")?.trim() ?? null;
-	const [memories, setMemories] = useState<MemoryItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [busyId, setBusyId] = useState<string | null>(null);
-	const [content, setContent] = useState("");
-	const [kind, setKind] = useState<(typeof KIND_OPTIONS)[number]>("OTHER");
-	const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const selectedMemoryId = searchParams.get("memory")?.trim() ?? null;
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [content, setContent] = useState("");
+  const [kind, setKind] = useState<(typeof KIND_OPTIONS)[number]>("OTHER");
+  const [error, setError] = useState<string | null>(null);
 
-	const loadMemories = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const response = await fetch("/api/memory?limit=200", { cache: "no-store" });
-			if (!response.ok) throw new Error("Could not load memory.");
-			const data = (await response.json()) as { memories?: MemoryItem[] };
-			setMemories(data.memories ?? []);
-		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : "Could not load memory.");
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+  const loadMemories = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/memory?limit=200", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      const data = (await response.json().catch(() => null)) as { memories?: MemoryItem[]; error?: { message?: string } } | null;
+      if (!response.ok) throw new Error(data?.error?.message ?? "Could not load memory.");
+      setMemories(data?.memories ?? []);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load memory.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-	useEffect(() => { void loadMemories(); }, [loadMemories]);
+  useEffect(() => {
+    void loadMemories();
+  }, [loadMemories]);
 
-	const selectedMemoryExists = useMemo(
-		() => Boolean(selectedMemoryId && memories.some((memory) => memory.id === selectedMemoryId)),
-		[memories, selectedMemoryId],
-	);
+  const selectedMemoryExists = useMemo(
+    () => Boolean(selectedMemoryId && memories.some((memory) => memory.id === selectedMemoryId)),
+    [memories, selectedMemoryId],
+  );
 
-	useEffect(() => {
-		if (loading || !selectedMemoryId || !selectedMemoryExists) return;
-		const id = window.setTimeout(() => {
-			document.getElementById(`memory-${selectedMemoryId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-		}, 80);
-		return () => window.clearTimeout(id);
-	}, [loading, selectedMemoryExists, selectedMemoryId]);
+  useEffect(() => {
+    if (loading || !selectedMemoryId || !selectedMemoryExists) return;
+    const id = window.setTimeout(() => {
+      document.getElementById(`memory-${selectedMemoryId}`)?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "center",
+      });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [loading, selectedMemoryExists, selectedMemoryId]);
 
-	async function addMemory(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		const trimmed = content.trim();
-		if (!trimmed) return;
-		setBusyId("new");
-		setError(null);
-		try {
-			const response = await fetch("/api/memory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: trimmed, kind, pinned: true }) });
-			const data = (await response.json()) as { error?: { message?: string } };
-			if (!response.ok) throw new Error(data.error?.message ?? "Could not save memory.");
-			setContent("");
-			await loadMemories();
-		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : "Could not save memory.");
-		} finally { setBusyId(null); }
-	}
+  async function addMemory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    setBusyId("new");
+    setError(null);
+    try {
+      const response = await fetch("/api/memory", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: trimmed, kind, pinned: true }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!response.ok) throw new Error(data?.error?.message ?? "Could not save memory.");
+      setContent("");
+      await loadMemories();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save memory.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
-	async function togglePinned(memory: MemoryItem) {
-		setBusyId(memory.id);
-		setError(null);
-		try {
-			const response = await fetch("/api/memory", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: memory.id, pinned: !memory.pinned }) });
-			if (!response.ok) throw new Error("Could not update memory.");
-			setMemories((current) => current.map((item) => item.id === memory.id ? { ...item, pinned: !memory.pinned } : item));
-		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : "Could not update memory.");
-		} finally { setBusyId(null); }
-	}
+  async function togglePinned(memory: MemoryItem) {
+    setBusyId(memory.id);
+    setError(null);
+    try {
+      const response = await fetch("/api/memory", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: memory.id, pinned: !memory.pinned }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!response.ok) throw new Error(data?.error?.message ?? "Could not update memory.");
+      setMemories((current) => current.map((item) => item.id === memory.id ? { ...item, pinned: !memory.pinned } : item));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not update memory.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
-	async function removeMemory(memory: MemoryItem) {
-		setBusyId(memory.id);
-		setError(null);
-		try {
-			const response = await fetch("/api/memory", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: memory.id }) });
-			if (!response.ok) throw new Error("Could not delete memory.");
-			setMemories((current) => current.filter((item) => item.id !== memory.id));
-		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : "Could not delete memory.");
-		} finally { setBusyId(null); }
-	}
+  async function removeMemory(memory: MemoryItem) {
+    if (!window.confirm("Delete this memory? This action cannot be undone.")) return;
+    setBusyId(memory.id);
+    setError(null);
+    try {
+      const response = await fetch("/api/memory", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: memory.id }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!response.ok) throw new Error(data?.error?.message ?? "Could not delete memory.");
+      setMemories((current) => current.filter((item) => item.id !== memory.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not delete memory.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
-	const pinnedCount = memories.filter((memory) => memory.pinned).length;
+  const pinnedCount = useMemo(() => memories.filter((memory) => memory.pinned).length, [memories]);
 
-	return (
-		<div className="grid gap-5 lg:grid-cols-[350px_minmax(0,1fr)]">
-			<div className="space-y-4">
-				<form onSubmit={addMemory} className="aira-premium-card relative overflow-hidden rounded-3xl p-5">
-					<span className="pointer-events-none absolute -right-12 -top-14 size-40 rounded-full bg-[radial-gradient(circle,hsl(var(--accent-violet)/0.13),transparent_68%)]" aria-hidden />
-					<div className="relative flex items-center gap-3">
-						<span className="aira-icon-pop flex size-10 items-center justify-center rounded-2xl"><Plus className="size-4.5" aria-hidden /></span>
-						<div><h2 className="text-sm font-semibold text-content-primary">Pin something important</h2><p className="mt-0.5 text-xs text-content-tertiary">Give Aira context worth carrying forward.</p></div>
-					</div>
-					<div className="relative mt-5 rounded-2xl border border-border-subtle bg-white/70 p-2 shadow-inner">
-						<select value={kind} onChange={(event) => setKind(event.target.value as (typeof KIND_OPTIONS)[number])} className="h-9 w-full rounded-xl border-0 bg-surface-inset/70 px-3 text-sm font-medium text-content-primary outline-none focus:ring-2 focus:ring-accent/20">
-							{KIND_OPTIONS.map((option) => <option key={option} value={option}>{option.toLowerCase()}</option>)}
-						</select>
-						<textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={600} rows={5} placeholder="Example: I prefer the recommendation first, then the reasoning." className="mt-2 w-full resize-none rounded-2xl border-0 bg-transparent px-2 py-2 text-sm leading-6 text-content-primary outline-none placeholder:text-content-tertiary focus:ring-0" />
-					</div>
-					<Button type="submit" disabled={!content.trim() || busyId === "new"} className="aira-shine-button relative mt-3 h-10 w-full rounded-xl bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] shadow-[0_8px_24px_hsl(var(--accent)/0.18)]">Remember this</Button>
-				</form>
+  return (
+    <div className={styles.layout}>
+      <aside className={styles.sidebar} aria-label="Memory controls">
+        <form onSubmit={addMemory} className={cn(styles.panel, styles.form)}>
+          <div className={styles.panelHeader}>
+            <span className={styles.icon}><Plus className="size-4" aria-hidden /></span>
+            <div>
+              <h2>Remember useful context</h2>
+              <p>Add a preference, project, goal, decision, or constraint that should persist.</p>
+            </div>
+          </div>
 
-				<div className="aira-glass rounded-3xl p-5">
-					<div className="flex items-start gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700"><ShieldCheck className="size-4.5" aria-hidden /></span><div><p className="text-sm font-semibold text-content-primary">Private by design</p><p className="mt-1 text-xs leading-5 text-content-tertiary">Credentials, passwords, API keys, auth tokens, card details, and similar secrets are rejected from memory.</p></div></div>
-				</div>
-			</div>
+          <div className={styles.fields}>
+            <label>
+              <span className="sr-only">Memory type</span>
+              <select
+                value={kind}
+                onChange={(event) => setKind(event.target.value as (typeof KIND_OPTIONS)[number])}
+                className={styles.select}
+              >
+                {KIND_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option.toLowerCase()}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">Memory content</span>
+              <textarea
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                maxLength={600}
+                rows={5}
+                placeholder="Example: I prefer the recommendation first, followed by the reasoning."
+                className={styles.textarea}
+              />
+            </label>
+          </div>
 
-			<section className="aira-premium-card rounded-3xl p-5 sm:p-6">
-				<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4">
-					<div><h2 className="text-base font-semibold text-content-primary">Your memory garden</h2><p className="mt-1 text-xs text-content-tertiary">Pinned memories stay closest to Aira when context matters.</p></div>
-					<div className="flex items-center gap-2"><span className="rounded-full bg-surface-inset px-2.5 py-1 text-xs font-medium text-content-secondary">{memories.length} total</span><span className="rounded-full bg-accent/[0.08] px-2.5 py-1 text-xs font-medium text-accent">{pinnedCount} pinned</span></div>
-				</div>
+          <button type="submit" disabled={!content.trim() || busyId === "new"} className={styles.primary}>
+            <Brain className="size-4" aria-hidden /> {busyId === "new" ? "Saving…" : "Remember this"}
+          </button>
+        </form>
 
-				{selectedMemoryId && !loading && !selectedMemoryExists ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">That memory is no longer available. Showing your current memory list instead.</div> : null}
-				{error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+        <section className={cn(styles.panel, styles.privacy)} aria-label="Memory privacy">
+          <span className={styles.privacyIcon}><ShieldCheck className="size-4" aria-hidden /></span>
+          <div>
+            <strong>Private by design</strong>
+            <span>Credentials, passwords, API keys, authentication tokens, payment-card details, and similar secrets are rejected from memory.</span>
+          </div>
+        </section>
+      </aside>
 
-				{loading ? (
-					<div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-content-tertiary"><span className="aira-orbit-loader" aria-hidden /><span>Loading memory…</span></div>
-				) : memories.length === 0 ? (
-					<div className="py-14 text-center"><span className="aira-icon-pop mx-auto flex size-12 items-center justify-center rounded-2xl"><Brain className="size-5" /></span><p className="mt-4 text-sm font-semibold text-content-primary">Nothing planted yet</p><p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-content-tertiary">Pin a useful preference, project, goal, or constraint and Aira can carry it into future conversations.</p></div>
-				) : (
-					<div className="mt-5 grid gap-3 sm:grid-cols-2">
-						{memories.map((memory) => {
-							const selected = memory.id === selectedMemoryId;
-							return (
-								<article id={`memory-${memory.id}`} key={memory.id} className={cn("aira-card-hover relative scroll-mt-28 rounded-2xl border p-4 transition", selected ? "border-accent/55 bg-[linear-gradient(145deg,hsl(var(--accent)/0.11),hsl(var(--accent-violet)/0.06),white)] ring-2 ring-accent/15" : memory.pinned ? "border-accent/20 bg-[linear-gradient(145deg,hsl(var(--accent)/0.045),hsl(var(--accent-violet)/0.025),white)]" : "border-border-subtle bg-white/70")} aria-current={selected ? "true" : undefined}>
-									{memory.pinned ? <Sparkles className="absolute right-3 top-3 size-3.5 text-accent/70" aria-hidden /> : null}
-									<div className="flex flex-wrap items-center gap-2 pr-5"><span className="rounded-full bg-accent/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-accent">{memory.kind}</span>{memory.pinned ? <span className="text-[11px] font-medium text-content-secondary">Pinned</span> : null}{selected ? <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-white">Search result</span> : null}</div>
-									<p className="mt-3 text-sm leading-6 text-content-primary">{memory.content}</p>
-									<div className="mt-4 flex items-end justify-between gap-2">
-										<div><p className="text-[10px] uppercase tracking-[0.1em] text-content-tertiary">importance {memory.importance}/5</p><p className="mt-1 text-[10px] text-content-tertiary">Recalled {memory.recallCount} times · {new Date(memory.updatedAt).toLocaleDateString()}</p></div>
-										<div className="flex shrink-0 gap-1">
-											<Button variant="ghost" size="sm" className="aira-pin-button size-8 rounded-xl p-0" aria-pressed={memory.pinned} disabled={busyId === memory.id} onClick={() => void togglePinned(memory)} title={memory.pinned ? "Unpin memory" : "Pin memory"}>{memory.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}</Button>
-											<Button variant="ghost" size="sm" className="size-8 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600" disabled={busyId === memory.id} onClick={() => void removeMemory(memory)} title="Delete memory"><Trash2 className="size-4" /></Button>
-										</div>
-									</div>
-								</article>
-							);
-						})}
-					</div>
-				)}
-			</section>
-		</div>
-	);
+      <section className={cn(styles.panel, styles.library)} aria-label="Saved memory">
+        <header className={styles.libraryHeader}>
+          <div>
+            <h2>Saved context</h2>
+            <p>These are the memory records AIRA can use when relevant. Pinning keeps important items more prominent.</p>
+          </div>
+          <div className={styles.counts}>
+            <span className={styles.count}>{memories.length} total</span>
+            <span className={cn(styles.count, styles.countAccent)}>{pinnedCount} pinned</span>
+          </div>
+        </header>
+
+        {selectedMemoryId && !loading && !selectedMemoryExists ? (
+          <p className={styles.notice} role="status">That memory is no longer available. Showing your current memory list instead.</p>
+        ) : null}
+        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+
+        {loading ? (
+          <div className={styles.loading} aria-busy="true">
+            <div><span className={styles.spinner} aria-hidden /><p>Loading memory…</p></div>
+          </div>
+        ) : memories.length === 0 ? (
+          <div className={styles.empty}>
+            <div>
+              <span className={styles.emptyIcon}><Brain className="size-5" aria-hidden /></span>
+              <strong>No saved memory yet</strong>
+              <span>Add a useful preference, project, goal, decision, or constraint when you want AIRA to carry it into later work.</span>
+            </div>
+          </div>
+        ) : (
+          <ul className={styles.list}>
+            {memories.map((memory) => {
+              const selected = memory.id === selectedMemoryId;
+              return (
+                <li key={memory.id} className={styles.item}>
+                  <article
+                    id={`memory-${memory.id}`}
+                    className={cn(styles.memory, selected && styles.selected)}
+                    aria-current={selected ? "true" : undefined}
+                  >
+                    <div className={styles.memoryMain}>
+                      <div className={styles.meta}>
+                        <span className={styles.kind}>{memory.kind}</span>
+                        {memory.pinned ? <span className={styles.pinned}>Pinned</span> : null}
+                        {selected ? <span className={styles.searchResult}>Search result</span> : null}
+                      </div>
+                      <p className={styles.content}>{memory.content}</p>
+                      <div className={styles.metrics}>
+                        <span>Importance {memory.importance}/5</span>
+                        <span>Confidence {Math.round(memory.confidence * 100)}%</span>
+                        <span>Recalled {memory.recallCount} times</span>
+                        <span>Updated {dateLabel(memory.updatedAt)}</span>
+                      </div>
+                    </div>
+
+                    <div className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        aria-label={memory.pinned ? "Unpin memory" : "Pin memory"}
+                        aria-pressed={memory.pinned}
+                        disabled={busyId === memory.id}
+                        onClick={() => void togglePinned(memory)}
+                        title={memory.pinned ? "Unpin memory" : "Pin memory"}
+                      >
+                        {memory.pinned ? <PinOff className="size-4" aria-hidden /> : <Pin className="size-4" aria-hidden />}
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(styles.iconButton, styles.iconButtonDanger)}
+                        aria-label="Delete memory"
+                        disabled={busyId === memory.id}
+                        onClick={() => void removeMemory(memory)}
+                        title="Delete memory"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </button>
+                    </div>
+                  </article>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
 }

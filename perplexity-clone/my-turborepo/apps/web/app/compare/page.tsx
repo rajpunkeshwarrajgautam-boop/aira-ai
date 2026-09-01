@@ -1,74 +1,106 @@
 "use client";
 
-import { Check, Loader2, Play, Scale } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check, Copy, Loader2, Play, Scale, Star } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
-import "../aira-v2.css";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
+import { cn } from "@/lib/cn";
+import styles from "./compare.module.css";
 
-type Provider = { id: "openai" | "nvidia" | "self-hosted"; label: string; configured: boolean; model: string };
-type Result = { providerId: string; ok: boolean; text?: string; latencyMs?: number; error?: string };
+type ProviderId = "openai" | "nvidia" | "self-hosted";
+type Provider = {
+  readonly id: ProviderId;
+  readonly label: string;
+  readonly configured: boolean;
+  readonly model: string;
+};
+type Result = {
+  readonly providerId: ProviderId;
+  readonly ok: boolean;
+  readonly text?: string;
+  readonly latencyMs?: number;
+  readonly error?: string;
+};
 
 export default function ComparePage() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<ProviderId[]>([]);
   const [prompt, setPrompt] = useState("");
   const [results, setResults] = useState<Result[]>([]);
+  const [preferredId, setPreferredId] = useState<ProviderId | null>(null);
+  const [copiedId, setCopiedId] = useState<ProviderId | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch("/api/compare", { cache: "no-store" })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(r.status === 401 ? "Sign in to use model comparison." : "Could not load model providers.");
-        return r.json() as Promise<{ providers: Provider[] }>;
+    void fetch("/api/compare", { cache: "no-store", credentials: "include" })
+      .then(async (response) => {
+        const data = (await response.json().catch(() => null)) as { providers?: Provider[]; error?: { message?: string } } | null;
+        if (!response.ok) {
+          throw new Error(data?.error?.message ?? (response.status === 401 ? "Sign in to use model comparison." : "Could not load model providers."));
+        }
+        return data?.providers ?? [];
       })
-      .then((data) => {
-        setProviders(data.providers);
-        setSelected(data.providers.filter((p) => p.configured).slice(0, 2).map((p) => p.id));
+      .then((loadedProviders) => {
+        setProviders(loadedProviders);
+        setSelected(loadedProviders.filter((provider) => provider.configured).slice(0, 2).map((provider) => provider.id));
+        setMessage(null);
       })
-      .catch((e: unknown) => setMessage(e instanceof Error ? e.message : "Could not load providers."));
+      .catch((error: unknown) => setMessage(error instanceof Error ? error.message : "Could not load providers."));
   }, []);
 
-  const readyCount = useMemo(() => providers.filter((p) => p.configured).length, [providers]);
+  const readyCount = useMemo(() => providers.filter((provider) => provider.configured).length, [providers]);
 
   async function runComparison() {
     if (prompt.trim().length < 2 || selected.length < 2) return;
     setLoading(true);
     setMessage(null);
     setResults([]);
+    setPreferredId(null);
     try {
       const response = await fetch("/api/compare", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: prompt.trim(), providers: selected }),
       });
       const data = (await response.json()) as { results?: Result[]; error?: { message?: string } };
       if (!response.ok) throw new Error(data.error?.message ?? "Comparison failed.");
       setResults(data.results ?? []);
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Comparison failed.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Comparison failed.");
     } finally {
       setLoading(false);
     }
   }
 
+  async function copyResult(result: Result) {
+    if (!result.text) return;
+    await navigator.clipboard.writeText(result.text);
+    setCopiedId(result.providerId);
+    window.setTimeout(() => setCopiedId((current) => current === result.providerId ? null : current), 1400);
+  }
+
+  const resultGridStyle = { "--compare-columns": Math.max(1, results.length) } as CSSProperties;
+
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <main className="min-h-[calc(100dvh-58px)] bg-[#0a0c0f] px-5 py-7 md:px-8">
-          <div className="mx-auto max-w-[1500px]">
-            <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <main className={styles.page}>
+          <div className={styles.inner}>
+            <header className={styles.header}>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">Evaluation lab</p>
-                <h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">Compare models side by side</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9098]">Send the same prompt to AIRA&apos;s configured providers and compare independent responses, latency, and model identity.</p>
+                <p className={styles.eyebrow}>Model Lab</p>
+                <h1 className={styles.title}>Compare configured providers</h1>
+                <p className={styles.description}>
+                  Send one prompt to the real providers configured for AIRA. Compare independent outputs, actual provider/model identity, measured request latency, and failures without invented cost or benchmark data.
+                </p>
               </div>
-              <div className="rounded-full border border-white/[0.08] bg-[#111419] px-3 py-1.5 text-xs text-[#8b9098]">{readyCount} providers ready</div>
-            </div>
+              <span className={styles.ready}>{readyCount} {readyCount === 1 ? "provider" : "providers"} ready</span>
+            </header>
 
-            <section className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-4 md:p-5">
-              <div className="mb-4 flex flex-wrap gap-2">
+            <section className={styles.control} aria-label="Comparison controls">
+              <div className={styles.providers} role="group" aria-label="Select providers to compare">
                 {providers.map((provider) => {
                   const checked = selected.includes(provider.id);
                   return (
@@ -76,46 +108,98 @@ export default function ComparePage() {
                       key={provider.id}
                       type="button"
                       disabled={!provider.configured || loading}
-                      onClick={() => setSelected((current) => checked ? current.filter((id) => id !== provider.id) : [...current, provider.id].slice(-3))}
-                      className={`flex min-w-[190px] items-center justify-between rounded-xl border px-3 py-3 text-left transition ${checked ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#14171c] hover:border-white/[0.14]"} disabled:cursor-not-allowed disabled:opacity-40`}
+                      onClick={() => setSelected((current) => checked
+                        ? current.filter((id) => id !== provider.id)
+                        : [...current, provider.id].slice(-3))}
+                      className={cn(styles.provider, checked && styles.providerSelected)}
+                      aria-pressed={checked}
                     >
-                      <span><strong className="block text-sm font-medium text-[#eeeeea]">{provider.label}</strong><small className="mt-1 block max-w-[160px] truncate text-[11px] text-[#7d828a]">{provider.model}</small></span>
-                      {checked ? <Check className="size-4 text-[#d1b35d]" /> : <span className={`size-2 rounded-full ${provider.configured ? "bg-emerald-500" : "bg-[#555b64]"}`} />}
+                      <span className={styles.providerCopy}>
+                        <strong>{provider.label}</strong>
+                        <small title={provider.model}>{provider.model}</small>
+                      </span>
+                      <span className={styles.providerState} aria-label={provider.configured ? "Configured" : "Not configured"}>
+                        {checked ? <Check className="size-4" aria-hidden /> : <span className={cn(styles.dot, !provider.configured && styles.dotOff)} />}
+                      </span>
                     </button>
                   );
                 })}
               </div>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={5}
-                placeholder="Enter one prompt to test across models…"
-                className="w-full resize-y rounded-xl border border-white/[0.09] bg-[#0b0d10] px-4 py-3 text-sm leading-6 text-[#f0f0ec] outline-none placeholder:text-[#5e636b] focus:border-[#c9a84c]/45"
-              />
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-xs text-[#6f747c]">Select at least two configured providers.</p>
-                <button type="button" onClick={() => void runComparison()} disabled={loading || selected.length < 2 || prompt.trim().length < 2} className="inline-flex items-center gap-2 rounded-xl bg-[#d0ae55] px-4 py-2.5 text-sm font-semibold text-[#111214] transition hover:bg-[#dfbd63] disabled:opacity-40">
-                  {loading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />} Compare
+
+              <label>
+                <span className="sr-only">Prompt to compare across providers</span>
+                <textarea
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  rows={5}
+                  placeholder="Enter one prompt to test across models…"
+                  className={styles.prompt}
+                />
+              </label>
+
+              <div className={styles.controlFooter}>
+                <span className={styles.hint}>Select at least two configured providers. Responses are generated independently.</span>
+                <button
+                  type="button"
+                  onClick={() => void runComparison()}
+                  disabled={loading || selected.length < 2 || prompt.trim().length < 2}
+                  className={styles.run}
+                >
+                  {loading ? <Loader2 className={cn("size-4", styles.spin)} aria-hidden /> : <Play className="size-4" aria-hidden />}
+                  {loading ? "Comparing…" : "Compare"}
                 </button>
               </div>
-              {message ? <p className="mt-3 rounded-lg border border-red-400/15 bg-red-400/[0.06] px-3 py-2 text-sm text-red-200">{message}</p> : null}
+
+              {message ? <p className={styles.error} role="alert">{message}</p> : null}
             </section>
 
-            <section className="mt-5 grid gap-4 xl:grid-cols-3">
-              {results.map((result) => {
-                const provider = providers.find((p) => p.id === result.providerId);
-                return (
-                  <article key={result.providerId} className="min-h-[360px] rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
-                    <header className="mb-4 flex items-start justify-between gap-3 border-b border-white/[0.07] pb-4">
-                      <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-lg bg-[#191d23] text-[#c9a84c]"><Scale className="size-4" /></span><div><h2 className="text-sm font-semibold text-[#f0f0ed]">{provider?.label ?? result.providerId}</h2><p className="mt-0.5 text-[11px] text-[#70757d]">{provider?.model}</p></div></div>
-                      {result.latencyMs ? <span className="text-[11px] tabular-nums text-[#70757d]">{(result.latencyMs / 1000).toFixed(1)}s</span> : null}
-                    </header>
-                    {result.ok ? <div className="whitespace-pre-wrap text-sm leading-7 text-[#cfd1d3]">{result.text}</div> : <p className="text-sm leading-6 text-red-200">{result.error}</p>}
-                  </article>
-                );
-              })}
-              {!results.length && !loading ? <div className="xl:col-span-3 rounded-2xl border border-dashed border-white/[0.09] px-6 py-16 text-center text-sm text-[#666c74]">Comparison results appear here.</div> : null}
-            </section>
+            {results.length ? (
+              <section className={styles.results} style={resultGridStyle} aria-label="Model comparison results">
+                {results.map((result) => {
+                  const provider = providers.find((item) => item.id === result.providerId);
+                  const preferred = preferredId === result.providerId;
+                  return (
+                    <article key={result.providerId} className={cn(styles.result, preferred && styles.resultPreferred)}>
+                      <header className={styles.resultHeader}>
+                        <div className={styles.resultIdentity}>
+                          <span className={styles.resultIcon}><Scale className="size-4" aria-hidden /></span>
+                          <div>
+                            <h2>{provider?.label ?? result.providerId}</h2>
+                            <p title={provider?.model}>{provider?.model ?? "Configured model"}</p>
+                          </div>
+                        </div>
+                        <div className={styles.metrics}>
+                          {preferred ? <span className={styles.preferred}>Preferred</span> : null}
+                          {typeof result.latencyMs === "number" ? <span>{(result.latencyMs / 1000).toFixed(1)}s</span> : null}
+                        </div>
+                      </header>
+
+                      <div className={cn(styles.resultBody, !result.ok && styles.resultError)}>
+                        {result.ok ? (result.text || "No response text returned.") : (result.error || "Provider request failed.")}
+                      </div>
+
+                      <footer className={styles.resultFooter}>
+                        <button
+                          type="button"
+                          onClick={() => setPreferredId((current) => current === result.providerId ? null : result.providerId)}
+                          className={styles.copy}
+                          aria-pressed={preferred}
+                        >
+                          <Star className="size-3.5" aria-hidden /> {preferred ? "Preferred" : "Prefer"}
+                        </button>
+                        {result.ok && result.text ? (
+                          <button type="button" onClick={() => void copyResult(result)} className={styles.copy}>
+                            <Copy className="size-3.5" aria-hidden /> {copiedId === result.providerId ? "Copied" : "Copy"}
+                          </button>
+                        ) : <span className={styles.selectHint}>No output to copy</span>}
+                      </footer>
+                    </article>
+                  );
+                })}
+              </section>
+            ) : (
+              <div className={styles.empty}>{loading ? "Waiting for provider responses…" : "Run a comparison to evaluate real configured providers side by side."}</div>
+            )}
           </div>
         </main>
       </AiraV2Frame>

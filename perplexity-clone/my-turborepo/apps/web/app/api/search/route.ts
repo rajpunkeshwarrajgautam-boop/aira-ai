@@ -6,6 +6,11 @@ import {
 	type AdmissionLease,
 } from "@/lib/foundation-control-plane";
 import {
+	PROVIDER_PREFERENCE_COOKIE,
+	parseProviderPreference,
+} from "@services/providers/provider-preference";
+import { runWithProviderPreference } from "@services/providers/provider-request-context";
+import {
 	normalizeAndGuardUserQuery,
 	RequestGuardError,
 } from "@services/runtime/request-guard";
@@ -95,6 +100,22 @@ function releaseWhenBodyCompletes(response: Response, leaseId?: string): Respons
 	});
 }
 
+function requestCookie(header: string | null, name: string): string | undefined {
+	if (!header) return undefined;
+	for (const part of header.split(";")) {
+		const separator = part.indexOf("=");
+		if (separator < 0) continue;
+		const key = part.slice(0, separator).trim();
+		if (key !== name) continue;
+		try {
+			return decodeURIComponent(part.slice(separator + 1).trim());
+		} catch {
+			return part.slice(separator + 1).trim();
+		}
+	}
+	return undefined;
+}
+
 export async function POST(req: Request): Promise<Response> {
 	const trace = new AiraRuntimeTrace(
 		req.headers.get("x-aira-request-id") ?? req.headers.get("x-request-id"),
@@ -178,11 +199,16 @@ export async function POST(req: Request): Promise<Response> {
 	}
 	if (lease.degraded) trace.mark("control_plane_degraded");
 
+	const requestedProvider = parseProviderPreference(
+		requestCookie(req.headers.get("cookie"), PROVIDER_PREFERENCE_COOKIE),
+	);
+
 	try {
-		const response = await corePost(forwarded);
+		const response = await runWithProviderPreference(requestedProvider, () => corePost(forwarded));
 		trace.mark("core_response_ready", {
 			status: response.status,
 			streaming: response.headers.get("content-type")?.includes("text/event-stream") ?? false,
+			providerPreference: requestedProvider,
 		});
 		return withRequestId(releaseWhenBodyCompletes(response, lease.leaseId), trace.requestId);
 	} catch (error) {

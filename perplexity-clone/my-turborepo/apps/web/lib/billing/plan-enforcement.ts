@@ -121,7 +121,7 @@ export async function consumeSearchQuota(userId: string): Promise<EffectiveEntit
 			throw new PlanEnforcementError(
 				402,
 				"QUOTA_EXCEEDED",
-				`You have reached your monthly search limit of ${limit}. Upgrade to Pro for unlimited searches.`
+				`You have reached your monthly search limit of ${limit}. Review your plan or wait until the next usage period.`
 			);
 		}
 
