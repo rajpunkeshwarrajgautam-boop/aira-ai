@@ -1,10 +1,11 @@
 import { auth } from "@/auth";
+import { getAgentRuntime } from "@/lib/agent-runtime/registry";
+import { AgentRuntimeError } from "@/lib/agent-runtime/types";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import { AutoGptConfigError } from "@/lib/autogpt/config";
-import { getAgentRun, refreshAgentRun } from "@/lib/autogpt/runs";
+import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
 import { DeerFlowConfigError } from "@/lib/deerflow/config";
-import { refreshDeerFlowAgentRun } from "@/lib/deerflow/runs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,9 +36,8 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 				{ status: 404 },
 			);
 		}
-		const run = cached.provider === "DEERFLOW"
-			? await refreshDeerFlowAgentRun(session.user.id, runId)
-			: await refreshAgentRun(session.user.id, runId);
+		const selectedRuntime = getAgentRuntime(cached.provider);
+		const run = await selectedRuntime.refreshRun(session.user.id, runId);
 		if (!run) {
 			return noStoreJson(
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
@@ -47,6 +47,7 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 		return noStoreJson({ run });
 	} catch (error) {
 		if (
+			error instanceof AgentRuntimeError ||
 			error instanceof DeerFlowRequestError ||
 			error instanceof DeerFlowConfigError ||
 			error instanceof AutoGptRequestError ||
