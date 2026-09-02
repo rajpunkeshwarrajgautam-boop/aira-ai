@@ -160,6 +160,6 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Cashfree touched: **NO**.
 - Release-ready: **NO**.
 - Gate 04: **PASS** (100% complete across all 12 failure modes; verified in REAL_DB run `33654095827`, job `100328195511` on SHA `7f83bd02`).
-- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; HTTP route authorization contract suite `agent-platform-route-auth.test.ts` passing 7/7 tests; REAL_DB workflow `33659198054` dispatched for published head `41f8217b12c437e8c8a15a38b005643cbbe85059`).
+- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; HTTP route authorization contract suite `agent-platform-route-auth.test.ts` passing 7/7 tests; REAL_DB workflow run `33662402205`, job `100355849980` verified 100% PASS on exact published head `cf831809d4cae5d95cfef19db6faac11edb5dcd3`).
 - Gate 29: **PARTIAL**.
-- Next step: Monitor GitHub Actions run 33659198054 completion and record job conclusion.
+- Next step: Complete remaining user-data route authorization tests.
