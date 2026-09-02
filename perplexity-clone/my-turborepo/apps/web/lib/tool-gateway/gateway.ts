@@ -45,6 +45,12 @@ const adapters = new Map<AiraToolId, ToolAdapter>([
 	[mcpToolAdapter.id, mcpToolAdapter],
 ]);
 
+/** Internal dependency boundary for deterministic recovery verification. */
+export interface ToolExecutionDependencies {
+	readonly adapter?: ToolAdapter;
+	readonly beforeCompletionPersist?: () => Promise<void> | void;
+}
+
 const SECRETISH = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential|access[_-]?key|refresh[_-]?token)/i;
 
 function boundedValue(
@@ -199,6 +205,7 @@ function storedOperationConflicts(
 export async function executeTool(
 	context: ToolContext,
 	request: ToolExecutionRequest,
+	dependencies: ToolExecutionDependencies = {},
 ): Promise<ToolExecutionResult> {
 	await assertToolContextOwnership(context);
 	const risk = classifyToolRisk(request.tool, request.action);
@@ -220,7 +227,7 @@ export async function executeTool(
 		throw new ToolGatewayError({ code: "TOOL_RETRY_REQUIRES_NEW_REQUEST_ID", message: "This tool request ended without a confirmed success. Use a new request id for an explicit retry so side effects cannot be duplicated silently.", status: 409 });
 	}
 
-	const adapter = adapters.get(request.tool);
+	const adapter = dependencies.adapter ?? adapters.get(request.tool);
 	if (!adapter) {
 		throw new ToolGatewayError({ code: "TOOL_NOT_IMPLEMENTED", message: `${request.tool} is not available through the AIRA Tool Gateway.`, status: 409 });
 	}
@@ -284,6 +291,7 @@ export async function executeTool(
 		const usage = usageOrDefault(executed.usage);
 		const safeResult = sanitizedResult(executed.result);
 		const storedResult = summary(safeResult);
+		await dependencies.beforeCompletionPersist?.();
 		if (!(await completeToolCall({ toolCallId: stored.id, result: storedResult, usage }))) {
 			throw new Error("Tool completion did not claim the executing request.");
 		}
