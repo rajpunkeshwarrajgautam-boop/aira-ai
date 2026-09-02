@@ -78,14 +78,14 @@ async function boundedResponseText(response: Response, maxBytes: number): Promis
 async function jsonFetch(
 	url: string,
 	init: RequestInit,
-	options: { readonly timeoutMs?: number; readonly maxResponseBytes?: number; readonly strictJson?: boolean } = {},
+	options: { readonly timeoutMs?: number; readonly maxResponseBytes?: number; readonly strictJson?: boolean; readonly redirect?: RequestRedirect } = {},
 ): Promise<unknown> {
 	const timeoutMs = options.timeoutMs ?? 20_000;
 	const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_EXTERNAL_RESPONSE_BYTES;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	try {
-		const response = await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
+		const response = await fetch(url, { ...init, signal: controller.signal, cache: "no-store", redirect: options.redirect ?? "follow" });
 		const text = await boundedResponseText(response, maxResponseBytes);
 		if (!response.ok) {
 			throw new ToolGatewayError({
@@ -494,7 +494,7 @@ export const mcpToolAdapter: ToolAdapter = {
 			method: "POST",
 			headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
 			body,
-		}, { timeoutMs: cfg.timeoutMs, maxResponseBytes: MCP_MAX_RESPONSE_BYTES, strictJson: true });
+		}, { timeoutMs: cfg.timeoutMs, maxResponseBytes: MCP_MAX_RESPONSE_BYTES, strictJson: true, redirect: "manual" });
 		if (!value || typeof value !== "object" || Array.isArray(value)) {
 			throw new ToolGatewayError({ code: "MCP_RESPONSE_INVALID", message: "MCP bridge must return a JSON object.", status: 502 });
 		}

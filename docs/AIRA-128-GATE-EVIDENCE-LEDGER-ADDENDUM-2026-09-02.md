@@ -30,7 +30,7 @@ The current REAL_DB regression file directly asserts:
 
 The dedicated workflow has both `pull_request` and `workflow_dispatch`, provisions disposable PostgreSQL 16, applies the complete migration chain and runs the four required REAL_DB suites with `AIRA_REAL_DB_RECOVERY_TESTS=1`.
 
-However, GitHub returned zero Actions workflow runs for `22c82a5793cdb29ba9aef8d504323760831083db`, and zero Actions runs for the later source/test candidate `3e2a67d462716920b2b355bafcb06c65714d5e12`. The connected GitHub surface available during this audit exposes workflow reads but no workflow-dispatch action. Vercel-only checks are not REAL_DB evidence.
+Workflow dispatch run `33594449600` executed on current source `da75946caf0f9efcd99edb939ee87837609d2d8c` using GitHub Actions' disposable PostgreSQL 16 service. Its sole job passed: 5 tests, 5 pass, 0 fail, 0 skipped. This proves the listed duplicate/concurrent accounting and outage-replay cases on real PostgreSQL. Remaining failure-injection/restart/cancellation-race coverage is still incomplete.
 
 Therefore Gate 04 remains PARTIAL. No production database or production environment was used as a fallback.
 
@@ -69,7 +69,9 @@ An isolated Node.js `v22.16.0` runtime probe reproduced the underlying cross-ori
 
 GitHub returned zero Actions runs for `3e2a67d462716920b2b355bafcb06c65714d5e12`. The only exact-head check observed was Vercel `Preview Comments`, which completed successfully and does not execute this security regression.
 
-Therefore this focused Gate 29 gap is implemented but remains pending exact-head repository test execution. Gate 29 as a whole remains PARTIAL; this single regression is not a complete autonomous-security certification.
+At `da75946caf0f9efcd99edb939ee87837609d2d8c`, the focused MCP suite was executed locally after `pnpm --filter web run precheck-types`: 6 tests, 6 pass, 0 fail, 0 skipped. It reproduced that a bridge-controlled cross-origin 307 forwards the tool payload to the redirect destination. The current focused repair changes only the MCP request to `redirect: "manual"`, so no redirected destination receives either the bearer token or tool payload; the repaired suite passes locally (6 pass, 0 fail, 0 skipped). Its exact publication SHA remains pending.
+
+Therefore Gate 29 remains PARTIAL; this single redirect-confinement repair is not a complete autonomous-security certification.
 
 ## Release posture
 
