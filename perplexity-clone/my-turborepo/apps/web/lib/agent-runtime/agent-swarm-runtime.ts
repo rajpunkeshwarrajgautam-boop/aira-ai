@@ -229,7 +229,7 @@ async function getSwarmTask(config: AgentSwarmConfig, taskId: string): Promise<S
 	return parsed.data;
 }
 
-async function createSwarmTask(
+export async function createSwarmTask(
 	config: AgentSwarmConfig,
 	input: CreateAgentRunInput,
 ): Promise<SwarmTask> {

@@ -11,10 +11,12 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/orchestrator.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/store.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/usage.ts"
+      - "perplexity-clone/my-turborepo/apps/web/lib/agent-runtime/**"
       - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/store.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-cancellation-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idor-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idempotency-real-db.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/agent-swarm-runtime.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/tool-gateway-completion-real-db.test.ts"
   workflow_dispatch:
 
