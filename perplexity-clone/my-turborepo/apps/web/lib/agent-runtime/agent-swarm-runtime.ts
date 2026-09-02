@@ -192,18 +192,23 @@ async function swarmRequest<T>(
 			status: 503,
 			runtimeId: "AGENT_SWARM",
 			retryable: !options.submission,
+			submissionOutcomeUnknown: Boolean(options.submission),
 		});
 	} finally {
 		clearTimeout(timer);
 	}
 	if (!response.ok) {
 		const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+		const outcomeUnknown =
+			Boolean(options.submission) &&
+			(response.status === 408 || response.status === 409 || response.status >= 500);
 		throw new AgentRuntimeError({
 			code: "AGENT_SWARM_REQUEST_FAILED",
 			message: `Agent Swarm returned HTTP ${response.status}.`,
 			status: response.status >= 400 && response.status < 600 ? response.status : 502,
 			runtimeId: "AGENT_SWARM",
 			retryable,
+			submissionOutcomeUnknown: outcomeUnknown,
 		});
 	}
 	return (await response.json()) as T;
@@ -246,6 +251,7 @@ async function createSwarmTask(
 			message: "Agent Swarm accepted the request but returned an invalid task response.",
 			status: 502,
 			runtimeId: "AGENT_SWARM",
+			submissionOutcomeUnknown: true,
 		});
 	}
 	return parsed.data;
@@ -358,16 +364,16 @@ async function submitAgentSwarmRun(input: CreateAgentRunInput): Promise<AgentRun
 		});
 		return { run: toAgentRunDto(submitted), agentRunsRemaining: remaining };
 	} catch (error) {
-		const outcomeUnknown = error instanceof AgentRuntimeError && error.code === "AGENT_SWARM_SUBMISSION_UNKNOWN";
+		const outcomeUnknown = error instanceof AgentRuntimeError && error.submissionOutcomeUnknown;
 		await Promise.allSettled([
 			prisma.agentRun.update({
 				where: { id: pending.id },
 				data: {
-					status: AgentRunStatus.FAILED,
+					status: outcomeUnknown ? AgentRunStatus.REVIEW : AgentRunStatus.FAILED,
 					errorMessage: outcomeUnknown
 						? "Agent Swarm did not confirm whether it accepted this task. AIRA did not retry to avoid duplicate autonomous work."
 						: "Agent Swarm could not accept this task.",
-					completedAt: new Date(),
+					completedAt: outcomeUnknown ? null : new Date(),
 				},
 			}),
 			...(billable && !outcomeUnknown ? [refundAgentRunQuota(input.userId)] : []),

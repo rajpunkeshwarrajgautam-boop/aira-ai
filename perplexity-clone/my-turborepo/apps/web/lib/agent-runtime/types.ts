@@ -89,6 +89,7 @@ export class AgentRuntimeError extends Error {
 	readonly status: number;
 	readonly runtimeId?: AgentRuntimeId;
 	readonly retryable: boolean;
+	readonly submissionOutcomeUnknown: boolean;
 
 	constructor(options: {
 		readonly code: string;
@@ -96,6 +97,7 @@ export class AgentRuntimeError extends Error {
 		readonly status?: number;
 		readonly runtimeId?: AgentRuntimeId;
 		readonly retryable?: boolean;
+		readonly submissionOutcomeUnknown?: boolean;
 	}) {
 		super(options.message);
 		this.name = "AgentRuntimeError";
@@ -103,6 +105,7 @@ export class AgentRuntimeError extends Error {
 		this.status = options.status ?? 500;
 		this.runtimeId = options.runtimeId;
 		this.retryable = options.retryable ?? false;
+		this.submissionOutcomeUnknown = options.submissionOutcomeUnknown ?? false;
 	}
 }
 
