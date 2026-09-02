@@ -33,6 +33,7 @@ import {
 	resolveToolApproval,
 	ToolApprovalError,
 } from "@/lib/agents/tool-approvals";
+import { createKnowledgeAsset, listKnowledgeAssets } from "@/lib/knowledge-assets";
 import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
@@ -239,20 +240,17 @@ test(
 		);
 
 		// KnowledgeAssets and KnowledgeChunks are isolated per user.
-		const asset = await prisma.knowledgeAsset.create({
-			data: {
-				userId: ownerId,
-				filename: "owner-secret.pdf",
-				title: "Owner Secret Document",
-				sourceType: "UPLOAD",
-				fileSize: 1024,
-				mimeType: "application/pdf",
-				status: "COMPLETED",
-			},
+		const assetId = await createKnowledgeAsset({
+			userId: ownerId,
+			filename: "owner-secret.pdf",
+			mimeType: "application/pdf",
+			sizeBytes: 1024,
+			sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			storageKey: `knowledge/${ownerId}/owner-secret.pdf`,
 		});
 		assert.equal(
-			await prisma.knowledgeAsset.findFirst({ where: { id: asset.id, userId: attackerId } }),
-			null,
+			(await listKnowledgeAssets(attackerId)).some((asset) => asset.id === assetId),
+			false,
 		);
 
 		// UserMemory entries are isolated per user.
