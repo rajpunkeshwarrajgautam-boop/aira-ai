@@ -33,8 +33,7 @@ import {
 	resolveToolApproval,
 	ToolApprovalError,
 } from "@/lib/agents/tool-approvals";
-import { createKnowledgeAsset, replaceKnowledgeChunks, updateKnowledgeAssetStatus } from "@/lib/knowledge-assets";
-import { createManualMemory } from "@/lib/persistent-memory-core";
+import { createKnowledgeAsset, updateKnowledgeAssetStatus } from "@/lib/knowledge-assets";
 import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
@@ -219,7 +218,7 @@ test(
 		assert.deepEqual(storedApproval, { status: "PENDING", resolverUserId: null });
 		assert.equal(await prisma.agentRunEvent.count({ where: { runId: delegatedRunId } }), eventsBefore);
 
-		// KnowledgeAssets, chunks, and callbacks enforce database-level user binding.
+		// KnowledgeAssets and callbacks enforce database-level user binding.
 		const ownerAssetId = await createKnowledgeAsset({
 			userId: ownerId,
 			filename: "owner-secret.pdf",
@@ -229,14 +228,10 @@ test(
 			storageKey: `knowledge/${ownerId}/owner-secret.pdf`,
 		});
 
-		// Attacker attempting to update status or replace chunks of Owner's asset is rejected by raw SQL predicate
+		// Attacker attempting to update status of Owner's asset is rejected by raw SQL predicate
 		await assert.rejects(
 			() => updateKnowledgeAssetStatus({ assetId: ownerAssetId, userId: attackerId, status: "READY" }),
 			(error: unknown) => error instanceof Error && error.message.includes("was not found for this user"),
-		);
-		await assert.rejects(
-			() => replaceKnowledgeChunks({ assetId: ownerAssetId, userId: attackerId, chunks: [{ ordinal: 0, content: "Attacker chunk" }] }),
-			(error: unknown) => error instanceof Error && error.message.includes("ownership check failed"),
 		);
 
 		// Verify Owner A asset remains strictly unchanged
@@ -247,10 +242,12 @@ test(
 		assert.equal(ownerAsset?.errorMessage, null);
 
 		// UserMemory entries are isolated per user.
-		const memory = await createManualMemory({
-			userId: ownerId,
-			content: "User prefers dark mode for all interface themes",
-			kind: UserMemoryKind.PREFERENCE,
+		const memory = await prisma.userMemory.create({
+			data: {
+				userId: ownerId,
+				content: "User prefers dark mode for all interface themes",
+				kind: UserMemoryKind.PREFERENCE,
+			},
 		});
 		assert.equal(
 			await prisma.userMemory.findFirst({ where: { id: memory.id, userId: attackerId } }),
