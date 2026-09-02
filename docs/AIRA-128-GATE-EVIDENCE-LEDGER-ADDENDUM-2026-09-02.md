@@ -63,6 +63,16 @@ Workflow-dispatch run `33597340492`, job `100143353283`, used disposable Postgre
 
 Gate 04 remains **PARTIAL** because lost-response retry and independent stale-coordinator convergence evidence are still outstanding. No production database or production environment was used.
 
+### Gate 04 lost-response replay — 2026-09-02 follow-up
+
+Source/test candidate `b3fe34ff3c19db473053e892db18e8dd95605667` adds a default-inert internal post-completion boundary and `REAL_DB: a lost response after durable completion replays without another adapter call or charge`.
+
+The test executes a synthetic adapter once, commits the ToolCall result and usage, then injects a caller-side response loss after that durable commit. A fresh exact request re-enters the canonical Tool Gateway replay path. It returns the same persisted ToolCall identity and summary without adapter re-execution; before and after retry, durable accounting remains input 11, output 7, cached 2, known USD 0.42.
+
+Workflow-dispatch run `33600157004`, job `100151863899`, used disposable PostgreSQL `16.15` with `AIRA_REAL_DB_RECOVERY_TESTS=1` and checked out exact SHA `b3fe34ff3c19db473053e892db18e8dd95605667`. It completed 8 tests: 8 pass, 0 fail, 0 skipped.
+
+Gate 04 remains **PARTIAL** pending independent stale-coordinator convergence and final acceptance reconciliation. No production database or production environment was used.
+
 ## Gate 29 — P0 Autonomous Security Red Team
 
 State: **PARTIAL**.
