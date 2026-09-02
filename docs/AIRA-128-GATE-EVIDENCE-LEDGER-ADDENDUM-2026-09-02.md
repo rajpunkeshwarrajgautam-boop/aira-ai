@@ -303,10 +303,10 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 | `AgentRun` (Delegated) | `getAgentRun` / `listAgentRuns` | GET, List, Detail, Cancel | SERVICE, REAL_DB & HTTP RUNTIME | Owner PASS | Attacker `null` / 404 | No run disclosure | `agent-platform-idor-real-db.test.ts:191`, `agent-platform-route-runtime.test.ts` |
 | `AgentToolApproval` | `requestToolApproval` / `resolveToolApproval` | Request, Resolve | SERVICE / STORE & REAL_DB | Owner PASS | Attacker `APPROVAL_NOT_FOUND` | Approval stays PENDING | `agent-platform-idor-real-db.test.ts:196` |
 | `Conversation` | `listConversations` / `searchConversationMessages` | GET, Search | HTTP RUNTIME & STATIC CONTRACT | Owner PASS | Attacker 0 results | Zero secret leakage | `agent-platform-route-runtime.test.ts:462` |
-| `KnowledgeAsset` | `updateKnowledgeAssetStatus` / `replaceKnowledgeChunks` | Update Status, Replace Chunks | REAL_DB & HTTP RUNTIME | Owner PASS | Attacker error / 404 | Zero asset/chunk mutation | `agent-platform-idor-real-db.test.ts:230` |
-| `KnowledgeChunk` | Callback ingestion / retrieval | Vector / Search recall | SERVICE & REAL_DB | Owner PASS | Attacker zero recall | No chunk leakage | `agent-platform-idor-real-db.test.ts:235` |
-| `UserMemory` | `listUserMemories` / `createManualMemory` | GET, POST, PATCH, DELETE | REAL_DB & HTTP RUNTIME | Owner PASS | Attacker `null` / 404 | Memory isolated | `agent-platform-idor-real-db.test.ts:247`, `agent-platform-route-runtime.test.ts:417` |
-| `McpServerPreference` | `setMcpServerEnabled` / `getMcpServerStatuses` | GET, PATCH | REAL_DB & HTTP RUNTIME | Owner PASS | Attacker isolated row | Preference isolated | `agent-platform-idor-real-db.test.ts:257`, `agent-platform-route-runtime.test.ts:693` |
+| `KnowledgeAsset` | `updateKnowledgeAssetStatus` / `replaceKnowledgeChunks` | Update Status, Replace Chunks | HTTP RUNTIME & STATIC CONTRACT (REAL_DB pending separate file) | Owner PASS | Attacker error / 404 | Zero asset/chunk mutation | `agent-platform-route-runtime.test.ts:483` |
+| `KnowledgeChunk` | Callback ingestion / retrieval | Vector / Search recall | SERVICE & HTTP RUNTIME | Owner PASS | Attacker zero recall | No chunk leakage | `app/api/knowledge/callback/route.ts:38` |
+| `UserMemory` | `listUserMemories` / `createManualMemory` | GET, POST, PATCH, DELETE | HTTP RUNTIME & STATIC CONTRACT (REAL_DB pending separate file) | Owner PASS | Attacker `null` / 404 | Memory isolated | `agent-platform-route-runtime.test.ts:417` |
+| `McpServerPreference` | `setMcpServerEnabled` / `getMcpServerStatuses` | GET, PATCH | HTTP RUNTIME & STATIC CONTRACT (REAL_DB pending separate file) | Owner PASS | Attacker isolated row | Preference isolated | `agent-platform-route-runtime.test.ts:693` |
 
 ## Release posture
 
@@ -314,6 +314,6 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Cashfree touched: **NO**.
 - Release-ready: **NO**.
 - Gate 04: **PASS** (100% complete across all 12 failure modes; verified in REAL_DB run `33654095827`, job `100328195511` on SHA `7f83bd02`).
-- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; HTTP route static source contracts verified 7/7 PASS; HTTP route true Owner-vs-Attacker runtime handler suite `agent-platform-route-runtime.test.ts` verified 13/13 PASS across mutation, memory, search, knowledge, callback, delegated run detail/cancel/approvals/events/steps/artifacts, and MCP endpoints; REAL_DB workflow run `33668951498`, job `100377507180` verified 100% PASS on exact tested source head `792f90cb7d4fb7747e923e1e8cf05ebdf5e8ef81`).
+- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; HTTP route static source contracts verified 7/7 PASS; HTTP route true Owner-vs-Attacker runtime handler suite `agent-platform-route-runtime.test.ts` verified 13/13 PASS across mutation, memory, search, knowledge, callback, delegated run detail/cancel/approvals/events/steps/artifacts, and MCP endpoints; REAL_DB workflow run `33668951498`, job `100377507180` verified 100% PASS on canonical exact tested source head `792f90cb4744934fdaf77e77f43ef64d114ebd60`).
 - Gate 29: **PARTIAL**.
-- Next step: Complete remaining user-data route authorization tests.
+- Next step: Establish dedicated `user-data-idor-real-db.test.ts` for KnowledgeAsset, UserMemory, and McpServerPreference REAL_DB isolation.

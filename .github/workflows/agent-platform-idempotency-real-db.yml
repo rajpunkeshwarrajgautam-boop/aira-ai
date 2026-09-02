@@ -18,6 +18,7 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idempotency-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-swarm-runtime.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/tool-gateway-completion-real-db.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/user-data-idor-real-db.test.ts"
   workflow_dispatch:
 
 permissions:
@@ -115,4 +116,5 @@ jobs:
             ./test/agent-platform-idempotency-real-db.test.ts \
             ./test/agent-platform-cancellation-real-db.test.ts \
             ./test/agent-platform-idor-real-db.test.ts \
+            ./test/user-data-idor-real-db.test.ts \
             ./test/tool-gateway-completion-real-db.test.ts
