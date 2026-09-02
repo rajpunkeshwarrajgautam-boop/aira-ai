@@ -15,6 +15,75 @@ import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
 
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((release) => {
+		resolve = release;
+	});
+	return { promise, resolve };
+}
+
+test(
+	"REAL_DB: stale coordinator cannot re-execute or overwrite a durably completed tool call",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-stale-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool stale ${suffix}`, objective: "Fence stale tool execution after a newer durable completion." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-stale-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = { clientRequestId: `tool-stale-call-${suffix}`, tool: "web" as const, action: "retrieve", input: { query: "stale coordinator proof", numResults: 1 } };
+		let adapterExecutions = 0;
+		const adapter: ToolAdapter = {
+			id: "web",
+			async isAvailable() { return true; },
+			async execute() {
+				adapterExecutions += 1;
+				return { result: { source: "coordinator-a" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } };
+			},
+		};
+		const reached = deferred();
+		const release = deferred();
+		const staleCoordinator = executeTool(context, request, {
+			adapter,
+			beforeCompletionPersist: async () => {
+				reached.resolve();
+				await release.promise;
+			},
+		});
+		await reached.promise;
+		assert.equal(adapterExecutions, 1, "coordinator A owns the only external execution");
+
+		const call = await prisma.$queryRaw<Array<{ id: string }>>`
+			select "id" from "AgentToolCall" where "userId"=${userId} and "clientRequestId"=${request.clientRequestId}
+		`;
+		assert.equal(await completeToolCall({ toolCallId: call[0]!.id, result: { source: "coordinator-b" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } }), true);
+		const beforeStaleResume = await prisma.$queryRaw<Array<{ status: string; resultSummary: Record<string, unknown>; inputTokensUsed: bigint; outputTokensUsed: bigint; cachedTokensUsed: bigint; knownCostUsd: string }>>`
+			select c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId" where c."id"=${call[0]!.id}
+		`;
+		assert.deepEqual(beforeStaleResume, [{ status: "COMPLETED", resultSummary: { source: "coordinator-b" }, inputTokensUsed: 11n, outputTokensUsed: 7n, cachedTokensUsed: 2n, knownCostUsd: "0.42" }]);
+
+		release.resolve();
+		await assert.rejects(staleCoordinator, { code: "TOOL_COMPLETION_OUTCOME_UNKNOWN", status: 503 });
+		assert.equal(adapterExecutions, 1, "the stale coordinator cannot execute the adapter again");
+		const replay = await executeTool({ ...context }, { ...request, input: { ...request.input } }, { adapter });
+		assert.deepEqual(replay, { status: "COMPLETED", toolCallId: call[0]!.id, result: { source: "coordinator-b" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true }, resultFidelity: "SUMMARY" });
+		assert.equal(adapterExecutions, 1, "canonical replay resolves the newer durable state before adapter execution");
+		const afterStaleResume = await prisma.$queryRaw<typeof beforeStaleResume>`
+			select c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId" where c."id"=${call[0]!.id}
+		`;
+		assert.deepEqual(afterStaleResume, beforeStaleResume);
+	},
+);
+
 test(
 	"REAL_DB: a lost response after durable completion replays without another adapter call or charge",
 	{ skip: !REAL_DB, timeout: 45_000 },
