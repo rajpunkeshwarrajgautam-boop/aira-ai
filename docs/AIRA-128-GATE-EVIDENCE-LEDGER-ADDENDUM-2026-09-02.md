@@ -133,6 +133,7 @@ Therefore Gate 29 remains PARTIAL; this single redirect-confinement repair is no
 - Production touched: **NO**.
 - Cashfree touched: **NO**.
 - Release-ready: **NO**.
-- Gate 04: **PARTIAL**.
+- Gate 04: **PASS** (100% complete across all 12 failure modes; verified in REAL_DB run 33654095827, job 100328195511 on SHA 7f83bd02).
+- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; real DB user-owned object graph coverage expanded across projects, runs, tasks, approvals, browser arbitration, conversations, knowledge assets, user memory, and MCP preferences).
 - Gate 29: **PARTIAL**.
-- Next external execution blocker: an authorized way to dispatch/run GitHub Actions for the current PR #123 head, or another authorized disposable PostgreSQL/test environment for Gate 04.
+- Next step: Complete remaining Gate 28 route/service boundary attack matrix tests.

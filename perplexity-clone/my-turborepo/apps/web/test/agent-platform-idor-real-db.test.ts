@@ -216,5 +216,72 @@ test(
 		});
 		assert.deepEqual(storedApproval, { status: "PENDING", resolverUserId: null });
 		assert.equal(await prisma.agentRunEvent.count({ where: { runId: delegatedRunId } }), eventsBefore);
+
+		// Conversations and ConversationMessages remain isolated per user.
+		const conversation = await prisma.conversation.create({
+			data: { userId: ownerId, title: "Owner private chat" },
+		});
+		const convMsg = await prisma.conversationMessage.create({
+			data: {
+				conversationId: conversation.id,
+				userId: ownerId,
+				role: "USER",
+				content: "Secret prompt",
+			},
+		});
+		assert.equal(
+			await prisma.conversation.findFirst({ where: { id: conversation.id, userId: attackerId } }),
+			null,
+		);
+		assert.equal(
+			await prisma.conversationMessage.findFirst({ where: { id: convMsg.id, userId: attackerId } }),
+			null,
+		);
+
+		// KnowledgeAssets and KnowledgeChunks are isolated per user.
+		const asset = await prisma.knowledgeAsset.create({
+			data: {
+				userId: ownerId,
+				filename: "owner-secret.pdf",
+				title: "Owner Secret Document",
+				sourceType: "UPLOAD",
+				fileSize: 1024,
+				mimeType: "application/pdf",
+				status: "COMPLETED",
+			},
+		});
+		assert.equal(
+			await prisma.knowledgeAsset.findFirst({ where: { id: asset.id, userId: attackerId } }),
+			null,
+		);
+
+		// UserMemory entries are isolated per user.
+		const memory = await prisma.userMemory.create({
+			data: {
+				userId: ownerId,
+				memoryKey: "pref-dark-mode",
+				content: "User prefers dark mode",
+				source: "SETTINGS",
+			},
+		});
+		assert.equal(
+			await prisma.userMemory.findFirst({ where: { id: memory.id, userId: attackerId } }),
+			null,
+		);
+
+		// McpServerPreference entries are isolated per (userId, serverId).
+		const mcpPref = await prisma.mcpServerPreference.create({
+			data: {
+				userId: ownerId,
+				serverId: "github",
+				enabled: true,
+			},
+		});
+		assert.equal(
+			await prisma.mcpServerPreference.findFirst({
+				where: { id: mcpPref.id, userId: attackerId },
+			}),
+			null,
+		);
 	},
 );
