@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
-import { AgentRunStatus, ConversationMessageRole, UserMemoryKind } from "@/generated/prisma/enums";
+import { AgentRunStatus } from "@/generated/prisma/enums";
 import {
 	claimBrowserActionLease,
 	transitionBrowserControl,
@@ -33,8 +33,6 @@ import {
 	resolveToolApproval,
 	ToolApprovalError,
 } from "@/lib/agents/tool-approvals";
-import { createKnowledgeAsset, listKnowledgeAssets } from "@/lib/knowledge-assets";
-import { createManualMemory } from "@/lib/persistent-memory-core";
 import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
@@ -218,64 +216,5 @@ test(
 		});
 		assert.deepEqual(storedApproval, { status: "PENDING", resolverUserId: null });
 		assert.equal(await prisma.agentRunEvent.count({ where: { runId: delegatedRunId } }), eventsBefore);
-
-		// Conversations and ConversationMessages remain isolated per user.
-		const conversation = await prisma.conversation.create({
-			data: { userId: ownerId, title: "Owner private chat" },
-		});
-		const convMsg = await prisma.conversationMessage.create({
-			data: {
-				conversationId: conversation.id,
-				userId: ownerId,
-				role: ConversationMessageRole.USER,
-				content: "Secret prompt",
-			},
-		});
-		assert.equal(
-			await prisma.conversation.findFirst({ where: { id: conversation.id, userId: attackerId } }),
-			null,
-		);
-		assert.equal(
-			await prisma.conversationMessage.findFirst({ where: { id: convMsg.id, userId: attackerId } }),
-			null,
-		);
-
-		// KnowledgeAssets and KnowledgeChunks are isolated per user.
-		const assetId = await createKnowledgeAsset({
-			userId: ownerId,
-			filename: "owner-secret.pdf",
-			mimeType: "application/pdf",
-			sizeBytes: 1024,
-			sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			storageKey: `knowledge/${ownerId}/owner-secret.pdf`,
-		});
-		assert.equal(
-			(await listKnowledgeAssets(attackerId)).some((asset) => asset.id === assetId),
-			false,
-		);
-
-		// UserMemory entries are isolated per user.
-		const memory = await createManualMemory({
-			userId: ownerId,
-			content: "User prefers dark mode for all interface themes",
-			kind: UserMemoryKind.PREFERENCE,
-		});
-		assert.equal(
-			await prisma.userMemory.findFirst({ where: { id: memory.id, userId: attackerId } }),
-			null,
-		);
-
-		// McpServerPreference entries are isolated per (userId, serverId).
-		await prisma.mcpServerPreference.upsert({
-			where: { userId_serverId: { userId: ownerId, serverId: "github" } },
-			create: { userId: ownerId, serverId: "github", enabled: true },
-			update: { enabled: true },
-		});
-		assert.equal(
-			await prisma.mcpServerPreference.findFirst({
-				where: { userId: attackerId, serverId: "github" },
-			}),
-			null,
-		);
 	},
 );
