@@ -253,12 +253,132 @@ mock.module("@/lib/knowledge-assets", {
 	},
 });
 
-mock.module("@/lib/foundation-storage", {
+mock.module("@/lib/autogpt/runs", {
 	exports: {
-		knowledgeStorageConfigured: mock.fn(() => true),
-		createKnowledgeSignedUrl: mock.fn(async () => "http://localhost/signed"),
-		uploadKnowledgeObject: mock.fn(async () => ({ ok: true })),
-		deleteKnowledgeObject: mock.fn(async () => ({ ok: true })),
+		getAgentRun: mock.fn(async (userId: string, runId: string) => {
+			if (userId === OWNER_A && runId === OWNER_RUN_ID) {
+				return {
+					id: OWNER_RUN_ID,
+					userId: OWNER_A,
+					provider: "DEERFLOW",
+					status: "COMPLETED",
+					result: { threadId: "owner-thread-101", artifacts: ["outputs/secret-report.pdf"] },
+				};
+			}
+			return null;
+		}),
+		listAgentRuns: mock.fn(async (userId: string) => {
+			if (userId === OWNER_A) {
+				return [{ id: OWNER_RUN_ID, userId: OWNER_A }];
+			}
+			return [];
+		}),
+		cancelRun: mock.fn(async (userId: string, runId: string) => {
+			if (userId === OWNER_A && runId === OWNER_RUN_ID) {
+				return { id: OWNER_RUN_ID, status: "CANCELLED" };
+			}
+			throw new Error("Run not found.");
+		}),
+		refreshAgentRun: mock.fn(async (userId: string, run: unknown) => {
+			if (userId === OWNER_A) {
+				return run;
+			}
+			return null;
+		}),
+		submitAgentRun: mock.fn(async () => null),
+		toAgentRunDto: mock.fn((run: unknown) => run),
+	},
+});
+
+mock.module("@/lib/agents/run-events", {
+	exports: {
+		listAgentRunEvents: mock.fn(async (userId: string, runId: string) => {
+			if (userId === OWNER_A && runId === OWNER_RUN_ID) {
+				return [{ id: "event-1", runId: OWNER_RUN_ID, type: "STEP" }];
+			}
+			return [];
+		}),
+		recordAgentRunEvent: mock.fn(async () => null),
+		recordAgentRunEventBestEffort: mock.fn(async () => null),
+	},
+});
+
+mock.module("@/lib/agents/run-steps", {
+	exports: {
+		listAgentRunSteps: mock.fn(async (userId: string, runId: string) => {
+			if (userId === OWNER_A && runId === OWNER_RUN_ID) {
+				return [{ id: "step-1", runId: OWNER_RUN_ID, title: "Step 1" }];
+			}
+			return [];
+		}),
+		agentRunStatusToStepStatus: mock.fn(() => "COMPLETED"),
+		recordAgentRunStepBestEffort: mock.fn(async () => null),
+	},
+});
+
+mock.module("@/lib/mcp/runtime", {
+	exports: {
+		McpRuntimeError: class McpRuntimeError extends Error {
+			code: string;
+			constructor(code: string, message: string) {
+				super(message);
+				this.code = code;
+			}
+		},
+		getMcpServerStatuses: mock.fn(async (userId: string) => {
+			if (userId === OWNER_A) {
+				return [{ serverId: "github", enabled: true }];
+			}
+			return [{ serverId: "github", enabled: false }];
+		}),
+		setMcpServerEnabled: mock.fn(async (_userId: string, _serverId: string, enabled: boolean) => {
+			return enabled;
+		}),
+	},
+});
+
+mock.module("@/lib/mcp/config", {
+	exports: {
+		isMcpEnabled: mock.fn(() => true),
+	},
+});
+
+mock.module("@/lib/deerflow/artifacts", {
+	exports: {
+		normalizeDeerFlowArtifactPath: mock.fn((path: string) => path),
+		fetchDeerFlowArtifact: mock.fn(async () => ({
+			status: 200,
+			body: new ReadableStream(),
+			headers: new Headers({ "content-type": "application/pdf" }),
+		})),
+	},
+});
+
+mock.module("@/lib/deerflow/config", {
+	exports: {
+		DeerFlowConfigError: class DeerFlowConfigError extends Error {},
+		getDeerFlowConfig: mock.fn(() => ({ url: "http://localhost:8000" })),
+		isDeerFlowConfigured: mock.fn(() => true),
+		isDeerFlowEnabled: mock.fn(() => true),
+	},
+});
+
+mock.module("@/lib/deerflow/runs", {
+	exports: {
+		cancelDeerFlowAgentRun: mock.fn(async (_userId: string, run: unknown) => run),
+		refreshDeerFlowAgentRun: mock.fn(async (userId: string, runId: string) => {
+			if (userId === OWNER_A && runId === OWNER_RUN_ID) {
+				return {
+					id: OWNER_RUN_ID,
+					userId: OWNER_A,
+					provider: "DEERFLOW",
+					status: "COMPLETED",
+					result: { threadId: "owner-thread-101", artifacts: ["outputs/secret-report.pdf"] },
+				};
+			}
+			return null;
+		}),
+		submitDeerFlowAgentRun: mock.fn(async () => null),
 	},
 });
 
@@ -273,6 +393,13 @@ const { POST: transitionControlPost } = await import("../app/api/browser/session
 const { GET: getKnowledge, POST: postKnowledge } = await import("../app/api/knowledge/route");
 const { POST: postKnowledgeCallback } = await import("../app/api/knowledge/callback/route");
 const { GET: getKnowledgeLibrary } = await import("../app/api/knowledge/library/route");
+const { GET: getDelegatedRun } = await import("../app/api/agents/runs/[runId]/route");
+const { POST: cancelDelegatedRun } = await import("../app/api/agents/runs/[runId]/cancel/route");
+const { GET: getDelegatedRunEvents } = await import("../app/api/agents/runs/[runId]/events/route");
+const { GET: getDelegatedRunSteps } = await import("../app/api/agents/runs/[runId]/steps/route");
+const { GET: getDelegatedRunArtifact } = await import("../app/api/agents/runs/[runId]/artifacts/[...artifactPath]/route");
+const { GET: getMcpStatus } = await import("../app/api/mcp/route");
+const { PATCH: patchMcpServer } = await import("../app/api/mcp/servers/[serverId]/route");
 
 function request(url: string, init?: RequestInit): Request {
 	return new Request(url, {
@@ -523,4 +650,85 @@ test("HTTP ROUTE RUNTIME: Knowledge worker callback tenant binding", async () =>
 	}));
 	assert.equal(validCallbackRes.status, 200);
 	assert.equal(sideEffects.updateKnowledgeAssetStatusCalls, 1);
+});
+
+test("HTTP ROUTE RUNTIME: Delegated AgentRun detail and cancel true Owner-vs-Attacker isolation", async () => {
+	// 1. Owner A detail -> 200 OK
+	sessionUser = { id: OWNER_A };
+	const ownerDetailRes = await getDelegatedRun(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(ownerDetailRes.status, 200);
+	const ownerRunData = await ownerDetailRes.json();
+	assert.equal(ownerRunData.run.id, OWNER_RUN_ID);
+
+	// 2. Attacker B detail on OWNER_RUN_ID -> 404, ZERO data leakage
+	sessionUser = { id: ATTACKER_B };
+	const attackerDetailRes = await getDelegatedRun(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(attackerDetailRes.status, 404);
+	assert.equal((await attackerDetailRes.json()).error.code, "NOT_FOUND");
+
+	// 3. Attacker B cancel on OWNER_RUN_ID -> 404
+	sessionUser = { id: ATTACKER_B };
+	const attackerCancelRes = await cancelDelegatedRun(request("http://localhost/test", { method: "POST" }), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(attackerCancelRes.status, 404);
+	assert.equal((await attackerCancelRes.json()).error.code, "NOT_FOUND");
+});
+
+test("HTTP ROUTE RUNTIME: Delegated AgentRun events and steps true Owner-vs-Attacker isolation", async () => {
+	// 1. Owner A events & steps -> 200 OK
+	sessionUser = { id: OWNER_A };
+	const ownerEventsRes = await getDelegatedRunEvents(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(ownerEventsRes.status, 200);
+	assert.equal((await ownerEventsRes.json()).events.length, 1);
+
+	const ownerStepsRes = await getDelegatedRunSteps(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(ownerStepsRes.status, 200);
+	assert.equal((await ownerStepsRes.json()).steps.length, 1);
+
+	// 2. Attacker B events & steps on OWNER_RUN_ID -> 404, ZERO event/step disclosure
+	sessionUser = { id: ATTACKER_B };
+	const attackerEventsRes = await getDelegatedRunEvents(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(attackerEventsRes.status, 404);
+	assert.equal((await attackerEventsRes.json()).error.code, "NOT_FOUND");
+
+	const attackerStepsRes = await getDelegatedRunSteps(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID }) });
+	assert.equal(attackerStepsRes.status, 404);
+	assert.equal((await attackerStepsRes.json()).error.code, "NOT_FOUND");
+});
+
+test("HTTP ROUTE RUNTIME: Delegated AgentRun artifact access true Owner-vs-Attacker isolation", async () => {
+	// 1. Owner A artifact access -> 200 OK
+	sessionUser = { id: OWNER_A };
+	const ownerArtifactRes = await getDelegatedRunArtifact(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID, artifactPath: ["outputs", "secret-report.pdf"] }) });
+	assert.equal(ownerArtifactRes.status, 200);
+
+	// 2. Attacker B artifact access on OWNER_RUN_ID -> 404, ZERO artifact path / byte leakage
+	sessionUser = { id: ATTACKER_B };
+	const attackerArtifactRes = await getDelegatedRunArtifact(request("http://localhost/test"), { params: Promise.resolve({ runId: OWNER_RUN_ID, artifactPath: ["outputs", "secret-report.pdf"] }) });
+	assert.equal(attackerArtifactRes.status, 404);
+	assert.equal((await attackerArtifactRes.json()).error.code, "NOT_FOUND");
+});
+
+test("HTTP ROUTE RUNTIME: MCP status and server preference PATCH true Owner-vs-Attacker tenant isolation", async () => {
+	// 1. Owner A MCP status -> enabled
+	sessionUser = { id: OWNER_A };
+	const ownerMcpRes = await getMcpStatus();
+	assert.equal(ownerMcpRes.status, 200);
+	const ownerServers = (await ownerMcpRes.json()).servers;
+	assert.equal(ownerServers[0].enabled, true);
+
+	// 2. Attacker B MCP status -> disabled (tenant isolation)
+	sessionUser = { id: ATTACKER_B };
+	const attackerMcpRes = await getMcpStatus();
+	assert.equal(attackerMcpRes.status, 200);
+	const attackerServers = (await attackerMcpRes.json()).servers;
+	assert.equal(attackerServers[0].enabled, false);
+
+	// 3. Attacker B toggles preference for globally known server "github" -> strictly isolated to (ATTACKER_B, github)
+	sessionUser = { id: ATTACKER_B };
+	const patchRes = await patchMcpServer(request("http://localhost/test", {
+		method: "PATCH",
+		body: JSON.stringify({ enabled: true }),
+	}), { params: Promise.resolve({ serverId: "github" }) });
+	assert.equal(patchRes.status, 200);
+	assert.deepEqual(await patchRes.json(), { serverId: "github", enabled: true });
 });

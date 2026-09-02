@@ -296,18 +296,17 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 
 | Resource Class | Boundary / Service Route | Operation | Evidence Layer | Owner Result | Attacker Result | Side Effect Prevented | Proof File / Line |
 |---|---|---|---|---|---|---|---|
-| `AgentProject` | `getProjectForUser` / `listProjects` | GET, List, Create-Run | SERVICE / STORE | Owner PASS | Attacker `null` / 0 | No run created | `agent-platform-idor-real-db.test.ts:151` |
-| `AgentPlatformRun` | `getRunForUser` / `listProjectRuns` | GET, List, Cancel | SERVICE / STORE | Owner PASS | Attacker `null` / 0 | No state mutated | `agent-platform-idor-real-db.test.ts:154` |
-| `AgentApproval` | `resolveApproval` / `listPending` | Resolve approval | SERVICE / STORE | Owner PASS | Attacker `null` | Task status unchanged | `agent-platform-idor-real-db.test.ts:162` |
-| `BrowserSession` | `getBrowserSession` / `transitionBrowserControl` | GET, List, Control, Lease | SERVICE / STORE | Owner PASS | Attacker `null` / `false` | Control state unchanged | `agent-platform-idor-real-db.test.ts:169` |
-| `AgentRun` (Delegated) | `getAgentRun` / `listAgentRuns` | GET, List | SERVICE / STORE | Owner PASS | Attacker `null` / 0 | No run disclosure | `agent-platform-idor-real-db.test.ts:191` |
-| `AgentToolApproval` | `requestToolApproval` / `resolveToolApproval` | Request, Resolve | SERVICE / STORE | Owner PASS | Attacker `APPROVAL_NOT_FOUND` | Approval stays PENDING | `agent-platform-idor-real-db.test.ts:196` |
-| `Conversation` | `prisma.conversation` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | No row read | `agent-platform-idor-real-db.test.ts:221` |
-| `ConversationMessage` | `prisma.conversationMessage` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | No message read | `agent-platform-idor-real-db.test.ts:225` |
-| `KnowledgeAsset` | `prisma.knowledgeAsset` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | No asset read | `agent-platform-idor-real-db.test.ts:241` |
-| `KnowledgeChunk` | Callback ingestion / retrieval | Vector / Search recall | SERVICE / API SCOPING | Owner PASS | Attacker zero recall | No chunk leakage | `app/api/knowledge/callback/route.ts:38` |
-| `UserMemory` | `prisma.userMemory` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | Memory isolated | `agent-platform-idor-real-db.test.ts:258` |
-| `McpServerPreference` | `prisma.mcpServerPreference` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | Preference isolated | `agent-platform-idor-real-db.test.ts:273` |
+| `AgentProject` | `getProjectForUser` / `listProjects` | GET, List, Create-Run | SERVICE / STORE & REAL_DB | Owner PASS | Attacker `null` / 0 | No run created | `agent-platform-idor-real-db.test.ts:151` |
+| `AgentPlatformRun` | `getRunForUser` / `listProjectRuns` | GET, List, Cancel | SERVICE / STORE & REAL_DB | Owner PASS | Attacker `null` / 0 | No state mutated | `agent-platform-idor-real-db.test.ts:154` |
+| `AgentApproval` | `resolveApproval` / `listPending` | Resolve approval | SERVICE / STORE & REAL_DB | Owner PASS | Attacker `null` | Task status unchanged | `agent-platform-idor-real-db.test.ts:162` |
+| `BrowserSession` | `getBrowserSession` / `transitionBrowserControl` | GET, List, Control, Lease | SERVICE / STORE & REAL_DB | Owner PASS | Attacker `null` / `false` | Control state unchanged | `agent-platform-idor-real-db.test.ts:169` |
+| `AgentRun` (Delegated) | `getAgentRun` / `listAgentRuns` | GET, List, Detail, Cancel | SERVICE, REAL_DB & HTTP RUNTIME | Owner PASS | Attacker `null` / 404 | No run disclosure | `agent-platform-idor-real-db.test.ts:191`, `agent-platform-route-runtime.test.ts` |
+| `AgentToolApproval` | `requestToolApproval` / `resolveToolApproval` | Request, Resolve | SERVICE / STORE & REAL_DB | Owner PASS | Attacker `APPROVAL_NOT_FOUND` | Approval stays PENDING | `agent-platform-idor-real-db.test.ts:196` |
+| `Conversation` | `listConversations` / `searchConversationMessages` | GET, Search | HTTP RUNTIME & STATIC CONTRACT | Owner PASS | Attacker 0 results | Zero secret leakage | `agent-platform-route-runtime.test.ts:462` |
+| `KnowledgeAsset` | `updateKnowledgeAssetStatus` / `replaceKnowledgeChunks` | Update Status, Replace Chunks | REAL_DB & HTTP RUNTIME | Owner PASS | Attacker error / 404 | Zero asset/chunk mutation | `agent-platform-idor-real-db.test.ts:230` |
+| `KnowledgeChunk` | Callback ingestion / retrieval | Vector / Search recall | SERVICE & REAL_DB | Owner PASS | Attacker zero recall | No chunk leakage | `agent-platform-idor-real-db.test.ts:235` |
+| `UserMemory` | `listUserMemories` / `createManualMemory` | GET, POST, PATCH, DELETE | REAL_DB & HTTP RUNTIME | Owner PASS | Attacker `null` / 404 | Memory isolated | `agent-platform-idor-real-db.test.ts:247`, `agent-platform-route-runtime.test.ts:417` |
+| `McpServerPreference` | `setMcpServerEnabled` / `getMcpServerStatuses` | GET, PATCH | REAL_DB & HTTP RUNTIME | Owner PASS | Attacker isolated row | Preference isolated | `agent-platform-idor-real-db.test.ts:257`, `agent-platform-route-runtime.test.ts:693` |
 
 ## Release posture
 
