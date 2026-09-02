@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
-import { AgentRunStatus } from "@/generated/prisma/enums";
+import { AgentRunStatus, UserMemoryKind } from "@/generated/prisma/enums";
 import {
 	claimBrowserActionLease,
 	transitionBrowserControl,
@@ -34,6 +34,7 @@ import {
 	ToolApprovalError,
 } from "@/lib/agents/tool-approvals";
 import { createKnowledgeAsset, listKnowledgeAssets } from "@/lib/knowledge-assets";
+import { createManualMemory } from "@/lib/persistent-memory-core";
 import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
@@ -254,13 +255,10 @@ test(
 		);
 
 		// UserMemory entries are isolated per user.
-		const memory = await prisma.userMemory.create({
-			data: {
-				userId: ownerId,
-				memoryKey: "pref-dark-mode",
-				content: "User prefers dark mode",
-				source: "SETTINGS",
-			},
+		const memory = await createManualMemory({
+			userId: ownerId,
+			content: "User prefers dark mode for all interface themes",
+			kind: UserMemoryKind.PREFERENCE,
 		});
 		assert.equal(
 			await prisma.userMemory.findFirst({ where: { id: memory.id, userId: attackerId } }),
