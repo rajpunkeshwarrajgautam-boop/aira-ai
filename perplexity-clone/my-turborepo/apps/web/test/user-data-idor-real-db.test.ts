@@ -60,6 +60,7 @@ test(
 		const memory = await prisma.userMemory.create({
 			data: {
 				userId: ownerId,
+				memoryKey: `pref-theme-${suffix}`,
 				content: "User prefers dark mode for all interface themes",
 				kind: UserMemoryKind.PREFERENCE,
 				pinned: true,
