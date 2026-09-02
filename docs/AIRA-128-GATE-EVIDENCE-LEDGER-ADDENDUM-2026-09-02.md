@@ -315,6 +315,6 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Cashfree touched: **NO**.
 - Release-ready: **NO**.
 - Gate 04: **PASS** (100% complete across all 12 failure modes; verified in REAL_DB run `33654095827`, job `100328195511` on SHA `7f83bd02`).
-- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; HTTP route static source contracts verified 7/7 PASS; HTTP route executable runtime handler suite `agent-platform-route-runtime.test.ts` verified 6/6 PASS; REAL_DB workflow run `33663661257`, job `100360007629` verified 100% PASS on exact tested source head `2e40ab8b65eacaeebddfdd5fbd4a6eebfdfebcd4`).
+- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; HTTP route static source contracts verified 7/7 PASS; HTTP route true Owner-vs-Attacker runtime handler suite `agent-platform-route-runtime.test.ts` verified 9/9 PASS; REAL_DB workflow run `33665275977`, job `100365376528` verified 100% PASS on exact tested source head `f4e39005fbcba0ee32be150e7b8ecf30cfcc10a1`).
 - Gate 29: **PARTIAL**.
 - Next step: Complete remaining user-data route authorization tests.
