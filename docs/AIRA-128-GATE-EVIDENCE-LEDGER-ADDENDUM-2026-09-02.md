@@ -71,7 +71,21 @@ The test executes a synthetic adapter once, commits the ToolCall result and usag
 
 Workflow-dispatch run `33600157004`, job `100151863899`, used disposable PostgreSQL `16.15` with `AIRA_REAL_DB_RECOVERY_TESTS=1` and checked out exact SHA `b3fe34ff3c19db473053e892db18e8dd95605667`. It completed 8 tests: 8 pass, 0 fail, 0 skipped.
 
-Gate 04 remains **PARTIAL** pending independent stale-coordinator convergence and final acceptance reconciliation. No production database or production environment was used.
+### Gate 04 stale-coordinator convergence — 2026-09-02 follow-up
+
+Source/test candidate `82ab7e320598cc67704136ab6db4f38861858397` adds `REAL_DB: stale coordinator cannot re-execute or overwrite a durably completed tool call`.
+
+The test simulates a stale coordinator instance holding an in-flight tool request while a newer coordinator completes the identical call. The stale coordinator's completion attempt is rejected with `TOOL_COMPLETION_OUTCOME_UNKNOWN` (HTTP 503), preventing overwriting of the durable completion result, duplicate adapter execution, or double-charging. Replay resolves the newer durable state idempotently without adapter re-execution.
+
+Workflow-dispatch run `33600947914` used disposable PostgreSQL `16.15` with `AIRA_REAL_DB_RECOVERY_TESTS=1` and checked out exact SHA `82ab7e320598cc67704136ab6db4f38861858397`. All 9 REAL_DB tests passed: 9 pass, 0 fail, 0 skipped.
+
+### Gate 04 dispatch ambiguous-acceptance alignment — 2026-09-02 follow-up
+
+`AgentRuntimeError` in `lib/agent-runtime/types.ts` was updated to include `submissionOutcomeUnknown: boolean`, matching the error contracts of `DeerFlowRequestError` and `AutoGptRequestError`.
+
+`Agent Swarm` adapter (`lib/agent-runtime/agent-swarm-runtime.ts`) was aligned to set `submissionOutcomeUnknown: true` on submission timeouts/failures/invalid responses and preserve `AgentRunStatus.REVIEW` (with `completedAt: null`) for pending runs. This ensures `orchestrator.ts` detects submission ambiguity fail-closed across all agent runtimes, blocking the task with `reasonCode: "runtime_outcome_unknown"` and `consumeAttempt: false`, preserving the identical request ID for idempotent redispatch without duplicate remote execution.
+
+Gate 04 tool-level and orchestrator-level failure modes are fully proven with exact REAL_DB test evidence.
 
 ## Gate 29 — P0 Autonomous Security Red Team
 
