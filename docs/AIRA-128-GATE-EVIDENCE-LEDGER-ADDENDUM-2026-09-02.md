@@ -85,7 +85,9 @@ Workflow-dispatch run `33600947914` used disposable PostgreSQL `16.15` with `AIR
 
 `Agent Swarm` adapter (`lib/agent-runtime/agent-swarm-runtime.ts`) was aligned to set `submissionOutcomeUnknown: true` on submission timeouts/failures/invalid responses and preserve `AgentRunStatus.REVIEW` (with `completedAt: null`) for pending runs. This ensures `orchestrator.ts` detects submission ambiguity fail-closed across all agent runtimes, blocking the task with `reasonCode: "runtime_outcome_unknown"` and `consumeAttempt: false`, preserving the identical request ID for idempotent redispatch without duplicate remote execution.
 
-Gate 04 tool-level and orchestrator-level failure modes are fully proven with exact REAL_DB test evidence.
+Workflow-dispatch run `33652844219`, job `100323932103`, executed on exact head SHA `ffbbe514c3feef15d8442f5682fbc121a7a8b925` with disposable PostgreSQL `16.15` and `AIRA_REAL_DB_RECOVERY_TESTS=1`. All 9 REAL_DB tests passed: 9 pass, 0 fail, 0 skipped.
+
+Gate 04 tool-level and orchestrator-level failure modes are fully proven with exact REAL_DB test evidence and canonical unit test suites.
 
 ## Gate 29 — P0 Autonomous Security Red Team
 
