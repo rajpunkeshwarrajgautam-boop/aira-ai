@@ -48,6 +48,21 @@ GitHub Actions workflow-dispatch run `33596325688`, job `100140394524`, ran on t
 
 This closes the specific adapter-success-to-completion-persistence ambiguity proof, but Gate 04 remains **PARTIAL** pending the remaining independent Gate 04 convergence coverage. No production database or production environment was used.
 
+### Gate 04 cancellation-versus-completion convergence — 2026-09-02 follow-up
+
+The implementation/test sequence is `7d4eeab4244081331cbf1b51de4aa2e3e84b808a` followed by the test-expectation correction `7737d8b4500abec3be053d59673886b6783e502c`. The correction aligns the regression with the existing run-level `costAccountingComplete` contract; it does not change production behavior.
+
+`REAL_DB: cancellation racing tool completion converges without duplicate execution or accounting` deterministically tests both orderings on the canonical Tool Gateway and cancellation paths:
+
+- **Cancellation first:** the synthetic adapter executes once, reaches the internal pre-completion latch, `cancelManagedRun` commits parent cancellation and child cleanup, then the stale completion persists the already-started external result.
+- **Completion first:** the synthetic adapter executes once and completion persists before `cancelManagedRun` runs; cancellation does not rewrite the completed tool call.
+
+For each ordering, the durable PostgreSQL rows are `AgentToolCall=COMPLETED` with `completedAt`, `AgentTask=CANCELLED` with no lease, and `AgentPlatformRun=CANCELLED`. Accounting is applied once only: tool calls 1, input tokens 11, output tokens 7, cached tokens 2, known USD 0.42, and `costAccountingComplete=false` under the established aggregate-cost contract. No additional child work is dispatchable because the task is cancelled.
+
+Workflow-dispatch run `33597340492`, job `100143353283`, used disposable PostgreSQL `16.15` with `AIRA_REAL_DB_RECOVERY_TESTS=1` and checked out exact SHA `7737d8b4500abec3be053d59673886b6783e502c`. It finished with 7 tests, 7 pass, 0 fail, 0 skipped. The earlier run `33597134509` on `7d4eeab…` failed solely on the incorrect `costAccountingComplete=true` assertion; the durable transition behavior was otherwise not implicated.
+
+Gate 04 remains **PARTIAL** because lost-response retry and independent stale-coordinator convergence evidence are still outstanding. No production database or production environment was used.
+
 ## Gate 29 — P0 Autonomous Security Red Team
 
 State: **PARTIAL**.
