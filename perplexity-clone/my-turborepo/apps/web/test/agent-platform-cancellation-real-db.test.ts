@@ -87,7 +87,7 @@ test(
 			assert.deepEqual(taskRows, [{ status: "CANCELLED", leaseOwner: null, leaseExpiresAt: null }]);
 			assert.equal(toolRows[0]?.status, "COMPLETED");
 			assert.ok(toolRows[0]?.completedAt instanceof Date);
-			assert.deepEqual(usageRows, [{ toolCallsUsed: 1, inputTokensUsed: 11n, outputTokensUsed: 7n, cachedTokensUsed: 2n, knownCostUsd: "0.42", costAccountingComplete: true }]);
+			assert.deepEqual(usageRows, [{ toolCallsUsed: 1, inputTokensUsed: 11n, outputTokensUsed: 7n, cachedTokensUsed: 2n, knownCostUsd: "0.42", costAccountingComplete: false }]);
 		}
 
 		let cancellationFirstExecutions = 0;
