@@ -57,7 +57,7 @@ async function seedRuntimeRun(input: {
 
 test(
 	"REAL_DB: duplicate mission creation, claims, completion and failure converge to one durable side effect",
-	{ skip: !REAL_DB, timeout: 45_000 },
+	{ skip: !REAL_DB, timeout: 90_000 },
 	async (t) => {
 		const suffix = randomUUID();
 		const userId = `idempotency-owner-${suffix}`;

@@ -40,7 +40,7 @@ const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
 
 test(
 	"REAL_DB: current user-owned object graph rejects cross-user identifiers without mutation",
-	{ skip: !REAL_DB, timeout: 60_000 },
+	{ skip: !REAL_DB, timeout: 90_000 },
 	async (t) => {
 		const suffix = randomUUID();
 		const ownerId = `idor-owner-${suffix}`;

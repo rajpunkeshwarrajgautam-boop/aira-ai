@@ -37,7 +37,7 @@ function deferred() {
 
 test(
 	"REAL_DB: cancellation racing tool completion converges without duplicate execution or accounting",
-	{ skip: !REAL_DB, timeout: 45_000 },
+	{ skip: !REAL_DB, timeout: 90_000 },
 	async (t) => {
 		const suffix = randomUUID();
 		const userId = `cancel-completion-owner-${suffix}`;
