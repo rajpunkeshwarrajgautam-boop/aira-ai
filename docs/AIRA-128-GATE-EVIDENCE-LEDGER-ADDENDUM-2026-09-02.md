@@ -34,6 +34,20 @@ Workflow dispatch run `33594449600` executed on current source `da75946caf0f9efc
 
 Therefore Gate 04 remains PARTIAL. No production database or production environment was used as a fallback.
 
+### Gate 04 recovery proof — 2026-09-02 follow-up
+
+The source/test candidate `474d14466361e90fb84c2b41c291892a02133317` (parent `20cf38191b5372adb393aec6fc108ecf22613895`) adds an internal, non-user-controlled dependency boundary immediately after adapter success and before completion persistence. Its REAL_DB regression forces that boundary to fail and proves all of the following on the canonical Tool Gateway path:
+
+- the synthetic external adapter executes exactly once;
+- the call remains `EXECUTING` with `errorCode` `TOOL_COMPLETION_OUTCOME_UNKNOWN`;
+- completion usage is not applied to the parent run (input/output/cached token counters and known USD cost remain zero);
+- a fresh exact replay fails with `TOOL_COMPLETION_OUTCOME_UNKNOWN` before adapter execution;
+- the external execution count remains one and the persisted uncertain state remains unchanged.
+
+GitHub Actions workflow-dispatch run `33596325688`, job `100140394524`, ran on that exact candidate with disposable PostgreSQL 16 and `AIRA_REAL_DB_RECOVERY_TESTS=1`. Its result was 6 tests, 6 pass, 0 fail, 0 skipped, including `REAL_DB: uncertain completion recovery fences replay before a tool executes twice`.
+
+This closes the specific adapter-success-to-completion-persistence ambiguity proof, but Gate 04 remains **PARTIAL** pending the remaining independent Gate 04 convergence coverage. No production database or production environment was used.
+
 ## Gate 29 — P0 Autonomous Security Red Team
 
 State: **PARTIAL**.
