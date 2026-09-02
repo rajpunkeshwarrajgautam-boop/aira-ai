@@ -19,12 +19,12 @@ export async function POST(_: Request, { params }: Params): Promise<Response> {
 	if (!session?.user?.id) {
 		return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	}
-	const { runId } = await params;
-	const existing = await getRunForUser(session.user.id, runId);
-	if (!existing) {
-		return json({ error: { code: "NOT_FOUND", message: "Managed run not found." } }, { status: 404 });
-	}
 	try {
+		const { runId } = await params;
+		const existing = await getRunForUser(session.user.id, runId);
+		if (!existing) {
+			return json({ error: { code: "NOT_FOUND", message: "Managed run not found." } }, { status: 404 });
+		}
 		await cancelManagedRun(session.user.id, runId);
 		return json({ run: await getRunForUser(session.user.id, runId) });
 	} catch (error) {

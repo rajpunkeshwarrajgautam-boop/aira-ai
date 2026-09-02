@@ -32,29 +32,37 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 	const { approvalId } = await params;
 	const approve = parsed.data.decision === "approve";
 
-	if (await expireApprovalIfStale({ userId: session.user.id, approvalId })) {
+	try {
+		if (await expireApprovalIfStale({ userId: session.user.id, approvalId })) {
+			return json(
+				{ error: { code: "APPROVAL_EXPIRED", message: "This approval expired. Start a fresh approval request before performing the action." } },
+				{ status: 410 },
+			);
+		}
+
+		// Tool approvals are independent of DAG-stage approvals. Resolving one must
+		// never requeue/cancel the parent task. The caller re-submits the same
+		// idempotent tool request with approvalId to execute an approved side effect.
+		const toolApproval = await resolveToolApproval({ userId: session.user.id, approvalId, approve });
+		if (toolApproval) {
+			return json({ resolved: { ...toolApproval, kind: "tool" } });
+		}
+
+		const resolved = await resolveApproval({
+			userId: session.user.id,
+			approvalId,
+			approve,
+		});
+		if (!resolved) {
+			return json({ error: { code: "NOT_FOUND", message: "Pending approval not found." } }, { status: 404 });
+		}
+		const result = await tickManagedRun(session.user.id, resolved.runId).catch(() => null);
+		return json({ resolved: { ...resolved, kind: "mission" }, result });
+	} catch (error) {
+		console.error("[agent-platform:approvals]", error);
 		return json(
-			{ error: { code: "APPROVAL_EXPIRED", message: "This approval expired. Start a fresh approval request before performing the action." } },
-			{ status: 410 },
+			{ error: { code: "APPROVAL_RESOLUTION_FAILED", message: "AIRA could not resolve this approval request." } },
+			{ status: 500 },
 		);
 	}
-
-	// Tool approvals are independent of DAG-stage approvals. Resolving one must
-	// never requeue/cancel the parent task. The caller re-submits the same
-	// idempotent tool request with approvalId to execute an approved side effect.
-	const toolApproval = await resolveToolApproval({ userId: session.user.id, approvalId, approve });
-	if (toolApproval) {
-		return json({ resolved: { ...toolApproval, kind: "tool" } });
-	}
-
-	const resolved = await resolveApproval({
-		userId: session.user.id,
-		approvalId,
-		approve,
-	});
-	if (!resolved) {
-		return json({ error: { code: "NOT_FOUND", message: "Pending approval not found." } }, { status: 404 });
-	}
-	const result = await tickManagedRun(session.user.id, resolved.runId).catch(() => null);
-	return json({ resolved: { ...resolved, kind: "mission" }, result });
 }
