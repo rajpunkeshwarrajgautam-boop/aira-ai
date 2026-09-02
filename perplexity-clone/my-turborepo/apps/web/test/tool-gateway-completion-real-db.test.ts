@@ -16,6 +16,87 @@ import { prisma } from "@/lib/prisma";
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
 
 test(
+	"REAL_DB: a lost response after durable completion replays without another adapter call or charge",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-lost-response-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool lost response ${suffix}`, objective: "Replay a durably completed tool operation after its caller loses the response." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-lost-response-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = {
+			clientRequestId: `tool-lost-response-call-${suffix}`,
+			tool: "web" as const,
+			action: "retrieve",
+			input: { query: "lost response replay proof", numResults: 1 },
+		};
+		let adapterExecutions = 0;
+		const adapter: ToolAdapter = {
+			id: "web",
+			async isAvailable() { return true; },
+			async execute() {
+				adapterExecutions += 1;
+				return { result: { source: "synthetic", answer: "durably persisted" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } };
+			},
+		};
+
+		await assert.rejects(
+			executeTool(context, request, {
+				adapter,
+				afterCompletionPersist: () => { throw new Error("simulated caller response loss"); },
+			}),
+			/simulated caller response loss/,
+		);
+		assert.equal(adapterExecutions, 1, "the original operation executes the adapter once");
+
+		const beforeRetry = await prisma.$queryRaw<Array<{
+			id: string;
+			status: string;
+			resultSummary: Record<string, unknown>;
+			inputTokensUsed: bigint;
+			outputTokensUsed: bigint;
+			cachedTokensUsed: bigint;
+			knownCostUsd: string;
+		}>>`
+			select c."id", c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId"
+			where c."userId"=${userId} and c."clientRequestId"=${request.clientRequestId}
+		`;
+		assert.deepEqual(beforeRetry, [{
+			id: beforeRetry[0]?.id,
+			status: "COMPLETED",
+			resultSummary: { source: "synthetic", answer: "durably persisted" },
+			inputTokensUsed: 11n,
+			outputTokensUsed: 7n,
+			cachedTokensUsed: 2n,
+			knownCostUsd: "0.42",
+		}]);
+
+		const replay = await executeTool({ ...context }, { ...request, input: { ...request.input } }, { adapter });
+		assert.deepEqual(replay, {
+			status: "COMPLETED",
+			toolCallId: beforeRetry[0]?.id,
+			result: { source: "synthetic", answer: "durably persisted" },
+			usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, toolCalls: 1, costKnown: true },
+			resultFidelity: "SUMMARY",
+		});
+		assert.equal(adapterExecutions, 1, "the exact retry must replay before adapter execution");
+		const afterRetry = await prisma.$queryRaw<typeof beforeRetry>`
+			select c."id", c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId"
+			where c."userId"=${userId} and c."clientRequestId"=${request.clientRequestId}
+		`;
+		assert.deepEqual(afterRetry, beforeRetry);
+	},
+);
+
+test(
 	"REAL_DB: uncertain completion recovery fences replay before a tool executes twice",
 	{ skip: !REAL_DB, timeout: 45_000 },
 	async (t) => {

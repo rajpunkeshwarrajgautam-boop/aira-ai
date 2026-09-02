@@ -49,6 +49,7 @@ const adapters = new Map<AiraToolId, ToolAdapter>([
 export interface ToolExecutionDependencies {
 	readonly adapter?: ToolAdapter;
 	readonly beforeCompletionPersist?: () => Promise<void> | void;
+	readonly afterCompletionPersist?: () => Promise<void> | void;
 }
 
 const SECRETISH = /(authorization|cookie|password|passwd|secret|token|api[_-]?key|private[_-]?key|credential|access[_-]?key|refresh[_-]?token)/i;
@@ -296,6 +297,7 @@ export async function executeTool(
 			throw new Error("Tool completion did not claim the executing request.");
 		}
 		completionCommitted = true;
+		await dependencies.afterCompletionPersist?.();
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.completed", payload: { toolCallId: stored.id, tool: request.tool, action: request.action } }).catch(() => undefined);
 		return { status: "COMPLETED", toolCallId: stored.id, result: safeResult, usage, resultFidelity: "FULL" };
 	} catch (error) {
