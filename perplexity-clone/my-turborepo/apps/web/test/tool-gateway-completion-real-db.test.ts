@@ -66,8 +66,9 @@ test(
 			result: { ok: true },
 			usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true },
 		};
-		await Promise.all([completeToolCall(completion), completeToolCall(completion)]);
-		await completeToolCall(completion);
+		const concurrent = await Promise.all([completeToolCall(completion), completeToolCall(completion)]);
+		assert.equal(concurrent.filter(Boolean).length, 1, "exactly one concurrent completion may claim the call");
+		assert.equal(await completeToolCall(completion), false, "an already-completed call must not be charged again");
 
 		const usage = await prisma.$queryRaw<Array<{
 			inputTokensUsed: bigint;

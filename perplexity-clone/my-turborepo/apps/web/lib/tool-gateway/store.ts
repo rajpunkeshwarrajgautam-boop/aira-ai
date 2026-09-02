@@ -277,7 +277,7 @@ export async function completeToolCall(input: {
 			set "status"='COMPLETED', "resultSummary"=${JSON.stringify(input.result)}::jsonb,
 				"usage"=${JSON.stringify(input.usage)}::jsonb, "completedAt"=current_timestamp
 			where "id"=${input.toolCallId} and "status"='EXECUTING'
-			returning "runId"
+			returning "id", "runId"
 		)
 		update "AgentPlatformRun" r
 		set "inputTokensUsed"="inputTokensUsed"+${Math.max(0, Math.trunc(input.usage.inputTokens ?? 0))}::bigint,
