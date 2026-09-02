@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
-import { AgentRunStatus, UserMemoryKind } from "@/generated/prisma/enums";
+import { AgentRunStatus, ConversationMessageRole, UserMemoryKind } from "@/generated/prisma/enums";
 import {
 	claimBrowserActionLease,
 	transitionBrowserControl,
@@ -227,7 +227,7 @@ test(
 			data: {
 				conversationId: conversation.id,
 				userId: ownerId,
-				role: "USER",
+				role: ConversationMessageRole.USER,
 				content: "Secret prompt",
 			},
 		});
