@@ -43,19 +43,25 @@ function aliasBase(specifier) {
 
 registerHooks({
 	resolve(specifier, context, nextResolve) {
+		if (specifier.startsWith("next/")) {
+			return nextResolve(`${specifier}.js`, context);
+		}
+
 		const alias = aliasBase(specifier);
 		if (alias) {
 			const resolved = firstExisting(alias);
 			if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true };
 		}
-
 		if (specifier.startsWith("./") || specifier.startsWith("../")) {
 			const parentPath = context.parentURL?.startsWith("file:")
 				? path.dirname(fileURLToPath(context.parentURL))
 				: null;
-			if (parentPath && !path.extname(specifier)) {
-				const resolved = firstExisting(path.resolve(parentPath, specifier));
-				if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true };
+			if (parentPath) {
+				const targetPath = path.resolve(parentPath, specifier);
+				if (!existsSync(targetPath) || existsSync(path.join(targetPath, "package.json"))) {
+					const resolved = firstExisting(targetPath);
+					if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true };
+				}
 			}
 		}
 
