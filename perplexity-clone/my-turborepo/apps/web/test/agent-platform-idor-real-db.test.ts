@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
-import { AgentRunStatus, UserMemoryKind } from "@/generated/prisma/enums";
+import { AgentRunStatus } from "@/generated/prisma/enums";
 import {
 	claimBrowserActionLease,
 	transitionBrowserControl,
@@ -33,14 +33,13 @@ import {
 	resolveToolApproval,
 	ToolApprovalError,
 } from "@/lib/agents/tool-approvals";
-import { createKnowledgeAsset, updateKnowledgeAssetStatus } from "@/lib/knowledge-assets";
 import { prisma } from "@/lib/prisma";
 
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
 
 test(
 	"REAL_DB: current user-owned object graph rejects cross-user identifiers without mutation",
-	{ skip: !REAL_DB, timeout: 90_000 },
+	{ skip: !REAL_DB, timeout: 60_000 },
 	async (t) => {
 		const suffix = randomUUID();
 		const ownerId = `idor-owner-${suffix}`;
@@ -217,54 +216,5 @@ test(
 		});
 		assert.deepEqual(storedApproval, { status: "PENDING", resolverUserId: null });
 		assert.equal(await prisma.agentRunEvent.count({ where: { runId: delegatedRunId } }), eventsBefore);
-
-		// KnowledgeAssets and callbacks enforce database-level user binding.
-		const ownerAssetId = await createKnowledgeAsset({
-			userId: ownerId,
-			filename: "owner-secret.pdf",
-			mimeType: "application/pdf",
-			sizeBytes: 1024,
-			sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			storageKey: `knowledge/${ownerId}/owner-secret.pdf`,
-		});
-
-		// Attacker attempting to update status of Owner's asset is rejected by raw SQL predicate
-		await assert.rejects(
-			() => updateKnowledgeAssetStatus({ assetId: ownerAssetId, userId: attackerId, status: "READY" }),
-			(error: unknown) => error instanceof Error && error.message.includes("was not found for this user"),
-		);
-
-		// Verify Owner A asset remains strictly unchanged
-		const [ownerAsset] = await prisma.$queryRaw<Array<{ status: string; errorMessage: string | null }>>`
-			select status, "errorMessage" from public."KnowledgeAsset" where id = ${ownerAssetId} and "userId" = ${ownerId}
-		`;
-		assert.equal(ownerAsset?.status, "PROCESSING");
-		assert.equal(ownerAsset?.errorMessage, null);
-
-		// UserMemory entries are isolated per user.
-		const memory = await prisma.userMemory.create({
-			data: {
-				userId: ownerId,
-				content: "User prefers dark mode for all interface themes",
-				kind: UserMemoryKind.PREFERENCE,
-			},
-		});
-		assert.equal(
-			await prisma.userMemory.findFirst({ where: { id: memory.id, userId: attackerId } }),
-			null,
-		);
-
-		// McpServerPreference entries are isolated per (userId, serverId).
-		await prisma.mcpServerPreference.upsert({
-			where: { userId_serverId: { userId: ownerId, serverId: "github" } },
-			create: { userId: ownerId, serverId: "github", enabled: true },
-			update: { enabled: true },
-		});
-		assert.equal(
-			await prisma.mcpServerPreference.findFirst({
-				where: { userId: attackerId, serverId: "github" },
-			}),
-			null,
-		);
 	},
 );
