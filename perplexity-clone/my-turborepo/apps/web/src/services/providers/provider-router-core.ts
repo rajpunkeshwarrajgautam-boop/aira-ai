@@ -350,11 +350,16 @@ async function generateSafeVerifierText(
 
 export class ProviderRouter {
 	private readonly providers: Map<string, AIProvider> = new Map();
+	private readonly primaryProviderId: string;
+	private readonly fallbackProviderId: string;
 
 	constructor(
-		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "openai",
-		private readonly fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
-	) {}
+		primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "openai",
+		fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
+	) {
+		this.primaryProviderId = primaryProviderId;
+		this.fallbackProviderId = fallbackProviderId;
+	}
 
 	registerProvider(provider: AIProvider) {
 		this.providers.set(provider.providerId, provider);

@@ -15,9 +15,12 @@ export class SafetyGatewayError extends Error {
 }
 
 export class SafetyBlockedError extends Error {
-	constructor(readonly direction: SafetyDirection) {
+	readonly direction: SafetyDirection;
+
+	constructor(direction: SafetyDirection) {
 		super("The request was blocked by AIRA's configured safety gateway.");
 		this.name = "SafetyBlockedError";
+		this.direction = direction;
 	}
 }
 

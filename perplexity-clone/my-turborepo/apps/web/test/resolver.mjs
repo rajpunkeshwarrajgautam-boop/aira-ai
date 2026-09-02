@@ -43,7 +43,7 @@ function aliasBase(specifier) {
 
 registerHooks({
 	resolve(specifier, context, nextResolve) {
-		if (specifier.startsWith("next/")) {
+		if ((specifier === "next/server" || specifier === "next/headers" || specifier === "next/navigation" || specifier === "next/auth") && !specifier.endsWith(".js")) {
 			return nextResolve(`${specifier}.js`, context);
 		}
 

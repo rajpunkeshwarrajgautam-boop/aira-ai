@@ -90,10 +90,15 @@ export class ProviderRouter {
 	private readonly registeredProviderIds = new Set<string>();
 	private readonly providerDefaultModels = new Map<string, string>();
 
+	private readonly primaryProviderId: string;
+	private readonly fallbackProviderId: string;
+
 	constructor(
-		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "omniroute",
-		private readonly fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
+		primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "omniroute",
+		fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
 	) {
+		this.primaryProviderId = primaryProviderId;
+		this.fallbackProviderId = fallbackProviderId;
 		this.primaryCore = new CoreProviderRouter(primaryProviderId, primaryProviderId);
 		if (fallbackProviderId !== primaryProviderId) {
 			this.fallbackCore = new CoreProviderRouter(fallbackProviderId, fallbackProviderId);
