@@ -266,16 +266,14 @@ test(
 		);
 
 		// McpServerPreference entries are isolated per (userId, serverId).
-		const mcpPref = await prisma.mcpServerPreference.create({
-			data: {
-				userId: ownerId,
-				serverId: "github",
-				enabled: true,
-			},
+		await prisma.mcpServerPreference.upsert({
+			where: { userId_serverId: { userId: ownerId, serverId: "github" } },
+			create: { userId: ownerId, serverId: "github", enabled: true },
+			update: { enabled: true },
 		});
 		assert.equal(
 			await prisma.mcpServerPreference.findFirst({
-				where: { id: mcpPref.id, userId: attackerId },
+				where: { userId: attackerId, serverId: "github" },
 			}),
 			null,
 		);
