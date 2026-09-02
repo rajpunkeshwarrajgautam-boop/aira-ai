@@ -133,7 +133,33 @@ Therefore Gate 29 remains PARTIAL; this single redirect-confinement repair is no
 - Production touched: **NO**.
 - Cashfree touched: **NO**.
 - Release-ready: **NO**.
-- Gate 04: **PASS** (100% complete across all 12 failure modes; verified in REAL_DB run 33654095827, job 100328195511 on SHA 7f83bd02).
-- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; real DB user-owned object graph coverage expanded across projects, runs, tasks, approvals, browser arbitration, conversations, knowledge assets, user memory, and MCP preferences).
+### Gate 28 systematic IDOR matrix expansion — 2026-09-02 follow-up
+
+Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand systematic IDOR coverage across user-owned resources`) expanded systematic owner-vs-attacker isolation checks in `perplexity-clone/my-turborepo/apps/web/test/agent-platform-idor-real-db.test.ts`.
+
+#### Gate 28 Evidence Classification Matrix
+
+| Resource Class | Boundary / Service Route | Operation | Evidence Layer | Owner Result | Attacker Result | Side Effect Prevented | Proof File / Line |
+|---|---|---|---|---|---|---|---|
+| `AgentProject` | `getProjectForUser` / `listProjects` | GET, List, Create-Run | SERVICE / STORE | Owner PASS | Attacker `null` / 0 | No run created | `agent-platform-idor-real-db.test.ts:151` |
+| `AgentPlatformRun` | `getRunForUser` / `listProjectRuns` | GET, List, Cancel | SERVICE / STORE | Owner PASS | Attacker `null` / 0 | No state mutated | `agent-platform-idor-real-db.test.ts:154` |
+| `AgentApproval` | `resolveApproval` / `listPending` | Resolve approval | SERVICE / STORE | Owner PASS | Attacker `null` | Task status unchanged | `agent-platform-idor-real-db.test.ts:162` |
+| `BrowserSession` | `getBrowserSession` / `transitionBrowserControl` | GET, List, Control, Lease | SERVICE / STORE | Owner PASS | Attacker `null` / `false` | Control state unchanged | `agent-platform-idor-real-db.test.ts:169` |
+| `AgentRun` (Delegated) | `getAgentRun` / `listAgentRuns` | GET, List | SERVICE / STORE | Owner PASS | Attacker `null` / 0 | No run disclosure | `agent-platform-idor-real-db.test.ts:191` |
+| `AgentToolApproval` | `requestToolApproval` / `resolveToolApproval` | Request, Resolve | SERVICE / STORE | Owner PASS | Attacker `APPROVAL_NOT_FOUND` | Approval stays PENDING | `agent-platform-idor-real-db.test.ts:196` |
+| `Conversation` | `prisma.conversation` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | No row read | `agent-platform-idor-real-db.test.ts:221` |
+| `ConversationMessage` | `prisma.conversationMessage` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | No message read | `agent-platform-idor-real-db.test.ts:225` |
+| `KnowledgeAsset` | `prisma.knowledgeAsset` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | No asset read | `agent-platform-idor-real-db.test.ts:241` |
+| `KnowledgeChunk` | Callback ingestion / retrieval | Vector / Search recall | SERVICE / API SCOPING | Owner PASS | Attacker zero recall | No chunk leakage | `app/api/knowledge/callback/route.ts:38` |
+| `UserMemory` | `prisma.userMemory` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | Memory isolated | `agent-platform-idor-real-db.test.ts:258` |
+| `McpServerPreference` | `prisma.mcpServerPreference` | findFirst | DIRECT PRISMA / DB SCOPING | Owner PASS | Attacker `null` | Preference isolated | `agent-platform-idor-real-db.test.ts:273` |
+
+## Release posture
+
+- Production touched: **NO**.
+- Cashfree touched: **NO**.
+- Release-ready: **NO**.
+- Gate 04: **PASS** (100% complete across all 12 failure modes; verified in REAL_DB run `33654095827`, job `100328195511` on SHA `7f83bd02`).
+- Gate 28: **IN_PROGRESS** (Systematic IDOR matrix active; real DB user-owned object graph coverage expanded across projects, runs, tasks, approvals, browser arbitration, conversations, knowledge assets, user memory, and MCP preferences; published head `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84`).
 - Gate 29: **PARTIAL**.
-- Next step: Complete remaining Gate 28 route/service boundary attack matrix tests.
+- Next step: Complete HTTP route-boundary unit test suite for user-owned endpoints.
