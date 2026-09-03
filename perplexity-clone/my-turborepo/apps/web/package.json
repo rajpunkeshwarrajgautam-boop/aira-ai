@@ -11,7 +11,7 @@
     "lint": "eslint --max-warnings 0",
     "precheck-types": "prisma generate --schema=../../../../prisma/schema.prisma",
     "check-types": "next typegen && tsc --noEmit",
-    "test": "node --import ./test/resolver.mjs --test \"test/*.test.ts\""
+    "test": "node --experimental-test-module-mocks --import ./test/resolver.mjs --test \"test/*.test.ts\""
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

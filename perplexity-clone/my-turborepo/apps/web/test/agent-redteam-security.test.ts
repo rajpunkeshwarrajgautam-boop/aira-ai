@@ -71,7 +71,7 @@ mock.module("@/lib/tool-gateway/store", {
 		failToolCall: mock.fn(async () => true),
 		markToolCallOutcomeUnknown: mock.fn(async () => true),
 	},
-});
+} as any);
 
 mock.module("@/lib/agent-platform/store", {
 	exports: {
@@ -85,7 +85,7 @@ mock.module("@/lib/agent-platform/store", {
 		resolveApproval: mock.fn(async () => null),
 		updateBrowserSession: mock.fn(async () => null),
 	},
-});
+} as any);
 
 // Import policy and gateway AFTER module mocks are set up
 const { classifyToolRisk, isAlwaysDeniedToolAction, requiresApproval } = await import("../lib/tool-gateway/policy");
@@ -298,7 +298,7 @@ test("REAL TOOL-CALL SMUGGLING COMPOSITION: Hostile <tool_call> tags in tool inp
 		},
 	};
 
-	const mockSmuggledAdapter: ToolAdapter = {
+	const _mockSmuggledAdapter: ToolAdapter = {
 		id: "github",
 		async isAvailable() { return true; },
 		async execute() {
@@ -306,6 +306,7 @@ test("REAL TOOL-CALL SMUGGLING COMPOSITION: Hostile <tool_call> tags in tool inp
 			return { result: { ok: true } };
 		},
 	};
+	assert.ok(_mockSmuggledAdapter);
 
 	const suffix = randomUUID();
 	const context: ToolContext = {

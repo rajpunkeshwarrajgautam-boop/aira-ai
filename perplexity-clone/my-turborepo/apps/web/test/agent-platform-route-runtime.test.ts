@@ -50,7 +50,7 @@ mock.module("@/auth", {
 	exports: {
 		auth: mock.fn(async () => (sessionUser ? { user: sessionUser } : null)),
 	},
-});
+} as any);
 
 // 2. Mock Orchestrator
 mock.module("@/lib/agent-platform/orchestrator", {
@@ -69,12 +69,12 @@ mock.module("@/lib/agent-platform/orchestrator", {
 			}
 			throw new Error("Managed run not found.");
 		}),
-		tickManagedRun: mock.fn(async (_userId: string, _runId: string) => {
+		tickManagedRun: mock.fn(async () => {
 			sideEffects.tickManagedRunCalls++;
 			return null;
 		}),
 	},
-});
+} as any);
 
 // 3. Mock Store
 mock.module("@/lib/agent-platform/store", {
@@ -98,12 +98,12 @@ mock.module("@/lib/agent-platform/store", {
 			}
 			return null;
 		}),
-		tickManagedRun: mock.fn(async (_userId: string, _runId: string) => {
+		tickManagedRun: mock.fn(async () => {
 			sideEffects.tickManagedRunCalls++;
 			return { ok: true };
 		}),
 	},
-});
+} as any);
 
 // 4. Mock Recovery
 mock.module("@/lib/agent-platform/recovery", {
@@ -124,10 +124,10 @@ mock.module("@/lib/agent-platform/recovery", {
 				return { requeued: true };
 			}
 			const { ManagedTaskRecoveryError: Err } = await import("@/lib/agent-platform/recovery");
-			throw new Err("TASK_RECONCILE_FAILED", "Blocked task not found for this user.", 404);
+			throw new Err("TASK_RECONCILE_FAILED" as any, "Blocked task not found for this user.", 404);
 		}),
 	},
-});
+} as any);
 
 // 5. Mock Tool Approvals & Approval Expiry
 mock.module("@/lib/agents/tool-approvals", {
@@ -140,7 +140,7 @@ mock.module("@/lib/agents/tool-approvals", {
 			return null;
 		}),
 	},
-});
+} as any);
 
 mock.module("@/lib/tool-gateway/approval", {
 	exports: {
@@ -151,14 +151,14 @@ mock.module("@/lib/tool-gateway/approval", {
 			return null;
 		}),
 	},
-});
+} as any);
 
 mock.module("@/lib/agent-platform/approval-expiry", {
 	exports: {
 		APPROVAL_TTL_MINUTES: 30,
 		expireApprovalIfStale: mock.fn(async () => false),
 	},
-});
+} as any);
 
 // 6. Mock Browser Arbitration
 mock.module("@/lib/agent-platform/browser-arbitration", {
@@ -171,12 +171,12 @@ mock.module("@/lib/agent-platform/browser-arbitration", {
 			return null;
 		}),
 	},
-});
+} as any);
 
 // 7. Mock Persistent Memory
 mock.module("@/lib/persistent-memory", {
 	exports: {
-		listUserMemories: mock.fn(async (userId: string, _limit?: number) => {
+		listUserMemories: mock.fn(async (userId: string) => {
 			if (userId === OWNER_A) {
 				return [{ id: OWNER_MEMORY_ID, userId: OWNER_A, content: GATE28_OWNER_SECRET, kind: "PREFERENCE", pinned: true, updatedAt: new Date() }];
 			}
@@ -186,7 +186,7 @@ mock.module("@/lib/persistent-memory", {
 			sideEffects.createManualMemoryCalls.push(params);
 			return { id: "mem-new-123", ...params };
 		}),
-		setUserMemoryPinned: mock.fn(async (userId: string, id: string, _pinned: boolean) => {
+		setUserMemoryPinned: mock.fn(async (userId: string, id: string) => {
 			if (userId === OWNER_A && id === OWNER_MEMORY_ID) {
 				sideEffects.setUserMemoryPinnedCalls++;
 				return true;
@@ -201,24 +201,24 @@ mock.module("@/lib/persistent-memory", {
 			return false;
 		}),
 	},
-});
+} as any);
 
 // 8. Mock Conversation Memory
 mock.module("@/lib/conversation-memory", {
 	exports: {
-		listConversations: mock.fn(async (userId: string, _limit?: number) => {
+		listConversations: mock.fn(async (userId: string) => {
 			if (userId === OWNER_A) {
 				return [{ id: OWNER_CONVERSATION_ID, userId: OWNER_A, title: `Chat about ${GATE28_OWNER_SECRET}`, lastMessageAt: new Date() }];
 			}
 			return [];
 		}),
 	},
-});
+} as any);
 
 // 9. Mock Global Search
 mock.module("@/lib/global-search", {
 	exports: {
-		searchConversationMessages: mock.fn(async (userId: string, _q: string, _limit?: number) => {
+		searchConversationMessages: mock.fn(async (userId: string) => {
 			if (userId === OWNER_A) {
 				return [{
 					id: "msg-1",
@@ -232,26 +232,26 @@ mock.module("@/lib/global-search", {
 			return [];
 		}),
 	},
-});
+} as any);
 
 // 10. Mock Knowledge Assets & Storage
 mock.module("@/lib/knowledge-assets", {
 	exports: {
-		createKnowledgeAsset: mock.fn(async (_params: Record<string, unknown>) => OWNER_ASSET_ID),
-		listKnowledgeAssets: mock.fn(async (userId: string, _limit?: number) => {
+		createKnowledgeAsset: mock.fn(async () => OWNER_ASSET_ID),
+		listKnowledgeAssets: mock.fn(async (userId: string) => {
 			if (userId === OWNER_A) {
 				return [{ id: OWNER_ASSET_ID, userId: OWNER_A, filename: "owner-secret.pdf", storageKey: `knowledge/${OWNER_A}/secret.pdf` }];
 			}
 			return [];
 		}),
-		updateKnowledgeAssetStatus: mock.fn(async (_assetId: string, _status: string) => {
+		updateKnowledgeAssetStatus: mock.fn(async () => {
 			sideEffects.updateKnowledgeAssetStatusCalls++;
 		}),
-		replaceKnowledgeChunks: mock.fn(async (_assetId: string, _chunks: unknown[]) => {
+		replaceKnowledgeChunks: mock.fn(async () => {
 			sideEffects.replaceKnowledgeChunksCalls++;
 		}),
 	},
-});
+} as any);
 
 mock.module("@/lib/autogpt/runs", {
 	exports: {
@@ -288,7 +288,7 @@ mock.module("@/lib/autogpt/runs", {
 		submitAgentRun: mock.fn(async () => null),
 		toAgentRunDto: mock.fn((run: unknown) => run),
 	},
-});
+} as any);
 
 mock.module("@/lib/agents/run-events", {
 	exports: {
@@ -301,7 +301,7 @@ mock.module("@/lib/agents/run-events", {
 		recordAgentRunEvent: mock.fn(async () => null),
 		recordAgentRunEventBestEffort: mock.fn(async () => null),
 	},
-});
+} as any);
 
 mock.module("@/lib/agents/run-steps", {
 	exports: {
@@ -314,7 +314,7 @@ mock.module("@/lib/agents/run-steps", {
 		agentRunStatusToStepStatus: mock.fn(() => "COMPLETED"),
 		recordAgentRunStepBestEffort: mock.fn(async () => null),
 	},
-});
+} as any);
 
 mock.module("@/lib/mcp/runtime", {
 	exports: {
@@ -335,13 +335,13 @@ mock.module("@/lib/mcp/runtime", {
 			return enabled;
 		}),
 	},
-});
+} as any);
 
 mock.module("@/lib/mcp/config", {
 	exports: {
 		isMcpEnabled: mock.fn(() => true),
 	},
-});
+} as any);
 
 mock.module("@/lib/deerflow/artifacts", {
 	exports: {
@@ -352,7 +352,7 @@ mock.module("@/lib/deerflow/artifacts", {
 			headers: new Headers({ "content-type": "application/pdf" }),
 		})),
 	},
-});
+} as any);
 
 mock.module("@/lib/deerflow/config", {
 	exports: {
@@ -361,7 +361,7 @@ mock.module("@/lib/deerflow/config", {
 		isDeerFlowConfigured: mock.fn(() => true),
 		isDeerFlowEnabled: mock.fn(() => true),
 	},
-});
+} as any);
 
 mock.module("@/lib/deerflow/runs", {
 	exports: {
@@ -380,7 +380,7 @@ mock.module("@/lib/deerflow/runs", {
 		}),
 		submitDeerFlowAgentRun: mock.fn(async () => null),
 	},
-});
+} as any);
 
 // Import actual route handlers AFTER module mocks are established
 const { GET: getMemory, POST: postMemory, PATCH: patchMemory, DELETE: deleteMemory } = await import("../app/api/memory/route");
@@ -391,6 +391,7 @@ const { POST: cancelRunPost } = await import("../app/api/agent-platform/runs/[ru
 const { POST: resolveApprovalPost } = await import("../app/api/agent-platform/approvals/[approvalId]/route");
 const { POST: transitionControlPost } = await import("../app/api/browser/sessions/[sessionId]/control/route");
 const { GET: getKnowledge, POST: postKnowledge } = await import("../app/api/knowledge/route");
+assert.ok(postKnowledge);
 const { POST: postKnowledgeCallback } = await import("../app/api/knowledge/callback/route");
 const { GET: getKnowledgeLibrary } = await import("../app/api/knowledge/library/route");
 const { GET: getDelegatedRun } = await import("../app/api/agents/runs/[runId]/route");
@@ -567,7 +568,7 @@ test("HTTP ROUTE RUNTIME: Memory route true Owner-vs-Attacker tenant isolation a
 	}));
 	assert.equal(postRes.status, 201);
 	assert.equal(sideEffects.createManualMemoryCalls.length, 1);
-	assert.equal(sideEffects.createManualMemoryCalls[0].userId, ATTACKER_B); // Bound to session, not spoofed body
+	assert.equal(sideEffects.createManualMemoryCalls[0]!.userId, ATTACKER_B); // Bound to session, not spoofed body
 
 	// 4. Attacker B PATCH with OWNER_MEMORY_ID -> 404, ZERO state change
 	const patchRes = await patchMemory(request("http://localhost/api/memory", {
@@ -610,7 +611,7 @@ test("HTTP ROUTE RUNTIME: Global Search cross-tenant secrecy proof (zero secret 
 test("HTTP ROUTE RUNTIME: Knowledge GET and Library tenant isolation", async () => {
 	// 1. Owner A GET -> sees own knowledge asset
 	sessionUser = { id: OWNER_A };
-	const ownerKnowledgeRes = await getKnowledge(request("http://localhost/api/knowledge"));
+	const ownerKnowledgeRes = await getKnowledge();
 	assert.equal(ownerKnowledgeRes.status, 200);
 	const ownerAssets = (await ownerKnowledgeRes.json()).assets;
 	assert.equal(ownerAssets.length, 1);
@@ -618,14 +619,14 @@ test("HTTP ROUTE RUNTIME: Knowledge GET and Library tenant isolation", async () 
 
 	// 2. Attacker B GET -> returns empty array, ZERO Owner A asset disclosure
 	sessionUser = { id: ATTACKER_B };
-	const attackerKnowledgeRes = await getKnowledge(request("http://localhost/api/knowledge"));
+	const attackerKnowledgeRes = await getKnowledge();
 	assert.equal(attackerKnowledgeRes.status, 200);
 	const attackerAssets = (await attackerKnowledgeRes.json()).assets;
 	assert.equal(attackerAssets.length, 0);
 
 	// 3. Knowledge Library GET tenant check
 	sessionUser = { id: ATTACKER_B };
-	const libraryRes = await getKnowledgeLibrary(request("http://localhost/api/knowledge/library"));
+	const libraryRes = await getKnowledgeLibrary();
 	assert.equal(libraryRes.status, 200);
 	const libraryAssets = (await libraryRes.json()).assets;
 	assert.equal(libraryAssets.length, 0);
