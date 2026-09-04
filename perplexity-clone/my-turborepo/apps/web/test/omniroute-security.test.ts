@@ -185,7 +185,6 @@ test("retired self-hosted/local runtime identifiers are absent from repository s
 		"SELF_" + "HOSTED_LLM",
 		"VIREXA_" + "LOCAL_AI",
 		"Browser" + "LlamaCppBridge",
-		"/api/" + "local-ai",
 	];
 	const offenders: string[] = [];
 	for (const absolute of collectTextFiles(REPO_ROOT)) {
@@ -197,6 +196,19 @@ test("retired self-hosted/local runtime identifiers are absent from repository s
 		}
 	}
 	assert.deepEqual(offenders, []);
+
+	const retiredApiRoute = path.join(WEB_ROOT, "app", "api", "local-ai");
+	assert.equal(
+		existsSync(retiredApiRoute),
+		false,
+		"the retired /api/local-ai API route must remain deleted in favor of /api/omniroute",
+	);
+
+	const frame = read("components/AiraV2Frame.tsx");
+	const omniroutePage = read("app/omniroute/page.tsx");
+	assert.ok(frame.includes('href: "/omniroute"'), "unified shell must navigate to /omniroute");
+	assert.ok(omniroutePage.includes('fetch("/api/omniroute/status"'), "OmniRoute page must query /api/omniroute/status");
+	assert.ok(omniroutePage.includes('fetch("/api/omniroute/models"'), "OmniRoute page must query /api/omniroute/models");
 });
 
 test("the retired /local-ai route is only a compatibility redirect", () => {

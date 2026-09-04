@@ -45,12 +45,29 @@ function resetSideEffects() {
 	sideEffects.replaceKnowledgeChunksCalls = 0;
 }
 
+declare module "node:test" {
+	interface MockModuleOptions {
+		exports?: object;
+	}
+}
+
+class MockManagedTaskRecoveryError extends Error {
+	code: string;
+	status: number;
+	constructor(code: string, message: string, status: number = 400) {
+		super(message);
+		this.code = code;
+		this.status = status;
+		this.name = "ManagedTaskRecoveryError";
+	}
+}
+
 // 1. Mock Auth
 mock.module("@/auth", {
 	exports: {
 		auth: mock.fn(async () => (sessionUser ? { user: sessionUser } : null)),
 	},
-} as any);
+});
 
 // 2. Mock Orchestrator
 mock.module("@/lib/agent-platform/orchestrator", {
@@ -74,7 +91,7 @@ mock.module("@/lib/agent-platform/orchestrator", {
 			return null;
 		}),
 	},
-} as any);
+});
 
 // 3. Mock Store
 mock.module("@/lib/agent-platform/store", {
@@ -103,31 +120,21 @@ mock.module("@/lib/agent-platform/store", {
 			return { ok: true };
 		}),
 	},
-} as any);
+});
 
 // 4. Mock Recovery
 mock.module("@/lib/agent-platform/recovery", {
 	exports: {
-		ManagedTaskRecoveryError: class ManagedTaskRecoveryError extends Error {
-			code: string;
-			status: number;
-			constructor(code: string, message: string, status: number = 400) {
-				super(message);
-				this.code = code;
-				this.status = status;
-				this.name = "ManagedTaskRecoveryError";
-			}
-		},
+		ManagedTaskRecoveryError: MockManagedTaskRecoveryError,
 		reconcileBlockedManagedTask: mock.fn(async (params: { userId: string; runId: string; taskId: string }) => {
 			if (params.userId === OWNER_A && params.runId === OWNER_RUN_ID && params.taskId === OWNER_TASK_ID) {
 				sideEffects.reconcileTaskCalls++;
 				return { requeued: true };
 			}
-			const { ManagedTaskRecoveryError: Err } = await import("@/lib/agent-platform/recovery");
-			throw new Err("TASK_RECONCILE_FAILED" as any, "Blocked task not found for this user.", 404);
+			throw new MockManagedTaskRecoveryError("TASK_RECONCILE_FAILED", "Blocked task not found for this user.", 404);
 		}),
 	},
-} as any);
+});
 
 // 5. Mock Tool Approvals & Approval Expiry
 mock.module("@/lib/agents/tool-approvals", {
@@ -140,7 +147,7 @@ mock.module("@/lib/agents/tool-approvals", {
 			return null;
 		}),
 	},
-} as any);
+});
 
 mock.module("@/lib/tool-gateway/approval", {
 	exports: {
@@ -151,14 +158,14 @@ mock.module("@/lib/tool-gateway/approval", {
 			return null;
 		}),
 	},
-} as any);
+});
 
 mock.module("@/lib/agent-platform/approval-expiry", {
 	exports: {
 		APPROVAL_TTL_MINUTES: 30,
 		expireApprovalIfStale: mock.fn(async () => false),
 	},
-} as any);
+});
 
 // 6. Mock Browser Arbitration
 mock.module("@/lib/agent-platform/browser-arbitration", {
@@ -171,7 +178,7 @@ mock.module("@/lib/agent-platform/browser-arbitration", {
 			return null;
 		}),
 	},
-} as any);
+});
 
 // 7. Mock Persistent Memory
 mock.module("@/lib/persistent-memory", {
@@ -201,7 +208,7 @@ mock.module("@/lib/persistent-memory", {
 			return false;
 		}),
 	},
-} as any);
+});
 
 // 8. Mock Conversation Memory
 mock.module("@/lib/conversation-memory", {
@@ -213,7 +220,7 @@ mock.module("@/lib/conversation-memory", {
 			return [];
 		}),
 	},
-} as any);
+});
 
 // 9. Mock Global Search
 mock.module("@/lib/global-search", {
@@ -232,7 +239,7 @@ mock.module("@/lib/global-search", {
 			return [];
 		}),
 	},
-} as any);
+});
 
 // 10. Mock Knowledge Assets & Storage
 mock.module("@/lib/knowledge-assets", {
@@ -251,7 +258,7 @@ mock.module("@/lib/knowledge-assets", {
 			sideEffects.replaceKnowledgeChunksCalls++;
 		}),
 	},
-} as any);
+});
 
 mock.module("@/lib/autogpt/runs", {
 	exports: {
@@ -288,7 +295,7 @@ mock.module("@/lib/autogpt/runs", {
 		submitAgentRun: mock.fn(async () => null),
 		toAgentRunDto: mock.fn((run: unknown) => run),
 	},
-} as any);
+});
 
 mock.module("@/lib/agents/run-events", {
 	exports: {
@@ -301,7 +308,7 @@ mock.module("@/lib/agents/run-events", {
 		recordAgentRunEvent: mock.fn(async () => null),
 		recordAgentRunEventBestEffort: mock.fn(async () => null),
 	},
-} as any);
+});
 
 mock.module("@/lib/agents/run-steps", {
 	exports: {
@@ -314,7 +321,7 @@ mock.module("@/lib/agents/run-steps", {
 		agentRunStatusToStepStatus: mock.fn(() => "COMPLETED"),
 		recordAgentRunStepBestEffort: mock.fn(async () => null),
 	},
-} as any);
+});
 
 mock.module("@/lib/mcp/runtime", {
 	exports: {
@@ -335,13 +342,13 @@ mock.module("@/lib/mcp/runtime", {
 			return enabled;
 		}),
 	},
-} as any);
+});
 
 mock.module("@/lib/mcp/config", {
 	exports: {
 		isMcpEnabled: mock.fn(() => true),
 	},
-} as any);
+});
 
 mock.module("@/lib/deerflow/artifacts", {
 	exports: {
@@ -352,7 +359,7 @@ mock.module("@/lib/deerflow/artifacts", {
 			headers: new Headers({ "content-type": "application/pdf" }),
 		})),
 	},
-} as any);
+});
 
 mock.module("@/lib/deerflow/config", {
 	exports: {
@@ -361,7 +368,7 @@ mock.module("@/lib/deerflow/config", {
 		isDeerFlowConfigured: mock.fn(() => true),
 		isDeerFlowEnabled: mock.fn(() => true),
 	},
-} as any);
+});
 
 mock.module("@/lib/deerflow/runs", {
 	exports: {
@@ -380,7 +387,7 @@ mock.module("@/lib/deerflow/runs", {
 		}),
 		submitDeerFlowAgentRun: mock.fn(async () => null),
 	},
-} as any);
+});
 
 // Import actual route handlers AFTER module mocks are established
 const { GET: getMemory, POST: postMemory, PATCH: patchMemory, DELETE: deleteMemory } = await import("../app/api/memory/route");

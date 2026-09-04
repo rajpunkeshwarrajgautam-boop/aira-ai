@@ -6,6 +6,12 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:po
 
 const SENTINEL_SECRET = "AIRA_GATE29_SECRET_DO_NOT_EXPOSE_7F2C";
 
+declare module "node:test" {
+	interface MockModuleOptions {
+		exports?: object;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Module Mocks for Isolated Store & Runtime Execution
 // ---------------------------------------------------------------------------
@@ -71,7 +77,7 @@ mock.module("@/lib/tool-gateway/store", {
 		failToolCall: mock.fn(async () => true),
 		markToolCallOutcomeUnknown: mock.fn(async () => true),
 	},
-} as any);
+});
 
 mock.module("@/lib/agent-platform/store", {
 	exports: {
@@ -85,7 +91,7 @@ mock.module("@/lib/agent-platform/store", {
 		resolveApproval: mock.fn(async () => null),
 		updateBrowserSession: mock.fn(async () => null),
 	},
-} as any);
+});
 
 // Import policy and gateway AFTER module mocks are set up
 const { classifyToolRisk, isAlwaysDeniedToolAction, requiresApproval } = await import("../lib/tool-gateway/policy");
