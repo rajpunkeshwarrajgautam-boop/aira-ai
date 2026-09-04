@@ -10,7 +10,10 @@ export type AiraToolId =
 	| "github"
 	| "vercel"
 	| "supabase"
-	| "mcp";
+	| "mcp"
+	| "gmail"
+	| "slack"
+	| "google_drive";
 
 export type ToolCallSource = "AGENT" | "USER" | "SYSTEM";
 export type ToolCallStatus =

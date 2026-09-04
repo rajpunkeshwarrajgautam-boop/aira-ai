@@ -99,6 +99,39 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 	mcp: {
 		call: "HIGH",
 	},
+	gmail: {
+		list_messages: "LOW",
+		get_message: "LOW",
+		search: "LOW",
+		draft: "MEDIUM",
+		send: "HIGH",
+		delete: "HIGH",
+		batch_delete: "PROTECTED",
+		modify_filters: "PROTECTED",
+	},
+	slack: {
+		list_channels: "LOW",
+		get_channel_history: "LOW",
+		get_thread: "LOW",
+		search: "LOW",
+		post_ephemeral: "MEDIUM",
+		post_message: "HIGH",
+		upload_file: "HIGH",
+		delete_message: "HIGH",
+		admin_manage_workspace: "PROTECTED",
+	},
+	google_drive: {
+		list_files: "LOW",
+		get_file_metadata: "LOW",
+		download_file: "LOW",
+		search: "LOW",
+		create_file: "HIGH",
+		update_file: "HIGH",
+		share_file: "HIGH",
+		delete_file: "HIGH",
+		modify_permissions_public: "PROTECTED",
+		delete_shared_drive: "PROTECTED",
+	},
 };
 
 // Protected actions are deliberately denied at the central authorization
@@ -121,6 +154,11 @@ const ALWAYS_DENIED = new Set([
 	"supabase.destructive_sql",
 	"supabase.drop_project",
 	"browser.change_mfa",
+	"gmail.batch_delete",
+	"gmail.modify_filters",
+	"slack.admin_manage_workspace",
+	"google_drive.modify_permissions_public",
+	"google_drive.delete_shared_drive",
 ]);
 
 export function classifyToolRisk(tool: AiraToolId, action: string): RiskClass {

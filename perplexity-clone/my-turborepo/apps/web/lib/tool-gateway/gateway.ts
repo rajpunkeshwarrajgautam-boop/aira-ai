@@ -4,6 +4,7 @@ import { appendEvent } from "@/lib/agent-platform/store";
 
 import { browserToolAdapter, gitToolAdapter, terminalToolAdapter } from "./adapters";
 import { githubToolAdapter, mcpToolAdapter, supabaseToolAdapter, vercelToolAdapter } from "./external-adapters";
+import { gmailToolAdapter, googleDriveToolAdapter, slackToolAdapter } from "./connector-adapters";
 import { filesToolAdapter, memoryToolAdapter, webToolAdapter } from "./native-adapters";
 import {
 	classifyToolRisk,
@@ -43,6 +44,9 @@ const adapters = new Map<AiraToolId, ToolAdapter>([
 	[vercelToolAdapter.id, vercelToolAdapter],
 	[supabaseToolAdapter.id, supabaseToolAdapter],
 	[mcpToolAdapter.id, mcpToolAdapter],
+	[gmailToolAdapter.id, gmailToolAdapter],
+	[slackToolAdapter.id, slackToolAdapter],
+	[googleDriveToolAdapter.id, googleDriveToolAdapter],
 ]);
 
 /** Internal dependency boundary for deterministic recovery verification. */

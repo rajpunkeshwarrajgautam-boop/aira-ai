@@ -354,3 +354,31 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Remote CI Checks: 15 / 15 PASS on exact head `98866261f71c066926e1d2915f1909f449731834` (Quality job passed in 1m9s, Vercel deployment completed).
 - Gate 29 Authoritative Status: **PARTIAL** (Deterministic P0 test suites verified; full external connector corpus and local Reticle UI attachment remain required for COMPLETE).
 - Immutable Evidence Package: `Gate29_NewHead_Evidence_20260904_142800.zip` (SHA-256: `20aa3a77d3cee9c79b371cb8eadd1b2fe101b041d4fd0e06ffccf10f81d73fad`, 348,318 bytes, 44 entries).
+
+### Gate 29 External Boundary Preparation & Connector Harness Certification — 2026-09-04
+
+- PR #123: OPEN, DRAFT, MERGEABLE, CLEAN
+- G29-REQ-12 Internal Preparation: **PASS (18/18)** in `test/agent-connector-security.test.ts`
+  - Gmail Adversarial Corpus: subject prompt injection, body sanitization, hidden HTML comments, durable approval fence, audit secret redaction, and `batch_delete` always denied.
+  - Slack Adversarial Corpus: channel/thread history untrusted tagging, durable approval on `post_message`, path traversal filename sanitization, HMAC-SHA256 webhook signature verification with replay resistance (`verifySlackSignature`), and `admin_manage_workspace` always denied.
+  - Google Drive Adversarial Corpus: untrusted metadata tagging, filename path traversal / script tag sanitization, durable approval on create/share/delete, and `modify_permissions_public` / `delete_shared_drive` always denied.
+  - Cross-Connector Privilege Escalation: untrusted connector content cannot confer autonomous tool execution privileges.
+- G29-REQ-13 Internal Preparation: **PASS (5/5)** in `test/reticle-browser-eval.test.ts`
+  - Local origin verification (`verifyTabOrigin`) accepting authorized local development origins and failing closed against external/attacker domains.
+  - Cross-session isolation (`verifySessionIsolation`) preventing session hijacking.
+  - Semantic evaluation engine (`evaluateSemanticSession`) asserting application DOM and store states.
+  - Inactive/detached tab reporting with deterministic `USER ACTION REQUIRED` guidance.
+- Tool Gateway Architecture:
+  - Added typed connector adapters `gmailToolAdapter`, `slackToolAdapter`, and `googleDriveToolAdapter` in `apps/web/lib/tool-gateway/connector-adapters.ts`.
+  - Registered `gmail`, `slack`, and `google_drive` in central gateway policy (`apps/web/lib/tool-gateway/policy.ts`) and adapter registry (`apps/web/lib/tool-gateway/gateway.ts`).
+- Verification Pipeline:
+  - Combined Gate 29 Test Suites: 73 / 73 PASS (`agent-connector-security`, `reticle-browser-eval`, `agent-redteam-security`, `memory-provenance-gate29`, `agent-platform-route-runtime`).
+  - ESLint: 0 errors, 0 warnings (`--max-warnings 0` strictly enforced).
+  - TypeScript Strict Typecheck: 0 errors (`pnpm --filter web check-types`).
+  - Dependency Audit: 0 production vulnerabilities (`pnpm audit --prod`).
+  - Production Build: 31 routes compiled successfully with Turbopack in 13.0s (`pnpm run build`).
+- Documentation:
+  - `docs/external_boundary_requirement_matrix.md`: Authoritative matrix for G29-REQ-12 and G29-REQ-13.
+  - `docs/GATE29_EXTERNAL_INPUT_DOSSIER.md`: Minimal external inputs (Google OAuth test credentials, Slack test app credentials, Reticle live tab action; $0 spend, zero production impact).
+  - `docs/post_boundary_preparation_gate_queue.md`: Re-evaluation of all 128 gates post-preparation.
+- Gate 29 Authoritative Status: **PARTIAL** (13 / 13 internal prerequisites complete; zero internal blockers remaining; live verification awaits external non-production inputs).
