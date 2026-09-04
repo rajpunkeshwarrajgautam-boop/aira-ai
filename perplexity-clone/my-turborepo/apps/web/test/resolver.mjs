@@ -12,6 +12,7 @@ import { registerHooks } from "node:module";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import process from "node:process";
 
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EXTENSIONS = [".ts", ".tsx", ".mts", ".js", ".mjs"];
@@ -68,3 +69,25 @@ registerHooks({
 		return nextResolve(specifier, context);
 	},
 });
+
+import { mock } from "node:test";
+
+// Bridge Node 22 mock.module: Node 22 only extracts named exports from
+// options.namedExports, whereas Node 24+ consolidated into options.exports.
+if (typeof mock?.module === "function") {
+	const origModule = mock.module.bind(mock);
+	mock.module = function (specifier, options) {
+		if (options && typeof options === "object") {
+			const isNode22 = process.versions.node.startsWith("22.");
+			if (isNode22 && options.exports && !options.namedExports) {
+				const { exports, ...rest } = options;
+				const opts = { ...rest, namedExports: exports };
+				if (exports.default !== undefined && rest.defaultExport === undefined) {
+					opts.defaultExport = exports.default;
+				}
+				return origModule(specifier, opts);
+			}
+		}
+		return origModule(specifier, options);
+	};
+}
