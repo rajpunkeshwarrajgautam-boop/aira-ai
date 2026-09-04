@@ -13,6 +13,14 @@ interface SessionUser {
 
 let currentSessionUser: SessionUser | null = null;
 
+function makeHeaders(customHeaders: Record<string, string> = {}): Headers {
+	return new Headers({
+		"content-type": "application/json",
+		origin: "http://localhost:3000",
+		...customHeaders,
+	});
+}
+
 // --- Stateful In-Memory Prisma Fake ---
 export interface FakeUserMemoryRecord {
 	id: string;
@@ -443,7 +451,7 @@ test("[Real Core Integration] Unauthenticated requests trigger 0 database or emb
 	const resPost = await POST(
 		new Request("http://localhost:3000/api/memory", {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: makeHeaders(),
 			body: JSON.stringify({ content: "Valid memory" }),
 		}),
 	);
@@ -452,7 +460,7 @@ test("[Real Core Integration] Unauthenticated requests trigger 0 database or emb
 	const resPatch = await PATCH(
 		new Request("http://localhost:3000/api/memory", {
 			method: "PATCH",
-			headers: { "content-type": "application/json" },
+			headers: makeHeaders(),
 			body: JSON.stringify({ id: OWNER_MEMORY_ID, pinned: false }),
 		}),
 	);
@@ -461,7 +469,7 @@ test("[Real Core Integration] Unauthenticated requests trigger 0 database or emb
 	const resDelete = await DELETE(
 		new Request("http://localhost:3000/api/memory", {
 			method: "DELETE",
-			headers: { "content-type": "application/json" },
+			headers: makeHeaders(),
 			body: JSON.stringify({ id: OWNER_MEMORY_ID }),
 		}),
 	);
@@ -479,7 +487,7 @@ test("[Real Core Integration] POST binds strictly to session.user.id despite spo
 
 	const req = new Request("http://localhost:3000/api/memory", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({
 			content: "I speak French fluently",
 			userId: USER_ATTACKER,
@@ -519,7 +527,7 @@ test("[Real Core Integration] Successful manual saves produce expected owner-sco
 
 	const req = new Request("http://localhost:3000/api/memory", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ content: "I am learning Rust programming", kind: "GOAL", pinned: true }),
 	});
 
@@ -545,7 +553,7 @@ test("[Real Core Integration] Wrong-owner PATCH and DELETE preserve target recor
 	// 1. Cross-owner PATCH
 	const reqPatch = new Request("http://localhost:3000/api/memory", {
 		method: "PATCH",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ id: OWNER_MEMORY_ID, pinned: false }),
 	});
 	const resPatch = await PATCH(reqPatch);
@@ -563,7 +571,7 @@ test("[Real Core Integration] Wrong-owner PATCH and DELETE preserve target recor
 	// 2. Cross-owner DELETE
 	const reqDelete = new Request("http://localhost:3000/api/memory", {
 		method: "DELETE",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ id: OWNER_MEMORY_ID }),
 	});
 	const resDelete = await DELETE(reqDelete);
@@ -587,7 +595,7 @@ test("[Real Core Integration] Correct-owner PIN/UNPIN and DELETE update/remove e
 	// 1. Unpin
 	const reqPatch = new Request("http://localhost:3000/api/memory", {
 		method: "PATCH",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ id: OWNER_MEMORY_ID, pinned: false }),
 	});
 	const resPatch = await PATCH(reqPatch);
@@ -599,7 +607,7 @@ test("[Real Core Integration] Correct-owner PIN/UNPIN and DELETE update/remove e
 	// 2. Delete
 	const reqDelete = new Request("http://localhost:3000/api/memory", {
 		method: "DELETE",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ id: OWNER_MEMORY_ID }),
 	});
 	const resDelete = await DELETE(reqDelete);
@@ -620,7 +628,7 @@ test("[Real Core Integration] Missing targets do not falsely report success", as
 
 	const reqPatch = new Request("http://localhost:3000/api/memory", {
 		method: "PATCH",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ id: "non-existent-memory-id", pinned: false }),
 	});
 	const resPatch = await PATCH(reqPatch);
@@ -628,7 +636,7 @@ test("[Real Core Integration] Missing targets do not falsely report success", as
 
 	const reqDelete = new Request("http://localhost:3000/api/memory", {
 		method: "DELETE",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ id: "non-existent-memory-id" }),
 	});
 	const resDelete = await DELETE(reqDelete);
@@ -644,7 +652,7 @@ test("[Real Core Integration] Invalid inputs cause no persistence or embedding o
 
 	const reqTooShort = new Request("http://localhost:3000/api/memory", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ content: "a" }),
 	});
 	const resTooShort = await POST(reqTooShort);
@@ -670,7 +678,7 @@ test("[Real Core Integration] Production sensitive-content filtering (looksSensi
 	for (const content of sensitivePayloads) {
 		const req = new Request("http://localhost:3000/api/memory", {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: makeHeaders(),
 			body: JSON.stringify({ content }),
 		});
 		const res = await POST(req);
@@ -712,7 +720,7 @@ test("[Real Core Integration] Asynchronous manual-save embedding passes exact pa
 
 	const req = new Request("http://localhost:3000/api/memory", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ content: "I work with Docker and Kubernetes" }),
 	});
 
@@ -756,7 +764,7 @@ test("[Real Core Integration] Asynchronous embedding failure settles determinist
 	try {
 		const req = new Request("http://localhost:3000/api/memory", {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: makeHeaders(),
 			body: JSON.stringify({ content: "I enjoy mountain climbing in summer" }),
 		});
 
@@ -799,7 +807,7 @@ test("[Lifecycle Regression] Pending embedding promise cannot silently survive t
 	// Trigger a save operation creating a pending deferred
 	const req = new Request("http://localhost:3000/api/memory", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: makeHeaders(),
 		body: JSON.stringify({ content: "Test lifecycle pending deferred tracking" }),
 	});
 	const res = await POST(req);
@@ -828,7 +836,7 @@ test("[Lifecycle Regression] Non-mutating and invalid requests produce zero back
 	await POST(
 		new Request("http://localhost:3000/api/memory", {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: makeHeaders(),
 			body: JSON.stringify({ content: "" }),
 		}),
 	);
