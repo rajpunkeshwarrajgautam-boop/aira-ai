@@ -33,7 +33,7 @@ test("tool risk is classified per action, not merely per tool", () => {
 test("all intended Tool Gateway adapters are registered", () => {
 	assert.deepEqual(
 		new Set(registeredToolIds()),
-		new Set(["browser", "terminal", "git", "files", "memory", "web", "github", "vercel", "supabase", "mcp"]),
+		new Set(["browser", "terminal", "git", "files", "memory", "web", "github", "vercel", "supabase", "mcp", "gmail", "slack", "google_drive"]),
 	);
 });
 
