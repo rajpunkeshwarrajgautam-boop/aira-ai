@@ -337,3 +337,20 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Gate 28: **PASS** (Systematic IDOR matrix complete; HTTP route static source contracts verified 7/7 PASS; HTTP route true Owner-vs-Attacker runtime handler suite `agent-platform-route-runtime.test.ts` verified 13/13 PASS; REAL_DB workflow run `33671124736`, job `100384720560` verified 100% PASS across all 10 DB isolation & idempotency suites on exact tested source head `2f154218933717e16692da1011bf3ac5fb71d1da`).
 - Gate 29: **PARTIAL** (Deterministic P0 Red Team suite `agent-redteam-security.test.ts` verified 15/15 PASS across policy, audit redaction, durable approval execution, budget reservation, tool smuggling, MCP composition, RAG chunk composition, browser injection composition, and swarm isolation; MCP adapter suite verified 6/6 PASS; GitHub Actions CI run `33716742627` on SHA `d0bb239c` verified 4/4 service/runtime jobs PASS (`foundation-services`, `autogpt-runner`, `aira-runtime`, `deerflow-runner`); Reticle semantic eval recorded as `BLOCKED — LOCAL RETICLE UI/TAB ATTACHMENT REQUIRED`).
 - Next step: Continue remaining Gate 29 security Red Team scenario refinements and final ledger reconciliation.
+
+### Gate 29 Quality Gate Repair & Remote Verification Certification — 2026-09-04
+
+- Certified Code Head: `98866261f71c066926e1d2915f1909f449731834`
+- PR #123: OPEN, DRAFT, MERGEABLE, CLEAN
+- All 23 `@typescript-eslint/no-explicit-any` warnings in `agent-platform-route-runtime.test.ts` (21) and `agent-redteam-security.test.ts` (2) eliminated via `MockModuleOptions` type augmentation and `MockManagedTaskRecoveryError`.
+- ESLint: 0 errors, 0 warnings with `--max-warnings 0` strictly enforced.
+- OmniRoute Contract: 26/26 PASS (`/omniroute` canonical UI navigation, `/api/omniroute` active backend API, physical `app/api/local-ai` verified absent).
+- Local Reproduction:
+  - Targeted Platform Suites: 28/28 PASS
+  - Targeted OmniRoute Suites: 26/26 PASS
+  - Gate 29 Core Memory Suites: 67/67 PASS (`memory-provenance-gate29`, `memory-curation-provider-policy`, `runtime-memory-untrusted`, `memory-api-route-boundary`, `memory-api-route-real-core`)
+  - Feature & Workspace Suites: 26/26 PASS
+- Local Windows Capability Limitation: 3 unprivileged symlink/directory tests in `tool-gateway-files-security.test.ts` documented as `LOCAL_WINDOWS_CAPABILITY_LIMITATION` (pass cleanly on Linux CI).
+- Remote CI Checks: 15 / 15 PASS on exact head `98866261f71c066926e1d2915f1909f449731834` (Quality job passed in 1m9s, Vercel deployment completed).
+- Gate 29 Authoritative Status: **PARTIAL** (Deterministic P0 test suites verified; full external connector corpus and local Reticle UI attachment remain required for COMPLETE).
+- Immutable Evidence Package: `Gate29_NewHead_Evidence_20260904_142800.zip` (SHA-256: `20aa3a77d3cee9c79b371cb8eadd1b2fe101b041d4fd0e06ffccf10f81d73fad`, 348,318 bytes, 44 entries).
