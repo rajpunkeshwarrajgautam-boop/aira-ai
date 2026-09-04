@@ -403,9 +403,18 @@ const { GET: getMcpStatus } = await import("../app/api/mcp/route");
 const { PATCH: patchMcpServer } = await import("../app/api/mcp/servers/[serverId]/route");
 
 function request(url: string, init?: RequestInit): Request {
+	const parsedUrl = new URL(url);
+	const origin = parsedUrl.origin !== "null" && parsedUrl.origin !== "" ? parsedUrl.origin : "http://localhost";
+	const userHeaders = init?.headers ? new Headers(init.headers) : new Headers();
+	if (!userHeaders.has("content-type")) {
+		userHeaders.set("Content-Type", "application/json");
+	}
+	if (!userHeaders.has("origin")) {
+		userHeaders.set("origin", origin);
+	}
 	return new Request(url, {
-		headers: { "Content-Type": "application/json" },
 		...init,
+		headers: userHeaders,
 	});
 }
 

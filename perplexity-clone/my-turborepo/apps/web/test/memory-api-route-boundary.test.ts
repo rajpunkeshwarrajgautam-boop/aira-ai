@@ -1,3 +1,4 @@
+/* eslint-disable turbo/no-undeclared-env-vars */
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 
@@ -630,4 +631,245 @@ test("[CSRF & Integrity] No response exposes permissive wildcard credentialed CO
 	const res = await POST(req);
 	assert.notEqual(res.headers.get("access-control-allow-origin"), "*");
 	assert.notEqual(res.headers.get("access-control-allow-origin"), "http://attacker.com");
+});
+
+// --- ADVERSARIAL REPAIR & PRECEDENCE SUITE ---
+
+test("[Adversarial Repair] Request URL origin must not self-authorize when targeting untrusted request-target origin", async () => {
+	resetSpies();
+	mockSessionUser = { id: USER_OWNER };
+
+	const origEnv = { ...process.env };
+	try {
+		delete process.env.NEXTAUTH_URL;
+		delete process.env.AUTH_URL;
+		delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+		delete process.env.VERCEL_URL;
+		process.env.NEXTAUTH_URL = "https://aira.example";
+		(process.env as Record<string, string | undefined>).NODE_ENV = "production";
+
+		// Request URL hosted at evil.example with Origin: https://evil.example
+		const reqPost = new Request("https://evil.example/api/memory", {
+			method: "POST",
+			headers: new Headers({
+				"content-type": "application/json",
+				origin: "https://evil.example",
+			}),
+			body: JSON.stringify({ content: "Attacker self-authorizing attempt" }),
+		});
+		const resPost = await POST(reqPost);
+		assert.equal(resPost.status, 403, "POST to untrusted request URL must be 403 CSRF_REJECTED");
+		const dataPost = (await resPost.json()) as { error: { code: string } };
+		assert.equal(dataPost.error.code, "CSRF_REJECTED");
+
+		const reqPatch = new Request("https://evil.example/api/memory", {
+			method: "PATCH",
+			headers: new Headers({
+				"content-type": "application/json",
+				origin: "https://evil.example",
+			}),
+			body: JSON.stringify({ id: OWNER_MEMORY_ID, pinned: false }),
+		});
+		const resPatch = await PATCH(reqPatch);
+		assert.equal(resPatch.status, 403, "PATCH to untrusted request URL must be 403");
+
+		const reqDelete = new Request("https://evil.example/api/memory", {
+			method: "DELETE",
+			headers: new Headers({
+				"content-type": "application/json",
+				origin: "https://evil.example",
+			}),
+			body: JSON.stringify({ id: OWNER_MEMORY_ID }),
+		});
+		const resDelete = await DELETE(reqDelete);
+		assert.equal(resDelete.status, 403, "DELETE to untrusted request URL must be 403");
+	} finally {
+		process.env = origEnv;
+	}
+
+	assert.equal(spyCalls.createManualMemory.length, 0);
+	assert.equal(spyCalls.setUserMemoryPinned.length, 0);
+	assert.equal(spyCalls.deleteUserMemory.length, 0);
+});
+
+test("[Adversarial Repair] Spoofed destination/host headers do not authorize requests", async () => {
+	resetSpies();
+	mockSessionUser = { id: USER_OWNER };
+
+	const origEnv = { ...process.env };
+	try {
+		delete process.env.NEXTAUTH_URL;
+		delete process.env.AUTH_URL;
+		delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+		delete process.env.VERCEL_URL;
+		process.env.NEXTAUTH_URL = "https://aira.example";
+		(process.env as Record<string, string | undefined>).NODE_ENV = "production";
+
+		// Trusted Origin with untrusted request target
+		const req1 = new Request("https://evil.example/api/memory", {
+			method: "POST",
+			headers: new Headers({
+				"content-type": "application/json",
+				origin: "https://aira.example",
+				host: "evil.example",
+				"x-forwarded-host": "evil.example",
+				"x-forwarded-proto": "https",
+				forwarded: "host=evil.example;proto=https",
+			}),
+			body: JSON.stringify({ content: "Spoofed destination test" }),
+		});
+		const res1 = await POST(req1);
+		assert.equal(res1.status, 403);
+
+		// Untrusted Origin with spoofed host headers
+		const req2 = new Request("https://aira.example/api/memory", {
+			method: "POST",
+			headers: new Headers({
+				"content-type": "application/json",
+				origin: "https://evil.example",
+				host: "aira.example",
+			}),
+			body: JSON.stringify({ content: "Spoofed origin test" }),
+		});
+		const res2 = await POST(req2);
+		assert.equal(res2.status, 403);
+	} finally {
+		process.env = origEnv;
+	}
+
+	assert.equal(spyCalls.createManualMemory.length, 0);
+});
+
+test("[Adversarial Repair] Authentication precedence: Unauthenticated requests return 401 regardless of integrity headers", async () => {
+	resetSpies();
+	mockSessionUser = null; // Unauthenticated
+
+	const badRequests = [
+		// Missing Content-Type
+		new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: { origin: "http://localhost:3000" },
+			body: JSON.stringify({ content: "test" }),
+		}),
+		// text/plain Content-Type
+		new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: { "content-type": "text/plain", origin: "http://localhost:3000" },
+			body: JSON.stringify({ content: "test" }),
+		}),
+		// Missing Origin and Referer
+		new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ content: "test" }),
+		}),
+		// Foreign Origin
+		new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: { "content-type": "application/json", origin: "https://attacker.com" },
+			body: JSON.stringify({ content: "test" }),
+		}),
+		// Origin null
+		new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: { "content-type": "application/json", origin: "null" },
+			body: JSON.stringify({ content: "test" }),
+		}),
+		// Malformed JSON
+		new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+			body: "{ malformed json",
+		}),
+	];
+
+	for (const req of badRequests) {
+		const resPost = await POST(req);
+		assert.equal(resPost.status, 401, `POST unauthenticated must return 401`);
+		const dataPost = (await resPost.json()) as { error: { code: string } };
+		assert.equal(dataPost.error.code, "UNAUTHENTICATED");
+
+		const resPatch = await PATCH(req);
+		assert.equal(resPatch.status, 401, `PATCH unauthenticated must return 401`);
+
+		const resDelete = await DELETE(req);
+		assert.equal(resDelete.status, 401, `DELETE unauthenticated must return 401`);
+	}
+
+	assert.equal(spyCalls.createManualMemory.length, 0);
+	assert.equal(spyCalls.setUserMemoryPinned.length, 0);
+	assert.equal(spyCalls.deleteUserMemory.length, 0);
+});
+
+test("[Adversarial Repair] Origin and Referer precedence and fallback rules", async () => {
+	resetSpies();
+	mockSessionUser = { id: USER_OWNER };
+
+	// Foreign Origin with trusted Referer -> MUST REJECT (Origin takes precedence over Referer)
+	const reqForeignOriginTrustedReferer = new Request("http://localhost:3000/api/memory", {
+		method: "POST",
+		headers: new Headers({
+			"content-type": "application/json",
+			origin: "https://attacker.com",
+			referer: "http://localhost:3000/dashboard?token=secret#section",
+		}),
+		body: JSON.stringify({ content: "Precedence test 1" }),
+	});
+	const res1 = await POST(reqForeignOriginTrustedReferer);
+	assert.equal(res1.status, 403, "Foreign Origin must be rejected even if Referer is trusted");
+
+	// Origin null with trusted Referer -> MUST REJECT
+	const reqNullOriginTrustedReferer = new Request("http://localhost:3000/api/memory", {
+		method: "POST",
+		headers: new Headers({
+			"content-type": "application/json",
+			origin: "null",
+			referer: "http://localhost:3000/dashboard",
+		}),
+		body: JSON.stringify({ content: "Precedence test 2" }),
+	});
+	const res2 = await POST(reqNullOriginTrustedReferer);
+	assert.equal(res2.status, 403, "Origin null must be rejected even if Referer is trusted");
+
+	// Missing Origin, trusted Referer with query/path/fragment -> SUCCEEDS
+	const reqRefererQuery = new Request("http://localhost:3000/api/memory", {
+		method: "POST",
+		headers: new Headers({
+			"content-type": "application/json",
+			referer: "http://localhost:3000/some/path?param=1#fragment",
+		}),
+		body: JSON.stringify({ content: "Referer with query/fragment" }),
+	});
+	const res3 = await POST(reqRefererQuery);
+	assert.equal(res3.status, 201, "Trusted Referer with query/fragment must succeed");
+
+	assert.equal(spyCalls.createManualMemory.length, 1);
+});
+
+test("[Adversarial Repair] Production mode with missing server configuration fails closed with 500 SERVER_CONFIGURATION_ERROR", async () => {
+	resetSpies();
+	mockSessionUser = { id: USER_OWNER };
+
+	const origEnv = { ...process.env };
+	try {
+		delete process.env.NEXTAUTH_URL;
+		delete process.env.AUTH_URL;
+		delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+		delete process.env.VERCEL_URL;
+		(process.env as Record<string, string | undefined>).NODE_ENV = "production";
+
+		const req = new Request("http://localhost:3000/api/memory", {
+			method: "POST",
+			headers: makeHeaders(),
+			body: JSON.stringify({ content: "Test production missing config" }),
+		});
+		const res = await POST(req);
+		assert.equal(res.status, 500, "Missing configuration in production must return 500");
+		const data = (await res.json()) as { error: { code: string } };
+		assert.equal(data.error.code, "SERVER_CONFIGURATION_ERROR");
+	} finally {
+		process.env = origEnv;
+	}
+
+	assert.equal(spyCalls.createManualMemory.length, 0);
 });
