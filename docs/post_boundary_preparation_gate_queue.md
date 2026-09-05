@@ -13,7 +13,7 @@ Authoritative Program: AIRA Production Release Program
 | Gate | Priority | Name | Previous Status | Post-Preparation Status | Classification | Exact Blocking Boundary |
 |---|---|---|---|---|---|---|
 | **01** | P0 | Exact current head green | PASS | **PASS** | `COMPLETE` | None. 100% green across local and remote CI. |
-| **02** | P0 | Crash / recovery | PARTIAL | **PARTIAL** | `INFRASTRUCTURE_REQUIRED` | Disposable PostgreSQL environment required for remaining injection matrix. |
+| **02** | P0 | Crash / recovery | PARTIAL | **PASS** | `COMPLETE` | Completed across all 12 failure modes on isolated disposable PostgreSQL container. |
 | **04** | P0 | Idempotency | PASS | **PASS** | `COMPLETE` | Completed across all 12 failure modes (REAL_DB run `33654095827`). |
 | **05** | P0 | #122 + #92 integration | PASS | **PASS** | `COMPLETE` | Draft PR #123 combines both source trees cleanly. |
 | **06** | P0 | Combined CI | PASS | **PASS** | `COMPLETE` | All canonical workflows, tests, and Vercel builds passing. |
@@ -24,7 +24,7 @@ Authoritative Program: AIRA Production Release Program
 | **35** | P0 | Preview environment | BLOCKED | **BLOCKED** | `INFRASTRUCTURE_REQUIRED` | Production-like isolated Supabase Preview branch and non-production credentials required. |
 | **36** | P0 | Real Preview journey | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by Gate 35 Preview environment provisioning. |
 | **37** | P0 | OmniRoute → NVIDIA failover | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Live non-production OmniRoute and NVIDIA provider access required. |
-| **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (02, 14, 30, 35, 36, 37). |
+| **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (14, 30, 35, 36, 37). |
 
 ---
 
@@ -67,7 +67,7 @@ Authoritative Program: AIRA Production Release Program
 - **INTERNAL_PREPARATION_COMPLETE**: 0 (Gate 29 completed).
 - **EXTERNAL_CREDENTIAL_REQUIRED**: 7 (Gates 14, 20, 37, 76, 78, 80).
 - **USER_ACTION_REQUIRED**: 0 (Gate 29 Reticle live browser evaluation complete).
-- **INFRASTRUCTURE_REQUIRED**: 6 (Gates 02, 08, 24, 34, 35, 39).
+- **INFRASTRUCTURE_REQUIRED**: 5 (Gates 08, 24, 34, 35, 39).
 - **DEPENDENCY_WAIT**: 32 (Gates requiring release candidate or preview E2E environment).
 - **BLOCKED_BY_PRIOR_GATE**: 48 (Downstream agent/workflow/enterprise gates).
 - **BUSINESS_DECISION_REQUIRED**: 1 (Gate 42 Cashfree).

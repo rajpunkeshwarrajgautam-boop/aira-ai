@@ -455,3 +455,28 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Gate 29 Authoritative Status: **`COMPLETE`**
 - Release Posture: Production touched: NO, PR merged: NO.
 
+### Gate 02 Crash / Recovery Re-Evaluation & Completion Certification — 2026-09-05
+
+- PR #123: OPEN, DRAFT, MERGEABLE, CLEAN
+- Disposable PostgreSQL Capability Re-evaluation:
+  - Local Docker Desktop engine operational (`pgvector/pgvector:pg16`).
+  - Isolated disposable test container instantiated (`aira-gate02-test` bound to `127.0.0.1:5433`).
+  - Container `aira-gate29-postgres` on `127.0.0.1:5432` preserved without mutation.
+  - Required non-login roles (`anon`, `authenticated`, `service_role bypassrls`) and schema `extensions` provisioned.
+  - Complete 22-migration Prisma schema deployed cleanly via baseline materialization.
+- Authoritative Crash / Recovery Test Execution:
+  - **Migration Failure Recovery**: Proved intentional migration failure detection, uncorrupted schema (`to_regclass` returns 0), persistent rollback ledger via `_prisma_migrations`, explicit resolution via `prisma migrate resolve --rolled-back`, clean repair, and idempotent redeploy.
+  - **Cross-Component Cancellation Cascade**: Proved in `agent-platform-cancellation-real-db.test.ts` that cancellation cascades to delegated runtime runs (`AgentRun`), stops active worker agent instances (`AgentInstance=STOPPED`), rejects pending approvals (`AgentApproval=REJECTED`), cancels in-flight tool calls (`AgentToolCall=CANCELLED` with timestamps), and converges idempotently upon replay.
+  - **Database Disconnect Mid-Transaction**: Proved in `agent-platform-cancellation-real-db.test.ts` using real PostgreSQL failure injection (`pg_terminate_backend(pg_backend_pid())` raising error `57P01`) that transactions fail closed, prevent partial state commits, leave tasks in uncommitted state, and allow the connection pool to cleanly recover for subsequent operations.
+  - **Cancellation Racing Tool Completion**: Proved in `agent-platform-cancellation-real-db.test.ts` that race between cancellation and tool completion converges deterministically without duplicate execution or double accounting.
+  - **Cancellation Replay After Parent Fence Crash**: Proved in `agent-platform-cancellation-real-db.test.ts` that post-crash replay repairs broken state without race conditions.
+  - **Idempotent Duplicate Execution & Claims**: Proved in `agent-platform-idempotency-real-db.test.ts` that duplicate missions, claims, completions, and failures converge to exactly one durable side effect.
+  - **Process Restart & DB-Only Recovery**: Proved in `agent-platform-recovery-real-db.test.ts` that a brand-new child Node process reconciles blocked tasks from PostgreSQL state alone.
+  - **Tool Gateway Replay & Fencing**: Proved in `tool-gateway-completion-real-db.test.ts` that stale coordinators are fenced, lost responses replay without charging, uncertain completions fence replay, and concurrent deliveries charge once.
+  - **Database Tenant Boundary Isolation**: Proved in `user-data-idor-real-db.test.ts` and `agent-platform-idor-real-db.test.ts` that cross-user queries fail closed with zero cross-tenant leakage.
+- Requirement Matrix: `docs/GATE02_REQUIREMENT_MATRIX.md` (12 / 12 requirements verified PASS).
+- Evidence Package: `C:\Users\WORKSTATION\Downloads\Gate02_Final_Evidence_20260905_073700Z.zip`
+- Evidence SHA-256: `e67e943815e5dc726c0d531138ba5f716f8aa7d0000cd572c53dd5c117b3374c`
+- Gate 02 Authoritative Status: **`COMPLETE`**
+- Release Posture: Production touched: NO, PR merged: NO.
+

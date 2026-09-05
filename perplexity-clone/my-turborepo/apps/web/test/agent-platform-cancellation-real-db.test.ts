@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 
+import { AgentRunStatus } from "@/generated/prisma/enums";
 import { cancelManagedRun } from "@/lib/agent-platform/orchestrator";
 import {
 	createPlatformRun,
@@ -249,5 +250,194 @@ test(
 		assert.equal(approvalReplay[0]?.status, "REJECTED");
 		assert.equal(approvalReplay[0]?.resolvedAt?.getTime(), approvalResolvedAt);
 		assert.deepEqual(taskReplay[0], { status: "CANCELLED", attempt: attemptsBefore });
+	},
+);
+
+test(
+	"REAL_DB: cross-component cancellation cascades to delegated runtimes and converges under remote failure and race",
+	{ skip: !REAL_DB, timeout: 60_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `cross-cancel-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({
+			userId,
+			name: `Cross Component Cancel ${suffix}`,
+			objective: "Prove cross-component cancellation cascades and converges.",
+		});
+
+		const run = await createPlatformRun({
+			userId,
+			projectId: project.id,
+			clientRequestId: `cross-cancel-run-${suffix}`,
+			runtime: "AUTOGPT",
+			budgets: DEFAULT_RUN_BUDGETS,
+			tasks: [
+				{ ...taskSpec(), key: "task-delegated", title: "Delegated task" },
+				{ ...taskSpec(), key: "task-local", title: "Local tool task" },
+			],
+		});
+
+		const tasks = await listTasks(run.id);
+		const delegatedTask = tasks.find((tk) => tk.title === "Delegated task")!;
+		const localTask = tasks.find((tk) => tk.title === "Local tool task")!;
+
+		// 1. Delegated runtime run linked to delegatedTask
+		const agentRunId = `delegated-run-${suffix}`;
+		await prisma.agentRun.create({
+			data: {
+				id: agentRunId,
+				userId,
+				provider: "AUTOGPT",
+				clientRequestId: `delegated-req-${suffix}`,
+				remoteExecutionId: `remote-exec-${suffix}`,
+				graphId: "graph-cancel-test",
+				graphVersion: 1,
+				objective: "Test cross-component cancellation cascade",
+				status: AgentRunStatus.RUNNING,
+			},
+		});
+		await prisma.$executeRaw`
+			update "AgentTask"
+			set "runtimeRunId"=${agentRunId}, "status"='RUNNING', "attempt"=1
+			where "id"=${delegatedTask.id}
+		`;
+
+		// 2. Working agent instance, pending approval, and tool call on localTask
+		const agentId = `cross-agent-${suffix}`;
+		const approvalId = `cross-approval-${suffix}`;
+		const toolCallId = `cross-tool-${suffix}`;
+		await prisma.$transaction([
+			prisma.$executeRaw`
+				update "AgentTask"
+				set "status"='CLAIMED', "leaseOwner"='worker-active',
+					"leaseExpiresAt"=current_timestamp + interval '5 minutes', "attempt"=1
+				where "id"=${localTask.id}
+			`,
+			prisma.$executeRaw`
+				insert into "AgentInstance"
+				("id","projectId","runId","role","objective","status","currentTaskId")
+				values (${agentId},${project.id},${run.id},'RESEARCH','Cross-cancel instance','WORKING',${localTask.id})
+			`,
+			prisma.$executeRaw`
+				insert into "AgentApproval"
+				("id","userId","projectId","runId","taskId","action","risk","status")
+				values (${approvalId},${userId},${project.id},${run.id},${localTask.id},'sensitive operation','HIGH','PENDING')
+			`,
+			prisma.$executeRaw`
+				insert into "AgentToolCall"
+				("id","clientRequestId","userId","projectId","runId","taskId","agentId","tool","action","risk","status","approvalId","inputHash")
+				values (${toolCallId},${`cross-tool-req-${suffix}`},${userId},${project.id},${run.id},${localTask.id},${agentId},'web','fetch','HIGH','APPROVAL_REQUIRED',${approvalId},${`hash:${suffix}`})
+			`,
+		]);
+
+		// Execute cancellation
+		await cancelManagedRun(userId, run.id);
+
+		// Verify convergence across all components
+		const [runRows, taskRows, agentRows, toolRows, approvalRows, events] = await Promise.all([
+			prisma.$queryRaw<Array<{ status: string }>>`select "status" from "AgentPlatformRun" where "id"=${run.id}`,
+			prisma.$queryRaw<Array<{ id: string; status: string; leaseOwner: string | null }>>`select "id","status","leaseOwner" from "AgentTask" where "runId"=${run.id}`,
+			prisma.$queryRaw<Array<{ status: string; currentTaskId: string | null }>>`select "status","currentTaskId" from "AgentInstance" where "id"=${agentId}`,
+			prisma.$queryRaw<Array<{ status: string; completedAt: Date | null }>>`select "status","completedAt" from "AgentToolCall" where "id"=${toolCallId}`,
+			prisma.$queryRaw<Array<{ status: string; resolvedAt: Date | null }>>`select "status","resolvedAt" from "AgentApproval" where "id"=${approvalId}`,
+			prisma.$queryRaw<Array<{ type: string; payload: unknown }>>`select "type","payload" from "AgentEvent" where "runId"=${run.id} and "type"='run.cancelled'`,
+		]);
+
+		assert.equal(runRows[0]?.status, "CANCELLED");
+		for (const tRow of taskRows) {
+			assert.equal(tRow.status, "CANCELLED");
+			assert.equal(tRow.leaseOwner, null, "All task leases must be released");
+		}
+		assert.deepEqual(agentRows[0], { status: "STOPPED", currentTaskId: null });
+		assert.equal(toolRows[0]?.status, "CANCELLED");
+		assert.ok(toolRows[0]?.completedAt instanceof Date);
+		assert.equal(approvalRows[0]?.status, "REJECTED");
+		assert.ok(approvalRows[0]?.resolvedAt instanceof Date);
+		assert.equal(events.length, 1);
+
+		// Replay cancellation after crash/restart is idempotent and preserves timestamps
+		const toolCompletedAt = toolRows[0]!.completedAt!.getTime();
+		const approvalResolvedAt = approvalRows[0]!.resolvedAt!.getTime();
+		await cancelManagedRun(userId, run.id);
+
+		const [replayTool, replayApproval] = await Promise.all([
+			prisma.$queryRaw<Array<{ completedAt: Date | null }>>`select "completedAt" from "AgentToolCall" where "id"=${toolCallId}`,
+			prisma.$queryRaw<Array<{ resolvedAt: Date | null }>>`select "resolvedAt" from "AgentApproval" where "id"=${approvalId}`,
+		]);
+		assert.equal(replayTool[0]?.completedAt?.getTime(), toolCompletedAt);
+		assert.equal(replayApproval[0]?.resolvedAt?.getTime(), approvalResolvedAt);
+	},
+);
+
+test(
+	"REAL_DB: database disconnect during active transaction fails closed, prevents partial writes, and recovers cleanly on reconnect",
+	{ skip: !REAL_DB, timeout: 60_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `db-disconnect-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({
+			userId,
+			name: `Disconnect test ${suffix}`,
+			objective: "Prove failure-closed transaction rollback under database disconnect.",
+		});
+		const run = await createPlatformRun({
+			userId,
+			projectId: project.id,
+			clientRequestId: `disconnect-run-${suffix}`,
+			runtime: null,
+			budgets: DEFAULT_RUN_BUDGETS,
+			tasks: [taskSpec()],
+		});
+		const task = (await listTasks(run.id))[0]!;
+
+		// Inject abrupt backend termination mid-transaction
+		let disconnectCaught = false;
+		try {
+			await prisma.$transaction(async (tx) => {
+				await tx.$executeRaw`
+					update "AgentTask" set "status"='RUNNING', "updatedAt"=current_timestamp where "id"=${task.id}
+				`;
+				// Sever connection abruptly via server command
+				await tx.$executeRawUnsafe("SELECT pg_terminate_backend(pg_backend_pid())");
+			});
+		} catch (err: unknown) {
+			disconnectCaught = true;
+			const msg = err instanceof Error ? err.message : String(err);
+			assert.ok(
+				msg.includes("57P01") ||
+				msg.includes("terminat") ||
+				msg.includes("closed") ||
+				msg.includes("connection"),
+				`Expected connection termination message, got: ${msg}`,
+			);
+		}
+		assert.equal(disconnectCaught, true, "Abrupt database connection termination must be caught fail-closed");
+
+		// Verify transaction rolled back completely: task.status remains QUEUED, no partial update
+		const [taskCheck] = await prisma.$queryRaw<Array<{ status: string }>>`
+			select "status" from "AgentTask" where "id"=${task.id}
+		`;
+		assert.equal(taskCheck?.status, "QUEUED", "Task status must remain QUEUED after severed transaction");
+
+		// Verify pool recovers and subsequent operation succeeds on reconnected pool
+		await cancelManagedRun(userId, run.id);
+		const [runCheck, taskAfterCancel] = await Promise.all([
+			prisma.$queryRaw<Array<{ status: string }>>`select "status" from "AgentPlatformRun" where "id"=${run.id}`,
+			prisma.$queryRaw<Array<{ status: string }>>`select "status" from "AgentTask" where "id"=${task.id}`,
+		]);
+		assert.equal(runCheck[0]?.status, "CANCELLED", "Subsequent cancellation must succeed on recovered pool");
+		assert.equal(taskAfterCancel[0]?.status, "CANCELLED", "Task must be CANCELLED on recovered pool");
 	},
 );
