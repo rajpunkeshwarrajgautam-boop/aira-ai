@@ -12,6 +12,7 @@ import {
 	SafetyBlockedError,
 	SafetyGatewayError,
 } from "../safety/safety-gateway";
+import { getOmniRouteConfigOrDisabled } from "../omniroute/config";
 import {
 	getProviderHealthSnapshot,
 	providerCircuitAllowsRequest,
@@ -70,7 +71,7 @@ function enforceFinalPublicationBoundary(
 
 	candidate = sanitizeRemainingPublicationViolations(candidate, violations, messages);
 	violations = validatePublicationCandidate(candidate, messages);
-	if (violations.length > 0 || candidate.length < 80) {
+	if (violations.length > 0 || !candidate) {
 		throw new Error(
 			"AIRA publication boundary rejected unresolved verifier output: " +
 				formatPublicationViolations(violations).slice(0, 1200),
@@ -89,10 +90,15 @@ export class ProviderRouter {
 	private readonly registeredProviderIds = new Set<string>();
 	private readonly providerDefaultModels = new Map<string, string>();
 
+	private readonly primaryProviderId: string;
+	private readonly fallbackProviderId: string;
+
 	constructor(
-		private readonly primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "openai",
-		private readonly fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
+		primaryProviderId: string = process.env.DEFAULT_PRO_PROVIDER ?? "omniroute",
+		fallbackProviderId: string = process.env.DEFAULT_FREE_PROVIDER ?? "nvidia",
 	) {
+		this.primaryProviderId = primaryProviderId;
+		this.fallbackProviderId = fallbackProviderId;
 		this.primaryCore = new CoreProviderRouter(primaryProviderId, primaryProviderId);
 		if (fallbackProviderId !== primaryProviderId) {
 			this.fallbackCore = new CoreProviderRouter(fallbackProviderId, fallbackProviderId);
@@ -109,7 +115,7 @@ export class ProviderRouter {
 	static async createDefault(tier: ProviderAccessTier = "pro"): Promise<ProviderRouter> {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
-		const { SelfHostedProvider } = await import("./self-hosted-provider");
+		const { OmniRouteProvider } = await import("./omniroute-provider");
 		const providerRoute = resolveProviderRoute(tier);
 		const router = new ProviderRouter(
 			providerRoute.primaryProviderId,
@@ -122,15 +128,13 @@ export class ProviderRouter {
 		const nvidiaKey = process.env.NVIDIA_API_KEY;
 		if (nvidiaKey) router.registerProvider(new NVIDIAProvider(nvidiaKey));
 
-		const selfHostedBaseURL = process.env.SELF_HOSTED_LLM_BASE_URL?.trim();
-		const selfHostedApiKey = process.env.SELF_HOSTED_LLM_API_KEY?.trim();
-		const selfHostedModel = process.env.SELF_HOSTED_LLM_MODEL?.trim();
-		if (selfHostedBaseURL && selfHostedApiKey && selfHostedModel) {
+		const omniRoute = getOmniRouteConfigOrDisabled();
+		if (omniRoute.configured) {
 			router.registerProvider(
-				new SelfHostedProvider({
-					baseURL: selfHostedBaseURL,
-					apiKey: selfHostedApiKey,
-					model: selfHostedModel,
+				new OmniRouteProvider({
+					baseURL: omniRoute.baseURL,
+					apiKey: omniRoute.apiKey,
+					model: omniRoute.model,
 				}),
 			);
 		}

@@ -5,6 +5,10 @@ import {
 	getEffectiveEntitlements,
 	refundAgentRunQuota,
 } from "@/lib/billing/plan-enforcement";
+import {
+	recordRemoteAcceptedCheckpoint,
+	recoverRemoteExecutionIdFromCheckpoint,
+} from "@/lib/agents/run-checkpoints";
 import { classifyStaleRun } from "@/lib/agents/run-reconciliation";
 import { prisma } from "@/lib/prisma";
 
@@ -110,8 +114,10 @@ export async function submitAgentRun(options: {
 	readonly userId: string;
 	readonly clientRequestId: string;
 	readonly objective: string;
+	readonly billingMode?: "BILLABLE" | "DELEGATED";
 }): Promise<{ readonly run: AgentRunDto; readonly agentRunsRemaining: number }> {
 	const config = getAutoGptConfig();
+	const billable = options.billingMode !== "DELEGATED";
 	const existing = await prisma.agentRun.findUnique({
 		where: {
 			userId_clientRequestId: {
@@ -162,7 +168,9 @@ export async function submitAgentRun(options: {
 
 	let remaining: number;
 	try {
-		const entitlements = await consumeAgentRunQuota(options.userId);
+		const entitlements = billable
+			? await consumeAgentRunQuota(options.userId)
+			: await getEffectiveEntitlements(options.userId);
 		remaining = entitlements.agentRunsRemaining;
 	} catch (error) {
 		await prisma.agentRun.delete({ where: { id: pendingRun.id } }).catch(() => undefined);
@@ -183,16 +191,32 @@ export async function submitAgentRun(options: {
 			prisma.agentRun.update({
 				where: { id: pendingRun.id },
 				data: {
-					status: AgentRunStatus.FAILED,
+					status: outcomeUnknown ? AgentRunStatus.REVIEW : AgentRunStatus.FAILED,
 					errorMessage: outcomeUnknown
-						? "AutoGPT did not confirm whether it accepted this task. Aira did not retry it to avoid duplicate work."
+						? "AutoGPT did not confirm whether it accepted this task. Aira will not retry it automatically because duplicate remote work is possible."
 						: "AutoGPT could not accept this task.",
-					completedAt: new Date(),
+					completedAt: outcomeUnknown ? null : new Date(),
 				},
 			}),
-			...(outcomeUnknown ? [] : [refundAgentRunQuota(options.userId)]),
+			...(billable && !outcomeUnknown ? [refundAgentRunQuota(options.userId)] : []),
 		]);
 		throw error;
+	}
+
+	let checkpointSaved = false;
+	try {
+		await recordRemoteAcceptedCheckpoint({
+			runId: pendingRun.id,
+			provider: "AUTOGPT",
+			remoteExecutionId,
+			status: pendingRun.status,
+		});
+		checkpointSaved = true;
+	} catch (error) {
+		console.error("[agents:autogpt:checkpoint]", {
+			runId: pendingRun.id,
+			error: error instanceof Error ? error.message : "checkpoint persistence failed",
+		});
 	}
 
 	const persistRemoteId = () =>
@@ -205,10 +229,35 @@ export async function submitAgentRun(options: {
 	try {
 		submitted = await persistRemoteId();
 	} catch {
+		if (!checkpointSaved) {
+			try {
+				await recordRemoteAcceptedCheckpoint({
+					runId: pendingRun.id,
+					provider: "AUTOGPT",
+					remoteExecutionId,
+					status: pendingRun.status,
+				});
+				checkpointSaved = true;
+			} catch {
+				// The local row retry below is still safe and does not resubmit remote work.
+			}
+		}
 		// Retrying this local write is safe: the remote graph is not submitted again.
 		submitted = await persistRemoteId();
 	}
 	return { run: toAgentRunDto(submitted), agentRunsRemaining: remaining };
+}
+
+async function reviewUncertainAutoGptRun(runId: string, errorMessage: string): Promise<SelectedRun> {
+	return prisma.agentRun.update({
+		where: { id: runId },
+		data: {
+			status: AgentRunStatus.REVIEW,
+			errorMessage,
+			completedAt: null,
+		},
+		select: RUN_SELECT,
+	});
 }
 
 export async function refreshAgentRun(
@@ -223,32 +272,46 @@ export async function refreshAgentRun(
 		return toAgentRunDto(row);
 	}
 
+	const remoteExecutionId =
+		row.remoteExecutionId ??
+		(await recoverRemoteExecutionIdFromCheckpoint({
+			userId,
+			runId: row.id,
+			provider: "AUTOGPT",
+		}));
 	const stale = classifyStaleRun({
-		remoteExecutionId: row.remoteExecutionId,
+		remoteExecutionId,
 		createdAt: row.createdAt,
 	});
 	if (stale) {
-		const closed = await prisma.agentRun.update({
-			where: { id: row.id },
-			data: {
-				status: AgentRunStatus.FAILED,
-				errorMessage: stale.errorMessage,
-				completedAt: new Date(),
-			},
-			select: RUN_SELECT,
-		});
-		return toAgentRunDto(closed);
+		return toAgentRunDto(await reviewUncertainAutoGptRun(row.id, stale.errorMessage));
 	}
 
-	if (!row.remoteExecutionId) {
+	if (!remoteExecutionId) {
 		return toAgentRunDto(row);
 	}
-	if (Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) {
+	if (row.remoteExecutionId && Date.now() - row.updatedAt.getTime() < ACTIVE_SYNC_INTERVAL_MS) {
 		return toAgentRunDto(row);
 	}
 
 	const config = getAutoGptConfig();
-	const remote = await getAutoGptExecution(config, row.graphId, row.remoteExecutionId);
+	let remote: Awaited<ReturnType<typeof getAutoGptExecution>>;
+	try {
+		remote = await getAutoGptExecution(config, row.graphId, remoteExecutionId);
+	} catch (error) {
+		if (
+			error instanceof AutoGptRequestError &&
+			(error.code === "AUTOGPT_NOT_FOUND" || error.code === "AUTOGPT_TARGET_NOT_CONFIGURED")
+		) {
+			return toAgentRunDto(
+				await reviewUncertainAutoGptRun(
+					row.id,
+					"The AutoGPT execution that previously accepted this task can no longer be resolved. Its outcome is unknown, so AIRA requires review before any retry.",
+				),
+			);
+		}
+		throw error;
+	}
 	const status = statusFromProvider(remote.status);
 	const completedAt = isTerminal(status) ? row.completedAt ?? new Date() : null;
 	const storedOutput = safeStoredOutput(remote.output);

@@ -8,6 +8,7 @@ import {
 	listUserMemories,
 	setUserMemoryPinned,
 } from "@/lib/persistent-memory";
+import { validateMutationRequestIntegrity } from "@/lib/request-integrity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,10 @@ export async function GET(req: Request): Promise<Response> {
 export async function POST(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return unauthenticated();
+
+	const integrity = validateMutationRequestIntegrity(req);
+	if (!integrity.valid) return integrity.response!;
+
 	let body: unknown;
 	try {
 		body = await req.json();
@@ -83,6 +88,10 @@ export async function POST(req: Request): Promise<Response> {
 export async function PATCH(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return unauthenticated();
+
+	const integrity = validateMutationRequestIntegrity(req);
+	if (!integrity.valid) return integrity.response!;
+
 	let body: unknown;
 	try {
 		body = await req.json();
@@ -103,6 +112,10 @@ export async function PATCH(req: Request): Promise<Response> {
 export async function DELETE(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return unauthenticated();
+
+	const integrity = validateMutationRequestIntegrity(req);
+	if (!integrity.valid) return integrity.response!;
+
 	let body: unknown;
 	try {
 		body = await req.json();

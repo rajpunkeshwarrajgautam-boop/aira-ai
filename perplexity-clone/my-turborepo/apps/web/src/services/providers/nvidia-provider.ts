@@ -5,7 +5,12 @@ import type {
 } from "openai/resources/chat/completions";
 import type { AIProvider, ProviderOptions } from "./provider-router";
 
-const DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
+/**
+ * The model NVIDIA actually serves by default. Exported so that surfaces which
+ * must *name* the model before calling it (provider pickers, status readouts)
+ * cannot drift from the model the provider will really use.
+ */
+export const DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
 const DEFAULT_NVIDIA_FALLBACK_MODELS = [
 	"meta/llama-3.3-70b-instruct",
 	"minimaxai/minimax-m3",
@@ -45,12 +50,14 @@ function configuredFallbackModels(): readonly string[] {
 
 export class NVIDIAProvider implements AIProvider {
 	readonly providerId = "nvidia";
+	readonly defaultModel: string;
 	private readonly client: OpenAI;
 
 	constructor(
 		apiKey: string,
-		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
+		defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
 	) {
+		this.defaultModel = defaultModel;
 		this.client = new OpenAI({
 			apiKey,
 			baseURL: "https://integrate.api.nvidia.com/v1",

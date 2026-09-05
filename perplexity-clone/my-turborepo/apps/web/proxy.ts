@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextMiddleware, type NextRequest } from "next/server";
 
 import { authConfig } from "./auth.config";
 
@@ -30,7 +30,7 @@ function jsonUnauthorized(): NextResponse {
 	);
 }
 
-export default auth((req) => {
+const authenticatedProxy = auth((req) => {
 	const { pathname } = req.nextUrl;
 	const canonicalOrigin = canonicalProductionOrigin();
 	const acceptsHtml = req.headers.get("accept")?.includes("text/html") ?? false;
@@ -123,6 +123,10 @@ export default auth((req) => {
 
 	return NextResponse.next();
 });
+
+export default function proxy(req: NextRequest, event: NextFetchEvent) {
+	return (authenticatedProxy as unknown as NextMiddleware)(req, event);
+}
 
 export const config = {
 	matcher: [

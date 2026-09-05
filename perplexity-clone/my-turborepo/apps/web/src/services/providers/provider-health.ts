@@ -41,7 +41,27 @@ function getStatus(error: unknown): number | undefined {
 }
 
 function message(error: unknown): string {
-	return (error instanceof Error ? error.message : String(error)).toLowerCase();
+	const parts: string[] = [];
+	const seen = new Set<unknown>();
+	let current: unknown = error;
+
+	for (let depth = 0; current !== undefined && current !== null && depth < 5; depth += 1) {
+		if (seen.has(current)) break;
+		seen.add(current);
+
+		if (current instanceof Error) {
+			parts.push(current.message);
+		} else if (typeof current === "string") {
+			parts.push(current);
+		}
+
+		if (typeof current !== "object") break;
+		const record = current as { readonly cause?: unknown; readonly code?: unknown };
+		if (typeof record.code === "string") parts.push(record.code);
+		current = record.cause;
+	}
+
+	return parts.join(" ").toLowerCase();
 }
 
 export type ProviderFailureClass = "transient" | "quota" | "configuration" | "content" | "fatal";

@@ -1,10 +1,16 @@
 import { auth } from "@/auth";
+import { getAgentRuntime } from "@/lib/agent-runtime/registry";
+import { AgentRuntimeError } from "@/lib/agent-runtime/types";
+import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
+import {
+	agentRunStatusToStepStatus,
+	recordAgentRunStepBestEffort,
+} from "@/lib/agents/run-steps";
 import { AutoGptRequestError } from "@/lib/autogpt/client";
 import { AutoGptConfigError } from "@/lib/autogpt/config";
-import { getAgentRun, refreshAgentRun } from "@/lib/autogpt/runs";
+import { getAgentRun } from "@/lib/autogpt/runs";
 import { DeerFlowRequestError } from "@/lib/deerflow/client";
 import { DeerFlowConfigError } from "@/lib/deerflow/config";
-import { refreshDeerFlowAgentRun } from "@/lib/deerflow/runs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +22,30 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 		...init,
 		headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) },
 	});
+}
+
+function runtimeLabel(provider: string): string {
+	if (provider === "DEERFLOW") return "DeerFlow 2.0";
+	if (provider === "AUTOGPT") return "AutoGPT";
+	if (provider === "AGENT_SWARM") return "Agent Swarm";
+	return provider;
+}
+
+function statusMessage(status: string): string {
+	switch (status) {
+		case "RUNNING":
+			return "The autonomous runtime started executing this task.";
+		case "REVIEW":
+			return "The runtime paused this task for review.";
+		case "COMPLETED":
+			return "The autonomous task completed successfully.";
+		case "TERMINATED":
+			return "The autonomous task stopped before completion.";
+		case "FAILED":
+			return "The autonomous runtime reported that this task failed.";
+		default:
+			return "The task is queued for autonomous execution.";
+	}
 }
 
 export async function GET(_: Request, { params }: Params): Promise<Response> {
@@ -35,18 +65,39 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 				{ status: 404 },
 			);
 		}
-		const run = cached.provider === "DEERFLOW"
-			? await refreshDeerFlowAgentRun(session.user.id, runId)
-			: await refreshAgentRun(session.user.id, runId);
+		const selectedRuntime = getAgentRuntime(cached.provider);
+		const run = await selectedRuntime.refreshRun(session.user.id, runId);
 		if (!run) {
 			return noStoreJson(
 				{ error: { code: "NOT_FOUND", message: "Agent task not found." } },
 				{ status: 404 },
 			);
 		}
+
+		if (run.status !== cached.status) {
+			await Promise.all([
+				recordAgentRunEventBestEffort({
+					runId: run.id,
+					eventKey: `status:${run.status}`,
+					type: "STATUS_CHANGED",
+					status: run.status,
+					message: statusMessage(run.status),
+					metadata: { provider: run.provider },
+				}),
+				recordAgentRunStepBestEffort({
+					runId: run.id,
+					stepKey: "provider-execution",
+					type: "PROVIDER_EXECUTION",
+					label: `${runtimeLabel(run.provider)} execution`,
+					status: agentRunStatusToStepStatus(run.status),
+				}),
+			]);
+		}
+
 		return noStoreJson({ run });
 	} catch (error) {
 		if (
+			error instanceof AgentRuntimeError ||
 			error instanceof DeerFlowRequestError ||
 			error instanceof DeerFlowConfigError ||
 			error instanceof AutoGptRequestError ||
@@ -59,6 +110,15 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 					{ status: 404 },
 				);
 			}
+			const hourBucket = Math.floor(Date.now() / 3_600_000);
+			await recordAgentRunEventBestEffort({
+				runId: cached.id,
+				eventKey: `sync-warning:${hourBucket}`,
+				type: "SYNC_WARNING",
+				status: cached.status,
+				message: "Live runtime status was temporarily unavailable; AIRA kept the last verified state and will retry.",
+				metadata: { provider: cached.provider },
+			});
 			return noStoreJson({
 				run: cached,
 				syncWarning: "Live status is temporarily unavailable. AIRA will retry automatically.",

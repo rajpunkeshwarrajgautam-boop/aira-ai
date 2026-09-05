@@ -1,25 +1,27 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
-import { AutoGptRequestError } from "@/lib/autogpt/client";
+import { recordAgentRunEventBestEffort } from "@/lib/agents/run-events";
 import {
-	AutoGptConfigError,
-	isAutoGptConfigured,
-	isAutoGptEnabled,
-} from "@/lib/autogpt/config";
-import { listAgentRuns, submitAgentRun } from "@/lib/autogpt/runs";
+	agentRunStatusToStepStatus,
+	recordAgentRunStepBestEffort,
+} from "@/lib/agents/run-steps";
+import {
+	getAgentRuntimeStates,
+	runtimeStatesById,
+	selectAgentRuntime,
+} from "@/lib/agent-runtime/registry";
+import { parseRuntimePriority, selectRuntimeId } from "@/lib/agent-runtime/selection";
+import { AgentRuntimeError, type AgentRuntimeId } from "@/lib/agent-runtime/types";
+import { AutoGptRequestError } from "@/lib/autogpt/client";
+import { AutoGptConfigError } from "@/lib/autogpt/config";
+import { listAgentRuns } from "@/lib/autogpt/runs";
 import {
 	getEffectiveEntitlements,
 	PlanEnforcementError,
 } from "@/lib/billing/plan-enforcement";
-import { checkDeerFlowHealth, DeerFlowRequestError } from "@/lib/deerflow/client";
-import {
-	DeerFlowConfigError,
-	getDeerFlowConfig,
-	isDeerFlowConfigured,
-	isDeerFlowEnabled,
-} from "@/lib/deerflow/config";
-import { submitDeerFlowAgentRun } from "@/lib/deerflow/runs";
+import { DeerFlowRequestError } from "@/lib/deerflow/client";
+import { DeerFlowConfigError } from "@/lib/deerflow/config";
 import {
 	admitFoundationRequest,
 	releaseFoundationLease,
@@ -33,12 +35,10 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type AgentProvider = "DEERFLOW" | "AUTOGPT";
-
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(4_000),
-	provider: z.enum(["DEERFLOW", "AUTOGPT"]).optional(),
+	provider: z.enum(["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
 });
 
 function noStoreJson(body: unknown, init?: ResponseInit): Response {
@@ -47,64 +47,11 @@ function noStoreJson(body: unknown, init?: ResponseInit): Response {
 	return Response.json(body, { ...init, headers });
 }
 
-function configuredProviderState() {
-	return {
-		deerFlow: {
-			enabled: isDeerFlowEnabled(),
-			configured: isDeerFlowConfigured(),
-		},
-		autoGpt: {
-			enabled: isAutoGptEnabled(),
-			configured: isAutoGptConfigured(),
-		},
-	};
-}
-
-async function deerFlowHealthy(configured: boolean): Promise<boolean> {
-	if (!configured) return false;
-	try {
-		return await checkDeerFlowHealth(getDeerFlowConfig());
-	} catch {
-		return false;
-	}
-}
-
-async function selectProvider(requested?: AgentProvider): Promise<AgentProvider> {
-	const state = configuredProviderState();
-	if (requested === "DEERFLOW") {
-		if (!state.deerFlow.configured) {
-			throw new DeerFlowConfigError("DeerFlow is not configured for this AIRA deployment.");
-		}
-		if (!(await deerFlowHealthy(true))) {
-			throw new DeerFlowRequestError({
-				code: "DEERFLOW_UNHEALTHY",
-				message: "The DeerFlow SuperAgent runtime is temporarily unavailable.",
-				status: 503,
-				retryable: true,
-			});
-		}
-		return "DEERFLOW";
-	}
-	if (requested === "AUTOGPT") {
-		if (!state.autoGpt.configured) {
-			throw new AutoGptConfigError("AutoGPT is not configured for this AIRA deployment.");
-		}
-		return "AUTOGPT";
-	}
-
-	// DeerFlow is AIRA's preferred long-horizon engine, but a failed health probe
-	// must not strand the workspace when the already-hardened AutoGPT fallback is configured.
-	if (state.deerFlow.configured && (await deerFlowHealthy(true))) return "DEERFLOW";
-	if (state.autoGpt.configured) return "AUTOGPT";
-	if (state.deerFlow.configured) {
-		throw new DeerFlowRequestError({
-			code: "DEERFLOW_UNHEALTHY",
-			message: "The DeerFlow SuperAgent runtime is temporarily unavailable.",
-			status: 503,
-			retryable: true,
-		});
-	}
-	throw new DeerFlowConfigError("No autonomous agent runtime is configured.");
+function runtimeLabel(provider: string): string {
+	if (provider === "DEERFLOW") return "DeerFlow 2.0";
+	if (provider === "AUTOGPT") return "AutoGPT";
+	if (provider === "AGENT_SWARM") return "Agent Swarm";
+	return provider;
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -117,30 +64,28 @@ export async function GET(req: Request): Promise<Response> {
 	}
 	const requestedLimit = Number(new URL(req.url).searchParams.get("limit") ?? "20");
 	const limit = Number.isFinite(requestedLimit) ? requestedLimit : 20;
-	const configured = configuredProviderState();
-	const [runs, entitlements, deerFlowIsHealthy] = await Promise.all([
+	const [runs, entitlements, states] = await Promise.all([
 		listAgentRuns(session.user.id, limit),
 		getEffectiveEntitlements(session.user.id),
-		deerFlowHealthy(configured.deerFlow.configured),
+		getAgentRuntimeStates(),
 	]);
-	const deerFlowReady = configured.deerFlow.configured && deerFlowIsHealthy;
-	const autoGptReady = configured.autoGpt.configured;
-	const preferredProvider: AgentProvider | null = deerFlowReady
-		? "DEERFLOW"
-		: autoGptReady
-			? "AUTOGPT"
-			: null;
+	let preferredProvider: AgentRuntimeId | null = null;
+	try {
+		preferredProvider = selectRuntimeId({
+			states,
+			priority: parseRuntimePriority(process.env.AIRA_AGENT_RUNTIME_PRIORITY),
+		});
+	} catch {
+		preferredProvider = null;
+	}
 	return noStoreJson({
 		runs,
 		feature: {
-			enabled: configured.deerFlow.enabled || configured.autoGpt.enabled,
-			configured: configured.deerFlow.configured || configured.autoGpt.configured,
-			ready: deerFlowReady || autoGptReady,
+			enabled: states.some((state) => state.enabled),
+			configured: states.some((state) => state.configured),
+			ready: states.some((state) => state.ready),
 			preferredProvider,
-			providers: {
-				DEERFLOW: { ...configured.deerFlow, healthy: deerFlowIsHealthy, ready: deerFlowReady },
-				AUTOGPT: { ...configured.autoGpt, healthy: null, ready: autoGptReady },
-			},
+			providers: runtimeStatesById(states),
 		},
 		usage: {
 			billingPlan: entitlements.billingPlan,
@@ -203,7 +148,7 @@ export async function POST(req: Request): Promise<Response> {
 
 	let leaseId: string | undefined;
 	try {
-		const provider = await selectProvider(parsed.data.provider);
+		const selectedRuntime = await selectAgentRuntime(parsed.data.provider as AgentRuntimeId | undefined);
 		const lease = await admitFoundationRequest({
 			requestId: parsed.data.clientRequestId,
 			kind: "agent",
@@ -224,17 +169,37 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		leaseId = lease.leaseId;
 
-		const submitted = provider === "DEERFLOW"
-			? await submitDeerFlowAgentRun({
-				userId: session.user.id,
-				clientRequestId: parsed.data.clientRequestId,
-				objective: parsed.data.objective,
-			})
-			: await submitAgentRun({
-				userId: session.user.id,
-				clientRequestId: parsed.data.clientRequestId,
-				objective: parsed.data.objective,
-			});
+		const submitted = await selectedRuntime.createRun({
+			userId: session.user.id,
+			clientRequestId: parsed.data.clientRequestId,
+			objective: parsed.data.objective,
+		});
+
+		await Promise.all([
+			recordAgentRunEventBestEffort({
+				runId: submitted.run.id,
+				eventKey: "submitted",
+				type: "SUBMITTED",
+				status: submitted.run.status,
+				message: `Task accepted by ${runtimeLabel(submitted.run.provider)}.`,
+				metadata: { provider: submitted.run.provider },
+			}),
+			recordAgentRunStepBestEffort({
+				runId: submitted.run.id,
+				stepKey: "provider-submission",
+				type: "PROVIDER_SUBMISSION",
+				label: `Submit task to ${runtimeLabel(submitted.run.provider)}`,
+				status: "COMPLETED",
+			}),
+			recordAgentRunStepBestEffort({
+				runId: submitted.run.id,
+				stepKey: "provider-execution",
+				type: "PROVIDER_EXECUTION",
+				label: `${runtimeLabel(submitted.run.provider)} execution`,
+				status: agentRunStatusToStepStatus(submitted.run.status),
+			}),
+		]);
+
 		return noStoreJson(submitted, { status: 202 });
 	} catch (error) {
 		if (error instanceof PlanEnforcementError) {
@@ -243,14 +208,15 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: error.status },
 			);
 		}
+		if (error instanceof AgentRuntimeError) {
+			return noStoreJson(
+				{ error: { code: error.code, message: error.message, retryable: error.retryable } },
+				{ status: error.status },
+			);
+		}
 		if (error instanceof DeerFlowConfigError || error instanceof AutoGptConfigError) {
 			return noStoreJson(
-				{
-					error: {
-						code: error.code,
-						message: "Autonomous agent tasks are not configured for this AIRA deployment.",
-					},
-				},
+				{ error: { code: error.code, message: "Autonomous agent tasks are not configured for this AIRA deployment." } },
 				{ status: 503 },
 			);
 		}

@@ -7,10 +7,11 @@ import {
   Brain,
   Columns2,
   Command,
-  Cpu,
   CreditCard,
   FolderOpen,
   Gauge,
+  Globe2,
+  Hammer,
   History,
   Menu,
   MonitorUp,
@@ -31,13 +32,15 @@ import { AiraLogo } from "./AiraLogo";
 const OPERATE_NAV = [
   { href: "/control-center", label: "Control Center", description: "System health and activity", icon: Gauge },
   { href: "/", label: "Research", description: "Ask, investigate, cite", icon: Search },
+  { href: "/build", label: "Build", description: "Plan, delegate and ship", icon: Hammer },
+  { href: "/browser", label: "Browser", description: "Operate and take control", icon: Globe2 },
   { href: "/runs", label: "Workflows", description: "Launch and monitor runs", icon: History },
   { href: "/agents", label: "Agents", description: "Design autonomous work", icon: Bot },
 ] as const;
 
 const INTELLIGENCE_NAV = [
   { href: "/compare", label: "Model Lab", description: "Compare models side by side", icon: Columns2 },
-  { href: "/local-ai", label: "Local Runtime", description: "Private llama.cpp worker", icon: Cpu },
+  { href: "/omniroute", label: "OmniRoute", description: "Smart multi-provider gateway", icon: Network },
   { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
 ] as const;
@@ -125,6 +128,8 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   const [filter, setFilter] = useState("");
   const [analyticsAdmin, setAnalyticsAdmin] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +192,31 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       setFilter("");
       return;
     }
-    requestAnimationFrame(() => inputRef.current?.focus());
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusFrame = requestAnimationFrame(() => inputRef.current?.focus());
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = paletteRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", trapFocus);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", trapFocus);
+      requestAnimationFrame(() => previouslyFocusedRef.current?.focus());
+    };
   }, [paletteOpen]);
 
   useEffect(() => {
@@ -264,7 +293,10 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
             </div>
           </div>
           <div className="aira-v2-topbar-actions">
-            <span className="aira-v2-grounded-status">AIRA workspace</span>
+            <span className="aira-v2-grounded-status">
+              <span className="aira-v2-status-dot" aria-hidden />
+              AIRA workspace
+            </span>
             <button
               type="button"
               className="aira-v2-topbar-command"
@@ -283,6 +315,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       {paletteOpen ? (
         <div className="aira-v2-palette-backdrop" role="presentation" onMouseDown={() => setPaletteOpen(false)}>
           <div
+            ref={paletteRef}
             className="aira-v2-palette"
             role="dialog"
             aria-modal="true"
@@ -295,7 +328,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
                 ref={inputRef}
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                placeholder="Search AIRA workspaces…"
+                placeholder="Search workspaces (Research, Build, Browser, OmniRoute, Agents…)"
                 aria-label="Filter destinations"
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && filteredCommands[0]) navigate(filteredCommands[0].href);
