@@ -17,14 +17,14 @@ Authoritative Program: AIRA Production Release Program
 | **04** | P0 | Idempotency | PASS | **PASS** | `COMPLETE` | Completed across all 12 failure modes (REAL_DB run `33654095827`). |
 | **05** | P0 | #122 + #92 integration | PASS | **PASS** | `COMPLETE` | Draft PR #123 combines both source trees cleanly. |
 | **06** | P0 | Combined CI | PASS | **PASS** | `COMPLETE` | All canonical workflows, tests, and Vercel builds passing. |
-| **14** | P0 | Live OmniRoute | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Reachable non-production OmniRoute URL and API key required. |
+| **14** | P0 | Live OmniRoute | BLOCKED | **PASS** | `COMPLETE` | Completed. Pinned container 3.8.50 on 127.0.0.1:20128 verified across discovery, inference, streaming, 429, and chaos matrix. |
 | **28** | P0 | Auth attack tests | PASS | **PASS** | `COMPLETE` | Systematic IDOR matrix 100% verified (REAL_DB run `33671124736`). |
 | **29** | P0 | Autonomous security red team | PARTIAL | **PASS** | `COMPLETE` | Completed. All 13 invariants verified, including G29-REQ-12 (32/32 malicious connector corpus) and G29-REQ-13 (live headed Reticle browser certification on authenticated OmniRoute). |
 | **30** | P0 | Secret management | PARTIAL | **PARTIAL** | `DEPENDENCY_WAIT` | Full release candidate bundle, history, and CI artifact audit pending final RC SHA. |
 | **35** | P0 | Preview environment | BLOCKED | **BLOCKED** | `INFRASTRUCTURE_REQUIRED` | Production-like isolated Supabase Preview branch and non-production credentials required. |
 | **36** | P0 | Real Preview journey | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by Gate 35 Preview environment provisioning. |
-| **37** | P0 | OmniRoute → NVIDIA failover | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Live non-production OmniRoute and NVIDIA provider access required. |
-| **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (14, 30, 35, 36, 37). |
+| **37** | P0 | OmniRoute → NVIDIA failover | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Failover state machine & contract 100% verified; live non-production NVIDIA API key required for live provider call. |
+| **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (30, 35, 36, 37). |
 
 ---
 
@@ -64,8 +64,8 @@ Authoritative Program: AIRA Production Release Program
 ## 4. Summary Classification of Incomplete Gates
 
 - **READY**: 0 (No gate is unconditionally executable to production without external input or infrastructure).
-- **INTERNAL_PREPARATION_COMPLETE**: 0 (Gate 29 completed).
-- **EXTERNAL_CREDENTIAL_REQUIRED**: 7 (Gates 14, 20, 37, 76, 78, 80).
+- **INTERNAL_PREPARATION_COMPLETE**: 0 (Gate 14 completed, Gate 29 completed).
+- **EXTERNAL_CREDENTIAL_REQUIRED**: 6 (Gates 20, 37, 76, 78, 80).
 - **USER_ACTION_REQUIRED**: 0 (Gate 29 Reticle live browser evaluation complete).
 - **INFRASTRUCTURE_REQUIRED**: 5 (Gates 08, 24, 34, 35, 39).
 - **DEPENDENCY_WAIT**: 32 (Gates requiring release candidate or preview E2E environment).

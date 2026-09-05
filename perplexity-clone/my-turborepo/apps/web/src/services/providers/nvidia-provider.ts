@@ -50,12 +50,14 @@ function configuredFallbackModels(): readonly string[] {
 
 export class NVIDIAProvider implements AIProvider {
 	readonly providerId = "nvidia";
+	readonly defaultModel: string;
 	private readonly client: OpenAI;
 
 	constructor(
 		apiKey: string,
-		readonly defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
+		defaultModel: string = process.env.NVIDIA_CHAT_MODEL ?? DEFAULT_NVIDIA_MODEL,
 	) {
+		this.defaultModel = defaultModel;
 		this.client = new OpenAI({
 			apiKey,
 			baseURL: "https://integrate.api.nvidia.com/v1",

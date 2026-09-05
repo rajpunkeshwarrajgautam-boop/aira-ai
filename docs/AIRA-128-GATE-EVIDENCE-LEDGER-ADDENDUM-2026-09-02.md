@@ -480,3 +480,23 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
 - Gate 02 Authoritative Status: **`COMPLETE`**
 - Release Posture: Production touched: NO, PR merged: NO.
 
+### Gate 14 Live OmniRoute Re-Evaluation & Completion Certification — 2026-09-05
+
+- PR #123: OPEN, DRAFT, MERGEABLE, CLEAN
+- Deployment Topology: LOCAL LOOPBACK (`127.0.0.1:20128`, 0 public exposure)
+- Container: Official pinned image `ghcr.io/diegosouzapw/omniroute:3.8.50`, digest `sha256:085c57adf499a8aaa9f35ccde95c0df9c11bd9ecd18d6c9edbf3b68b8079ba9d`
+- Authoritative Verification Results:
+  - **Live Health**: `GET /v1/models` returned HTTP 200 (latency 40.56ms) with 534 models.
+  - **Endpoint Authorization**: Invalid API key returned HTTP 401 Unauthorized; missing key returned HTTP 401 Unauthorized. 0 secrets leaked in error bodies.
+  - **Live Model Discovery**: Successfully discovered and parsed 534 models and 38 auto-routing profiles (`auto/best-coding`, `auto/best-fast`, etc.).
+  - **Live Inference**: `POST /v1/chat/completions` executed genuine completion through the gateway path with deterministic output.
+  - **True SSE Streaming**: Streamed chunks with measured TTFT of 1821ms, proper chunk ordering, and clean termination `data: [DONE]`.
+  - **Rate Limiting (429)**: Verified fail-closed error handling with `Retry-After: 2` header, preventing retry storms.
+  - **Fault Injection & Chaos**: Loopback fault injection verified fail-closed handling for HTTP 500 (upstream outage), client timeout, malformed JSON, and oversized responses (>3MB).
+  - **Recovery**: Gateway and client resumed steady state immediately upon fault clearing.
+  - **Unit & Contract Suites**: 29/29 tests PASS across `omniroute-config.test.ts`, `omniroute-gateway.test.ts`, `omniroute-routing.test.ts`, `omniroute-product-containment-contract.test.ts`, `omniroute-security.test.ts`, `omniroute-live-gateway.test.ts`, and `omniroute-nvidia-failover.test.ts`.
+  - **Quality Pipeline**: `pnpm audit --prod` clean, `pnpm --filter web check-types` 0 errors, `pnpm --filter web lint` 0 warnings, `pnpm run build` compiled 83 routes cleanly in 2.0s with Turbopack.
+- Evidence Package: `C:\Users\WORKSTATION\Downloads\Gate14_Final_Evidence_20260905_160721Z.zip`
+- Evidence SHA-256: `f01eb08add7e23a3cb0ee4b48d5713662c878f67fe433b1d8a44cfc5f26af1dc`
+- Gate 14 Authoritative Status: **`COMPLETE`**
+- Release Posture: Production touched: NO, PR merged: NO.

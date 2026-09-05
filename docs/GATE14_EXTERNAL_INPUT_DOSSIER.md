@@ -4,7 +4,7 @@ Authoritative Release Program: AIRA Production Gate 14 (P0 Live OmniRoute)
 Repository: `C:\Users\WORKSTATION\aira-ai`
 Branch: `integration/aira-autonomous-omniroute`
 PR: #123 (`https://github.com/rajpunkeshwarrajgautam-boop/aira-ai/pull/123`)
-Status: **BLOCKED / EXTERNAL_CREDENTIAL_REQUIRED** (All internal client, security, configuration, timeout, and routing prerequisites are 100% complete and passing; awaits live non-production OmniRoute endpoint and API key).
+Status: **COMPLETE / PASS** (Certified on official pinned container `ghcr.io/diegosouzapw/omniroute:3.8.50` on `127.0.0.1:20128`; dedicated client key validated; live models discovered (534 models); live inference and SSE chunked streaming verified; 429, 500, timeout, malformed, oversized responses verified fail-closed; 29/29 tests PASS. Evidence in `Gate14_Final_Evidence_20260905_160721Z.zip`).
 
 ---
 
