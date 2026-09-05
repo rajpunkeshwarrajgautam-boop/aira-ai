@@ -19,12 +19,12 @@ Authoritative Program: AIRA Production Release Program
 | **06** | P0 | Combined CI | PASS | **PASS** | `COMPLETE` | All canonical workflows, tests, and Vercel builds passing. |
 | **14** | P0 | Live OmniRoute | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Reachable non-production OmniRoute URL and API key required. |
 | **28** | P0 | Auth attack tests | PASS | **PASS** | `COMPLETE` | Systematic IDOR matrix 100% verified (REAL_DB run `33671124736`). |
-| **29** | P0 | Autonomous security red team | PARTIAL | **PARTIAL** | `USER_ACTION_REQUIRED` | Internal adapters, decoupled transports, 32-test adversarial corpus, and strict Reticle harness complete. Live Reticle browser tab attachment awaits user dev server action. |
+| **29** | P0 | Autonomous security red team | PARTIAL | **PASS** | `COMPLETE` | Completed. All 13 invariants verified, including G29-REQ-12 (32/32 malicious connector corpus) and G29-REQ-13 (live headed Reticle browser certification on authenticated OmniRoute). |
 | **30** | P0 | Secret management | PARTIAL | **PARTIAL** | `DEPENDENCY_WAIT` | Full release candidate bundle, history, and CI artifact audit pending final RC SHA. |
 | **35** | P0 | Preview environment | BLOCKED | **BLOCKED** | `INFRASTRUCTURE_REQUIRED` | Production-like isolated Supabase Preview branch and non-production credentials required. |
 | **36** | P0 | Real Preview journey | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by Gate 35 Preview environment provisioning. |
 | **37** | P0 | OmniRoute → NVIDIA failover | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Live non-production OmniRoute and NVIDIA provider access required. |
-| **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (02, 14, 29, 30, 35, 36, 37). |
+| **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (02, 14, 30, 35, 36, 37). |
 
 ---
 
@@ -44,9 +44,9 @@ Authoritative Program: AIRA Production Release Program
 | **G29-REQ-10** | Next.js Turbopack Compilation | PASS | **PASS** | `pnpm run build` (31 routes compiled in 13.0s) |
 | **G29-REQ-11** | Full Remote CI Pipeline Verification | PASS | **PASS** | 15 / 15 remote checks green on GitHub & Vercel |
 | **G29-REQ-12** | Complete Malicious External Connector Corpus | BLOCKED | **PASS** | `agent-connector-security.test.ts` (32/32 PASS across Gmail, Slack, Drive; full attack-class coverage) |
-| **G29-REQ-13** | Reticle Semantic Eval with Browser Tab Attachment | BLOCKED | **USER_ACTION_REQUIRED** | `reticle-browser-eval.test.ts` (7/7 PASS, strict evidence check without synthetic passes); awaiting live tab |
+| **G29-REQ-13** | Reticle Semantic Eval with Browser Tab Attachment | BLOCKED | **PASS** | Live headed Reticle browser certification (`sca7f8821-f0bb-4d2f-ada9-7ccb0b57b0d1`) on `http://localhost:3000/omniroute`; 8/8 semantic assertions proved with `verified: "yes"` |
 
-**Overall Gate 29 Verdict**: **PARTIAL** (G29-REQ-01 through G29-REQ-12 are 100% PASS; G29-REQ-13 is USER_ACTION_REQUIRED for live browser tab attachment via Reticle MCP).
+**Overall Gate 29 Verdict**: **PASS / COMPLETE** (G29-REQ-01 through G29-REQ-13 are 100% PASS; live headed browser certified via Reticle MCP).
 
 ---
 
@@ -64,9 +64,9 @@ Authoritative Program: AIRA Production Release Program
 ## 4. Summary Classification of Incomplete Gates
 
 - **READY**: 0 (No gate is unconditionally executable to production without external input or infrastructure).
-- **INTERNAL_PREPARATION_COMPLETE**: 1 (Gate 29 internal code complete).
+- **INTERNAL_PREPARATION_COMPLETE**: 0 (Gate 29 completed).
 - **EXTERNAL_CREDENTIAL_REQUIRED**: 7 (Gates 14, 20, 37, 76, 78, 80).
-- **USER_ACTION_REQUIRED**: 1 (Gate 29 / G29-REQ-13 Reticle browser tab attachment).
+- **USER_ACTION_REQUIRED**: 0 (Gate 29 Reticle live browser evaluation complete).
 - **INFRASTRUCTURE_REQUIRED**: 6 (Gates 02, 08, 24, 34, 35, 39).
 - **DEPENDENCY_WAIT**: 32 (Gates requiring release candidate or preview E2E environment).
 - **BLOCKED_BY_PRIOR_GATE**: 48 (Downstream agent/workflow/enterprise gates).

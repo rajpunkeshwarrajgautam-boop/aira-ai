@@ -418,3 +418,40 @@ Published commit `f7c67f6a62ec5b9c96bad3c0af2132e51f5e8f84` (`test(auth): expand
   - `SLACK_READY_FOR_CREDENTIALS = false` (live Web API client deferred to Gates 20/78; no credentials requested).
   - `RETICLE_READY_FOR_LIVE_ACTION = true` (MCP client available; awaits local tab attachment).
 - Gate 29 Authoritative Status: **PARTIAL** (G29-REQ-01 through G29-REQ-12 are 100% PASS; G29-REQ-13 awaits live headed-browser evaluation via Reticle MCP).
+
+### Gate 29 Live Reticle Semantic Certification & Gate 29 Completion — 2026-09-05
+
+- PR #123: OPEN, DRAFT, MERGEABLE, CLEAN
+- G29-REQ-13 Live Headed Reticle Evaluation: **PASS (8/8 Proved Assertions)**
+  - Local database unblocked via isolated Docker PostgreSQL container (`aira-gate29-postgres` running `pgvector/pgvector:pg16` on `127.0.0.1:5432`). All 22 Prisma migrations applied; Auth.js user authentication unblocked.
+  - Headed browser launched and authenticated via local GitHub OAuth provider flow.
+  - Reticle pairing token rotated cleanly and pairing WebSocket connected to live headed Microsoft Edge browser tab on `http://localhost:3000/omniroute`.
+  - Discovered live session `sca7f8821-f0bb-4d2f-ada9-7ccb0b57b0d1` (`http://localhost:3000/omniroute`, title `AiraAI — grounded answers with live citations`).
+  - Captured full 130-node semantic snapshot via `reticle_snapshot`.
+  - Executed 8 live semantic assertions via `reticle_assert`, all proved with `verified: "yes"` and genuine evidence:
+    1. `route` (pathname: `/omniroute`): `verified: "yes"` (decided by current-route)
+    2. `text` ("OmniRoute"): `verified: "yes"` (headings, paragraphs, env variable guides)
+    3. `button` ("Refresh gateway"): `verified: "yes"` (interactive control present and visible)
+    4. `textbox` ("Enter a test prompt"): `verified: "yes"` (prefilled prompt present and visible)
+    5. `button` ("Auto Balanced routing auto"): `verified: "yes"` (routing mode selector present and visible)
+    6. `heading` ("Automatic routing"): `verified: "yes"` (section heading verified)
+    7. `heading` ("Gateway status"): `verified: "yes"` (gateway telemetry section verified)
+    8. `heading` ("Model registry"): `verified: "yes"` (model inventory section verified)
+  - Zero synthetic passes, zero mock fallbacks, zero unobserved passes.
+- All 13 Gate 29 Invariants Satisfied:
+  - G29-REQ-01: Zero ESLint Warnings / Strict Typing (`pnpm --filter web lint` `--max-warnings 0`) — **PASS**
+  - G29-REQ-02: Deterministic P0 Security Red Team Policy (`agent-redteam-security.test.ts`, 15/15) — **PASS**
+  - G29-REQ-03: MCP Adapter Provenance & Redirect Confinement (`mcp-adapter.test.ts`, 6/6) — **PASS**
+  - G29-REQ-04: Memory Provenance & CSRF Request Integrity (`memory-provenance-gate29.test.ts`, 22/22) — **PASS**
+  - G29-REQ-05: Real Core Database Memory Isolation (`memory-api-route-real-core.test.ts`, 14/14) — **PASS**
+  - G29-REQ-06: Platform Route Runtime IDOR Boundaries (`agent-platform-route-runtime.test.ts`, 13/13) — **PASS**
+  - G29-REQ-07: OmniRoute Canonical Navigation Invariants (`omniroute-security.test.ts`, 26/26) — **PASS**
+  - G29-REQ-08: Windows Capability Limitation Isolation (3 symlink tests isolated to host NTFS) — **PASS**
+  - G29-REQ-09: Production Dependency Audit (`pnpm audit --prod`, 0 vulnerabilities) — **PASS**
+  - G29-REQ-10: Next.js Turbopack Compilation (`pnpm run build`, 31 routes compiled in 13.0s) — **PASS**
+  - G29-REQ-11: Full Remote CI Pipeline Verification (15/15 remote checks green on GitHub & Vercel) — **PASS**
+  - G29-REQ-12: Complete Malicious External Connector Corpus (`agent-connector-security.test.ts`, 32/32) — **PASS**
+  - G29-REQ-13: Reticle Semantic Eval with Browser Tab Attachment (Live Reticle MCP assertions 8/8) — **PASS**
+- Gate 29 Authoritative Status: **`COMPLETE`**
+- Release Posture: Production touched: NO, PR merged: NO.
+
