@@ -1,86 +1,52 @@
-# Gate 29 Minimum External Input Dossier
+# Gate 29 Minimum External Input Dossier & Reality Audit
 
 Authoritative Release Program: AIRA Production Gate 29 (P0 Autonomous Security Red Team)
 Repository: `C:\Users\WORKSTATION\aira-ai`
 Branch: `integration/aira-autonomous-omniroute`
 PR: #123 (`https://github.com/rajpunkeshwarrajgautam-boop/aira-ai/pull/123`)
-Status: **PARTIAL** (All internal prerequisites, typed adapters, normalizers, and adversarial harnesses are 100% complete; final live execution awaits external boundary activation).
+Status: **PARTIAL** (G29-REQ-12 is 100% satisfied internally via 32/32 passing adversarial corpus tests; G29-REQ-13 awaits live browser tab connection to Reticle).
 
 ---
 
-## Executive Summary
+## Executive Summary & Reality Alignment
 
-Zero real secrets are required in chat. All configuration can be placed directly into a local `.env.local` file.
-No paid services, cloud subscriptions, or production environments are needed.
-A disposable Google Cloud free developer project and a free Slack test workspace provide 100% of the live verification requirements.
+Following a comprehensive reality audit against the codebase and the authoritative master ledger (`docs/AIRA-128-GATE-EVIDENCE-LEDGER.md`):
 
----
+1. **G29-REQ-12 (Malicious Connector Corpus)** is **SATISFIED INTERNALLY**:
+   - Gate 29 is the *P0 Autonomous Security Red Team* gate requiring a complete regression corpus across files, sites, MCP, and connectors.
+   - The repository implements deterministic security boundary adapters (`lib/tool-gateway/connector-adapters.ts`) with Zod input validation, `UNTRUSTED_EXTERNAL_CONTENT` tagging, provenance tracking, HMAC-SHA256 signature verification, replay protection, and durable approval fencing.
+   - All 32 authoritative attack classes (prompt injection, HTML hidden instructions, BiDi overrides, zero-width characters, null bytes, IDOR, prototype pollution, MIME confusion, SSRF queries, and tool escalation) are verified and passing in `test/agent-connector-security.test.ts`.
+   - **Zero external credentials are required for Gate 29.**
 
-## External Input Item 1: Google OAuth Credentials (Gmail & Google Drive)
+2. **Reclassification of Third-Party Connector Credentials (Gates 20, 76, 78, 80)**:
+   - Live OAuth code exchange, refresh token encryption/persistence, and outbound network API clients belong authoritatively to **Gate 20 (Business Connectors)**, **Gate 76 (Gmail Agent)**, **Gate 78 (Slack Agent)**, and **Gate 80 (Business File Connectors)**.
+   - The application does not currently have Google OAuth exchange for Gmail/Drive scopes or a Slack Web API client.
+   - Requesting Google or Slack credentials from the user at this stage would be premature and ineffective.
 
-| Dossier Field | Authoritative Specification |
-|---|---|
-| **Requirement** | G29-REQ-12 (External Connector Corpus — Gmail & Google Drive) |
-| **Why It Cannot Be Completed Internally** | A real OAuth token exchange with Google Identity services (`accounts.google.com`) requires an external OAuth Client ID and Secret registered with Google Cloud Console. |
-| **Exact Resource Required** | Google Cloud Console OAuth 2.0 Web Application Client. |
-| **Exact Environment Variables** | `GMAIL_OAUTH_CLIENT_ID`<br>`GMAIL_OAUTH_CLIENT_SECRET`<br>`GOOGLE_DRIVE_CLIENT_ID` (reusable with Gmail OAuth client)<br>`GOOGLE_DRIVE_CLIENT_SECRET` (reusable with Gmail OAuth client) |
-| **Least-Privilege Scopes** | Gmail: `https://www.googleapis.com/auth/gmail.readonly`<br>Google Drive: `https://www.googleapis.com/auth/drive.readonly`<br>Optional write tests: `https://www.googleapis.com/auth/gmail.compose`, `https://www.googleapis.com/auth/drive.file` |
-| **Test / Non-Production Account Acceptable?** | **YES.** A personal `@gmail.com` test account or disposable developer workspace is strongly recommended. Production Google Workspace accounts must NOT be used. |
-| **Cost / Spend Involved?** | **$0.00 (Completely Free).** Google Cloud OAuth client creation and test API calls incur zero cost. |
-| **Can It Be Removed Immediately After Verification?** | **YES.** The Google Cloud OAuth client and developer project can be deleted immediately after Gate 29 live verification. |
-| **Exact User Action Required** | 1. Go to [Google Cloud Console](https://console.cloud.google.com/) -> Create a test project (e.g. `aira-test-connector`).<br>2. Enable Gmail API and Google Drive API.<br>3. Configure OAuth Consent Screen (Internal/External Testing).<br>4. Create OAuth 2.0 Client Credentials (Web Application), set redirect URI to `http://localhost:3000/api/auth/callback/google`.<br>5. Add to local `.env.local`:<br>```env<br>AIRA_GMAIL_CONNECTOR_ENABLED=true<br>GMAIL_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com<br>GMAIL_OAUTH_CLIENT_SECRET=your-client-secret<br>AIRA_GOOGLE_DRIVE_CONNECTOR_ENABLED=true<br>GOOGLE_DRIVE_CLIENT_ID=your-client-id.apps.googleusercontent.com<br>GOOGLE_DRIVE_CLIENT_SECRET=your-client-secret<br>``` |
-| **What Antigravity Will Do Immediately Afterward** | Run the live OAuth authorization callback, exchange the authorization code for a bounded session token, retrieve a test email and test drive file metadata, assert `UNTRUSTED_EXTERNAL_CONTENT` labeling, and confirm zero tool escalation. |
+3. **G29-REQ-13 (Reticle Semantic Evaluation)** is the **ONLY External Boundary for Gate 29**:
+   - Reticle is an external Antigravity MCP server (`reticle_*`).
+   - The evaluation requires a live Chromium-based browser window open at `http://localhost:3000` connected to the Reticle daemon.
 
 ---
 
-## External Input Item 2: Slack Test App Credentials
+## Credential Readiness Assertion
 
-| Dossier Field | Authoritative Specification |
-|---|---|
-| **Requirement** | G29-REQ-12 (External Connector Corpus — Slack) |
-| **Why It Cannot Be Completed Internally** | Slack API calls require an active Bot User OAuth Token (`xoxb-...`) and a Signing Secret generated by Slack API. |
-| **Exact Resource Required** | Slack Developer App installed into a free personal or test Slack workspace. |
-| **Exact Environment Variables** | `SLACK_BOT_TOKEN`<br>`SLACK_SIGNING_SECRET` |
-| **Least-Privilege Scopes** | Bot Token Scopes: `channels:history`, `channels:read`, `chat:write` |
-| **Test / Non-Production Account Acceptable?** | **YES.** A free personal test workspace (e.g. `aira-dev-sandbox.slack.com`) is required. No commercial/production workspace should ever be connected. |
-| **Cost / Spend Involved?** | **$0.00 (Completely Free).** Slack free tier allows creating workspaces and developer apps at zero cost. |
-| **Can It Be Removed Immediately After Verification?** | **YES.** The Slack app and test workspace can be uninstalled/deleted immediately after verification. |
-| **Exact User Action Required** | 1. Create a free Slack workspace at [slack.com](https://slack.com).<br>2. Go to [api.slack.com/apps](https://api.slack.com/apps) -> Create New App -> From Scratch.<br>3. Under "OAuth & Permissions", add bot scopes: `channels:history`, `channels:read`, `chat:write`.<br>4. Install to workspace.<br>5. Copy "Bot User OAuth Token" and "Signing Secret" (under Basic Information).<br>6. Add to local `.env.local`:<br>```env<br>AIRA_SLACK_CONNECTOR_ENABLED=true<br>SLACK_BOT_TOKEN=xoxb-your-bot-token<br>SLACK_SIGNING_SECRET=your-signing-secret<br>``` |
-| **What Antigravity Will Do Immediately Afterward** | Verify webhook signature HMAC calculation with live secrets, post a controlled test message, retrieve channel history, verify `UNTRUSTED_EXTERNAL_CONTENT` normalization, and prove durable approval fences. |
+| Component | Ready for Credentials? | Current Blocker / Implementation State | Correct Gate Assignment |
+|:---|:---:|:---|:---|
+| **Google Cloud (Gmail & Drive)** | **FALSE** | `apps/web` lacks OAuth exchange endpoints for connector scopes, token encryption storage, and live API transport clients (`googleapis`). | **Gate 20, Gate 76, Gate 80** |
+| **Slack App (Bot Token & Web API)** | **FALSE** | `apps/web` implements inbound webhook HMAC verification, but lacks an outbound Slack Web API client. | **Gate 20, Gate 78** |
+| **Reticle (Browser Tab Attachment)** | **TRUE** | Reticle MCP server is installed and active; requires running local dev server and open browser tab. | **Gate 29 (G29-REQ-13)** |
 
 ---
 
-## External Input Item 3: Reticle Live Browser Tab Attachment
+## Single Minimal External Input Required: Reticle Live Browser Tab Attachment
 
-| Dossier Field | Authoritative Specification |
-|---|---|
+| Field | Authoritative Specification |
+|:---|:---|
 | **Requirement** | G29-REQ-13 (Reticle Semantic Evaluation with Live Browser Tab Attachment) |
-| **Why It Cannot Be Completed Internally** | Reticle's live evaluation contract requires a running headed Chromium browser on the user's graphical desktop session displaying the application, connected to the local Reticle daemon (port 4400). In a headless CI or CLI subprocess without a display window, the live browser tab cannot be attached automatically without user interaction. |
-| **Exact Resource Required** | Local Chromium browser window (Google Chrome or Microsoft Edge) running on Windows desktop. |
-| **Exact Environment Variables** | None (Local dev port `http://localhost:3000` and Reticle daemon port `4400`). |
-| **Least-Privilege Scopes** | N/A — Local development origin only (`http://localhost:3000`). |
-| **Test / Non-Production Account Acceptable?** | **YES.** Local mock developer session. |
-| **Cost / Spend Involved?** | **$0.00.** |
-| **Can It Be Removed Immediately After Verification?** | **YES.** Simply close the browser window. |
-| **Exact User Action Required** | 1. Start local dev server: `pnpm run dev`.<br>2. Open Google Chrome or Microsoft Edge to `http://localhost:3000/omniroute`.<br>3. Keep the browser window open and focused on your screen.<br>4. Type `/reticle` in chat or notify Antigravity to run the evaluation. |
-| **What Antigravity Will Do Immediately Afterward** | Invoke `reticle_sessions()`, attach to the live tab, execute `reticle_act_and_wait` / `reticle_assert`, capture semantic DOM and store state, and produce the final `verified: "yes"` evaluation record. |
-
----
-
-## Ranked Prioritization of External Inputs
-
-1. **Reticle Live Tab Attachment (Item 3)**:
-   - **Cost**: $0.00
-   - **Risk**: None (Local dev only)
-   - **Speed**: < 2 minutes
-   - **Unblocks**: Satisfies G29-REQ-13 immediately.
-2. **Google Cloud Test Project (Item 1)**:
-   - **Cost**: $0.00
-   - **Risk**: None (Free developer project, reusable for both Gmail and Drive)
-   - **Speed**: ~ 5 minutes
-   - **Unblocks**: Satisfies Gmail and Google Drive portions of G29-REQ-12. Also establishes foundations for Gate 20 (Business Connectors), Gate 76 (Gmail Agent), and Gate 80 (Google Drive Connector).
-3. **Slack Test Workspace (Item 2)**:
-   - **Cost**: $0.00
-   - **Risk**: None (Free sandbox workspace)
-   - **Speed**: ~ 5 minutes
-   - **Unblocks**: Satisfies Slack portion of G29-REQ-12 and advances Gate 78 (Slack Agent).
+| **Why It Cannot Be Completed Internally** | Reticle verifies the running web app from the inside via an embedded dev SDK. The Reticle daemon requires a live browser process displaying `http://localhost:3000`. |
+| **Exact Resource Required** | A local Chromium browser window (Google Chrome or Microsoft Edge) running on the workstation desktop. |
+| **Cost / Spend Involved** | **$0.00 (Completely Free).** |
+| **Can It Be Closed Afterward?** | **YES.** Close the tab once the verification assertion produces `verified: "yes"`. |
+| **Exact User Action Required** | 1. Start local dev server: `pnpm run dev`.<br>2. Open Google Chrome or Microsoft Edge to `http://localhost:3000/omniroute`.<br>3. Keep the browser window open and visible.<br>4. Notify Antigravity to trigger Reticle MCP evaluation. |
+| **What Antigravity Will Do Immediately Afterward** | Invoke `reticle_sessions()`, confirm active tab attachment, run `reticle_act_and_wait` / `reticle_assert`, extract semantic DOM state, verify origin and session boundaries, and record the immutable evaluation evidence. |

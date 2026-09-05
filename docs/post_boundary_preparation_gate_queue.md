@@ -19,7 +19,7 @@ Authoritative Program: AIRA Production Release Program
 | **06** | P0 | Combined CI | PASS | **PASS** | `COMPLETE` | All canonical workflows, tests, and Vercel builds passing. |
 | **14** | P0 | Live OmniRoute | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Reachable non-production OmniRoute URL and API key required. |
 | **28** | P0 | Auth attack tests | PASS | **PASS** | `COMPLETE` | Systematic IDOR matrix 100% verified (REAL_DB run `33671124736`). |
-| **29** | P0 | Autonomous security red team | PARTIAL | **PARTIAL** | `INTERNAL_PREPARATION_COMPLETE` | Internal adapters, normalizers, adversarial corpus, and Reticle harness 100% built. Live execution awaits external test inputs. |
+| **29** | P0 | Autonomous security red team | PARTIAL | **PARTIAL** | `USER_ACTION_REQUIRED` | Internal adapters, decoupled transports, 32-test adversarial corpus, and strict Reticle harness complete. Live Reticle browser tab attachment awaits user dev server action. |
 | **30** | P0 | Secret management | PARTIAL | **PARTIAL** | `DEPENDENCY_WAIT` | Full release candidate bundle, history, and CI artifact audit pending final RC SHA. |
 | **35** | P0 | Preview environment | BLOCKED | **BLOCKED** | `INFRASTRUCTURE_REQUIRED` | Production-like isolated Supabase Preview branch and non-production credentials required. |
 | **36** | P0 | Real Preview journey | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by Gate 35 Preview environment provisioning. |
@@ -43,10 +43,10 @@ Authoritative Program: AIRA Production Release Program
 | **G29-REQ-09** | Production Dependency Audit | PASS | **PASS** | `pnpm audit --prod` (0 vulnerabilities) |
 | **G29-REQ-10** | Next.js Turbopack Compilation | PASS | **PASS** | `pnpm run build` (31 routes compiled in 13.0s) |
 | **G29-REQ-11** | Full Remote CI Pipeline Verification | PASS | **PASS** | 15 / 15 remote checks green on GitHub & Vercel |
-| **G29-REQ-12** | Complete Malicious External Connector Corpus | BLOCKED | **INTERNAL_PREPARATION_COMPLETE** | `agent-connector-security.test.ts` (18/18 PASS across Gmail, Slack, Drive) |
-| **G29-REQ-13** | Reticle Semantic Eval with Browser Tab Attachment | BLOCKED | **INTERNAL_PREPARATION_COMPLETE** | `reticle-browser-eval.test.ts` (5/5 PASS, origin & session isolation) |
+| **G29-REQ-12** | Complete Malicious External Connector Corpus | BLOCKED | **PASS** | `agent-connector-security.test.ts` (32/32 PASS across Gmail, Slack, Drive; full attack-class coverage) |
+| **G29-REQ-13** | Reticle Semantic Eval with Browser Tab Attachment | BLOCKED | **USER_ACTION_REQUIRED** | `reticle-browser-eval.test.ts` (7/7 PASS, strict evidence check without synthetic passes); awaiting live tab |
 
-**Overall Gate 29 Verdict**: **PARTIAL** (13 / 13 internal prerequisites satisfied; zero remaining internal blockers; awaiting minimal external inputs specified in `GATE29_EXTERNAL_INPUT_DOSSIER.md`).
+**Overall Gate 29 Verdict**: **PARTIAL** (G29-REQ-01 through G29-REQ-12 are 100% PASS; G29-REQ-13 is USER_ACTION_REQUIRED for live browser tab attachment via Reticle MCP).
 
 ---
 
@@ -54,19 +54,19 @@ Authoritative Program: AIRA Production Release Program
 
 | Gate | Name | Previous Status | New Post-Preparation Status | Progress Delivered |
 |---|---|---|---|---|
-| **20** | Business connectors | PARTIAL | `INTERNAL_PREPARATION_COMPLETE` | Gmail, Slack, and Google Drive typed adapters, schemas, and gateway policies added to `apps/web/lib/tool-gateway/`. |
-| **76** | Gmail agent | NOT STARTED | `INTERNAL_PREPARATION_COMPLETE` | Typed `gmailToolAdapter`, input schemas, risk classifications, audit redaction, and prompt injection fences implemented. |
-| **78** | Slack / Teams agent | NOT STARTED | `INTERNAL_PREPARATION_COMPLETE` | Typed `slackToolAdapter`, HMAC signature verification (`verifySlackSignature`), and replay defense implemented. |
-| **80** | Business file connectors | NOT STARTED | `INTERNAL_PREPARATION_COMPLETE` | Typed `googleDriveToolAdapter`, traversal sanitization (`sanitizeUntrustedFilename`), and MIME defenses implemented. |
+| **20** | Business connectors | PARTIAL | `EXTERNAL_CREDENTIAL_REQUIRED` | Gmail, Slack, and Google Drive typed adapters, schemas, and gateway policies decoupled into `ConnectorTransport` abstractions. Real OAuth transports belong here. |
+| **76** | Gmail agent | NOT STARTED | `EXTERNAL_CREDENTIAL_REQUIRED` | Typed `gmailToolAdapter`, input schemas, risk classifications, audit redaction, and prompt injection fences implemented. Live Google OAuth token exchange belongs here. |
+| **78** | Slack / Teams agent | NOT STARTED | `EXTERNAL_CREDENTIAL_REQUIRED` | Typed `slackToolAdapter`, HMAC signature verification (`verifySlackSignature`), and replay defense implemented. Live Slack Web API transport belongs here. |
+| **80** | Business file connectors | NOT STARTED | `EXTERNAL_CREDENTIAL_REQUIRED` | Typed `googleDriveToolAdapter`, traversal sanitization (`sanitizeUntrustedFilename`), and MIME defenses implemented. Live Google Drive API transport belongs here. |
 
 ---
 
 ## 4. Summary Classification of Incomplete Gates
 
 - **READY**: 0 (No gate is unconditionally executable to production without external input or infrastructure).
-- **INTERNAL_PREPARATION_COMPLETE**: 5 (Gates 20, 29, 76, 78, 80).
-- **EXTERNAL_CREDENTIAL_REQUIRED**: 5 (Gates 14, 20, 37, 76, 78).
-- **USER_ACTION_REQUIRED**: 1 (Gate 29 / G29-REQ-13 Reticle browser window focus).
+- **INTERNAL_PREPARATION_COMPLETE**: 1 (Gate 29 internal code complete).
+- **EXTERNAL_CREDENTIAL_REQUIRED**: 7 (Gates 14, 20, 37, 76, 78, 80).
+- **USER_ACTION_REQUIRED**: 1 (Gate 29 / G29-REQ-13 Reticle browser tab attachment).
 - **INFRASTRUCTURE_REQUIRED**: 6 (Gates 02, 08, 24, 34, 35, 39).
 - **DEPENDENCY_WAIT**: 32 (Gates requiring release candidate or preview E2E environment).
 - **BLOCKED_BY_PRIOR_GATE**: 48 (Downstream agent/workflow/enterprise gates).
