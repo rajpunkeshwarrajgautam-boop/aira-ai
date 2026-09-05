@@ -69,7 +69,7 @@ export function evaluateSemanticSession(
 	session: ReticleSession,
 	options: ReticleEvaluationOptions,
 	predicates: readonly ReticlePredicate[],
-	mockState?: Record<string, unknown>,
+	observedState?: Record<string, unknown>,
 ): ReticleEvaluationVerdict {
 	const startTime = Date.now();
 
@@ -101,22 +101,52 @@ export function evaluateSemanticSession(
 		{ kind: "tab_attachment", passed: true, details: `Attached to live session ${session.sessionId}` },
 	];
 
+	let hasMissingEvidence = false;
+
 	for (const pred of predicates) {
 		if (pred.predicateFn) {
-			const passed = pred.predicateFn(mockState ?? {});
-			assertionResults.push({ kind: pred.kind, passed, details: `Custom predicate ${pred.kind}` });
+			const passed = pred.predicateFn(observedState ?? {});
+			assertionResults.push({ kind: pred.kind, passed, details: `Evaluated predicate ${pred.kind}` });
+		} else if (observedState) {
+			let passed = false;
+			let details = "";
+			if (pred.testid) {
+				passed = observedState[pred.testid] !== undefined && observedState[pred.testid] !== null;
+				details = `Observed testid "${pred.testid}": ${passed ? "present" : "absent"}`;
+			} else if (pred.selector) {
+				passed = observedState[pred.selector] !== undefined && observedState[pred.selector] !== null;
+				details = `Observed selector "${pred.selector}": ${passed ? "present" : "absent"}`;
+			} else if (pred.urlContains) {
+				const currentUrl = String(observedState.url ?? session.url);
+				passed = currentUrl.includes(pred.urlContains);
+				details = `Observed URL "${currentUrl}" contains "${pred.urlContains}": ${passed}`;
+			} else if (pred.status !== undefined) {
+				passed = observedState.status === pred.status;
+				details = `Observed status ${observedState.status} === expected ${pred.status}: ${passed}`;
+			} else {
+				passed = false;
+				details = `Predicate ${pred.kind} specifies no verifiable property in observed state`;
+			}
+			assertionResults.push({ kind: pred.kind, passed, details });
 		} else {
-			assertionResults.push({ kind: pred.kind, passed: true, details: `Verified predicate on ${pred.testid ?? pred.selector ?? "state"}` });
+			// No custom evaluator and no observed state: MUST NOT PASS SILENTLY
+			hasMissingEvidence = true;
+			assertionResults.push({
+				kind: pred.kind,
+				passed: false,
+				details: `No observed semantic state or evaluator provided for ${pred.kind} predicate (${pred.testid ?? pred.selector ?? "state"}). Cannot prove without evidence.`,
+			});
 		}
 	}
 
 	const allPassed = assertionResults.every((a) => a.passed);
 
 	return {
-		verified: allPassed ? "yes" : "no",
+		verified: allPassed ? "yes" : hasMissingEvidence ? "unknown" : "no",
 		flowName: options.flowName,
 		sessionId: session.sessionId,
 		durationMs: Date.now() - startTime,
 		assertions: assertionResults,
+		...(hasMissingEvidence ? { error: "Semantic evaluation could not be completed: missing live observed state." } : {}),
 	};
 }

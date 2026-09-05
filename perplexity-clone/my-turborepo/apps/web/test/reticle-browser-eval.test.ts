@@ -81,7 +81,12 @@ test("RETICLE HARNESS: Live headed browser tab executes semantic evaluation with
 			flowName: "omniroute_navigation_journey",
 		},
 		predicates,
-		{ activeModel: "nvidia/openai/gpt-oss-20b" },
+		{
+			"omniroute-workspace": true,
+			url: "http://localhost:3000/api/omniroute/models",
+			status: 200,
+			activeModel: "nvidia/openai/gpt-oss-20b",
+		},
 	);
 
 	assert.equal(verdict.verified, "yes");
@@ -138,4 +143,64 @@ test("RETICLE HARNESS: Unauthorized tab origin rejects with verified: 'no' and s
 
 	assert.equal(verdict.verified, "no");
 	assert.ok(verdict.error?.includes("Security boundary violation"));
+});
+
+test("REGRESSION: Predicate without observed semantic evidence returns verified: 'unknown' and prevents false positive PASS", () => {
+	const liveSession: ReticleSession = {
+		sessionId: "sess-live-tab-no-evidence",
+		url: "http://localhost:3000/omniroute",
+		title: "AIRA",
+		attachedAt: Date.now(),
+		isLiveTab: true,
+		origin: "http://localhost:3000",
+	};
+
+	// Predicates specified without observed state or evaluator
+	const predicates: ReticlePredicate[] = [
+		{ kind: "element", testid: "unverified-element" },
+	];
+
+	const verdict = evaluateSemanticSession(
+		liveSession,
+		{
+			targetUrl: "http://localhost:3000/omniroute",
+			allowedOrigins: ALLOWED_ORIGINS,
+			flowName: "unverified_evidence_check",
+		},
+		predicates,
+		// Omit observedState
+	);
+
+	assert.equal(verdict.verified, "unknown");
+	assert.equal(verdict.assertions.find((a) => a.kind === "element")?.passed, false);
+	assert.ok(verdict.error?.includes("missing live observed state"));
+});
+
+test("REGRESSION: Mismatched observed state evaluates to verified: 'no'", () => {
+	const liveSession: ReticleSession = {
+		sessionId: "sess-live-tab-mismatch",
+		url: "http://localhost:3000/omniroute",
+		title: "AIRA",
+		attachedAt: Date.now(),
+		isLiveTab: true,
+		origin: "http://localhost:3000",
+	};
+
+	const predicates: ReticlePredicate[] = [
+		{ kind: "net", urlContains: "/api/nonexistent", status: 200 },
+	];
+
+	const verdict = evaluateSemanticSession(
+		liveSession,
+		{
+			targetUrl: "http://localhost:3000/omniroute",
+			allowedOrigins: ALLOWED_ORIGINS,
+			flowName: "mismatched_state_check",
+		},
+		predicates,
+		{ url: "http://localhost:3000/api/other", status: 404 },
+	);
+
+	assert.equal(verdict.verified, "no");
+	assert.equal(verdict.assertions.find((a) => a.kind === "net")?.passed, false);
 });
