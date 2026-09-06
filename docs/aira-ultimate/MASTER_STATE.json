@@ -139,7 +139,7 @@
       "capability": "Real end-to-end missions",
       "wave": 7,
       "domain": "workflows",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Complete Preview dependencies."
       ],
@@ -150,8 +150,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -205,7 +208,7 @@
       "capability": "Multi-agent orchestration",
       "wave": 7,
       "domain": "workflows",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Runtime capacity in Preview."
       ],
@@ -216,8 +219,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -227,7 +233,7 @@
       "capability": "First-class swarm",
       "wave": 7,
       "domain": "workflows",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -238,8 +244,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -960,7 +969,7 @@
       "capability": "Outcome-based product",
       "wave": 7,
       "domain": "workflows",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 07",
         "20",
@@ -973,8 +982,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1427,7 +1439,7 @@
       "capability": "Council mode",
       "wave": 7,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Model capability router."
       ],
@@ -1438,8 +1450,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2850,7 +2865,7 @@
       "capability": "Outcome quality verifier",
       "wave": 7,
       "domain": "workflows",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Evaluation system."
       ],
@@ -2861,8 +2876,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2925,7 +2943,7 @@
       "capability": "Mission replay / debugger",
       "wave": 7,
       "domain": "workflows",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 125",
         "versioning."
@@ -2937,8 +2955,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2948,7 +2969,7 @@
       "capability": "Reproducible mission snapshot",
       "wave": 7,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 122",
         "126."
@@ -2960,8 +2981,11 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
       "blocker": null,
       "last_verified_sha": null
     },
