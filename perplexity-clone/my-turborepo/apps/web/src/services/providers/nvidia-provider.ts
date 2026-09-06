@@ -12,8 +12,9 @@ import type { AIProvider, ProviderOptions } from "./provider-router";
  */
 export const DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
 const DEFAULT_NVIDIA_FALLBACK_MODELS = [
-	"meta/llama-3.3-70b-instruct",
+	"meta/llama-3.2-11b-vision-instruct",
 	"minimaxai/minimax-m3",
+	"meta/llama-3.3-70b-instruct",
 ] as const;
 
 function getErrorStatus(error: unknown): number | undefined {
@@ -27,7 +28,7 @@ function getErrorStatus(error: unknown): number | undefined {
 
 function isModelAccessError(error: unknown): boolean {
 	const status = getErrorStatus(error);
-	if (status === 403 || status === 404) return true;
+	if (status === 403 || status === 404 || status === 410) return true;
 
 	const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
 	return (
@@ -61,6 +62,7 @@ export class NVIDIAProvider implements AIProvider {
 		this.client = new OpenAI({
 			apiKey,
 			baseURL: "https://integrate.api.nvidia.com/v1",
+			timeout: 30000,
 		});
 	}
 

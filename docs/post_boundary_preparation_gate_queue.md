@@ -23,7 +23,7 @@ Authoritative Program: AIRA Production Release Program
 | **30** | P0 | Secret management | PARTIAL | **PARTIAL** | `DEPENDENCY_WAIT` | Full release candidate bundle, history, and CI artifact audit pending final RC SHA. |
 | **35** | P0 | Preview environment | BLOCKED | **BLOCKED** | `INFRASTRUCTURE_REQUIRED` | Production-like isolated Supabase Preview branch and non-production credentials required. |
 | **36** | P0 | Real Preview journey | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by Gate 35 Preview environment provisioning. |
-| **37** | P0 | OmniRoute → NVIDIA failover | BLOCKED | **BLOCKED** | `EXTERNAL_CREDENTIAL_REQUIRED` | Failover state machine & contract 100% verified; live non-production NVIDIA API key required for live provider call. |
+| **37** | P0 | OmniRoute → NVIDIA failover | BLOCKED | **PASS** | `COMPLETE` | Completed. Real OmniRoute 3.8.50 on 127.0.0.1:20128 and real live NVIDIA NIM (meta/llama-3.2-11b-vision-instruct, 578ms) verified across 503, 429, timeout, econnrefused, and circuit-breaker open state matrix. Zero skips, zero failures. |
 | **48** | P0 | Release audit | BLOCKED | **BLOCKED** | `BLOCKED_BY_PRIOR_GATE` | Blocked by remaining P0 gates (30, 35, 36, 37). |
 
 ---
@@ -64,8 +64,8 @@ Authoritative Program: AIRA Production Release Program
 ## 4. Summary Classification of Incomplete Gates
 
 - **READY**: 0 (No gate is unconditionally executable to production without external input or infrastructure).
-- **INTERNAL_PREPARATION_COMPLETE**: 0 (Gate 14 completed, Gate 29 completed).
-- **EXTERNAL_CREDENTIAL_REQUIRED**: 6 (Gates 20, 37, 76, 78, 80).
+- **INTERNAL_PREPARATION_COMPLETE**: 0 (Gate 14 completed, Gate 29 completed, Gate 37 completed).
+- **EXTERNAL_CREDENTIAL_REQUIRED**: 5 (Gates 20, 76, 78, 80).
 - **USER_ACTION_REQUIRED**: 0 (Gate 29 Reticle live browser evaluation complete).
 - **INFRASTRUCTURE_REQUIRED**: 5 (Gates 08, 24, 34, 35, 39).
 - **DEPENDENCY_WAIT**: 32 (Gates requiring release candidate or preview E2E environment).

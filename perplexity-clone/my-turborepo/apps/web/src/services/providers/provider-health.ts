@@ -107,6 +107,7 @@ export function classifyProviderFailure(error: unknown): ProviderFailureClass {
 		text.includes("timeout") ||
 		text.includes("etimedout") ||
 		text.includes("econnreset") ||
+		text.includes("econnrefused") ||
 		text.includes("eai_again") ||
 		text.includes("network") ||
 		text.includes("socket") ||
