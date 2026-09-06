@@ -329,7 +329,7 @@
       "capability": "Routing economics",
       "wave": 10,
       "domain": "ai_routing",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Live provider access."
       ],
@@ -339,8 +339,10 @@
         "observability-sre"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -350,7 +352,7 @@
       "capability": "Intelligent router",
       "wave": 10,
       "domain": "ai_routing",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Live provider benchmark environment."
       ],
@@ -360,8 +362,10 @@
         "observability-sre"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2833,7 +2837,7 @@
       "capability": "Multimodal provider router",
       "wave": 10,
       "domain": "ai_routing",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Multimodal providers",
         "benchmarks."
@@ -2844,8 +2848,10 @@
         "observability-sre"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2868,9 +2874,9 @@
         "perplexity-clone/my-turborepo/apps/web/lib/contracts/model-registry.ts"
       ],
       "tests": [
-        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+        "apps/web/test/intelligent-router.test.ts"
       ],
-      "evidence": "ModelCapabilityRegistry records modalities, context windows, tools support, structured output, vision, cost per 1M tokens, benchmark quality score, and dynamic model query filtering.",
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2880,7 +2886,7 @@
       "capability": "Benchmark-based routing",
       "wave": 10,
       "domain": "ai_routing",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 44",
         "45",
@@ -2892,8 +2898,10 @@
         "observability-sre"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
       "blocker": null,
       "last_verified_sha": null
     },
