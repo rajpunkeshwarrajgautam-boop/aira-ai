@@ -10,7 +10,10 @@ export type ArtifactFormat =
 	| "DOCX_OUTLINE"
 	| "PPTX_DECK"
 	| "ZIP_METADATA"
-	| "IMAGE_METADATA";
+	| "IMAGE_METADATA"
+	| "DESIGN_SVG"
+	| "DESIGN_TOKENS"
+	| "MULTIMODAL_MEDIA";
 
 export interface ArtifactProvenance {
 	readonly runId: string;
@@ -160,6 +163,25 @@ export class ArtifactValidator {
 					}
 				} catch {
 					errors.push("DOCX_OUTLINE must be valid JSON document structure");
+				}
+				break;
+			}
+
+			case "DESIGN_SVG": {
+				if (!content.includes("<svg") || !content.includes("</svg>")) {
+					errors.push("DESIGN_SVG must contain valid root <svg> tags");
+				}
+				break;
+			}
+
+			case "DESIGN_TOKENS": {
+				try {
+					const tokens = JSON.parse(content);
+					if (typeof tokens !== "object" || tokens === null) {
+						errors.push("DESIGN_TOKENS must be a valid JSON dictionary of design tokens");
+					}
+				} catch {
+					errors.push("DESIGN_TOKENS must be valid JSON syntax");
 				}
 				break;
 			}

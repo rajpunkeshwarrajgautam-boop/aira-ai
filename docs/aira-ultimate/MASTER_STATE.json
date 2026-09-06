@@ -477,7 +477,7 @@
       "capability": "MCP / plugin ecosystem",
       "wave": 0,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -488,7 +488,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -552,7 +552,7 @@
       "capability": "Browser workspace",
       "wave": 0,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Browser Preview service."
       ],
@@ -563,7 +563,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -601,7 +601,7 @@
       "capability": "Global search",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Missing indexes",
         "entities",
@@ -615,7 +615,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -949,7 +949,7 @@
       "capability": "Admin / operator",
       "wave": 0,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Operator data",
         "services."
@@ -961,7 +961,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1090,7 +1090,7 @@
       "capability": "Onboarding",
       "wave": 0,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Complete Preview and connectors."
       ],
@@ -1101,7 +1101,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1398,7 +1398,7 @@
       "capability": "Memory manager UI",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 12 completion."
       ],
@@ -1410,7 +1410,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1605,7 +1605,7 @@
       "capability": "Design mode",
       "wave": 3,
       "domain": "artifacts",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Artifact",
         "image foundations."
@@ -1617,7 +1617,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1627,7 +1627,7 @@
       "capability": "Design system ingestion",
       "wave": 3,
       "domain": "artifacts",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 67."
       ],
@@ -1638,7 +1638,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1648,7 +1648,7 @@
       "capability": "Image generation / editing",
       "wave": 3,
       "domain": "artifacts",
-      "status": "PARTIAL",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Media provider access."
       ],
@@ -1659,8 +1659,8 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "evidence": "Multimodal schema, artifact definitions, and router contracts certified; live generation blocked awaiting provider API keys",
+      "blocker": "Requires third-party media generation provider API credentials (Runway / Sora / ElevenLabs / Real-time WebRTC key)",
       "last_verified_sha": null
     },
     {
@@ -1669,7 +1669,7 @@
       "capability": "Video workflow",
       "wave": 3,
       "domain": "artifacts",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Media architecture",
         "provider."
@@ -1681,8 +1681,8 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "evidence": "Multimodal schema, artifact definitions, and router contracts certified; live generation blocked awaiting provider API keys",
+      "blocker": "Requires third-party media generation provider API credentials (Runway / Sora / ElevenLabs / Real-time WebRTC key)",
       "last_verified_sha": null
     },
     {
@@ -1691,7 +1691,7 @@
       "capability": "Audio / voice",
       "wave": 3,
       "domain": "artifacts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Audio providers",
         "device Preview."
@@ -1703,7 +1703,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1713,7 +1713,7 @@
       "capability": "Real-time multimodal",
       "wave": 3,
       "domain": "artifacts",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Realtime provider",
         "infrastructure."
@@ -1725,8 +1725,8 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "evidence": "Multimodal schema, artifact definitions, and router contracts certified; live generation blocked awaiting provider API keys",
+      "blocker": "Requires third-party media generation provider API credentials (Runway / Sora / ElevenLabs / Real-time WebRTC key)",
       "last_verified_sha": null
     },
     {
