@@ -379,7 +379,7 @@
       "capability": "Tool Gateway",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Connector implementations."
       ],
@@ -388,9 +388,14 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/gateway.ts",
+        "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/policy.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/tool-gateway-policy.test.ts"
+      ],
+      "evidence": "Tool Gateway completed with dynamic tool permissions enforcement (evaluateToolPermission), always-denied protection, idempotency hashing, approval escalation, and runtime cost budget checks via globalCostControlEnforcer.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -685,7 +690,7 @@
       "capability": "Cost controls",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -694,9 +699,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/cost-controls.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "CostControlEnforcer tracks run-level costUsd, token counts, tool call counts, and duration with automated exhaustion threshold enforcement.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -859,7 +868,7 @@
       "capability": "Privacy / data lifecycle",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Missing entities",
         "connectors."
@@ -869,9 +878,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/data-lifecycle.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "DataLifecycleManager enforces retention policies (TEMPORARY 0d, SESSION 1d, 30d, 90d, INDEFINITE) and generates cryptographic SHA-256 deletion audit receipts for verifiable compliance.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1370,7 +1383,7 @@
       "capability": "Command registry",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -1379,9 +1392,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/commands/command-registry.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "Command registry updated with categories, semantic versioning, required permissions, and registered core commands including /build, /work, /research, /agent, /routine.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2356,7 +2373,7 @@
       "capability": "Per-tool permissions UI",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Connector",
         "tool registry completion."
@@ -2366,9 +2383,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/tool-permissions.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "ToolPermissionManager supports per-user, per-project, per-tool allow/ask/deny granular policy overrides with rule revocation.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2628,7 +2649,7 @@
       "capability": "Model capability registry",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Live discovery sources."
       ],
@@ -2637,9 +2658,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/model-registry.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "ModelCapabilityRegistry records modalities, context windows, tools support, structured output, vision, cost per 1M tokens, benchmark quality score, and dynamic model query filtering.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2694,7 +2719,7 @@
       "capability": "Deliverable contract",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Mission schema evolution."
       ],
@@ -2703,9 +2728,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/mission.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "Universal MissionInput, AcceptanceCriterion, Deliverable, and DeliverableValidation Zod schemas and TypeScript interfaces certified.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2783,7 +2812,7 @@
       "capability": "Prompt / policy version management",
       "wave": 1,
       "domain": "universal_contracts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Persistence",
         "evaluation schema."
@@ -2793,9 +2822,13 @@
         "api-designer",
         "typescript-strict"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/prompt-policy.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "PromptPolicyRegistry manages immutable versions, SHA-256 hashing, active status transitions, and audit trail rollbacks.",
       "blocker": null,
       "last_verified_sha": null
     },

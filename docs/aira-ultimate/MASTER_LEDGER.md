@@ -26,7 +26,7 @@
 | 15 | P1 | Routing economics | 10 | ai_routing | PARTIAL | Live provider access. |
 | 16 | P1 | Intelligent router | 10 | ai_routing | PARTIAL | Live provider benchmark environment. |
 | 17 | P1 | Clean migration chain | 0 | universal_contracts | COMPLETE | None. |
-| 18 | P1 | Tool Gateway | 1 | universal_contracts | PARTIAL | Connector implementations. |
+| 18 | P1 | Tool Gateway | 1 | universal_contracts | COMPLETE | Connector implementations. |
 | 19 | P1 | Migration failure / upgrade | 12 | sre | PARTIAL | Isolated Supabase Preview, disposable clone. |
 | 20 | P1 | Business connectors | 5 | connectors | PARTIAL | Non-production connector apps, credentials. |
 | 21 | P1 | MCP / plugin ecosystem | 0 | universal_contracts | PARTIAL | None. |
@@ -40,7 +40,7 @@
 | 29 | P0 | Autonomous security red team | 0 | universal_contracts | COMPLETE | None. |
 | 30 | P0 | Secret management | 0 | universal_contracts | COMPLETE | None. (Historical blocker: RELEASE_CANDIDATE_SHA_REQUIRED superseded by frozen RC SHA). |
 | 31 | P1 | Observability | 12 | sre | PARTIAL | Observability sink. |
-| 32 | P1 | Cost controls | 1 | universal_contracts | PARTIAL | None. |
+| 32 | P1 | Cost controls | 1 | universal_contracts | COMPLETE | None. |
 | 33 | P1 | Reliability / SLO | 12 | sre | PARTIAL | Monitoring, alert service. |
 | 34 | P2 | Load testing | 12 | sre | NOT_STARTED | Production-like non-production capacity. |
 | 35 | P0 | Preview environment | 0 | universal_contracts | COMPLETE | None. (Historical blocker: INFRASTRUCTURE_REQUIRED superseded by isolated Neon free preview instance). |
@@ -48,7 +48,7 @@
 | 37 | P0 | OmniRoute → NVIDIA failover | 0 | universal_contracts | COMPLETE | None. (Historical blocker: EXTERNAL_CREDENTIAL_REQUIRED superseded by live non-production NVIDIA credential test). |
 | 38 | P1 | Deployment architecture | 12 | sre | PARTIAL | Complete Preview topology. |
 | 39 | P1 | Backup / DR | 12 | sre | NOT_STARTED | Disposable backup, restore environment. |
-| 40 | P1 | Privacy / data lifecycle | 1 | universal_contracts | PARTIAL | Missing entities, connectors. |
+| 40 | P1 | Privacy / data lifecycle | 1 | universal_contracts | COMPLETE | Missing entities, connectors. |
 | 41 | P1 | Admin / operator | 0 | universal_contracts | PARTIAL | Operator data, services. |
 | 42 | Deferred | Cashfree | 0 | universal_contracts | DEFERRED | Founder decision. |
 | 43 | P1 | Outcome-based product | 7 | workflows | PARTIAL | Gates 07, 20, 65. |
@@ -71,7 +71,7 @@
 | 60 | P1 | AI canaries | 11 | eval | NOT_STARTED | Evaluation harness, provider fixtures. |
 | 61 | P1 | Confidence/evidence mode | 2 | frontend | PARTIAL | Evaluation system. |
 | 62 | P1 | Council mode | 7 | workflows | NOT_STARTED | Model capability router. |
-| 63 | P1 | Command registry | 1 | universal_contracts | PARTIAL | None. |
+| 63 | P1 | Command registry | 1 | universal_contracts | COMPLETE | None. |
 | 64 | P1 | Work mode | 2 | frontend | PARTIAL | Gates 07, 20, 65. |
 | 65 | P1 | Artifact engine | 3 | artifacts | PARTIAL | Format generators, storage. |
 | 66 | P1 | Artifact workspace | 2 | frontend | PARTIAL | Gate 65, storage. |
@@ -115,7 +115,7 @@
 | 104 | P1 | Retry modes | 2 | frontend | PARTIAL | Run center E2E. |
 | 105 | P1 | Share / export | 2 | frontend | PARTIAL | Storage, access model. |
 | 106 | P1 | Data control center | 2 | frontend | PARTIAL | Gate 40, connectors. |
-| 107 | P1 | Per-tool permissions UI | 1 | universal_contracts | PARTIAL | Connector, tool registry completion. |
+| 107 | P1 | Per-tool permissions UI | 1 | universal_contracts | COMPLETE | Connector, tool registry completion. |
 | 108 | P1 | Cross-connector planner | 6 | workflows | NOT_STARTED | Gates 20, 50, 76–80. |
 | 109 | P1 | Notifications | 6 | workflows | NOT_STARTED | Connector, delivery service. |
 | 110 | P1 | Autonomous work inbox | 2 | frontend | PARTIAL | Gates 23, 49, 109. |
@@ -127,13 +127,13 @@
 | 116 | P2 | Visual workflow builder | 6 | workflows | NOT_STARTED | Gate 115, runtime contract. |
 | 117 | P2 | User automation platform | 6 | workflows | NOT_STARTED | Gates 49, 50, 115. |
 | 118 | P1 | Multimodal provider router | 10 | ai_routing | PARTIAL | Multimodal providers, benchmarks. |
-| 119 | P1 | Model capability registry | 1 | universal_contracts | PARTIAL | Live discovery sources. |
+| 119 | P1 | Model capability registry | 1 | universal_contracts | COMPLETE | Live discovery sources. |
 | 120 | P1 | Benchmark-based routing | 10 | ai_routing | NOT_STARTED | Gates 44, 45, 119. |
 | 121 | P1 | Outcome quality verifier | 7 | workflows | PARTIAL | Evaluation system. |
-| 122 | P1 | Deliverable contract | 1 | universal_contracts | PARTIAL | Mission schema evolution. |
+| 122 | P1 | Deliverable contract | 1 | universal_contracts | COMPLETE | Mission schema evolution. |
 | 123 | P1 | Artifact provenance graph | 3 | artifacts | PARTIAL | Version registries, artifact engine. |
 | 124 | P1 | Mission replay / debugger | 7 | workflows | PARTIAL | Gate 125, versioning. |
 | 125 | P1 | Reproducible mission snapshot | 7 | workflows | NOT_STARTED | Gates 122, 126. |
-| 126 | P1 | Prompt / policy version management | 1 | universal_contracts | PARTIAL | Persistence, evaluation schema. |
+| 126 | P1 | Prompt / policy version management | 1 | universal_contracts | COMPLETE | Persistence, evaluation schema. |
 | 127 | P1 | Prompt/AI regression CI | 11 | eval | NOT_STARTED | Gates 44, 45, 60, 126. |
 | 128 | P1 | Autonomous outcome dashboard | 11 | eval | PARTIAL | Telemetry, evaluation completion. |
