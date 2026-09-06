@@ -416,6 +416,15 @@ export function WorkWorkspace() {
 										<div className="mt-2 flex justify-end">
 											<button
 												type="button"
+												onClick={() => {
+													const blob = new Blob([d.evidence ?? ""], { type: "text/plain" });
+													const url = URL.createObjectURL(blob);
+													const a = document.createElement("a");
+													a.href = url;
+													a.download = `${d.title.toLowerCase().replace(/\s+/g, "_")}_receipt.txt`;
+													a.click();
+													URL.revokeObjectURL(url);
+												}}
 												className="inline-flex items-center gap-1 rounded bg-white/[0.08] px-2.5 py-1 text-[11px] font-medium text-content-primary hover:bg-white/[0.15]"
 											>
 												<Download className="size-3" /> Download Artifact

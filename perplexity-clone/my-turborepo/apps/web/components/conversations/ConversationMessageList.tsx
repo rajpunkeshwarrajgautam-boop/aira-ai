@@ -573,7 +573,7 @@ export function ConversationMessageList({
 							<Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-lg px-1 py-2 transition hover:bg-white/[0.035]">
 								<span>
 									<strong className="block text-[11px] font-semibold text-content-primary">AIRA Auto</strong>
-									<small className="mt-0.5 block text-[9px] text-content-tertiary">Effort: {effort}</small>
+									<small className="mt-0.5 block text-[9px] text-content-tertiary">Provider routing follows workspace policy (Effort: {effort})</small>
 								</span>
 								<Network className="size-4 text-accent" strokeWidth={1.6} />
 							</Link>
