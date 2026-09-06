@@ -41,3 +41,4 @@ prisma-migrate-dev.js
 # Python test/build output
 __pycache__/
 *.py[cod]
+.neon
