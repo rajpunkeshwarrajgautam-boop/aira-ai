@@ -193,5 +193,8 @@ export const MissionInputSchema = z.object({
 	maxRiskClass: z.enum(["LOW", "MEDIUM", "HIGH", "PROTECTED"]).default("MEDIUM"),
 	privacyMode: z.enum(["STANDARD", "TEMPORARY", "STRICT_ISOLATED"]).default("STANDARD"),
 	preferredModelTiers: z.array(z.string()).optional(),
-	createdAt: z.string(),
+	createdAt: z.string().default(() => new Date().toISOString()),
 });
+
+export { MissionInputSchema as MissionInput };
+export type MissionInputType = z.infer<typeof MissionInputSchema>;

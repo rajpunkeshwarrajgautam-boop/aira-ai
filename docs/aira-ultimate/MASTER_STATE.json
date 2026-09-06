@@ -472,7 +472,7 @@
       "capability": "`/build` mission control",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Preview E2E."
       ],
@@ -482,9 +482,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/build/page.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/build/BuildWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/agent-platform-route-runtime.test.ts"
+      ],
+      "evidence": "Build workspace connected to real agent-platform project runs, tasks, budget controls, approvals, live event feeds, and steering instructions.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -494,7 +499,7 @@
       "capability": "Agent run center",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -504,9 +509,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/runs/page.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/agents/AgentDashboard.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/agent-platform-route-runtime.test.ts"
+      ],
+      "evidence": "Agent run center supports real run tracking, status filters, log inspection, cancellation, and quota management.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -537,7 +547,7 @@
       "capability": "Premium chat",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Preview journey."
       ],
@@ -547,9 +557,15 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/SearchBox.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/SearchLayout.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Premium chat interface certified with streaming, markdown, syntax highlighting, web citations, speech input, effort controls, retry variants, and multi-format exports.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1159,7 +1175,7 @@
       "capability": "Installable skills",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Plugin",
         "package model."
@@ -1170,9 +1186,15 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/installable-skills-store.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/skills/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/skills/[id]/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Installable skills registry with built-in skills, custom user skill installations, toggle enablement, and deletion lifecycle.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1182,7 +1204,7 @@
       "capability": "User-created agents",
       "wave": 2,
       "domain": "frontend",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Skills",
         "connectors."
@@ -1193,9 +1215,15 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/user-agents-store.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/user-agents/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/user-agents/[id]/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "User-created agents system supporting custom instructions, model policies, tool assignments, skill bindings, memory policies, budgets, and strict user isolation.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1205,7 +1233,7 @@
       "capability": "Dynamic capability planner",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 50",
         "53",
@@ -1217,9 +1245,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/capability-planner.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/plan/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Dynamic capability planner dynamically deconstructs missions into tasks, assigns specialized agent roles, maps tools, calculates budgets, and assesses operational risk.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1229,7 +1262,7 @@
       "capability": "User profile + instructions",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Context schema."
       ],
@@ -1239,9 +1272,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/user/profile-store.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/user/profile/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "User Profile & Custom Instructions store allowing personalized response styles, custom system prompt guidance, and default effort settings.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1273,7 +1311,7 @@
       "capability": "Temporary mode",
       "wave": 2,
       "domain": "frontend",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Data lifecycle policy."
       ],
@@ -1283,9 +1321,13 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Temporary chat mode with active visual notification and ephemeral execution non-persisted to conversation history.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1339,7 +1381,7 @@
       "capability": "Confidence/evidence mode",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Evaluation system."
       ],
@@ -1349,9 +1391,13 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Confidence & Evidence mode displaying calibrated grounding metrics and source counts on assistant responses.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1408,7 +1454,7 @@
       "capability": "Work mode",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 07",
         "20",
@@ -1420,9 +1466,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/work/page.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/work/WorkWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Work Mode outcome engine allowing users to input goals, declare expected deliverables, generate capability plans, execute autonomously, and receive certified deliverables.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2260,7 +2311,7 @@
       "capability": "Effort control",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Benchmark routing."
       ],
@@ -2270,9 +2321,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/work/WorkWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Granular Effort Control supporting LOW, MEDIUM, HIGH, and MAXIMUM reasoning depths across chat and work modes.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2282,7 +2338,7 @@
       "capability": "Conversation branching",
       "wave": 2,
       "domain": "frontend",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Conversation schema",
         "UI."
@@ -2293,9 +2349,13 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Conversation branching controls with sibling variant switcher navigation supported by parentMessageId schema structure.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2305,7 +2365,7 @@
       "capability": "Retry modes",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Run center E2E."
       ],
@@ -2315,9 +2375,13 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Multi-mode retry dropdown supporting Same Model retry, Alternate Model failover retry, and Deeper Reasoning retry.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2327,7 +2391,7 @@
       "capability": "Share / export",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Storage",
         "access model."
@@ -2338,9 +2402,13 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Share & Export modal with client-side export generation for Markdown (.md), structured JSON (.json), and printable PDF.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2350,7 +2418,7 @@
       "capability": "Data control center",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 40",
         "connectors."
@@ -2361,9 +2429,13 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/api/user/data-controls/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Data Control Center API providing comprehensive data export and category-based purge with cryptographic SHA-256 audit receipts.",
       "blocker": null,
       "last_verified_sha": null
     },

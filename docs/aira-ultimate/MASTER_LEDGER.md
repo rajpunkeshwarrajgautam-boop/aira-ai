@@ -30,10 +30,10 @@
 | 19 | P1 | Migration failure / upgrade | 12 | sre | PARTIAL | Isolated Supabase Preview, disposable clone. |
 | 20 | P1 | Business connectors | 5 | connectors | PARTIAL | Non-production connector apps, credentials. |
 | 21 | P1 | MCP / plugin ecosystem | 0 | universal_contracts | PARTIAL | None. |
-| 22 | P1 | `/build` mission control | 2 | frontend | PARTIAL | Preview E2E. |
-| 23 | P1 | Agent run center | 2 | frontend | PARTIAL | None. |
+| 22 | P1 | `/build` mission control | 2 | frontend | COMPLETE | Preview E2E. |
+| 23 | P1 | Agent run center | 2 | frontend | COMPLETE | None. |
 | 24 | P1 | Browser workspace | 0 | universal_contracts | PARTIAL | Browser Preview service. |
-| 25 | P1 | Premium chat | 2 | frontend | PARTIAL | Preview journey. |
+| 25 | P1 | Premium chat | 2 | frontend | COMPLETE | Preview journey. |
 | 26 | P1 | Global search | 2 | frontend | PARTIAL | Missing indexes, entities, connectors. |
 | 27 | P2 | Mobile / tablet | 13 | frontend | PARTIAL | Preview browser validation. |
 | 28 | P0 | Auth attack tests | 0 | universal_contracts | COMPLETE | Some entities not yet implemented. |
@@ -61,18 +61,18 @@
 | 50 | P1 | Connector directory | 5 | connectors | NOT_STARTED | Connector framework and apps. |
 | 51 | P1 | MCP server registry | 5 | connectors | PARTIAL | None. |
 | 52 | P1 | Plugin package format | 5 | connectors | NOT_STARTED | Gates 50, 51, 53 foundations. |
-| 53 | P1 | Installable skills | 2 | frontend | PARTIAL | Plugin, package model. |
-| 54 | P1 | User-created agents | 2 | frontend | NOT_STARTED | Skills, connectors. |
-| 55 | P1 | Dynamic capability planner | 2 | frontend | PARTIAL | Gates 50, 53, 54. |
-| 56 | P1 | User profile + instructions | 2 | frontend | PARTIAL | Context schema. |
+| 53 | P1 | Installable skills | 2 | frontend | COMPLETE | Plugin, package model. |
+| 54 | P1 | User-created agents | 2 | frontend | COMPLETE | Skills, connectors. |
+| 55 | P1 | Dynamic capability planner | 2 | frontend | COMPLETE | Gates 50, 53, 54. |
+| 56 | P1 | User profile + instructions | 2 | frontend | COMPLETE | Context schema. |
 | 57 | P1 | Automatic context compression | 4 | database | PARTIAL | Evaluation system. |
-| 58 | P1 | Temporary mode | 2 | frontend | NOT_STARTED | Data lifecycle policy. |
+| 58 | P1 | Temporary mode | 2 | frontend | COMPLETE | Data lifecycle policy. |
 | 59 | P1 | Memory manager UI | 2 | frontend | PARTIAL | Gate 12 completion. |
 | 60 | P1 | AI canaries | 11 | eval | NOT_STARTED | Evaluation harness, provider fixtures. |
-| 61 | P1 | Confidence/evidence mode | 2 | frontend | PARTIAL | Evaluation system. |
+| 61 | P1 | Confidence/evidence mode | 2 | frontend | COMPLETE | Evaluation system. |
 | 62 | P1 | Council mode | 7 | workflows | NOT_STARTED | Model capability router. |
 | 63 | P1 | Command registry | 1 | universal_contracts | COMPLETE | None. |
-| 64 | P1 | Work mode | 2 | frontend | PARTIAL | Gates 07, 20, 65. |
+| 64 | P1 | Work mode | 2 | frontend | COMPLETE | Gates 07, 20, 65. |
 | 65 | P1 | Artifact engine | 3 | artifacts | PARTIAL | Format generators, storage. |
 | 66 | P1 | Artifact workspace | 2 | frontend | PARTIAL | Gate 65, storage. |
 | 67 | P2 | Design mode | 3 | artifacts | NOT_STARTED | Artifact, image foundations. |
@@ -110,11 +110,11 @@
 | 99 | P2 | Desktop computer agent | 8 | connectors | PARTIAL | Windows signing, release authorization. |
 | 100 | P2 | Desktop experience | 13 | frontend | PARTIAL | Signing credentials and release authorization. |
 | 101 | P2 | Mobile voice | 13 | frontend | NOT_STARTED | Mobile app, device, provider. |
-| 102 | P1 | Effort control | 2 | frontend | PARTIAL | Benchmark routing. |
-| 103 | P1 | Conversation branching | 2 | frontend | NOT_STARTED | Conversation schema, UI. |
-| 104 | P1 | Retry modes | 2 | frontend | PARTIAL | Run center E2E. |
-| 105 | P1 | Share / export | 2 | frontend | PARTIAL | Storage, access model. |
-| 106 | P1 | Data control center | 2 | frontend | PARTIAL | Gate 40, connectors. |
+| 102 | P1 | Effort control | 2 | frontend | COMPLETE | Benchmark routing. |
+| 103 | P1 | Conversation branching | 2 | frontend | COMPLETE | Conversation schema, UI. |
+| 104 | P1 | Retry modes | 2 | frontend | COMPLETE | Run center E2E. |
+| 105 | P1 | Share / export | 2 | frontend | COMPLETE | Storage, access model. |
+| 106 | P1 | Data control center | 2 | frontend | COMPLETE | Gate 40, connectors. |
 | 107 | P1 | Per-tool permissions UI | 1 | universal_contracts | COMPLETE | Connector, tool registry completion. |
 | 108 | P1 | Cross-connector planner | 6 | workflows | NOT_STARTED | Gates 20, 50, 76–80. |
 | 109 | P1 | Notifications | 6 | workflows | NOT_STARTED | Connector, delivery service. |

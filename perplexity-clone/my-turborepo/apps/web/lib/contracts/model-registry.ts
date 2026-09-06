@@ -108,6 +108,12 @@ export class ModelCapabilityRegistry {
 		eligible.sort((a, b) => b.benchmarkQualityScore - a.benchmarkQualityScore);
 		return eligible[0];
 	}
+
+	listModels(): readonly ModelCapabilityRecord[] {
+		return this.listAll();
+	}
 }
 
 export const globalModelRegistry = new ModelCapabilityRegistry();
+export const globalModelCapabilityRegistry = globalModelRegistry;
+export type ModelCapability = ModelCapabilityRecord;

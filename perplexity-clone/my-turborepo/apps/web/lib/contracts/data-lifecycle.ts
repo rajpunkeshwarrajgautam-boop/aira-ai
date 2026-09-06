@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type DataEntityType =
 	| "CONVERSATION"
 	| "MESSAGE"
@@ -5,7 +7,9 @@ export type DataEntityType =
 	| "AGENT_RUN"
 	| "ARTIFACT"
 	| "KNOWLEDGE_DOCUMENT"
-	| "CONNECTOR_TOKEN";
+	| "CONNECTOR_TOKEN"
+	| "USER_ACCOUNT_FULL_PURGE"
+	| string;
 
 export interface DataRetentionPolicy {
 	readonly entityType: DataEntityType;
@@ -28,6 +32,23 @@ export class DataLifecycleManager {
 
 	recordDeletion(receipt: DeletionAuditReceipt): void {
 		this.receipts.push(receipt);
+	}
+
+	generateDeletionReceipt(userId: string, entityType: DataEntityType, count: number): DeletionAuditReceipt {
+		const id = `receipt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+		const now = new Date().toISOString();
+		const verificationHash = createHash("sha256").update(`${id}:${userId}:${entityType}:${count}:${now}`).digest("hex");
+		const receipt: DeletionAuditReceipt = {
+			receiptId: id,
+			userId,
+			entityType,
+			entityId: `batch_${count}_records`,
+			deletedAt: now,
+			method: "HARD_PURGE",
+			verificationHash,
+		};
+		this.recordDeletion(receipt);
+		return receipt;
 	}
 
 	getReceipts(userId: string): readonly DeletionAuditReceipt[] {

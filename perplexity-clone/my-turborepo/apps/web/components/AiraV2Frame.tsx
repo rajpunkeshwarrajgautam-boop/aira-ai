@@ -32,6 +32,7 @@ import { AiraLogo } from "./AiraLogo";
 const OPERATE_NAV = [
   { href: "/control-center", label: "Control Center", description: "System health and activity", icon: Gauge },
   { href: "/", label: "Research", description: "Ask, investigate, cite", icon: Search },
+  { href: "/work", label: "Work", description: "Outcome-driven deliverables", icon: Sparkles },
   { href: "/build", label: "Build", description: "Plan, delegate and ship", icon: Hammer },
   { href: "/browser", label: "Browser", description: "Operate and take control", icon: Globe2 },
   { href: "/runs", label: "Workflows", description: "Launch and monitor runs", icon: History },
