@@ -2662,7 +2662,7 @@
       "capability": "Team agents",
       "wave": 9,
       "domain": "universal_contracts",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Organization model."
       ],
@@ -2672,8 +2672,10 @@
         "typescript-strict"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/enterprise-organizations.test.ts"
+      ],
+      "evidence": "Wave 9 verified: enterprise multi-tenant organization hierarchy, workspace budget controls, and team agent sharing",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2683,7 +2685,7 @@
       "capability": "Organization / workspace",
       "wave": 9,
       "domain": "universal_contracts",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Foundational schema",
         "identity."
@@ -2694,8 +2696,10 @@
         "typescript-strict"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/enterprise-organizations.test.ts"
+      ],
+      "evidence": "Wave 9 verified: enterprise multi-tenant organization hierarchy, workspace budget controls, and team agent sharing",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2705,7 +2709,7 @@
       "capability": "Enterprise identity",
       "wave": 9,
       "domain": "universal_contracts",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Enterprise IdP",
         "app configuration."
@@ -2716,9 +2720,11 @@
         "typescript-strict"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/enterprise-organizations.test.ts"
+      ],
+      "evidence": "Contract and fail-closed security invariants certified in EnterpriseOrganizationManager; live SSO assertion blocked awaiting corporate IdP credentials",
+      "blocker": "Requires live Enterprise IdP integration credentials (Okta / Azure AD / Ping SAML/OIDC metadata)",
       "last_verified_sha": null
     },
     {
