@@ -1,5 +1,5 @@
 {
-  "program": "AIRA AI \u2014 Ultimate Platform Completion Program",
+  "program": "AIRA AI — Ultimate Platform Completion Program",
   "umbrella_branch": "integration/aira-ultimate-platform",
   "base_production_sha": "81955d915ff3c6cb1027b9ac8ccb462c433c069d",
   "total_gates": 128,
@@ -249,7 +249,7 @@
       "capability": "Durable memory",
       "wave": 4,
       "domain": "database",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Disposable",
         "Preview DB for full proof."
@@ -261,8 +261,10 @@
         "postgres-wizard"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -272,7 +274,7 @@
       "capability": "Knowledge / RAG",
       "wave": 4,
       "domain": "database",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Private non-production storage",
         "worker."
@@ -284,8 +286,10 @@
         "postgres-wizard"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -787,7 +791,7 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "Dedicated isolated Neon Serverless Postgres free tier (project `wandering-haze-42106829`, PostgreSQL 17.11, pgvector 0.8.0, \u20b90 cost) provisioned and bound strictly to Vercel Preview (`integration/aira-autonomous-omniroute`). 22/22 Prisma migrations applied, 43 tables verified, restart-idempotent. Live HTTP reachability proven from Vercel deployment `dpl_AMBFDrukb5Bhn2QgCDxdAH6sX5hu` with zero production database mutation. Evidence in `Gate35_Final_Evidence_20260906_133200Z.zip`.",
+      "evidence": "Dedicated isolated Neon Serverless Postgres free tier (project `wandering-haze-42106829`, PostgreSQL 17.11, pgvector 0.8.0, ₹0 cost) provisioned and bound strictly to Vercel Preview (`integration/aira-autonomous-omniroute`). 22/22 Prisma migrations applied, 43 tables verified, restart-idempotent. Live HTTP reachability proven from Vercel deployment `dpl_AMBFDrukb5Bhn2QgCDxdAH6sX5hu` with zero production database mutation. Evidence in `Gate35_Final_Evidence_20260906_133200Z.zip`.",
       "blocker": null,
       "last_verified_sha": "`dd86a9d8`"
     },
@@ -808,14 +812,14 @@
       ],
       "implementation_paths": [],
       "tests": [],
-      "evidence": "Complete authenticated Preview browser journey certified on real Microsoft Edge (native Chromium msedge.exe, HWND 197848) via Reticle daemon. Authenticated identity ('RG raj') exercised across full lifecycle: navigation, prompt dispatch, SSE search streaming (/api/search 8534ms), conversation persistence (/api/conversations 201, ID cmtpz2vmw000004la8zigdb0x), and historical sidebar rendering. Formal Reticle assertions verified ('verified: yes', 'pass: true') for DOM text presence and clean console (zero 5xx fatal errors across all 48 recorded requests). Zero production database or environment mutations; all data isolated to dedicated Neon Preview DB (wandering-haze-42106829, \u20b90 cost). Evidence package: `Gate36_Final_Evidence_20260906_155315Z.zip` (SHA256: `60b4afeda9f0ddba1a4e5df6823252d6bb68a7ffcd6f96d1a5cc5676eb3dcea1`).",
+      "evidence": "Complete authenticated Preview browser journey certified on real Microsoft Edge (native Chromium msedge.exe, HWND 197848) via Reticle daemon. Authenticated identity ('RG raj') exercised across full lifecycle: navigation, prompt dispatch, SSE search streaming (/api/search 8534ms), conversation persistence (/api/conversations 201, ID cmtpz2vmw000004la8zigdb0x), and historical sidebar rendering. Formal Reticle assertions verified ('verified: yes', 'pass: true') for DOM text presence and clean console (zero 5xx fatal errors across all 48 recorded requests). Zero production database or environment mutations; all data isolated to dedicated Neon Preview DB (wandering-haze-42106829, ₹0 cost). Evidence package: `Gate36_Final_Evidence_20260906_155315Z.zip` (SHA256: `60b4afeda9f0ddba1a4e5df6823252d6bb68a7ffcd6f96d1a5cc5676eb3dcea1`).",
       "blocker": null,
       "last_verified_sha": "`e6f848ac`"
     },
     {
       "gate": 37,
       "priority": "P0",
-      "capability": "OmniRoute \u2192 NVIDIA failover",
+      "capability": "OmniRoute → NVIDIA failover",
       "wave": 0,
       "domain": "universal_contracts",
       "status": "COMPLETE",
@@ -1289,7 +1293,7 @@
       "capability": "Automatic context compression",
       "wave": 4,
       "domain": "database",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Evaluation system."
       ],
@@ -1300,8 +1304,10 @@
         "postgres-wizard"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1721,7 +1727,7 @@
       "capability": "Federated connected knowledge",
       "wave": 4,
       "domain": "database",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Connectors."
       ],
@@ -1732,8 +1738,10 @@
         "postgres-wizard"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2496,7 +2504,7 @@
       "dependencies": [
         "Gates 20",
         "50",
-        "76\u201380."
+        "76–80."
       ],
       "primary_skill": "aira-verification",
       "secondary_skills": [
