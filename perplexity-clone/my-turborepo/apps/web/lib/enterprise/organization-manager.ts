@@ -1,27 +1,28 @@
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
 
-export type OrganizationRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+export const OrganizationRoleSchema = z.enum(["OWNER", "ADMIN", "MEMBER", "VIEWER"]);
+export type OrganizationRole = z.infer<typeof OrganizationRoleSchema>;
 
 export const OrganizationSchema = z.object({
 	id: z.string().min(1),
-	name: z.string().min(1).max(128),
-	slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+	name: z.string().min(2).max(100),
+	slug: z.string().min(2).max(64),
 	ownerUserId: z.string().min(1),
-	ssoConfig: z
-		.object({
-			enabled: z.boolean().default(false),
-			provider: z.enum(["SAML", "OIDC"]).default("SAML"),
-			idpMetadataUrl: z.string().url().optional(),
-			domainHint: z.string().optional(),
-		})
-		.default({ enabled: false, provider: "SAML" }),
-	securityPolicy: z
-		.object({
-			enforceMfa: z.boolean().default(false),
-			sessionTimeoutMinutes: z.number().int().min(15).default(1440),
-			ipAllowlist: z.array(z.string()).default([]),
-		})
-		.default({ enforceMfa: false, sessionTimeoutMinutes: 1440, ipAllowlist: [] }),
+	ssoConfig: z.object({
+		enabled: z.boolean().default(false),
+		provider: z.enum(["SAML", "OIDC"]).default("SAML"),
+		idpMetadataUrl: z.string().optional(),
+		domain: z.string().optional(),
+		domainHint: z.string().optional(),
+	}).default({ enabled: false, provider: "SAML" }),
+	securityPolicy: z.object({
+		enforceMfa: z.boolean().default(false),
+		sessionTimeoutMinutes: z.number().int().positive().default(1440),
+		ipAllowlist: z.array(z.string()).default([]),
+	}).default({ enforceMfa: false, sessionTimeoutMinutes: 1440, ipAllowlist: [] }),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 });
@@ -29,8 +30,8 @@ export const OrganizationSchema = z.object({
 export const WorkspaceSchema = z.object({
 	id: z.string().min(1),
 	orgId: z.string().min(1),
-	name: z.string().min(1).max(128),
-	budgetLimitUsd: z.number().nonnegative().default(100.0),
+	name: z.string().min(2).max(100),
+	budgetLimitUsd: z.number().min(0).default(100.0),
 	allowedToolIds: z.array(z.string()).default([]),
 	createdAt: z.string(),
 	updatedAt: z.string(),
@@ -40,13 +41,13 @@ export const OrganizationMembershipSchema = z.object({
 	id: z.string().min(1),
 	orgId: z.string().min(1),
 	userId: z.string().min(1),
-	role: z.enum(["OWNER", "ADMIN", "MEMBER", "VIEWER"]),
+	role: OrganizationRoleSchema.default("MEMBER"),
 	joinedAt: z.string(),
 });
 
 export const TeamAgentShareSchema = z.object({
-	agentId: z.string().min(1),
 	workspaceId: z.string().min(1),
+	agentId: z.string().min(1),
 	permission: z.enum(["USE", "EDIT", "ADMIN"]),
 	sharedByUserId: z.string().min(1),
 	sharedAt: z.string(),
@@ -58,10 +59,98 @@ export type OrganizationMembership = z.infer<typeof OrganizationMembershipSchema
 export type TeamAgentShare = z.infer<typeof TeamAgentShareSchema>;
 
 export class EnterpriseOrganizationManager {
+	private readonly storeDir: string;
+	private readonly dataPath: string;
+
 	private orgs = new Map<string, Organization>();
 	private workspaces = new Map<string, Workspace>();
 	private memberships = new Map<string, OrganizationMembership[]>(); // orgId -> members
 	private agentShares = new Map<string, TeamAgentShare[]>(); // workspaceId -> shares
+
+	constructor(storagePath?: string) {
+		this.storeDir = storagePath ?? process.env.AIRA_DATA_DIR ?? join(process.cwd(), ".aira-store");
+		this.dataPath = join(this.storeDir, "enterprise-orgs.json");
+		this.ensureStorageDir();
+		this.loadFromDisk();
+	}
+
+	private ensureStorageDir(): void {
+		try {
+			if (!existsSync(this.storeDir)) {
+				mkdirSync(this.storeDir, { recursive: true });
+			}
+		} catch {
+			// fallback
+		}
+	}
+
+	private loadFromDisk(): void {
+		try {
+			if (existsSync(this.dataPath)) {
+				const raw = readFileSync(this.dataPath, "utf8");
+				const parsed = JSON.parse(raw);
+				if (parsed && typeof parsed === "object") {
+					if (Array.isArray(parsed.orgs)) {
+						for (const o of parsed.orgs) this.orgs.set(o.id, o);
+					}
+					if (Array.isArray(parsed.workspaces)) {
+						for (const w of parsed.workspaces) this.workspaces.set(w.id, w);
+					}
+					if (parsed.memberships && typeof parsed.memberships === "object") {
+						for (const [k, v] of Object.entries(parsed.memberships)) {
+							if (Array.isArray(v)) this.memberships.set(k, v as OrganizationMembership[]);
+						}
+					}
+					if (parsed.agentShares && typeof parsed.agentShares === "object") {
+						for (const [k, v] of Object.entries(parsed.agentShares)) {
+							if (Array.isArray(v)) this.agentShares.set(k, v as TeamAgentShare[]);
+						}
+					}
+				}
+			}
+		} catch {
+			// fail-safe read
+		}
+	}
+
+	private persistToDisk(): void {
+		try {
+			this.ensureStorageDir();
+			const payload = {
+				orgs: [...this.orgs.values()],
+				workspaces: [...this.workspaces.values()],
+				memberships: Object.fromEntries(this.memberships.entries()),
+				agentShares: Object.fromEntries(this.agentShares.entries()),
+			};
+			const temp = `${this.dataPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			writeFileSync(temp, JSON.stringify(payload, null, 2), "utf8");
+			renameSync(temp, this.dataPath);
+		} catch {
+			// fail-safe write
+		}
+	}
+
+	private async syncOrgToDb(org: Organization): Promise<void> {
+		if (!process.env.DATABASE_URL) return;
+		try {
+			await prisma.enterpriseOrganization.upsert({
+				where: { id: org.id },
+				create: {
+					id: org.id,
+					name: org.name,
+					slug: org.slug,
+					ssoConfig: org.ssoConfig as never,
+				},
+				update: {
+					name: org.name,
+					slug: org.slug,
+					ssoConfig: org.ssoConfig as never,
+				},
+			});
+		} catch {
+			// Non-blocking
+		}
+	}
 
 	createOrganization(input: {
 		name: string;
@@ -92,6 +181,8 @@ export class EnterpriseOrganizationManager {
 			joinedAt: now,
 		};
 		this.memberships.set(org.id, [membership]);
+		this.persistToDisk();
+		void this.syncOrgToDb(org);
 
 		return org;
 	}
@@ -113,14 +204,24 @@ export class EnterpriseOrganizationManager {
 		});
 
 		this.workspaces.set(ws.id, ws);
+		this.persistToDisk();
+
+		if (process.env.DATABASE_URL) {
+			void prisma.enterpriseWorkspace.create({
+				data: { id: ws.id, orgId: ws.orgId, name: ws.name },
+			}).catch(() => null);
+		}
+
 		return ws;
 	}
 
 	shareAgentWithWorkspace(share: TeamAgentShare): void {
 		const validated = TeamAgentShareSchema.parse(share);
 		const current = this.agentShares.get(validated.workspaceId) ?? [];
-		current.push(validated);
-		this.agentShares.set(validated.workspaceId, current);
+		const filtered = current.filter((s) => s.agentId !== validated.agentId);
+		filtered.push(validated);
+		this.agentShares.set(validated.workspaceId, filtered);
+		this.persistToDisk();
 	}
 
 	listWorkspaceAgents(workspaceId: string): readonly TeamAgentShare[] {
@@ -143,6 +244,14 @@ export class EnterpriseOrganizationManager {
 			OWNER: 3,
 		};
 		return hierarchy[role] >= hierarchy[requiredRole];
+	}
+
+	reloadFromDisk(): void {
+		this.orgs.clear();
+		this.workspaces.clear();
+		this.memberships.clear();
+		this.agentShares.clear();
+		this.loadFromDisk();
 	}
 }
 

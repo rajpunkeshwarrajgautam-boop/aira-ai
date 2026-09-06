@@ -65,3 +65,92 @@ test("MCP Server Registry Contract Verification (Gate 51)", () => {
 	const enabled = isMcpEnabled();
 	assert.equal(typeof enabled, "boolean");
 });
+
+test("Real Connector Adapters: Gmail, Calendar, Drive & Slack (Gates 76, 77, 78, 80)", async () => {
+	// 1. Gmail adapter
+	const gmail = globalConnectorRegistry.getAdapter("gmail");
+	assert.ok(gmail);
+	const authRes = await gmail?.authenticate({ code: "test_auth_code" });
+	assert.ok(authRes?.credential.accessToken?.includes("test_auth_code"));
+
+	const readRes = await gmail?.executeRead("list_messages", { query: "in:sent" }, authRes?.credential);
+	assert.ok(Array.isArray(readRes?.messages));
+
+	const draftRes = await gmail?.executeWrite("draft", { to: "exec@aira.ai", subject: "Briefing" }, authRes?.credential);
+	assert.equal(draftRes?.status, "DRAFT_CREATED");
+
+	const sendSpec = gmail?.actions.find((a) => a.name === "send");
+	assert.equal(sendSpec?.requiresApproval, true); // High-risk send requires approval
+
+	// 2. Calendar adapter
+	const cal = globalConnectorRegistry.getAdapter("google_calendar");
+	assert.ok(cal);
+	const calAuth = await cal?.authenticate({ code: "cal_code" });
+	const eventsRes = await cal?.executeRead("list_events", {}, calAuth?.credential);
+	assert.ok(Array.isArray(eventsRes?.events));
+
+	// 3. Drive adapter
+	const drive = globalConnectorRegistry.getAdapter("business_files");
+	assert.ok(drive);
+	const driveAuth = await drive?.authenticate({ code: "drive_code" });
+	const filesRes = await drive?.executeRead("list_files", {}, driveAuth?.credential);
+	assert.ok(Array.isArray(filesRes?.files));
+
+	// 4. Slack adapter with HMAC signature verification
+	const slack = globalConnectorRegistry.getAdapter("slack") as import("../lib/connectors/adapters/slack").SlackConnectorAdapter;
+	assert.ok(slack);
+	const nowTs = `${Math.floor(Date.now() / 1000)}`;
+	const mockBody = JSON.stringify({ event: { type: "app_mention" } });
+	const validSig = slack.verifyWebhookSignature({
+		rawBody: mockBody,
+		timestamp: nowTs,
+		signature: "invalid_sig",
+		signingSecret: "test_secret",
+	});
+	assert.equal(validSig, false); // Rejected invalid signature
+});
+
+test("Separate Provider Adapters: Teams, CRM, Notion, Jira, Analytics, Ecommerce (Gates 78, 81, 82, 86, 89)", async () => {
+	// 1. Teams is separate from Slack
+	const teams = globalConnectorRegistry.getAdapter("microsoft_teams");
+	assert.ok(teams);
+	assert.notEqual(teams.id, "slack");
+
+	// 2. Notion and Jira are separate
+	const notion = globalConnectorRegistry.getAdapter("notion");
+	const jira = globalConnectorRegistry.getAdapter("jira");
+	assert.ok(notion);
+	assert.ok(jira);
+	assert.notEqual(notion.id, jira.id);
+
+	// 3. CRM (HubSpot)
+	const crm = globalConnectorRegistry.getAdapter("crm");
+	assert.ok(crm);
+	const crmAuth = await crm.authenticate({ apiKey: "pat_test_key" });
+	const contactsRes = await crm.executeRead("search_contacts", {}, crmAuth.credential);
+	assert.ok(Array.isArray(contactsRes.results));
+
+	// 4. Analytics (PostHog)
+	const analytics = globalConnectorRegistry.getAdapter("analytics");
+	assert.ok(analytics);
+	const analyticsAuth = await analytics.authenticate({ apiKey: "ph_test_key" });
+	const insights = await analytics.executeRead("get_funnel", {}, analyticsAuth.credential);
+	assert.ok(Array.isArray(insights.steps));
+
+	// 5. Ecommerce (Shopify and Stripe)
+	const shopify = globalConnectorRegistry.getAdapter("shopify");
+	const stripe = globalConnectorRegistry.getAdapter("stripe");
+	assert.ok(shopify);
+	assert.ok(stripe);
+	assert.notEqual(shopify.id, stripe.id);
+
+	// Safe read-only: mutations fail-closed without separate explicit authorization
+	await assert.rejects(async () => {
+		await shopify.executeWrite("refund", {});
+	}, /Ecommerce write mutations .* are strictly disabled/);
+
+	await assert.rejects(async () => {
+		await stripe.executeWrite("charge", {});
+	}, /Stripe payment mutations .* remain strictly locked/);
+});
+

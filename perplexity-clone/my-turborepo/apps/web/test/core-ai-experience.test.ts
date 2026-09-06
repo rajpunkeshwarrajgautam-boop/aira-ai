@@ -61,6 +61,81 @@ test("User Agent Creation and Ownership (Gate 54)", () => {
 	assert.equal(globalUserAgentStore.getAgent(userId, agent.id), null);
 });
 
+test("User Agent Durability & Process Restart Persistence (Gate 54 & Phase 12)", () => {
+	const userA = "user_persisted_A";
+	const userB = "user_persisted_B";
+
+	// User A creates an agent with tools, skills, connectors, policy, and budget
+	const created = globalUserAgentStore.createAgent(userA, {
+		name: "Autonomous SRE Agent",
+		description: "Self-healing distributed systems agent",
+		instructions: "Monitor error budgets and trigger runbook actions.",
+		modelPolicy: { provider: "AUTO", temperature: 0.1, maxTokens: 4096 },
+		tools: ["files", "terminal", "supabase"],
+		skills: ["observability-sre", "chaos-engineer"],
+		connectors: ["slack", "gmail"],
+		memoryPolicy: { enabled: true, scope: "GLOBAL" },
+		budget: { maxCostUsd: 50, maxDurationMinutes: 120 },
+		riskPolicy: { requireApprovalAbove: "PROTECTED" },
+		isPublic: false,
+	});
+
+	assert.equal(created.version, 1);
+
+	// User A updates instructions -> version 2
+	const updated = globalUserAgentStore.updateAgent(userA, created.id, {
+		instructions: "Updated: Monitor error budgets, inspect tracing, trigger runbooks.",
+	});
+	assert.equal(updated?.version, 2);
+
+	// Simulate complete process restart: reload from durable disk backing
+	globalUserAgentStore.reloadFromDisk();
+
+	// Agent survives restart
+	const reloaded = globalUserAgentStore.getAgent(userA, created.id);
+	assert.notEqual(reloaded, null);
+	assert.equal(reloaded?.id, created.id);
+	assert.equal(reloaded?.name, "Autonomous SRE Agent");
+	assert.equal(reloaded?.version, 2);
+	assert.deepEqual(reloaded?.connectors, ["slack", "gmail"]);
+	assert.deepEqual(reloaded?.skills, ["observability-sre", "chaos-engineer"]);
+
+	// Strict two-user isolation: User B cannot access or mutate User A's agent
+	assert.equal(globalUserAgentStore.getAgent(userB, created.id), null);
+	assert.equal(globalUserAgentStore.updateAgent(userB, created.id, { name: "Hijacked Agent" }), null);
+	assert.equal(globalUserAgentStore.deleteAgent(userB, created.id), false);
+	assert.notEqual(globalUserAgentStore.getAgent(userA, created.id), null);
+});
+
+test("Installable Skills Durability & Process Restart Persistence (Gate 53 & Phase 12)", () => {
+	const devUser = "user_skill_durability";
+
+	const skill = globalSkillsStore.installSkill(devUser, {
+		name: "Zero-Downtime Migration Helper",
+		description: "Validates additive migrations and verifies backward compatibility",
+		instructions: "Audit all CREATE TABLE statements for IF NOT EXISTS and non-breaking column adds.",
+		requiredTools: ["database", "terminal"],
+		preferredRoles: ["DATABASE_ARCHITECT"],
+		keywords: ["migration", "postgres", "schema", "zero-downtime"],
+		permissions: ["db:migrate"],
+		version: "2.1.0",
+		enabled: true,
+		author: "SRE Platform",
+		evaluationScore: 94,
+	});
+
+	// Simulate server restart
+	globalSkillsStore.reloadFromDisk();
+
+	const reloadedSkill = globalSkillsStore.getSkill(skill.id);
+	assert.notEqual(reloadedSkill, null);
+	assert.equal(reloadedSkill?.name, "Zero-Downtime Migration Helper");
+	assert.equal(reloadedSkill?.version, "2.1.0");
+	assert.equal(reloadedSkill?.author, "SRE Platform");
+	assert.equal(reloadedSkill?.enabled, true);
+});
+
+
 test("Installable Skills Registry & Lifecycle (Gate 53)", () => {
 	const userId = "user_skill_dev_1";
 

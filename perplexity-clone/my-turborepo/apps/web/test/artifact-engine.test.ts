@@ -164,3 +164,86 @@ test("Cryptographic Provenance Lineage Graph Traversal (Gate 123)", () => {
 	assert.equal(lineage[2]?.artifactId, root.id);
 	assert.equal(lineage[2]?.generator, "Web Crawler");
 });
+
+test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validation (Gates 65, 66, 73, 74)", () => {
+	const engine = new ArtifactEngine();
+	const validator = new ArtifactValidator();
+
+	// 1. Native PDF
+	const pdfBuf = engine.generatePdf({
+		title: "Quarterly Financial Analysis",
+		bodyLines: ["Revenue grew 45% YoY.", "Gross margin reached 82%."],
+	});
+	const pdfValidation = validator.validate("PDF", pdfBuf);
+	assert.equal(pdfValidation.isValid, true);
+	assert.ok((pdfValidation.metrics.pageCount ?? 0) >= 1);
+
+	// 2. Native DOCX (Open XML ZIP)
+	const docxBuf = engine.generateDocx({
+		title: "AIRA Architecture Brief",
+		headings: ["System Invariants", "Tool Gateway"],
+		paragraphs: ["The system guarantees fail-closed isolation.", "Privileged tools require persisted approval."],
+		tables: [{ headers: ["Component", "Status"], rows: [["AgentRuntime", "Certified"], ["ToolGateway", "Active"]] }],
+	});
+	const docxValidation = validator.validate("DOCX", docxBuf);
+	assert.equal(docxValidation.isValid, true);
+	assert.ok((docxValidation.metrics.wordCount ?? 0) > 0);
+
+	// 3. Native XLSX (Open XML ZIP)
+	const xlsxBuf = engine.generateXlsx([{
+		name: "Financials",
+		headers: ["Item", "Q1", "Q2"],
+		rows: [["Revenue", 1000, 1500], ["Expenses", 400, 600]],
+		formulas: { "B3": "=SUM(B1:B2)" },
+	}]);
+	const xlsxValidation = validator.validate("XLSX", xlsxBuf);
+	assert.equal(xlsxValidation.isValid, true);
+	assert.equal(xlsxValidation.metrics.rowCount, 3);
+
+	// 4. Native PPTX (Open XML ZIP)
+	const pptxBuf = engine.generatePptx({
+		title: "AIRA Platform Strategy",
+		slides: [
+			{ title: "Vision", bullets: ["128 Gates Complete", "Truthmode Architecture"] },
+			{ title: "Execution", bullets: ["Real node dispatch", "Durable state"] },
+		],
+	});
+	const pptxValidation = validator.validate("PPTX", pptxBuf);
+	assert.equal(pptxValidation.isValid, true);
+	assert.ok((pptxValidation.metrics.slideCount ?? 0) >= 1);
+
+	// 5. Native ZIP Archive
+	const zipBuf = engine.generateZip([
+		{ path: "summary.txt", data: "Executive summary text" },
+		{ path: "data.csv", data: "a,b\n1,2" },
+	]);
+	const zipValidation = validator.validate("ZIP", zipBuf);
+	assert.equal(zipValidation.isValid, true);
+	assert.equal(zipValidation.metrics.archiveFilesCount, 2);
+});
+
+test("Artifact Durability: Survives Process Restart & Reload (Gate 65 & Phase 12)", () => {
+	const engine1 = new ArtifactEngine();
+	const userId = "user_restart_test";
+
+	const art = engine1.createArtifact({
+		userId,
+		name: "Durable Report.pdf",
+		format: "PDF",
+		content: engine1.generatePdf({ title: "Durable PDF", bodyLines: ["Persistent across process restarts."] }),
+		provenance: {
+			runId: "run_durability_1",
+			generator: "PDF Engine",
+			inputChecksum: "sha_durability",
+		},
+	});
+
+	// Simulate complete process restart: instantiate new engine reading from disk
+	const engine2 = new ArtifactEngine();
+	const restored = engine2.getArtifact(userId, art.id);
+	assert.notEqual(restored, null);
+	assert.equal(restored?.name, "Durable Report.pdf");
+	assert.equal(restored?.currentVersion, 1);
+	assert.equal(restored?.versions[0]?.checksum, art.versions[0]?.checksum);
+});
+

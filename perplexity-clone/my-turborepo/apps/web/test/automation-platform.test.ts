@@ -114,3 +114,92 @@ test("Workflow Template Gallery (Gate 114, 115)", () => {
 	assert.ok(leadTemplate);
 	assert.ok(leadTemplate?.nodes.some((n) => n.type === "approval"));
 });
+
+test("Workflow Approval Fence: Pauses on Human Review and Resumes with Authorization (Gates 49, 108)", async () => {
+	const userId = "user_approval_test";
+	const routine = globalAutomationEngine.createRoutine({
+		userId,
+		name: "Regulated Financial Transfer Routine",
+		description: "Requires explicit executive approval before executing write action",
+		enabled: true,
+		trigger: { type: "manual" },
+		workflowDag: {
+			id: "dag-approval-flow",
+			name: "Approval Flow",
+			version: 1,
+			description: "Gated workflow",
+			nodes: [
+				{ id: "node_start", type: "trigger", name: "Start", config: {}, inputBindings: {} },
+				{ id: "node_eval", type: "agent", name: "Risk Assessment Agent", config: { role: "RISK" }, inputBindings: {} },
+				{ id: "node_fence", type: "approval", name: "Compliance Approval Boundary", config: { prompt: "Approve transaction?" }, inputBindings: {} },
+				{ id: "node_action", type: "tool", name: "Execute Transfer", config: { action: "transfer" }, inputBindings: {} },
+			],
+			edges: [
+				{ id: "e1", sourceNodeId: "node_start", targetNodeId: "node_eval" },
+				{ id: "e2", sourceNodeId: "node_eval", targetNodeId: "node_fence" },
+				{ id: "e3", sourceNodeId: "node_fence", targetNodeId: "node_action" },
+			],
+		},
+	});
+
+	// Execution without approval pause at the fence
+	const pausedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId);
+	assert.equal(pausedRun.status, "WAITING_APPROVAL");
+	assert.equal(pausedRun.pendingApprovalNodeId, "node_fence");
+	assert.ok(pausedRun.stepOutputs["node_start"]);
+	assert.ok(pausedRun.stepOutputs["node_eval"]);
+	assert.equal(pausedRun.stepOutputs["node_action"], undefined); // not executed yet!
+
+	// Notification was generated for human reviewer
+	const notifs = globalAutomationEngine.getUserNotifications(userId);
+	assert.ok(notifs.some((n) => n.title.includes("Approval Required") && n.category === "approval"));
+
+	// Now execute with approval override
+	const approvedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
+		approvalOverrides: { "node_fence": true },
+	});
+	assert.equal(approvedRun.status, "COMPLETED");
+	assert.ok(approvedRun.stepOutputs["node_action"]);
+});
+
+test("Automation Engine Durability: Routines and Runs Survive Restart (Gate 49 & Phase 12)", async () => {
+	const userId = "user_routine_restart";
+	const routine = globalAutomationEngine.createRoutine({
+		userId,
+		name: "Persistent Market Monitor",
+		description: "Daily crawler that survives server restart",
+		enabled: true,
+		trigger: { type: "cron", cronExpression: "0 10 * * *", timezone: "UTC" },
+		workflowDag: {
+			id: "dag-restart",
+			name: "Restart DAG",
+			version: 1,
+			description: "Simple DAG",
+			nodes: [
+				{ id: "n1", type: "trigger", name: "Cron", config: {}, inputBindings: {} },
+				{ id: "n2", type: "agent", name: "Summary Agent", config: {}, inputBindings: {} },
+			],
+			edges: [{ id: "e1", sourceNodeId: "n1", targetNodeId: "n2" }],
+		},
+	});
+
+	// Execute with idempotency key
+	const run = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
+		idempotencyKey: "idem_restart_key_1",
+	});
+	assert.equal(run.status, "COMPLETED");
+
+	// Simulate restart
+	globalAutomationEngine.reloadFromDisk();
+
+	const restoredRoutine = globalAutomationEngine.getRoutine(userId, routine.id);
+	assert.notEqual(restoredRoutine, null);
+	assert.equal(restoredRoutine?.name, "Persistent Market Monitor");
+
+	// Idempotent retry returns previously persisted run
+	const replayedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
+		idempotencyKey: "idem_restart_key_1",
+	});
+	assert.equal(replayedRun.id, run.id);
+});
+

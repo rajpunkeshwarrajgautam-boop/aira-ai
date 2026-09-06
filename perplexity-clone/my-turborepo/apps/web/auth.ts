@@ -10,14 +10,18 @@ import {
 } from "./lib/oauth-env";
 import { prisma } from "./lib/prisma";
 
+const isBuildTime =
+	process.env.npm_lifecycle_event === "build" ||
+	process.env.NEXT_PHASE === "phase-production-build" ||
+	process.env.NEXT_MANUAL_SIG_HANDLE === "true" ||
+	process.env.AIRA_BUILD_PHASE === "1";
+
 const resolvedSecret =
 	process.env.NEXTAUTH_SECRET ??
 	process.env.AUTH_SECRET ??
-	(process.env.NODE_ENV !== "production"
+	(process.env.NODE_ENV !== "production" || isBuildTime
 		? "development-only-secret-do-not-use-in-production-min-32-chars"
 		: undefined);
-
-const isBuildTime = process.env.npm_lifecycle_event === "build";
 
 if (process.env.NODE_ENV === "production" && !isBuildTime) {
 	const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;

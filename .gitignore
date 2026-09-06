@@ -42,3 +42,6 @@ prisma-migrate-dev.js
 __pycache__/
 *.py[cod]
 .neon
+.aira-store/
+.reticle/
+scratch/

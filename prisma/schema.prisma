@@ -93,6 +93,12 @@ model User {
   researchHistory      ResearchHistory[]
   memories             UserMemory[]
   mcpServerPreferences McpServerPreference[]
+  customAgents         UserAgent[]
+  automationRoutines   AutomationRoutine[]
+  automationRuns       AutomationRoutineRun[]
+  automationNotifs     AutomationNotification[]
+  durableArtifacts     DurableArtifact[]
+  enterpriseMembers    EnterpriseMembership[]
 }
 
 model Account {
@@ -398,4 +404,205 @@ model ProductAnalyticsEvent {
   @@index([event, createdAt])
   @@index([userType, createdAt])
   @@index([surface, createdAt])
+}
+
+/// Phase 3 - Gate 54: User Agents durable definition & versioning
+model UserAgent {
+  id           String             @id
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  description  String             @db.Text
+  instructions String             @db.Text
+  modelPolicy  Json
+  tools        String[]           @default([])
+  skills       String[]           @default([])
+  memoryPolicy Json
+  budget       Json
+  riskPolicy   Json
+  avatar       String?
+  version      Int                @default(1)
+  isPublic     Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  versions     UserAgentVersion[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([isPublic])
+}
+
+model UserAgentVersion {
+  id           String    @id @default(cuid())
+  agentId      String
+  agent        UserAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  version      Int
+  instructions String    @db.Text
+  tools        String[]  @default([])
+  skills       String[]  @default([])
+  modelPolicy  Json
+  createdAt    DateTime  @default(now())
+
+  @@unique([agentId, version])
+  @@index([agentId])
+}
+
+/// Phase 4 - Gate 53: Installable Skills durable store
+model InstallableSkill {
+  id          String   @id
+  name        String
+  version     String
+  description String   @db.Text
+  author      String
+  workspaceId String?
+  userId      String?
+  enabled     Boolean  @default(true)
+  permissions String[] @default([])
+  tools       String[] @default([])
+  manifest    Json
+  isBuiltin   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, workspaceId])
+  @@index([enabled])
+}
+
+/// Phase 5 - Gates 49, 108-110, 114-117: Durable Automation Platform
+model AutomationRoutine {
+  id            String                     @id
+  userId        String
+  user          User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String                     @db.Text
+  triggerType   String                     @default("manual")
+  triggerConfig Json
+  status        String                     @default("ACTIVE")
+  version       Int                        @default(1)
+  workflowDag   Json
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  versions      AutomationRoutineVersion[]
+  runs          AutomationRoutineRun[]
+
+  @@index([userId, status])
+}
+
+model AutomationRoutineVersion {
+  id          String            @id @default(cuid())
+  routineId   String
+  routine     AutomationRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  version     Int
+  workflowDag Json
+  createdAt   DateTime          @default(now())
+
+  @@unique([routineId, version])
+  @@index([routineId])
+}
+
+model AutomationRoutineRun {
+  id             String            @id
+  routineId      String
+  routine        AutomationRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         String            @default("PENDING")
+  startedAt      DateTime          @default(now())
+  completedAt    DateTime?
+  stepOutputs    Json              @default("{}")
+  totalCostUsd   Float             @default(0.0)
+  errorMessage   String?           @db.Text
+  idempotencyKey String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([routineId, startedAt(sort: Desc)])
+  @@index([userId, status])
+  @@index([idempotencyKey])
+}
+
+model AutomationNotification {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String   @db.Text
+  category  String   @default("routine")
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, read, createdAt(sort: Desc)])
+}
+
+/// Phase 6 - Gates 65, 66, 73, 74, 123: Durable Artifact Engine
+model DurableArtifact {
+  id             String                   @id
+  userId         String
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId      String?
+  name           String
+  format         String
+  mimeType       String
+  currentVersion Int                      @default(1)
+  tags           String[]                 @default([])
+  isPublic       Boolean                  @default(false)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  versions       DurableArtifactVersion[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([isPublic])
+}
+
+model DurableArtifactVersion {
+  id         String          @id @default(cuid())
+  artifactId String
+  artifact   DurableArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  version    Int
+  content    String          @db.Text
+  storageUri String?
+  checksum   String
+  sizeBytes  Int
+  validation Json
+  provenance Json
+  createdAt  DateTime        @default(now())
+
+  @@unique([artifactId, version])
+  @@index([artifactId])
+}
+
+/// Gate 113: Enterprise Multi-Tenant Hierarchy
+model EnterpriseOrganization {
+  id         String                 @id
+  name       String
+  slug       String                 @unique
+  ssoConfig  Json?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  workspaces EnterpriseWorkspace[]
+  members    EnterpriseMembership[]
+}
+
+model EnterpriseWorkspace {
+  id        String                 @id
+  orgId     String
+  org       EnterpriseOrganization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([orgId])
+}
+
+model EnterpriseMembership {
+  id        String                 @id
+  orgId     String
+  org       EnterpriseOrganization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String                 @default("MEMBER")
+  createdAt DateTime               @default(now())
+
+  @@unique([orgId, userId])
+  @@index([userId])
 }

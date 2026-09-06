@@ -71,3 +71,27 @@ test("Enterprise Identity: SAML/OIDC Contract & Invariants (Gate 113)", () => {
 	assert.equal(basicOrg.ssoConfig.enabled, false);
 	assert.equal(basicOrg.securityPolicy.enforceMfa, false);
 });
+
+test("Enterprise Organization Durability: Survives Process Restart (Gate 112 & Phase 12)", () => {
+	const org = globalEnterpriseOrgManager.createOrganization({
+		name: "Durable Global Enterprise",
+		slug: "durable-global-ent",
+		ownerUserId: "user_ent_owner_1",
+		ssoConfig: { enabled: true, provider: "SAML", idpMetadataUrl: "https://idp.example.com/metadata" },
+	});
+
+	const ws = globalEnterpriseOrgManager.createWorkspace({
+		orgId: org.id,
+		name: "Security Engineering Workspace",
+	});
+
+	// Simulate restart
+	globalEnterpriseOrgManager.reloadFromDisk();
+
+	const role = globalEnterpriseOrgManager.getMemberRole(org.id, "user_ent_owner_1");
+	assert.equal(role, "OWNER");
+
+	const canAdmin = globalEnterpriseOrgManager.canPerformAction(org.id, "user_ent_owner_1", "ADMIN");
+	assert.equal(canAdmin, true);
+});
+

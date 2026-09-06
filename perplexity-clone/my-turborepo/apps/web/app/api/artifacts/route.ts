@@ -12,7 +12,7 @@ function json(body: unknown, init?: ResponseInit): Response {
 const CreateArtifactInputSchema = z.object({
 	projectId: z.string().optional(),
 	name: z.string().min(1).max(120),
-	format: z.enum(["TXT", "MARKDOWN", "JSON", "CSV", "HTML", "DOCX_OUTLINE", "PPTX_DECK", "ZIP_METADATA", "IMAGE_METADATA"]),
+	format: z.enum(["TXT", "MARKDOWN", "JSON", "CSV", "HTML", "PDF", "DOCX", "XLSX", "PPTX", "ZIP", "DOCX_OUTLINE", "PPTX_DECK", "ZIP_METADATA", "IMAGE_METADATA"]),
 	content: z.string().min(1),
 	provenance: z.object({
 		runId: z.string().min(1),

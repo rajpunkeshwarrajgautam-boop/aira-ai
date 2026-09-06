@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "prebuild": "prisma generate --schema=../../../../prisma/schema.prisma",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "precheck-types": "prisma generate --schema=../../../../prisma/schema.prisma",

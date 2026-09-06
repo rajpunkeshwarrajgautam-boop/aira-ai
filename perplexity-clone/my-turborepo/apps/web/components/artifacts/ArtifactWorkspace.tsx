@@ -24,7 +24,14 @@ import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { type StoredArtifact, type ArtifactFormat, globalArtifactEngine } from "@/lib/artifacts/engine";
+import {
+	type StoredArtifact,
+	type ArtifactFormat,
+	type ArtifactVersion,
+	type TableStats,
+	type ProvenanceLineageNode,
+	parseTableStats,
+} from "@/lib/artifacts/types";
 
 export function ArtifactWorkspace() {
 	const [artifacts, setArtifacts] = useState<StoredArtifact[]>([]);
@@ -54,71 +61,140 @@ export function ArtifactWorkspace() {
 			}
 
 			// Seed comprehensive multi-format samples for immediate verification
-			const sampleReport = globalArtifactEngine.createArtifact({
+			const sampleReport: StoredArtifact = {
+				id: "art_sample_report",
 				userId: "demo_user",
 				name: "Q3 AI Market Analysis.md",
 				format: "MARKDOWN",
-				content: "# Q3 Executive AI Performance & Model Landscape\n\n## Overview\nAIRA autonomous workflows demonstrated a 4.2x latency reduction compared to manual orchestration.\n\n| Model | Latency (ms) | Quality Score | Cost / 1M |\n|---|---|---|---|\n| meta/llama-3.3-70b | 1150 | 92 | $0.70 |\n| meta/llama-3.2-11b | 850 | 86 | $0.35 |\n| deepseek-r1 | 2400 | 95 | $0.55 |\n\n### Recommendation\nRoute latency-sensitive reasoning through 11b vision models with selective escalation to 70b.",
-				provenance: {
-					runId: "run_sample_1",
-					agentRole: "RESEARCH",
-					inputChecksum: "sha_sample_1",
-					generator: "AIRA Research Swarm",
-				},
+				mimeType: "text/markdown",
+				currentVersion: 1,
+				versions: [
+					{
+						version: 1,
+						content: "# Q3 Executive AI Performance & Model Landscape\n\n## Overview\nAIRA autonomous workflows demonstrated a 4.2x latency reduction compared to manual orchestration.\n\n| Model | Latency (ms) | Quality Score | Cost / 1M |\n|---|---|---|---|\n| meta/llama-3.3-70b | 1150 | 92 | $0.70 |\n| meta/llama-3.2-11b | 850 | 86 | $0.35 |\n| deepseek-r1 | 2400 | 95 | $0.55 |\n\n### Recommendation\nRoute latency-sensitive reasoning through 11b vision models with selective escalation to 70b.",
+						checksum: "sha_sample_1",
+						sizeBytes: 420,
+						validation: {
+							isValid: true,
+							format: "MARKDOWN",
+							score: 100,
+							errors: [],
+							warnings: [],
+							metrics: { sizeBytes: 420, wordCount: 52 },
+						},
+						provenance: {
+							runId: "run_sample_1",
+							agentRole: "RESEARCH",
+							inputChecksum: "sha_sample_1",
+							generatedAt: new Date().toISOString(),
+							generator: "AIRA Research Swarm",
+						},
+						createdAt: new Date().toISOString(),
+					},
+				],
 				tags: ["market-research", "quarterly"],
-			});
+				isPublic: true,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
 
-			const sampleSheet = globalArtifactEngine.createArtifact({
+			const sampleSheet: StoredArtifact = {
+				id: "art_sample_sheet",
 				userId: "demo_user",
 				name: "Model Economics.csv",
 				format: "CSV",
-				content: "Model,Provider,TokensPerSecond,CostPerMillionUsd,ReliabilityPct\nLlama-3.3-70B,NVIDIA,84,0.70,99.9\nLlama-3.2-11B,NVIDIA,142,0.35,99.8\nNemotron-4-340B,NVIDIA,38,1.80,99.5\nOmniRoute-Auto,AIRA,115,0.45,99.99",
-				provenance: {
-					runId: "run_sample_2",
-					parentArtifactId: sampleReport.id,
-					agentRole: "DATA_ENGINEER",
-					inputChecksum: "sha_sample_2",
-					generator: "AIRA Spreadsheet Engine",
-				},
+				mimeType: "text/csv",
+				currentVersion: 1,
+				versions: [
+					{
+						version: 1,
+						content: "Model,Provider,TokensPerSecond,CostPerMillionUsd,ReliabilityPct\nLlama-3.3-70B,NVIDIA,84,0.70,99.9\nLlama-3.2-11B,NVIDIA,142,0.35,99.8\nNemotron-4-340B,NVIDIA,38,1.80,99.5\nOmniRoute-Auto,AIRA,115,0.45,99.99",
+						checksum: "sha_sample_2",
+						sizeBytes: 215,
+						validation: {
+							isValid: true,
+							format: "CSV",
+							score: 100,
+							errors: [],
+							warnings: [],
+							metrics: { sizeBytes: 215, rowCount: 4, columnCount: 5 },
+						},
+						provenance: {
+							runId: "run_sample_2",
+							parentArtifactId: sampleReport.id,
+							agentRole: "DATA_ENGINEER",
+							inputChecksum: "sha_sample_2",
+							generatedAt: new Date().toISOString(),
+							generator: "AIRA Spreadsheet Engine",
+						},
+						createdAt: new Date().toISOString(),
+					},
+				],
 				tags: ["economics", "benchmarks"],
-			});
+				isPublic: true,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
 
-			const sampleDeck = globalArtifactEngine.createArtifact({
+			const sampleDeck: StoredArtifact = {
+				id: "art_sample_deck",
 				userId: "demo_user",
 				name: "Autonomous Platform Architecture.pptx",
 				format: "PPTX_DECK",
-				content: JSON.stringify({
-					title: "AIRA Autonomous Platform Architecture",
-					slides: [
-						{
-							title: "The Vision: Outcome-Driven AI",
-							bullets: [
-								"From prompt-response chats to autonomous deliverable engines",
-								"Multi-agent task decomposition with strict budget limits",
-								"Cryptographically verifiable evidence chains",
+				mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+				currentVersion: 1,
+				versions: [
+					{
+						version: 1,
+						content: JSON.stringify({
+							title: "AIRA Autonomous Platform Architecture",
+							slides: [
+								{
+									title: "The Vision: Outcome-Driven AI",
+									bullets: [
+										"From prompt-response chats to autonomous deliverable engines",
+										"Multi-agent task decomposition with strict budget limits",
+										"Cryptographically verifiable evidence chains",
+									],
+									speakerNotes: "Emphasize why outcomes matter more than raw generation speed.",
+								},
+								{
+									title: "Core System Topology",
+									bullets: [
+										"Central Tool Gateway with allow/ask/deny permissions",
+										"Dynamic Capability Planner selecting specialized models",
+										"Automated Quality Verifier running against acceptance criteria",
+									],
+									speakerNotes: "Highlight how safety boundaries remain enforced centrally.",
+								},
 							],
-							speakerNotes: "Emphasize why outcomes matter more than raw generation speed.",
+						}),
+						checksum: "sha_sample_3",
+						sizeBytes: 612,
+						validation: {
+							isValid: true,
+							format: "PPTX_DECK",
+							score: 100,
+							errors: [],
+							warnings: [],
+							metrics: { sizeBytes: 612, slideCount: 2 },
 						},
-						{
-							title: "Core System Topology",
-							bullets: [
-								"Central Tool Gateway with allow/ask/deny permissions",
-								"Dynamic Capability Planner selecting specialized models",
-								"Automated Quality Verifier running against acceptance criteria",
-							],
-							speakerNotes: "Highlight how safety boundaries remain enforced centrally.",
+						provenance: {
+							runId: "run_sample_3",
+							parentArtifactId: sampleSheet.id,
+							agentRole: "ARCHITECT",
+							inputChecksum: "sha_sample_3",
+							generatedAt: new Date().toISOString(),
+							generator: "AIRA Presentation Engine",
 						},
-					],
-				}),
-				provenance: {
-					runId: "run_sample_3",
-					parentArtifactId: sampleSheet.id,
-					agentRole: "ARCHITECT",
-					inputChecksum: "sha_sample_3",
-					generator: "AIRA Presentation Engine",
-				},
+						createdAt: new Date().toISOString(),
+					},
+				],
 				tags: ["slides", "architecture"],
-			});
+				isPublic: true,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
 
 			setArtifacts([sampleReport, sampleSheet, sampleDeck]);
 			setSelectedId(sampleReport.id);
@@ -147,16 +223,35 @@ export function ArtifactWorkspace() {
 	}, [artifacts, filterFormat, searchQuery]);
 
 	// Table stats calculation for CSV / JSON (Gate 73)
-	const tableData = useMemo(() => {
+	const tableData = useMemo<TableStats | null>(() => {
 		if (!activeVersionObj || (selectedArtifact?.format !== "CSV" && selectedArtifact?.format !== "JSON")) return null;
-		return globalArtifactEngine.computeTableStats(activeVersionObj.content);
+		return parseTableStats(activeVersionObj.content);
 	}, [activeVersionObj, selectedArtifact]);
 
 	// Provenance Lineage calculation (Gate 123)
-	const lineage = useMemo(() => {
+	const lineage = useMemo<ProvenanceLineageNode[]>(() => {
 		if (!selectedArtifact) return [];
-		return globalArtifactEngine.getProvenanceLineage("demo_user", selectedArtifact.id);
-	}, [selectedArtifact]);
+		const nodes: ProvenanceLineageNode[] = [];
+		let cur: StoredArtifact | undefined = selectedArtifact;
+		while (cur) {
+			const currentTarget: StoredArtifact = cur;
+			const activeVer: ArtifactVersion | undefined =
+				currentTarget.versions.find((v) => v.version === currentTarget.currentVersion) ?? currentTarget.versions[0];
+			nodes.push({
+				artifactId: currentTarget.id,
+				name: currentTarget.name,
+				version: currentTarget.currentVersion,
+				checksum: activeVer?.checksum ?? "sha256_mock",
+				runId: activeVer?.provenance.runId ?? "run_direct",
+				generator: activeVer?.provenance.generator ?? "AIRA Core",
+				generatedAt: activeVer?.provenance.generatedAt ?? new Date().toISOString(),
+				parentArtifactId: activeVer?.provenance.parentArtifactId,
+			});
+			const nextParentId: string | undefined = activeVer?.provenance.parentArtifactId;
+			cur = nextParentId ? artifacts.find((a) => a.id === nextParentId) : undefined;
+		}
+		return nodes;
+	}, [selectedArtifact, artifacts]);
 
 	const handleDownload = () => {
 		if (!activeVersionObj || !selectedArtifact) return;
@@ -349,7 +444,7 @@ export function ArtifactWorkspace() {
 												<table className="w-full text-left text-[11px]">
 													<thead className="border-b border-white/[0.1] text-content-tertiary">
 														<tr>
-															{tableData.columns.map((c) => (
+															{tableData.columns.map((c: string) => (
 																<th key={c} className="p-2 font-medium">
 																	{c}
 																</th>
@@ -450,7 +545,7 @@ export function ArtifactWorkspace() {
 
 										<h4 className="text-[12px] font-semibold text-content-primary">Column Metrics & Statistics</h4>
 										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											{tableData.columns.map((col) => {
+											{tableData.columns.map((col: string) => {
 												const stat = tableData.stats[col];
 												return (
 													<div
@@ -486,7 +581,7 @@ export function ArtifactWorkspace() {
 											Cryptographic Provenance Lineage Graph
 										</h4>
 										<div className="space-y-3">
-											{lineage.map((node, index) => (
+											{lineage.map((node: ProvenanceLineageNode, index: number) => (
 												<div
 													key={node.artifactId}
 													className="relative rounded-lg border border-white/[0.08] bg-[#090d16] p-3.5 text-[12px]"
