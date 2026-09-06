@@ -1091,7 +1091,7 @@
       "capability": "Scheduled cloud routines",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Connector",
         "output architecture."
@@ -1103,8 +1103,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2536,7 +2538,7 @@
       "capability": "Cross-connector planner",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 20",
         "50",
@@ -2549,8 +2551,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2560,7 +2564,7 @@
       "capability": "Notifications",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Connector",
         "delivery service."
@@ -2572,8 +2576,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2583,7 +2589,7 @@
       "capability": "Autonomous work inbox",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 23",
         "49",
@@ -2596,8 +2602,10 @@
         "tailwind-css"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2672,7 +2680,7 @@
       "capability": "Workflow template gallery",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Workflow",
         "plugin schema."
@@ -2684,8 +2692,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2695,7 +2705,7 @@
       "capability": "Editable workflow template",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 114 schema."
       ],
@@ -2706,8 +2716,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2717,7 +2729,7 @@
       "capability": "Visual workflow builder",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 115",
         "runtime contract."
@@ -2729,8 +2741,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2740,7 +2754,7 @@
       "capability": "User automation platform",
       "wave": 6,
       "domain": "workflows",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 49",
         "50",
@@ -2753,8 +2767,10 @@
         "bullmq-specialist"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
       "blocker": null,
       "last_verified_sha": null
     },
