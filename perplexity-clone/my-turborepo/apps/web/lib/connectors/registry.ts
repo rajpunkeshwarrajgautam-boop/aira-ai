@@ -76,7 +76,7 @@ export class ConnectorRegistry {
 			],
 			isConfigured: Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim()),
 			isEnabled: process.env.AIRA_GMAIL_CONNECTOR_ENABLED === "true",
-			health: Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim()) ? "HEALTHY" : "UNCONFIGURED",
+			health: process.env.GMAIL_OAUTH_CLIENT_ID?.trim() ? "HEALTHY" : "UNCONFIGURED",
 		});
 
 		// Gate 77: Calendar Agent
@@ -97,7 +97,7 @@ export class ConnectorRegistry {
 			],
 			isConfigured: Boolean(process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim()),
 			isEnabled: process.env.AIRA_CALENDAR_CONNECTOR_ENABLED === "true",
-			health: Boolean(process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim()) ? "HEALTHY" : "UNCONFIGURED",
+			health: process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim() ? "HEALTHY" : "UNCONFIGURED",
 		});
 
 		// Gate 78: Slack / Teams
@@ -120,7 +120,7 @@ export class ConnectorRegistry {
 			],
 			isConfigured: Boolean(process.env.SLACK_BOT_TOKEN?.trim()),
 			isEnabled: process.env.AIRA_SLACK_CONNECTOR_ENABLED === "true",
-			health: Boolean(process.env.SLACK_BOT_TOKEN?.trim()) ? "HEALTHY" : "UNCONFIGURED",
+			health: process.env.SLACK_BOT_TOKEN?.trim() ? "HEALTHY" : "UNCONFIGURED",
 		});
 
 		// Gate 80: Business Files (Google Drive, Dropbox, OneDrive)
@@ -142,7 +142,7 @@ export class ConnectorRegistry {
 			],
 			isConfigured: Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() || process.env.DROPBOX_CLIENT_ID?.trim()),
 			isEnabled: true,
-			health: Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID?.trim()) ? "HEALTHY" : "UNCONFIGURED",
+			health: process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() ? "HEALTHY" : "UNCONFIGURED",
 		});
 
 		// Gate 81: Notion / Jira

@@ -17,6 +17,7 @@ All underlying code contracts, security invariants, error handling, and test har
 | **81** | Notion / Jira | Jira OAuth / Notion Integration Token | **EXTERNAL_BLOCKED** | Connector directory manifest & fail-closed security contract passing |
 | **82** | CRM (HubSpot/Salesforce) | HubSpot / Salesforce OAuth App Credentials | **EXTERNAL_BLOCKED** | B2B sales pack & CRM ingestion contracts passing |
 | **85** | Ad Platform Connectors | Meta Ads / Google Ads Developer Token | **EXTERNAL_BLOCKED** | Marketing OS pack & spend limit guardrails passing |
+| **86** | Analytics Connectors | PostHog / Google Analytics 4 API Credentials | **EXTERNAL_BLOCKED** | Analytics query action & connector registry contract passing |
 | **88** | Social Publishing | X / LinkedIn Developer API Keys | **EXTERNAL_BLOCKED** | Content studio pack & editorial review approval fences passing |
 | **89** | Ecommerce (Shopify/Stripe)| Shopify Admin Token / Stripe Secret Key | **EXTERNAL_BLOCKED** | Financial modeler & payment analytics pack passing |
 | **100** | Desktop Windows Signing | Authenticode Windows Code Signing Certificate | **EXTERNAL_BLOCKED** | Desktop agent package, IPC security, and policy tests passing |

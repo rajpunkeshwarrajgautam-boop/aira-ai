@@ -6,11 +6,10 @@ Authoritative release blockers are exactly gates **01, 02, 04, 05, 06, 14, 28, 2
 
 ## Exact live anchors
 
-- `main`: `2b99c8f73eec5fa12b7154046d05357e9bf095e9`
-- PR #122 / `feat/aira-autonomous-platform-core`: `a7ac2eaa424683265620438e37d262f2644e9b5c`
-- PR #92 / `feature/omniroute-gateway`: `2be99993511ee66f3785fc7af957fea3e1b884b3`
-- PR #123 / `integration/aira-autonomous-omniroute`: `0c047986f089d8301f617a0c3009602e25d75fd2`
-- Integration tree: `d6e64dcde94db8d42955e3cac095948e88063090`
+- `main`: `81955d915ff3c6cb1027b9ac8ccb462c433c069d` (PR #123 MERGED — LIVE IN PRODUCTION)
+- Certified Application RC Ancestor: `b25e2ddb1dfe3a688af8a62d99cd0ddb5332b027`
+- PR #123 / `integration/aira-autonomous-omniroute`: MERGED into `main` (`81955d915ff3c6cb1027b9ac8ccb462c433c069d`)
+- Active Platform Integration Branch: `integration/aira-ultimate-platform` (HEAD: `b0a467ed4bad17ef449441c4bf384759c5196689`)
 
 `PASS` means the gate's stated behavior is proved at the cited SHA, not merely present in source. `PARTIAL` means useful implementation or evidence exists but the complete gate contract is not proved. `BLOCKED` identifies a concrete unavailable dependency. `NOT STARTED` means no gate-level implementation/evidence was found. Priorities follow the master specification; legacy gates omitted from its explicit tier lists are conservatively assigned P1/P2 without changing the authoritative P0 set.
 
