@@ -164,7 +164,7 @@
       "capability": "Browser reliability",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Browser Preview service."
       ],
@@ -175,8 +175,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -186,7 +188,7 @@
       "capability": "Coding agent reliability",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -197,8 +199,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -422,7 +426,7 @@
       "capability": "Migration failure / upgrade",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Isolated Supabase Preview",
         "disposable clone."
@@ -434,8 +438,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -704,7 +710,7 @@
       "capability": "Observability",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Observability sink."
       ],
@@ -715,8 +721,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -751,7 +759,7 @@
       "capability": "Reliability / SLO",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Monitoring",
         "alert service."
@@ -763,8 +771,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -774,7 +784,7 @@
       "capability": "Load testing",
       "wave": 12,
       "domain": "sre",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Production-like non-production capacity."
       ],
@@ -785,8 +795,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -859,7 +871,7 @@
       "capability": "Deployment architecture",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Complete Preview topology."
       ],
@@ -870,8 +882,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -881,7 +895,7 @@
       "capability": "Backup / DR",
       "wave": 12,
       "domain": "sre",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Disposable backup",
         "restore environment."
@@ -893,8 +907,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1046,7 +1062,7 @@
       "capability": "Product telemetry",
       "wave": 12,
       "domain": "sre",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Analytics schema",
         "dashboard."
@@ -1058,8 +1074,10 @@
         "devops"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
       "blocker": null,
       "last_verified_sha": null
     },
