@@ -432,7 +432,7 @@
       "capability": "Business connectors",
       "wave": 5,
       "domain": "connectors",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Non-production connector apps",
         "credentials."
@@ -444,8 +444,11 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1111,7 +1114,7 @@
       "capability": "Connector directory",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Connector framework and apps."
       ],
@@ -1122,8 +1125,11 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1133,7 +1139,7 @@
       "capability": "MCP server registry",
       "wave": 5,
       "domain": "connectors",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "None."
       ],
@@ -1144,8 +1150,11 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1155,7 +1164,7 @@
       "capability": "Plugin package format",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Gates 50",
         "51",
@@ -1168,8 +1177,11 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1751,7 +1763,7 @@
       "capability": "Gmail agent",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Google app credentials."
       ],
@@ -1762,9 +1774,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -1773,7 +1788,7 @@
       "capability": "Calendar agent",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Google app credentials."
       ],
@@ -1784,9 +1799,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -1795,7 +1813,7 @@
       "capability": "Slack / Teams agent",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Connector apps."
       ],
@@ -1806,9 +1824,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -1841,7 +1862,7 @@
       "capability": "Business file connectors",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Connector apps."
       ],
@@ -1852,9 +1873,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -1863,7 +1887,7 @@
       "capability": "Notion / Jira / project systems",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Connector platform."
       ],
@@ -1874,9 +1898,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -1885,7 +1912,7 @@
       "capability": "CRM",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Connector platform."
       ],
@@ -1896,9 +1923,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -1975,7 +2005,7 @@
       "capability": "Analytics connectors",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Connector platform."
       ],
@@ -1986,9 +2016,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
@@ -2042,7 +2075,7 @@
       "capability": "Ecommerce connector",
       "wave": 5,
       "domain": "connectors",
-      "status": "NOT_STARTED",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Ecommerce app."
       ],
@@ -2053,9 +2086,12 @@
         "security-owasp"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
       "last_verified_sha": null
     },
     {
