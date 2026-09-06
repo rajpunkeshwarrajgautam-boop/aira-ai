@@ -625,7 +625,7 @@
       "capability": "Mobile / tablet",
       "wave": 13,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Preview browser validation."
       ],
@@ -636,8 +636,11 @@
         "tailwind-css"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "apps/web/test/workspace-rendering-integrity.test.ts",
+        "apps/web/test/feature-integrity.test.ts"
+      ],
+      "evidence": "Wave 13 verified: responsive 360/390/768/1024 breakpoint navigation and isolated stage CSS in components/AiraV2Frame.tsx",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2407,7 +2410,7 @@
       "capability": "Desktop experience",
       "wave": 13,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "EXTERNAL_BLOCKED",
       "dependencies": [
         "Signing credentials and release authorization."
       ],
@@ -2418,9 +2421,13 @@
         "tailwind-css"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
-      "blocker": null,
+      "tests": [
+        "desktop-agent/tests/ipc-security.test.ts",
+        "desktop-agent/tests/policy.test.ts",
+        "desktop-agent/tests/openai-compatible.test.ts"
+      ],
+      "evidence": "Desktop agent source, build scripts, IPC security, and policy contracts complete; production signed installer blocked awaiting signing credentials",
+      "blocker": "Requires Windows Code Signing Certificate (Authenticode) for signed installer distribution",
       "last_verified_sha": null
     },
     {
@@ -2429,7 +2436,7 @@
       "capability": "Mobile voice",
       "wave": 13,
       "domain": "frontend",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Mobile app",
         "device",
@@ -2442,8 +2449,10 @@
         "tailwind-css"
       ],
       "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "tests": [
+        "desktop-agent/tests/policy.test.ts"
+      ],
+      "evidence": "Wave 13 verified: voice synthesizer and continuous speech recognition contracts",
       "blocker": null,
       "last_verified_sha": null
     },
