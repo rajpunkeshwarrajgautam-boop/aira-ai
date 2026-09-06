@@ -73,16 +73,16 @@
 | 62 | P1 | Council mode | 7 | workflows | NOT_STARTED | Model capability router. |
 | 63 | P1 | Command registry | 1 | universal_contracts | COMPLETE | None. |
 | 64 | P1 | Work mode | 2 | frontend | COMPLETE | Gates 07, 20, 65. |
-| 65 | P1 | Artifact engine | 3 | artifacts | PARTIAL | Format generators, storage. |
-| 66 | P1 | Artifact workspace | 2 | frontend | PARTIAL | Gate 65, storage. |
+| 65 | P1 | Artifact engine | 3 | artifacts | COMPLETE | Format generators, storage. |
+| 66 | P1 | Artifact workspace | 2 | frontend | COMPLETE | Gate 65, storage. |
 | 67 | P2 | Design mode | 3 | artifacts | NOT_STARTED | Artifact, image foundations. |
 | 68 | P2 | Design system ingestion | 3 | artifacts | NOT_STARTED | Gate 67. |
 | 69 | P2 | Image generation / editing | 3 | artifacts | PARTIAL | Media provider access. |
 | 70 | P2 | Video workflow | 3 | artifacts | NOT_STARTED | Media architecture, provider. |
 | 71 | P2 | Audio / voice | 3 | artifacts | PARTIAL | Audio providers, device Preview. |
 | 72 | P2 | Real-time multimodal | 3 | artifacts | NOT_STARTED | Realtime provider, infrastructure. |
-| 73 | P2 | Spreadsheet / data workspace | 3 | artifacts | NOT_STARTED | Artifact engine. |
-| 74 | P2 | Office document pipeline | 3 | artifacts | NOT_STARTED | Artifact engine. |
+| 73 | P2 | Spreadsheet / data workspace | 3 | artifacts | COMPLETE | Artifact engine. |
+| 74 | P2 | Office document pipeline | 3 | artifacts | COMPLETE | Artifact engine. |
 | 75 | P1 | Federated connected knowledge | 4 | database | NOT_STARTED | Connectors. |
 | 76 | P1 | Gmail agent | 5 | connectors | NOT_STARTED | Google app credentials. |
 | 77 | P1 | Calendar agent | 5 | connectors | NOT_STARTED | Google app credentials. |
@@ -131,7 +131,7 @@
 | 120 | P1 | Benchmark-based routing | 10 | ai_routing | NOT_STARTED | Gates 44, 45, 119. |
 | 121 | P1 | Outcome quality verifier | 7 | workflows | PARTIAL | Evaluation system. |
 | 122 | P1 | Deliverable contract | 1 | universal_contracts | COMPLETE | Mission schema evolution. |
-| 123 | P1 | Artifact provenance graph | 3 | artifacts | PARTIAL | Version registries, artifact engine. |
+| 123 | P1 | Artifact provenance graph | 3 | artifacts | COMPLETE | Version registries, artifact engine. |
 | 124 | P1 | Mission replay / debugger | 7 | workflows | PARTIAL | Gate 125, versioning. |
 | 125 | P1 | Reproducible mission snapshot | 7 | workflows | NOT_STARTED | Gates 122, 126. |
 | 126 | P1 | Prompt / policy version management | 1 | universal_contracts | COMPLETE | Persistence, evaluation schema. |

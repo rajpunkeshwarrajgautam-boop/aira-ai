@@ -1483,7 +1483,7 @@
       "capability": "Artifact engine",
       "wave": 3,
       "domain": "artifacts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Format generators",
         "storage."
@@ -1493,9 +1493,15 @@
         "api-designer",
         "test-architect"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/artifacts/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/artifacts/[id]/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Universal Artifact Engine supporting deterministic creation, deep format integrity validation, immutable version history (v1, v2) with SHA-256 checksums, and multi-format MIME handling for TXT, Markdown, JSON, CSV, PPTX, DOCX, and HTML.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1505,7 +1511,7 @@
       "capability": "Artifact workspace",
       "wave": 2,
       "domain": "frontend",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Gate 65",
         "storage."
@@ -1516,9 +1522,14 @@
         "accessibility",
         "tailwind-css"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx",
+        "perplexity-clone/my-turborepo/apps/web/app/artifacts/page.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Artifact Workspace surface featuring library search/filtering, markdown rendering, tabular statistics preview, slide carousel deck viewer, version diff history, and downloads.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1658,7 +1669,7 @@
       "capability": "Spreadsheet / data workspace",
       "wave": 3,
       "domain": "artifacts",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Artifact engine."
       ],
@@ -1667,9 +1678,14 @@
         "api-designer",
         "test-architect"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Spreadsheet and tabular data workspace engine with automated column statistics (count, distinct, numeric detection, sum, average) and responsive table rendering.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -1679,7 +1695,7 @@
       "capability": "Office document pipeline",
       "wave": 3,
       "domain": "artifacts",
-      "status": "NOT_STARTED",
+      "status": "COMPLETE",
       "dependencies": [
         "Artifact engine."
       ],
@@ -1688,9 +1704,14 @@
         "api-designer",
         "test-architect"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Office document engines for structured PPTX presentation decks (slides, bullets, speaker notes) and DOCX outline schemas with format integrity validation.",
       "blocker": null,
       "last_verified_sha": null
     },
@@ -2816,7 +2837,7 @@
       "capability": "Artifact provenance graph",
       "wave": 3,
       "domain": "artifacts",
-      "status": "PARTIAL",
+      "status": "COMPLETE",
       "dependencies": [
         "Version registries",
         "artifact engine."
@@ -2826,9 +2847,15 @@
         "api-designer",
         "test-architect"
       ],
-      "implementation_paths": [],
-      "tests": [],
-      "evidence": "",
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/artifacts/[id]/provenance/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Cryptographic Artifact Provenance Graph capturing DAG lineage, parent artifacts, generator agents, inputs, and SHA-256 hashes.",
       "blocker": null,
       "last_verified_sha": null
     },

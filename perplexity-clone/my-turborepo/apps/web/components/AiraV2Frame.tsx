@@ -13,6 +13,7 @@ import {
   Globe2,
   Hammer,
   History,
+  Layers,
   Menu,
   MonitorUp,
   Network,
@@ -42,6 +43,7 @@ const OPERATE_NAV = [
 const INTELLIGENCE_NAV = [
   { href: "/compare", label: "Model Lab", description: "Compare models side by side", icon: Columns2 },
   { href: "/omniroute", label: "OmniRoute", description: "Smart multi-provider gateway", icon: Network },
+  { href: "/artifacts", label: "Artifacts", description: "Validated deliverables & workspace", icon: Layers },
   { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
   { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
 ] as const;
