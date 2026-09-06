@@ -1,0 +1,119 @@
+name: Terminal Worker CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/terminal-worker/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/terminal-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/**"
+      - ".github/workflows/terminal-worker-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terminal-worker/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/terminal-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/**"
+      - ".github/workflows/terminal-worker-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  terminal-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AIRA_TERMINAL_RUNTIME_TOKEN: contract-terminal-runtime-token-contract
+      AIRA_TERMINAL_WORKSPACE_ROOT: /tmp/aira-terminal-worker-test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python source
+        run: python -m py_compile infra/terminal-worker/server.py infra/terminal-worker/sandboxed_server.py infra/terminal-worker/sandbox_exec.py infra/terminal-worker/launcher.py infra/terminal-worker/test_security.py
+
+      - name: Install terminal worker Python dependencies
+        run: python -m pip install --disable-pip-version-check -r infra/terminal-worker/requirements.txt
+
+      - name: Run terminal security policy tests
+        working-directory: infra/terminal-worker
+        run: python -m unittest -v test_security.py
+
+      - name: Validate Compose security profile
+        working-directory: infra/terminal-worker
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Confirm dangerous container capabilities are absent
+        run: |
+          grep -q '127.0.0.1:' infra/terminal-worker/compose.yml
+          grep -q 'cap_drop: \["ALL"\]' infra/terminal-worker/compose.yml
+          grep -q 'no-new-privileges:true' infra/terminal-worker/compose.yml
+          grep -q 'sandboxed_server:app' infra/terminal-worker/launcher.py
+          if grep -RnE '(privileged:[[:space:]]*true|/var/run/docker.sock|0\.0\.0\.0:[0-9]+:8080)' infra/terminal-worker; then
+            echo "::error::Unsafe terminal worker configuration detected."
+            exit 1
+          fi
+
+      - name: Confirm worker has no remote push endpoint
+        run: |
+          if grep -nE '@app\.(post|put|patch).*push|git push|force.push' infra/terminal-worker/server.py; then
+            echo "::error::Remote Git push must not be exposed by the isolated terminal worker."
+            exit 1
+          fi
+          grep -q 'asyncio.create_subprocess_exec' infra/terminal-worker/sandboxed_server.py
+          grep -q 'seccomp.Arg(0, seccomp.NE, socket.AF_UNIX)' infra/terminal-worker/sandbox_exec.py
+          grep -q 'Landlock()' infra/terminal-worker/sandbox_exec.py
+          if grep -q 'create_subprocess_shell' infra/terminal-worker/server.py infra/terminal-worker/sandboxed_server.py; then
+            echo "::error::Shell-string execution is forbidden."
+            exit 1
+          fi
+
+      - name: Build terminal worker image
+        run: docker build -t aira-terminal-worker:ci infra/terminal-worker
+
+      - name: Prove generic commands cannot create IP sockets
+        run: |
+          docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; r=asyncio.run(runtime.sandboxed_run(['python3','-c','import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)'], cwd=Path('/tmp'), timeout_seconds=5)); assert r['exitCode'] != 0, r; assert 'Operation not permitted' in r['stderr'], r"
+          docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; child='import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)'; outer=f'import subprocess,sys; r=subprocess.run([sys.executable,\"-c\",{child!r}]); raise SystemExit(0 if r.returncode != 0 else 9)'; r=asyncio.run(runtime.sandboxed_run(['python3','-c',outer], cwd=Path('/tmp'), timeout_seconds=5)); assert r['exitCode'] == 0, r"
+
+      - name: Prove generic commands cannot cross workspace filesystem scope
+        run: |
+          docker run --rm --entrypoint python3 aira-terminal-worker:ci -c "import asyncio; from pathlib import Path; import sandboxed_server as runtime; a=Path('/tmp/work-a'); b=Path('/tmp/work-b'); a.mkdir(); b.mkdir(); secret=b/'secret.txt'; secret.write_text('secret'); r=asyncio.run(runtime.sandboxed_run(['python3','-c',f'from pathlib import Path; print(Path({str(secret)!r}).read_text())'], cwd=a, timeout_seconds=5)); assert r['exitCode'] != 0, r; assert 'Permission denied' in r['stderr'], r"
+
+      - name: Prove long-lived worker process environment is secret-free
+        run: |
+          docker run -d --name aira-terminal-secret-ci \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+            --tmpfs /workspaces:rw,nosuid,nodev,size=64m,uid=10005,gid=10005 \
+            -e AIRA_TERMINAL_RUNTIME_TOKEN=runtime-secret-must-not-remain-in-proc \
+            -e 'AIRA_TERMINAL_GIT_AUTH_HEADER=Authorization: Bearer git-secret-must-not-remain-in-proc' \
+            aira-terminal-worker:ci
+          trap 'docker rm -f aira-terminal-secret-ci >/dev/null 2>&1 || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if ! docker inspect -f '{{.State.Running}}' aira-terminal-secret-ci | grep -qx true; then
+              docker logs aira-terminal-secret-ci
+              echo "::error::Terminal worker exited before becoming healthy."
+              exit 1
+            fi
+            if docker exec aira-terminal-secret-ci python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=1).read()" >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            docker logs aira-terminal-secret-ci
+            echo "::error::Terminal worker did not become healthy in time."
+            exit 1
+          fi
+          docker exec aira-terminal-secret-ci python3 -c "data=open('/proc/1/environ','rb').read(); assert b'runtime-secret-must-not-remain-in-proc' not in data; assert b'git-secret-must-not-remain-in-proc' not in data"

@@ -1,0 +1,21 @@
+name: aira-agent-scheduler
+
+services:
+  agent-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AIRA_AGENT_SCHEDULER_WEB_URL: ${AIRA_AGENT_SCHEDULER_WEB_URL:?set AIRA_AGENT_SCHEDULER_WEB_URL}
+      AIRA_AGENT_SCHEDULER_TOKEN: ${AIRA_AGENT_SCHEDULER_TOKEN:?set AIRA_AGENT_SCHEDULER_TOKEN}
+      AIRA_AGENT_SCHEDULER_INTERVAL_SECONDS: ${AIRA_AGENT_SCHEDULER_INTERVAL_SECONDS:-5}
+      AIRA_AGENT_SCHEDULER_BATCH_SIZE: ${AIRA_AGENT_SCHEDULER_BATCH_SIZE:-8}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.50

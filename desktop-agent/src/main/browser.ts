@@ -1,24 +1,53 @@
-import { BrowserWindow, session } from 'electron'
-import { app } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { assertPublicBrowserNetworkUrl, assertPublicHttpUrl } from './policy'
 
 interface BrowserElement { ref:string; tag:string; text:string; aria:string; placeholder:string; type:string }
 interface BrowserSnapshot { url:string; title:string; text:string; elements:BrowserElement[] }
 
 class BrowserController {
   private window: BrowserWindow | null = null
+  private networkPolicyInstalled = false
+
   private ensureWindow(): BrowserWindow {
     if (this.window && !this.window.isDestroyed()) return this.window
     const ses=session.fromPartition('persist:aira-browser')
-    ses.setPermissionRequestHandler((_w,_p,callback)=>callback(false)); ses.setPermissionCheckHandler(()=>false)
+    ses.setPermissionRequestHandler((_w,_p,callback)=>callback(false))
+    ses.setPermissionCheckHandler(()=>false)
+    if (!this.networkPolicyInstalled) {
+      this.networkPolicyInstalled = true
+      // The listener is intentionally unfiltered so WebSocket handshakes cannot
+      // bypass the same DNS/IP policy applied to HTTP(S). Non-network schemes
+      // such as data: and blob: are left alone for normal page rendering.
+      ses.webRequest.onBeforeRequest((details, callback) => {
+        if (!/^(?:https?|wss?):\/\//i.test(details.url)) {
+          callback({ cancel: false })
+          return
+        }
+        void assertPublicBrowserNetworkUrl(details.url).then(
+          () => callback({ cancel: false }),
+          () => callback({ cancel: true })
+        )
+      })
+      ses.on('will-download',(event)=>event.preventDefault())
+    }
     this.window=new BrowserWindow({width:1280,height:850,show:true,title:'AIRA Browser',backgroundColor:'#0a0e0c',webPreferences:{session:ses,nodeIntegration:false,contextIsolation:true,sandbox:true}})
     this.window.on('closed',()=>{this.window=null})
-    this.window.webContents.setWindowOpenHandler(({url})=>{if(/^https?:\/\//i.test(url))void this.window?.loadURL(url);return{action:'deny'}})
+    // Popups/new windows are deliberately denied. Navigations in the existing
+    // controlled window still pass through the DNS/IP policy above.
+    this.window.webContents.setWindowOpenHandler(()=>({action:'deny'}))
     this.window.webContents.on('will-navigate',(event,url)=>{if(!/^https?:\/\//i.test(url))event.preventDefault()})
     return this.window
   }
-  async open(url:string){if(!/^https?:\/\//i.test(url))throw new Error('Browser supports only HTTP(S) URLs.');const win=this.ensureWindow();await win.loadURL(url);return{url:win.webContents.getURL(),title:win.getTitle()}}
+
+  async open(url:string){
+    const safe=await assertPublicHttpUrl(url)
+    const win=this.ensureWindow()
+    await win.loadURL(safe.toString())
+    return{url:win.webContents.getURL(),title:win.getTitle()}
+  }
+
   async snapshot():Promise<BrowserSnapshot>{const win=this.ensureWindow();const script=`(() => {
 const visible=(el)=>{const r=el.getBoundingClientRect();const s=getComputedStyle(el);return r.width>1&&r.height>1&&s.visibility!=='hidden'&&s.display!=='none';};
 const candidates=Array.from(document.querySelectorAll('a,button,input,textarea,select,[role="button"],[contenteditable="true"]')).filter(visible).slice(0,180);

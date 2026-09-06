@@ -1,4 +1,5 @@
 import Store from 'electron-store'
+import { sanitizeAuditSummary } from './policy'
 
 interface AuditEvent {
   id: string
@@ -20,7 +21,8 @@ export function logAudit(event: Omit<AuditEvent, 'id' | 'at'>): void {
   const next: AuditEvent = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     at: new Date().toISOString(),
-    ...event
+    ...event,
+    summary: sanitizeAuditSummary(event.summary)
   }
   audit.set('events', [next, ...current].slice(0, 1000))
 }

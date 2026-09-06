@@ -5,8 +5,9 @@ import os from 'os'
 import path from 'path'
 import { promisify } from 'util'
 import { getSettings } from './config'
+import { resolvePathInsideRoot } from './policy'
 const execFileAsync = promisify(execFile)
-function safeLocal(input: string): string { const root=path.resolve(getSettings().workspaceRoot); const expanded=input.startsWith('~')?path.join(os.homedir(),input.slice(1)):input; const target=path.isAbsolute(expanded)?path.resolve(expanded):path.resolve(root,expanded); const rel=path.relative(root,target); if(rel.startsWith('..')||path.isAbsolute(rel)) throw new Error('Local Android transfer path must remain inside workspace.'); return target }
+function safeLocal(input: string): string { const root=path.resolve(getSettings().workspaceRoot); const expanded=input.startsWith('~')?path.join(os.homedir(),input.slice(1)):input; const target=path.isAbsolute(expanded)?path.resolve(expanded):path.resolve(root,expanded); return resolvePathInsideRoot(root,target) }
 async function adb(args:string[],timeout=45_000):Promise<{stdout:string;stderr:string}>{ const {stdout,stderr}=await execFileAsync('adb',args,{windowsHide:true,timeout,maxBuffer:4*1024*1024}); return {stdout:stdout.trim(),stderr:stderr.trim()} }
 export async function androidDevices(){ const {stdout}=await adb(['devices','-l']); return stdout.split(/\r?\n/).slice(1).map(l=>l.trim()).filter(Boolean).map(line=>{const [serial,state,...rest]=line.split(/\s+/);return {serial,state,details:rest.join(' ')}}) }
 export async function androidStatus():Promise<Record<string,string>>{ const props=await adb(['shell','getprop']); const battery=await adb(['shell','dumpsys','battery']); const size=await adb(['shell','wm','size']); return {brand:props.stdout.match(/\[ro\.product\.brand\]: \[(.*?)\]/)?.[1]||'',model:props.stdout.match(/\[ro\.product\.model\]: \[(.*?)\]/)?.[1]||'',androidVersion:props.stdout.match(/\[ro\.build\.version\.release\]: \[(.*?)\]/)?.[1]||'',batteryLevel:battery.stdout.match(/level:\s*(\d+)/)?.[1]||'',display:size.stdout} }

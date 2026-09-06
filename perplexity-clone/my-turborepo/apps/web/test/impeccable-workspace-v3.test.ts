@@ -16,16 +16,30 @@ test("chat is full width and keeps a real conversation plus inspector layout", (
   const css = read("app/impeccable-workspace-v3.css");
   assert.ok(css.includes(".aira-home.aira-home .max-w-7xl"));
   assert.ok(css.includes("max-width: none !important"));
-  assert.ok(css.includes("width: 360px !important"));
+  assert.ok(css.includes("width: 340px !important"));
   assert.ok(css.includes("grid-template-columns: minmax(0, 1fr) 320px !important"));
   assert.ok(css.includes("max-width: 940px !important"));
+  assert.ok(css.includes("@media (min-width: 1600px)"));
+  assert.ok(css.includes("max-width: 980px !important"));
 });
 
 test("authenticated workspace frame uses the compact application rail", () => {
   const css = read("app/impeccable-workspace-v3.css");
+  const frame = read("components/AiraV2Frame.tsx");
   assert.ok(css.includes("grid-template-columns: 88px minmax(0, 1fr) !important"));
   assert.ok(css.includes(".aira-v2-workspace-stage.aira-v2-workspace-stage"));
   assert.ok(css.includes("max-width: 1440px !important"));
+  assert.ok(frame.includes("AIRA workspace"));
+  assert.ok(!frame.includes("Connected workspace"), "global chrome must not fabricate provider connectivity");
+  assert.ok(frame.includes("previouslyFocusedRef"), "command palette should restore keyboard focus");
+});
+
+test("citation presentation preserves direct and contextual source meaning", () => {
+  const citations = read("components/CitationCards.tsx");
+  assert.ok(citations.includes("citedIndices.includes(citation.index)"));
+  assert.ok(citations.includes("retrieved for context"));
+  assert.ok(citations.includes('id={`source-${c.index}`}'));
+  assert.ok(citations.includes("Open source"));
 });
 
 test("agents and memory share the authenticated AIRA frame", () => {

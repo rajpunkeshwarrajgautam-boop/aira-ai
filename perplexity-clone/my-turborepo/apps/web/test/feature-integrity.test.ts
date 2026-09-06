@@ -79,12 +79,22 @@ test("type=button controls are not decorative no-ops", () => {
 test("global search conversation results open any authenticated saved conversation", () => {
 	const api = read("app/api/global-search/route.ts");
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
+	const searchHelper = read("lib/global-search.ts");
 	assert.ok(api.includes("listConversations(session.user.id"));
-	assert.ok(api.includes("listConversationMessages(session.user.id"));
+	assert.ok(
+		api.includes("searchConversationMessages(session.user.id") ||
+			api.includes("listConversationMessages(session.user.id"),
+		"global search must search conversation messages strictly scoped to the authenticated user",
+	);
 	assert.ok(api.includes("listUserMemories(session.user.id"));
 	assert.ok(api.includes("/?conversation=${encodeURIComponent(conversation.id)}"));
 	assert.ok(sidebar.includes('searchParams.get("conversation")'));
 	assert.ok(sidebar.includes("onSelectConversation(targetConversationId)"));
+	assert.ok(searchHelper.includes("userId,"), "message search must strictly scope by userId");
+	assert.ok(
+		searchHelper.includes("Math.min(Math.max(limit, 1), 60)"),
+		"message search must bound result retrieval limit",
+	);
 });
 
 test("global memory search opens and focuses the exact memory", () => {

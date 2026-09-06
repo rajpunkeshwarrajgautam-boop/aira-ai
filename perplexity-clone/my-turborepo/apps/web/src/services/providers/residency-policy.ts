@@ -27,7 +27,6 @@ function allowedRegions(): Set<string> {
 
 export function providerAllowedByResidency(providerId: string): boolean {
 	if (process.env.AIRA_DATA_RESIDENCY_ENFORCED !== "true") return true;
-	if (process.env.AIRA_REQUIRE_LOCAL_INFERENCE === "true" && providerId !== "self-hosted") return false;
 	const allowed = allowedRegions();
 	if (allowed.size === 0) return false;
 	const regions = configuredRegions()[providerId] ?? [];

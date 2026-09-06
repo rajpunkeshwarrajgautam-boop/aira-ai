@@ -1,0 +1,177 @@
+name: PostgreSQL Migration Failure Recovery
+
+on:
+  pull_request:
+    paths:
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/migration-failure-recovery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-failure-recovery-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  failed-migration-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      PGPASSWORD: postgres
+      RECOVERY_DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/aira_migration_recovery_ci?schema=public
+      RECOVERY_PSQL_URL: postgresql://postgres:postgres@127.0.0.1:5432/aira_migration_recovery_ci
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Create isolated recovery database
+        run: |
+          createdb -h 127.0.0.1 -U postgres aira_migration_recovery_ci
+          psql "$RECOVERY_PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists extensions;
+          do $$
+          begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin bypassrls;
+            end if;
+          end
+          $$;
+          SQL
+
+      - name: Materialize CI-only historical baseline
+        run: |
+          test ! -e prisma/migrations/20260429_initial_schema || {
+            echo "::error::Historical baseline must remain outside committed Prisma migrations."
+            exit 1
+          }
+          mkdir prisma/migrations/20260429_initial_schema
+          cp prisma/baseline/20260429_initial_schema.sql prisma/migrations/20260429_initial_schema/migration.sql
+
+      - name: Bring recovery database to the real current schema
+        run: DATABASE_URL="$RECOVERY_DB_URL" pnpm exec prisma migrate deploy
+
+      - name: Prove failed migration detection, explicit rollback resolution, repair, and restart idempotency
+        run: |
+          set -euo pipefail
+          probe="99999999_ci_failure_recovery_probe"
+          probe_dir="prisma/migrations/$probe"
+          trap 'rm -rf "$probe_dir"' EXIT
+          mkdir "$probe_dir"
+
+          cat > "$probe_dir/migration.sql" <<'SQL'
+          begin;
+          create table public."CiMigrationRecoveryProbe" (
+            "id" integer primary key
+          );
+          do $$
+          begin
+            raise exception 'intentional CI migration failure probe';
+          end
+          $$;
+          commit;
+          SQL
+
+          if DATABASE_URL="$RECOVERY_DB_URL" pnpm exec prisma migrate deploy; then
+            echo "::error::The intentional migration failure unexpectedly succeeded."
+            exit 1
+          fi
+
+          failed="$(psql "$RECOVERY_PSQL_URL" -Atc "select count(*) from \"_prisma_migrations\" where migration_name='$probe' and finished_at is null and rolled_back_at is null;")"
+          test "$failed" = "1" || {
+            echo "::error::Prisma did not persist exactly one unresolved failed migration row (found $failed)."
+            exit 1
+          }
+
+          probe_table="$(psql "$RECOVERY_PSQL_URL" -Atc "select case when to_regclass('public.\"CiMigrationRecoveryProbe\"') is null then 0 else 1 end;")"
+          test "$probe_table" = "0" || {
+            echo "::error::The explicitly transactional failed migration leaked schema changes."
+            exit 1
+          }
+
+          DATABASE_URL="$RECOVERY_DB_URL" pnpm exec prisma migrate resolve --rolled-back "$probe"
+
+          unresolved="$(psql "$RECOVERY_PSQL_URL" -Atc "select count(*) from \"_prisma_migrations\" where migration_name='$probe' and finished_at is null and rolled_back_at is null;")"
+          test "$unresolved" = "0" || {
+            echo "::error::Failed migration remained unresolved after migrate resolve --rolled-back."
+            exit 1
+          }
+
+          rolled_back="$(psql "$RECOVERY_PSQL_URL" -Atc "select count(*) from \"_prisma_migrations\" where migration_name='$probe' and rolled_back_at is not null;")"
+          test "$rolled_back" = "1" || {
+            echo "::error::Expected one explicitly resolved rollback ledger row, found $rolled_back."
+            exit 1
+          }
+
+          cat > "$probe_dir/migration.sql" <<'SQL'
+          create table public."CiMigrationRecoveryProbe" (
+            "id" integer primary key
+          );
+          SQL
+
+          DATABASE_URL="$RECOVERY_DB_URL" pnpm exec prisma migrate deploy
+
+          applied="$(psql "$RECOVERY_PSQL_URL" -Atc "select count(*) from \"_prisma_migrations\" where migration_name='$probe' and finished_at is not null and rolled_back_at is null;")"
+          test "$applied" = "1" || {
+            echo "::error::Repaired migration did not finish exactly once (found $applied successful rows)."
+            exit 1
+          }
+
+          probe_table="$(psql "$RECOVERY_PSQL_URL" -Atc "select case when to_regclass('public.\"CiMigrationRecoveryProbe\"') is null then 0 else 1 end;")"
+          test "$probe_table" = "1" || {
+            echo "::error::Repaired migration did not create its expected schema object."
+            exit 1
+          }
+
+          before="$(psql "$RECOVERY_PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          DATABASE_URL="$RECOVERY_DB_URL" pnpm exec prisma migrate deploy
+          after="$(psql "$RECOVERY_PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
+          test "$before" = "$after" || {
+            echo "::error::Restart after repaired migration changed the successful migration count ($before -> $after)."
+            exit 1
+          }

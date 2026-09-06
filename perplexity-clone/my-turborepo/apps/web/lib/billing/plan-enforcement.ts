@@ -65,7 +65,6 @@ async function loadEntitlements(
 	const limit = effectiveMonthlySearchLimit(billingPlan, teamSeats);
 	const agentRunLimit = effectiveMonthlyAgentRunLimit(billingPlan, teamSeats);
 
-	// Load current month's usage
 	const periodStart = startOfUtcMonth(new Date());
 	const usage = await db.usageRecord.findUnique({
 		where: { userId_periodStart: { userId, periodStart } },
@@ -84,6 +83,18 @@ async function loadEntitlements(
 		agentRunsUsed,
 		agentRunsRemaining: Math.max(0, agentRunLimit - agentRunsUsed),
 	};
+}
+
+function assertAgentRunsAvailable(entitlements: EffectiveEntitlements): number {
+	const limit = entitlements.monthlyAgentRunLimit;
+	if (limit < 1) {
+		throw new PlanEnforcementError(
+			403,
+			"PLAN_REQUIRED",
+			"AutoGPT agent tasks require Pro or Team.",
+		);
+	}
+	return limit;
 }
 
 export async function getEffectiveEntitlements(
@@ -121,7 +132,7 @@ export async function consumeSearchQuota(userId: string): Promise<EffectiveEntit
 			throw new PlanEnforcementError(
 				402,
 				"QUOTA_EXCEEDED",
-				`You have reached your monthly search limit of ${limit}. Upgrade to Pro for unlimited searches.`
+				`You have reached your monthly search limit of ${limit}. Upgrade to Pro for unlimited searches.`,
 			);
 		}
 
@@ -134,8 +145,9 @@ export async function consumeSearchQuota(userId: string): Promise<EffectiveEntit
 }
 
 /**
- * Reserves one AutoGPT run atomically. Call before submitting the remote job.
- * If remote submission fails, pair it with `refundAgentRunQuota`.
+ * Reserves one standalone agent run atomically. Managed missions use
+ * consumeManagedMissionQuota so a retried clientRequestId cannot double-charge.
+ * If remote submission fails, pair standalone reservations with refundAgentRunQuota.
  */
 export async function consumeAgentRunQuota(
 	userId: string,
@@ -144,15 +156,7 @@ export async function consumeAgentRunQuota(
 
 	return prisma.$transaction(async (tx) => {
 		const entitlements = await loadEntitlements(tx, userId);
-		const limit = entitlements.monthlyAgentRunLimit;
-
-		if (limit < 1) {
-			throw new PlanEnforcementError(
-				403,
-				"PLAN_REQUIRED",
-				"AutoGPT agent tasks require Pro or Team.",
-			);
-		}
+		const limit = assertAgentRunsAvailable(entitlements);
 
 		const row = await tx.usageRecord.upsert({
 			where: { userId_periodStart: { userId, periodStart } },
@@ -176,7 +180,93 @@ export async function consumeAgentRunQuota(
 	});
 }
 
-/** Refund a reserved run when AutoGPT rejects or cannot accept the job. */
+/**
+ * Reserves exactly one user quota unit for a managed mission request.
+ *
+ * The unique server-owned reservation is created in the same database
+ * transaction as the UsageRecord increment. Concurrent retries carrying the
+ * same clientRequestId therefore observe the existing reservation and do not
+ * increment usage again. This removes best-effort refund semantics from the
+ * managed-mission idempotency path.
+ */
+export async function consumeManagedMissionQuota(
+	userId: string,
+	clientRequestId: string,
+): Promise<EffectiveEntitlements> {
+	const requestId = clientRequestId.trim();
+	if (requestId.length < 8 || requestId.length > 160) {
+		throw new PlanEnforcementError(400, "INVALID_REQUEST_ID", "Managed mission request id is invalid.");
+	}
+	const periodStart = startOfUtcMonth(new Date());
+
+	return prisma.$transaction(async (tx) => {
+		const entitlements = await loadEntitlements(tx, userId);
+		const limit = assertAgentRunsAvailable(entitlements);
+		const reservationId = crypto.randomUUID();
+		const inserted = await tx.$queryRaw<Array<{ id: string }>>`
+			insert into "AgentManagedMissionQuotaReservation" (
+				"id", "userId", "clientRequestId", "periodStart"
+			) values (
+				${reservationId}, ${userId}, ${requestId}, ${periodStart}
+			)
+			on conflict ("userId", "clientRequestId") do nothing
+			returning "id"
+		`;
+
+		if (!inserted[0]) {
+			return loadEntitlements(tx, userId);
+		}
+
+		const row = await tx.usageRecord.upsert({
+			where: { userId_periodStart: { userId, periodStart } },
+			create: { userId, periodStart, agentRuns: 1 },
+			update: { agentRuns: { increment: 1 } },
+		});
+		if (row.agentRuns > limit) {
+			throw new PlanEnforcementError(
+				402,
+				"AGENT_QUOTA_EXCEEDED",
+				`You have reached your monthly limit of ${limit} agent tasks.`,
+			);
+		}
+		return {
+			...entitlements,
+			agentRunsUsed: row.agentRuns,
+			agentRunsRemaining: Math.max(0, limit - row.agentRuns),
+		};
+	});
+}
+
+/**
+ * Releases a managed-mission reservation only if this exact request owns one.
+ * The delete is the idempotency guard: repeated rollback attempts cannot
+ * decrement UsageRecord more than once.
+ */
+export async function refundManagedMissionQuota(
+	userId: string,
+	clientRequestId: string,
+): Promise<void> {
+	const requestId = clientRequestId.trim();
+	await prisma.$transaction(async (tx) => {
+		const released = await tx.$queryRaw<Array<{ periodStart: Date }>>`
+			delete from "AgentManagedMissionQuotaReservation"
+			where "userId"=${userId} and "clientRequestId"=${requestId}
+			returning "periodStart"
+		`;
+		const reservation = released[0];
+		if (!reservation) return;
+		const row = await tx.usageRecord.findUnique({
+			where: { userId_periodStart: { userId, periodStart: reservation.periodStart } },
+		});
+		if (!row || row.agentRuns < 1) return;
+		await tx.usageRecord.update({
+			where: { userId_periodStart: { userId, periodStart: reservation.periodStart } },
+			data: { agentRuns: { decrement: 1 } },
+		});
+	});
+}
+
+/** Refund a reserved standalone run when its remote provider rejects the job. */
 export async function refundAgentRunQuota(userId: string): Promise<void> {
 	const periodStart = startOfUtcMonth(new Date());
 	await prisma.$transaction(async (tx) => {

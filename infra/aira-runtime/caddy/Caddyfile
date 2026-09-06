@@ -1,15 +1,8 @@
 # AIRA runtime edge.
 #
 # Terminates TLS for every Vercel-facing runtime service on one host and
-# reverse-proxies to the loopback ports the existing service Compose files
-# already publish. Nothing here loosens an upstream's own authentication: the
-# control plane, sandbox gateway, AutoGPT adapters and DeerFlow Gateway each
-# still require their own token on every request. The edge only narrows the
-# surface further, by refusing paths AIRA never calls.
-#
-# Runs with network_mode: host so 127.0.0.1:<port> resolves to the services
-# published by infra/foundation/compose.yml, infra/autogpt-runner/compose.yml
-# and DeerFlow's own upstream Compose, without editing any of them.
+# reverse-proxies to loopback-only worker ports. Upstream authentication remains
+# mandatory; the edge additionally refuses paths AIRA never calls.
 {
 	email {$AIRA_ACME_EMAIL}
 	admin off
@@ -30,11 +23,6 @@
 }
 
 # --- Foundation control plane -------------------------------------------------
-# Only the five paths AIRA actually calls are published, plus /healthz for
-# operator and uptime probes. /v1/jobs/claim and /v1/jobs/ack are deliberately
-# NOT published: the knowledge worker reaches the control plane over the
-# internal Docker network, so exposing the claim path would only widen the
-# surface on which a leaked control token could steal queued jobs.
 {$AIRA_CONTROL_HOST} {
 	import hardened
 
@@ -80,11 +68,46 @@
 	}
 }
 
+# --- Browser worker -----------------------------------------------------------
+# Session creation/actions remain bearer-authenticated by the worker. The edge
+# publishes only the health endpoint and the versioned session API.
+{$AIRA_BROWSER_HOST} {
+	import hardened
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:{$AIRA_BROWSER_PORT}
+	}
+
+	handle /v1/sessions* {
+		reverse_proxy 127.0.0.1:{$AIRA_BROWSER_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# --- Terminal / Git worktree worker ------------------------------------------
+# The worker exposes only authenticated workspace operations. It has no remote
+# push/force-push route; remote Git hosting mutations remain separate Tool
+# Gateway actions with their own risk/approval policy.
+{$AIRA_TERMINAL_HOST} {
+	import hardened
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:{$AIRA_TERMINAL_PORT}
+	}
+
+	handle /v1/workspaces* {
+		reverse_proxy 127.0.0.1:{$AIRA_TERMINAL_PORT}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
 # --- DeerFlow Gateway ---------------------------------------------------------
-# Upstream publishes exactly one host port (nginx on 127.0.0.1:2026) which
-# serves both /health and /api/*. Interactive API documentation is refused here
-# as well as by GATEWAY_ENABLE_DOCS=false, so a future upstream default flip
-# cannot quietly expose it.
 {$AIRA_DEERFLOW_HOST} {
 	import hardened
 
@@ -114,9 +137,6 @@
 }
 
 # --- AutoGPT primary ----------------------------------------------------------
-# Only the adapter's external API is published. /internal/v1/* is the private
-# NVIDIA translation surface used by the AutoGPT container over the internal
-# Docker network and must never be reachable from the Internet.
 {$AIRA_AUTOGPT_PRIMARY_HOST} {
 	import hardened
 

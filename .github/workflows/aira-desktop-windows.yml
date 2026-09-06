@@ -56,11 +56,43 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         run: npx electron-builder --win nsis --publish never
 
-      - name: Package and publish tagged release
+      - name: Require signing credentials for tagged release
         if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis --publish always
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) {
+            throw "AIRA_WINDOWS_CSC_LINK is required for a tagged Windows release."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
+            throw "AIRA_WINDOWS_CSC_PASSWORD is required for a tagged Windows release."
+          }
+
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $expectedTag = "aira-desktop-v$($package.version)"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag $env:GITHUB_REF_NAME does not match package version $($package.version). Expected $expectedTag."
+          }
+
+      - name: Package signed tagged release
+        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Verify tagged installer Authenticode signature
+        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -Path dist -Filter "*.exe" -File)
+          if ($installers.Count -eq 0) {
+            throw "No Windows installer executable was produced."
+          }
+
+          foreach ($installer in $installers) {
+            $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+            if ($signature.Status -ne 'Valid' -or -not $signature.SignerCertificate) {
+              throw "Installer signature is not valid: $($installer.Name) ($($signature.Status))."
+            }
+            Write-Host "Valid Authenticode signature: $($installer.Name) — $($signature.SignerCertificate.Subject)"
+          }
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
@@ -70,30 +102,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish AIRA Desktop 1.0
-        if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Publish explicitly tagged Windows release
+        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = "aira-desktop-v1.0.0"
+          $tag = $env:GITHUB_REF_NAME
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release $tag already exists; leaving it unchanged."
-            exit 0
+            throw "Release $tag already exists. Refusing to overwrite an existing production release."
           }
 
-          $notesPath = Join-Path $env:RUNNER_TEMP "aira-desktop-1.0-release-notes.md"
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $notesPath = Join-Path $env:RUNNER_TEMP "aira-desktop-release-notes.md"
           @"
-          AIRA Desktop 1.0 is the first Windows release of AIRA's local-first agentic operating layer.
+          AIRA Desktop $($package.version)
 
-          Highlights:
-          - local Ollama reasoning, vision, embeddings, memory, and workspace RAG
-          - approval-gated computer, browser, PowerShell, file, and Android tools
-          - voice control, scheduled read-only automations, encrypted remote-provider keys
-          - sandboxed Electron renderer, audit logs, and automatic update support
-
-          Requirements: Windows 10/11. Ollama is required for local inference.
+          This Windows release was produced by the owner-triggered tagged release workflow and passed dependency audit, TypeScript checks, policy/security tests, application build, packaging, and Authenticode verification before publication.
           "@ | Set-Content -Path $notesPath -Encoding utf8
 
           $assets = Get-ChildItem -Path dist -File | Where-Object {
@@ -105,6 +131,6 @@ jobs:
 
           gh release create $tag `
             --target $env:GITHUB_SHA `
-            --title "AIRA Desktop 1.0.0" `
+            --title "AIRA Desktop $($package.version)" `
             --notes-file $notesPath `
             $assets

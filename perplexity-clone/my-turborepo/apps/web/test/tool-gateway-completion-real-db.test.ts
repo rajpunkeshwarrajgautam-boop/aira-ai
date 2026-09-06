@@ -1,0 +1,364 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import test from "node:test";
+
+import { createPlatformRun, createProject } from "@/lib/agent-platform/store";
+import { DEFAULT_RUN_BUDGETS } from "@/lib/agent-platform/types";
+import {
+	claimToolCallForExecution,
+	completeToolCall,
+	createToolCall,
+} from "@/lib/tool-gateway/store";
+import { executeTool, toolInputHash } from "@/lib/tool-gateway/gateway";
+import type { ToolAdapter } from "@/lib/tool-gateway/types";
+import { prisma } from "@/lib/prisma";
+
+const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
+
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((release) => {
+		resolve = release;
+	});
+	return { promise, resolve };
+}
+
+test(
+	"REAL_DB: stale coordinator cannot re-execute or overwrite a durably completed tool call",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-stale-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool stale ${suffix}`, objective: "Fence stale tool execution after a newer durable completion." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-stale-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = { clientRequestId: `tool-stale-call-${suffix}`, tool: "web" as const, action: "retrieve", input: { query: "stale coordinator proof", numResults: 1 } };
+		let adapterExecutions = 0;
+		const adapter: ToolAdapter = {
+			id: "web",
+			async isAvailable() { return true; },
+			async execute() {
+				adapterExecutions += 1;
+				return { result: { source: "coordinator-a" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } };
+			},
+		};
+		const reached = deferred();
+		const release = deferred();
+		const staleCoordinator = executeTool(context, request, {
+			adapter,
+			beforeCompletionPersist: async () => {
+				reached.resolve();
+				await release.promise;
+			},
+		});
+		await reached.promise;
+		assert.equal(adapterExecutions, 1, "coordinator A owns the only external execution");
+
+		const call = await prisma.$queryRaw<Array<{ id: string }>>`
+			select "id" from "AgentToolCall" where "userId"=${userId} and "clientRequestId"=${request.clientRequestId}
+		`;
+		assert.equal(await completeToolCall({ toolCallId: call[0]!.id, result: { source: "coordinator-b" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } }), true);
+		const beforeStaleResume = await prisma.$queryRaw<Array<{ status: string; resultSummary: Record<string, unknown>; inputTokensUsed: bigint; outputTokensUsed: bigint; cachedTokensUsed: bigint; knownCostUsd: string }>>`
+			select c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId" where c."id"=${call[0]!.id}
+		`;
+		assert.deepEqual(beforeStaleResume, [{ status: "COMPLETED", resultSummary: { source: "coordinator-b" }, inputTokensUsed: 11n, outputTokensUsed: 7n, cachedTokensUsed: 2n, knownCostUsd: "0.42" }]);
+
+		release.resolve();
+		await assert.rejects(staleCoordinator, { code: "TOOL_COMPLETION_OUTCOME_UNKNOWN", status: 503 });
+		assert.equal(adapterExecutions, 1, "the stale coordinator cannot execute the adapter again");
+		const replay = await executeTool({ ...context }, { ...request, input: { ...request.input } }, { adapter });
+		assert.deepEqual(replay, { status: "COMPLETED", toolCallId: call[0]!.id, result: { source: "coordinator-b" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true }, resultFidelity: "SUMMARY" });
+		assert.equal(adapterExecutions, 1, "canonical replay resolves the newer durable state before adapter execution");
+		const afterStaleResume = await prisma.$queryRaw<typeof beforeStaleResume>`
+			select c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId" where c."id"=${call[0]!.id}
+		`;
+		assert.deepEqual(afterStaleResume, beforeStaleResume);
+	},
+);
+
+test(
+	"REAL_DB: a lost response after durable completion replays without another adapter call or charge",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-lost-response-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool lost response ${suffix}`, objective: "Replay a durably completed tool operation after its caller loses the response." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-lost-response-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = {
+			clientRequestId: `tool-lost-response-call-${suffix}`,
+			tool: "web" as const,
+			action: "retrieve",
+			input: { query: "lost response replay proof", numResults: 1 },
+		};
+		let adapterExecutions = 0;
+		const adapter: ToolAdapter = {
+			id: "web",
+			async isAvailable() { return true; },
+			async execute() {
+				adapterExecutions += 1;
+				return { result: { source: "synthetic", answer: "durably persisted" }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } };
+			},
+		};
+
+		await assert.rejects(
+			executeTool(context, request, {
+				adapter,
+				afterCompletionPersist: () => { throw new Error("simulated caller response loss"); },
+			}),
+			/simulated caller response loss/,
+		);
+		assert.equal(adapterExecutions, 1, "the original operation executes the adapter once");
+
+		const beforeRetry = await prisma.$queryRaw<Array<{
+			id: string;
+			status: string;
+			resultSummary: Record<string, unknown>;
+			inputTokensUsed: bigint;
+			outputTokensUsed: bigint;
+			cachedTokensUsed: bigint;
+			knownCostUsd: string;
+		}>>`
+			select c."id", c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId"
+			where c."userId"=${userId} and c."clientRequestId"=${request.clientRequestId}
+		`;
+		assert.deepEqual(beforeRetry, [{
+			id: beforeRetry[0]?.id,
+			status: "COMPLETED",
+			resultSummary: { source: "synthetic", answer: "durably persisted" },
+			inputTokensUsed: 11n,
+			outputTokensUsed: 7n,
+			cachedTokensUsed: 2n,
+			knownCostUsd: "0.42",
+		}]);
+
+		const replay = await executeTool({ ...context }, { ...request, input: { ...request.input } }, { adapter });
+		assert.deepEqual(replay, {
+			status: "COMPLETED",
+			toolCallId: beforeRetry[0]?.id,
+			result: { source: "synthetic", answer: "durably persisted" },
+			usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, toolCalls: 1, costKnown: true },
+			resultFidelity: "SUMMARY",
+		});
+		assert.equal(adapterExecutions, 1, "the exact retry must replay before adapter execution");
+		const afterRetry = await prisma.$queryRaw<typeof beforeRetry>`
+			select c."id", c."status", c."resultSummary", r."inputTokensUsed", r."outputTokensUsed", r."cachedTokensUsed", trim_scale(r."knownCostUsd")::text as "knownCostUsd"
+			from "AgentToolCall" c join "AgentPlatformRun" r on r."id"=c."runId"
+			where c."userId"=${userId} and c."clientRequestId"=${request.clientRequestId}
+		`;
+		assert.deepEqual(afterRetry, beforeRetry);
+	},
+);
+
+test(
+	"REAL_DB: uncertain completion recovery fences replay before a tool executes twice",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-uncertain-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool uncertain ${suffix}`, objective: "Fence an ambiguous completion before a tool can execute twice." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-uncertain-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = {
+			clientRequestId: `tool-uncertain-call-${suffix}`,
+			tool: "web" as const,
+			action: "retrieve",
+			input: { query: "completion recovery proof", numResults: 1 },
+		};
+		let adapterExecutions = 0;
+		const adapter: ToolAdapter = {
+			id: "web",
+			async isAvailable() { return true; },
+			async execute() {
+				adapterExecutions += 1;
+				return { result: { source: "synthetic", accepted: true }, usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true } };
+			},
+		};
+
+		await assert.rejects(
+			executeTool(context, request, {
+				adapter,
+				beforeCompletionPersist: () => { throw new Error("forced completion persistence interruption"); },
+			}),
+			{ code: "TOOL_COMPLETION_OUTCOME_UNKNOWN", status: 503 },
+		);
+		assert.equal(adapterExecutions, 1, "the external adapter must run exactly once before the ambiguous completion");
+
+		const persisted = await prisma.$queryRaw<Array<{ status: string; errorCode: string | null }>>`
+			select "status", "errorCode" from "AgentToolCall"
+			where "userId"=${userId} and "clientRequestId"=${request.clientRequestId}
+		`;
+		assert.deepEqual(persisted, [{ status: "EXECUTING", errorCode: "TOOL_COMPLETION_OUTCOME_UNKNOWN" }]);
+		const usage = await prisma.$queryRaw<Array<{ inputTokensUsed: bigint; outputTokensUsed: bigint; cachedTokensUsed: bigint; knownCostUsd: string }>>`
+			select "inputTokensUsed", "outputTokensUsed", "cachedTokensUsed", trim_scale("knownCostUsd")::text as "knownCostUsd"
+			from "AgentPlatformRun" where "id"=${run.id}
+		`;
+		assert.deepEqual(usage, [{ inputTokensUsed: 0n, outputTokensUsed: 0n, cachedTokensUsed: 0n, knownCostUsd: "0" }]);
+
+		const recoveryContext = { ...context };
+		const recoveryRequest = { ...request, input: { ...request.input } };
+		await assert.rejects(
+			executeTool(recoveryContext, recoveryRequest),
+			{ code: "TOOL_COMPLETION_OUTCOME_UNKNOWN", status: 503 },
+		);
+		assert.equal(adapterExecutions, 1, "the recovery replay must fail before any adapter execution");
+		const finalPersisted = await prisma.$queryRaw<Array<{ status: string; errorCode: string | null }>>`
+			select "status", "errorCode" from "AgentToolCall"
+			where "userId"=${userId} and "clientRequestId"=${request.clientRequestId}
+		`;
+		assert.deepEqual(finalPersisted, persisted);
+	},
+);
+
+test(
+	"REAL_DB: duplicate and concurrent tool completion deliveries charge a mission once",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-completion-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({
+			userId,
+			name: `Tool completion ${suffix}`,
+			objective: "Prove completion replay cannot double-charge a mission.",
+		});
+		const run = await createPlatformRun({
+			userId,
+			projectId: project.id,
+			clientRequestId: `tool-completion-run-${suffix}`,
+			runtime: null,
+			budgets: DEFAULT_RUN_BUDGETS,
+			tasks: [],
+		});
+		const context = {
+			userId,
+			projectId: project.id,
+			runId: run.id,
+			source: "SYSTEM" as const,
+		};
+		const call = await createToolCall({
+			context,
+			clientRequestId: `tool-completion-call-${suffix}`,
+			tool: "web",
+			action: "fetch",
+			risk: "LOW",
+			inputHash: `sha256:${suffix}`,
+			inputSummary: { url: "https://example.test" },
+		});
+		assert.equal(await claimToolCallForExecution({
+			userId,
+			toolCallId: call.id,
+			inputHash: call.inputHash,
+			approvalSatisfied: false,
+		}), true);
+
+		const completion = {
+			toolCallId: call.id,
+			result: { ok: true },
+			usage: { inputTokens: 11, outputTokens: 7, cachedTokens: 2, costUsd: 0.42, costKnown: true },
+		};
+		const concurrent = await Promise.all([completeToolCall(completion), completeToolCall(completion)]);
+		assert.equal(concurrent.filter(Boolean).length, 1, "exactly one concurrent completion may claim the call");
+		assert.equal(await completeToolCall(completion), false, "an already-completed call must not be charged again");
+
+		const usage = await prisma.$queryRaw<Array<{
+			inputTokensUsed: bigint;
+			outputTokensUsed: bigint;
+			cachedTokensUsed: bigint;
+			knownCostUsd: string;
+			costAccountingComplete: boolean;
+		}>>`
+			select "inputTokensUsed", "outputTokensUsed", "cachedTokensUsed",
+			trim_scale("knownCostUsd")::text as "knownCostUsd", "costAccountingComplete"
+			from "AgentPlatformRun" where "id"=${run.id}
+		`;
+		assert.deepEqual(usage[0], {
+			inputTokensUsed: 11n,
+			outputTokensUsed: 7n,
+			cachedTokensUsed: 2n,
+			knownCostUsd: "0.42",
+			costAccountingComplete: false,
+		});
+		const completed = await prisma.$queryRaw<Array<{ status: string; completedAt: Date | null }>>`
+			select "status", "completedAt" from "AgentToolCall" where "id"=${call.id}
+		`;
+		assert.equal(completed[0]?.status, "COMPLETED");
+		assert.ok(completed[0]?.completedAt);
+	},
+);
+
+test(
+	"REAL_DB: an exact completed web request replays while its adapter is unavailable",
+	{ skip: !REAL_DB, timeout: 45_000 },
+	async (t) => {
+		const suffix = randomUUID();
+		const userId = `tool-replay-owner-${suffix}`;
+		await prisma.user.create({ data: { id: userId, email: `${userId}@example.test` } });
+		t.after(async () => {
+			await prisma.user.deleteMany({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		});
+
+		const project = await createProject({ userId, name: `Tool replay ${suffix}`, objective: "Replay a completed request without provider availability." });
+		const run = await createPlatformRun({ userId, projectId: project.id, clientRequestId: `tool-replay-run-${suffix}`, runtime: null, budgets: DEFAULT_RUN_BUDGETS, tasks: [] });
+		const context = { userId, projectId: project.id, runId: run.id, source: "SYSTEM" as const };
+		const request = {
+			clientRequestId: `tool-replay-call-${suffix}`,
+			tool: "web" as const,
+			action: "retrieve",
+			input: { query: "replay-only proof", numResults: 1 },
+		};
+		const call = await createToolCall({
+			context,
+			clientRequestId: request.clientRequestId,
+			tool: request.tool,
+			action: request.action,
+			risk: "LOW",
+			inputHash: toolInputHash(request.input),
+			inputSummary: { query: request.input.query },
+		});
+		assert.equal(await claimToolCallForExecution({ userId, toolCallId: call.id, inputHash: call.inputHash, approvalSatisfied: false }), true);
+		assert.equal(await completeToolCall({ toolCallId: call.id, result: { answer: "persisted summary" }, usage: { costKnown: true } }), true);
+
+		const priorExaKey = process.env.EXA_API_KEY;
+		delete process.env.EXA_API_KEY;
+		t.after(() => {
+			if (priorExaKey === undefined) delete process.env.EXA_API_KEY;
+			else process.env.EXA_API_KEY = priorExaKey;
+		});
+		const replay = await executeTool(context, request);
+		assert.deepEqual(replay, {
+			status: "COMPLETED",
+			toolCallId: call.id,
+			result: { answer: "persisted summary" },
+			usage: { costKnown: true },
+			resultFidelity: "SUMMARY",
+		});
+	},
+);

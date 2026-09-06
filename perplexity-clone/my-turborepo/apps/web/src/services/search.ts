@@ -132,8 +132,10 @@ export interface ExaSearchExecutionResult {
 
 export class ExaSearchService {
 	private readonly http: AxiosInstance;
+	private readonly apiKey: string;
 
-	constructor(private readonly apiKey: string) {
+	constructor(apiKey: string) {
+		this.apiKey = apiKey;
 		this.http = axios.create({
 			baseURL: EXA_API_BASE,
 			timeout: 60_000,

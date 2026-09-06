@@ -22,13 +22,16 @@ test("composer exposes real commands, tools, and voice input", () => {
 	for (const command of ["/deep ", "/new", "/history", "/share"]) {
 		assert.ok(searchBox.includes(command), `expected ${command} command in composer`);
 	}
-	for (const destination of ["/knowledge", "/agents", "/local-ai"]) {
+	for (const destination of ["/knowledge", "/agents", "/omniroute"]) {
 		assert.ok(searchBox.includes(`href="${destination}"`), `expected connected ${destination} action`);
 	}
 	assert.ok(searchBox.includes("aira:reuse-message"));
 	assert.ok(searchBox.includes("aira:command"));
 	assert.ok(searchBox.includes("SpeechRecognition"));
 	assert.ok(searchBox.includes("Start voice input"));
+	assert.ok(searchBox.includes("commandMenuDismissedValue"));
+	assert.ok(searchBox.includes('event.key === "Escape" && showCommandMenu'));
+	assert.ok(searchBox.includes("setCommandMenuDismissedValue(value)"));
 });
 
 test("conversation sidebar is context-only while the shared shell owns application navigation", () => {
@@ -38,7 +41,8 @@ test("conversation sidebar is context-only while the shared shell owns applicati
 	assert.ok(sidebar.includes("Search conversations"));
 	assert.ok(sidebar.includes("Previous 7 Days"));
 	assert.ok(frame.includes('aria-label="AIRA workspace navigation"'));
-	for (const label of ["Research", "Agents", "Knowledge", "Local Runtime", "Model Lab", "Memory", "Global Search", "Integrations"]) {
+	assert.ok(frame.includes('href: "/omniroute"'), 'expected OmniRoute destination in shared workspace navigation');
+	for (const label of ["Research", "Build", "Browser", "Agents", "Knowledge", "OmniRoute", "Model Lab", "Memory", "Global Search", "Integrations"]) {
 		assert.ok(frame.includes(label), `expected ${label} in shared workspace navigation`);
 	}
 	assert.ok(sidebar.includes("event.metaKey || event.ctrlKey"));
@@ -50,7 +54,8 @@ test("message workspace has live inspector and non-placeholder actions", () => {
 	const messages = read("components/conversations/ConversationMessageList.tsx");
 	assert.ok(messages.includes("aira-live-inspector"));
 	assert.ok(messages.includes("AIRA Auto"));
-	assert.ok(messages.includes("Provider router + task policy"));
+	assert.ok(messages.includes("Provider routing follows workspace policy"));
+	assert.ok(!messages.includes("OmniRoute + AIRA policy"), "chat chrome must not imply a configured gateway");
 	assert.ok(messages.includes("hostnameFromUrl"));
 	assert.ok(messages.includes("navigator.clipboard.writeText"));
 	assert.ok(messages.includes("navigator.share"));
