@@ -38,7 +38,6 @@ test("Scheduled Routines & Visual DAG Workflow Validation (Gates 49, 116)", () =
 	assert.ok(routine.id.startsWith("routine-"));
 	assert.equal(routine.name, "Market Intelligence & Competitor Sync");
 
-	// Validate DAG topological sort
 	const validation = globalAutomationEngine.validateDAG(routine.workflowDag);
 	assert.equal(validation.valid, true);
 	assert.equal(validation.cycles, false);
@@ -96,13 +95,11 @@ test("Cross-Connector Execution & Notifications / Autonomous Work Inbox (Gates 1
 	assert.ok(exec.stepOutputs["n2"]);
 	assert.ok(exec.stepOutputs["n3"]);
 
-	// Verify notification generated in autonomous work inbox
 	const notifications = globalAutomationEngine.getUserNotifications(userId);
 	assert.ok(notifications.length >= 1);
 	assert.ok(notifications[0]?.title.includes("Routine Completed"));
 	assert.equal(notifications[0]?.read, false);
 
-	// Mark read
 	const marked = globalAutomationEngine.markNotificationRead(userId, notifications[0]!.id);
 	assert.equal(marked, true);
 	assert.equal(globalAutomationEngine.getUserNotifications(userId)[0]?.read, true);
@@ -143,19 +140,16 @@ test("Workflow Approval Fence: Pauses on Human Review and Resumes with Authoriza
 		},
 	});
 
-	// Execution without approval pause at the fence
 	const pausedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId);
 	assert.equal(pausedRun.status, "WAITING_APPROVAL");
 	assert.equal(pausedRun.pendingApprovalNodeId, "node_fence");
 	assert.ok(pausedRun.stepOutputs["node_start"]);
 	assert.ok(pausedRun.stepOutputs["node_eval"]);
-	assert.equal(pausedRun.stepOutputs["node_action"], undefined); // not executed yet!
+	assert.equal(pausedRun.stepOutputs["node_action"], undefined);
 
-	// Notification was generated for human reviewer
 	const notifs = globalAutomationEngine.getUserNotifications(userId);
 	assert.ok(notifs.some((n) => n.title.includes("Approval Required") && n.category === "approval"));
 
-	// Now resolve approval and execute with approved approval record
 	assert.ok(pausedRun.pendingApprovalId);
 	await globalAutomationApprovalStore.resolveApprovalAsync(pausedRun.pendingApprovalId, "APPROVE", userId);
 	const approvedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
@@ -171,39 +165,34 @@ test("Automation Engine Durability: Routines and Runs Survive Restart (Gate 49 &
 	const routine = globalAutomationEngine.createRoutine({
 		userId,
 		name: "Persistent Market Monitor",
-		description: "Daily crawler that survives server restart",
+		description: "Durable scheduled routine that survives server restart",
 		enabled: true,
 		trigger: { type: "cron", cronExpression: "0 10 * * *", timezone: "UTC" },
 		workflowDag: {
 			id: "dag-restart",
 			name: "Restart DAG",
 			version: 1,
-			description: "Simple DAG",
+			description: "Deterministic durability-only DAG with no external runtime dependency",
 			nodes: [
 				{ id: "n1", type: "trigger", name: "Cron", config: {}, inputBindings: {} },
-				{ id: "n2", type: "agent", name: "Summary Agent", config: {}, inputBindings: {} },
 			],
-			edges: [{ id: "e1", sourceNodeId: "n1", targetNodeId: "n2" }],
+			edges: [],
 		},
 	});
 
-	// Execute with idempotency key
 	const run = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
 		idempotencyKey: "idem_restart_key_1",
 	});
 	assert.equal(run.status, "COMPLETED");
 
-	// Simulate restart
 	globalAutomationEngine.reloadFromDisk();
 
 	const restoredRoutine = globalAutomationEngine.getRoutine(userId, routine.id);
 	assert.notEqual(restoredRoutine, null);
 	assert.equal(restoredRoutine?.name, "Persistent Market Monitor");
 
-	// Idempotent retry returns previously persisted run
 	const replayedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
 		idempotencyKey: "idem_restart_key_1",
 	});
 	assert.equal(replayedRun.id, run.id);
 });
-
