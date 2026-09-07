@@ -70,7 +70,10 @@ ALTER TABLE "AutomationRoutine"
 ALTER TABLE "AutomationRoutineVersion"
     VALIDATE CONSTRAINT "AutomationRoutineVersion_workflowDag_no_secrets";
 
+-- The function contains no data access and must remain executable by the server DB role so
+-- CHECK constraints work even when migrations and runtime use distinct roles. Direct Data API
+-- roles are explicitly denied execution.
 REVOKE ALL ON FUNCTION public.aira_workflow_contains_secret_key(jsonb)
-    FROM PUBLIC, anon, authenticated, service_role;
+    FROM anon, authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
