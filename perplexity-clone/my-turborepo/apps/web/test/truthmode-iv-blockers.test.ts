@@ -8,6 +8,13 @@ import { globalArtifactEngine } from "../lib/artifacts/engine";
 import { ConnectorCredentialStore, redactSecrets } from "../lib/connectors/credential-store";
 import { assertServerStorageSafety } from "../lib/storage/storage-mode";
 
+const mutableEnv = process.env as Record<string, string | undefined>;
+
+function restoreEnv(name: string, value: string | undefined): void {
+	if (value === undefined) delete mutableEnv[name];
+	else mutableEnv[name] = value;
+}
+
 // ============================================================================
 // TRUTHMODE IV BLOCKER VERIFICATION TEST SUITE
 // Covers the final integrity blockers without accepting synthetic success.
@@ -373,10 +380,8 @@ test("Blocker 6: Server mode forbids file:// storage scheme", async () => {
 			(err: Error) => err.message.includes("file:// storage URIs are forbidden in production/server mode"),
 		);
 	} finally {
-		if (originalDbUrl !== undefined) process.env.DATABASE_URL = originalDbUrl;
-		else delete process.env.DATABASE_URL;
-		if (originalLocalMode !== undefined) process.env.AIRA_LOCAL_STORAGE_MODE = originalLocalMode;
-		else delete process.env.AIRA_LOCAL_STORAGE_MODE;
+		restoreEnv("DATABASE_URL", originalDbUrl);
+		restoreEnv("AIRA_LOCAL_STORAGE_MODE", originalLocalMode);
 	}
 });
 
@@ -438,7 +443,7 @@ test("Credential store fails closed in production without a server encryption se
 	const prevEncryption = process.env.ENCRYPTION_SECRET;
 	const prevAuthSecret = process.env.NEXTAUTH_SECRET;
 	try {
-		process.env.NODE_ENV = "production";
+		mutableEnv.NODE_ENV = "production";
 		delete process.env.DATABASE_URL;
 		delete process.env.ENCRYPTION_SECRET;
 		delete process.env.NEXTAUTH_SECRET;
@@ -448,14 +453,10 @@ test("Credential store fails closed in production without a server encryption se
 			(err: Error) => err.message.includes("encryption is not configured"),
 		);
 	} finally {
-		if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv;
-		else delete process.env.NODE_ENV;
-		if (prevDb !== undefined) process.env.DATABASE_URL = prevDb;
-		else delete process.env.DATABASE_URL;
-		if (prevEncryption !== undefined) process.env.ENCRYPTION_SECRET = prevEncryption;
-		else delete process.env.ENCRYPTION_SECRET;
-		if (prevAuthSecret !== undefined) process.env.NEXTAUTH_SECRET = prevAuthSecret;
-		else delete process.env.NEXTAUTH_SECRET;
+		restoreEnv("NODE_ENV", prevNodeEnv);
+		restoreEnv("DATABASE_URL", prevDb);
+		restoreEnv("ENCRYPTION_SECRET", prevEncryption);
+		restoreEnv("NEXTAUTH_SECRET", prevAuthSecret);
 	}
 });
 
@@ -465,7 +466,7 @@ test("Blocker 9: assertServerStorageSafety rejects unconfigured storage in produ
 	const prevLocal = process.env.AIRA_LOCAL_STORAGE_MODE;
 
 	try {
-		process.env.NODE_ENV = "production";
+		mutableEnv.NODE_ENV = "production";
 		delete process.env.DATABASE_URL;
 		delete process.env.AIRA_LOCAL_STORAGE_MODE;
 		assert.throws(
@@ -473,11 +474,8 @@ test("Blocker 9: assertServerStorageSafety rejects unconfigured storage in produ
 			(err: Error) => err.message.includes("Ambiguous storage mode"),
 		);
 	} finally {
-		if (prevEnv !== undefined) process.env.NODE_ENV = prevEnv;
-		else delete process.env.NODE_ENV;
-		if (prevDb !== undefined) process.env.DATABASE_URL = prevDb;
-		else delete process.env.DATABASE_URL;
-		if (prevLocal !== undefined) process.env.AIRA_LOCAL_STORAGE_MODE = prevLocal;
-		else delete process.env.AIRA_LOCAL_STORAGE_MODE;
+		restoreEnv("NODE_ENV", prevEnv);
+		restoreEnv("DATABASE_URL", prevDb);
+		restoreEnv("AIRA_LOCAL_STORAGE_MODE", prevLocal);
 	}
 });
