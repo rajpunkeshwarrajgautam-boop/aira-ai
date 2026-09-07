@@ -12,6 +12,25 @@ const execFileAsync = promisify(execFile);
 const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1" && Boolean(process.env.DATABASE_URL);
 const DB_URL = process.env.DATABASE_URL;
 
+function parseChildJson(stdout: string, label: string): Record<string, unknown> {
+	const lines = stdout
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	for (let index = lines.length - 1; index >= 0; index -= 1) {
+		try {
+			const parsed: unknown = JSON.parse(lines[index]);
+			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+				return parsed as Record<string, unknown>;
+			}
+		} catch {
+			// Prisma and other dependencies may emit diagnostics on stdout. The child protocol
+			// deliberately terminates with one JSON line; ignore non-protocol diagnostics.
+		}
+	}
+	throw new Error(`${label} did not emit a terminal JSON protocol line.`);
+}
+
 test(
 	"REAL_DB: TRUTHMODE PHASE 12: Real Cold-Start Durability Across 3 Independent Subprocesses (Process A -> Process B -> Process C)",
 	{ skip: !REAL_DB || !DB_URL, timeout: 60_000 },
@@ -70,7 +89,7 @@ test(
 	);
 
 	assert.equal(resA.stderr, "", `Process A stderr: ${resA.stderr}`);
-	const outputA = JSON.parse(resA.stdout.trim());
+	const outputA = parseChildJson(resA.stdout, "Process A");
 	assert.ok(outputA.userId, "Process A must return created userId");
 	assert.ok(outputA.agentId, "Process A must return created agentId");
 	assert.ok(outputA.skillId, "Process A must return created skillId");
@@ -78,7 +97,7 @@ test(
 	assert.ok(outputA.routineId, "Process A must return created routineId");
 	assert.ok(outputA.runId, "Process A must return created runId");
 
-	createdUserId = outputA.userId;
+	createdUserId = String(outputA.userId);
 
 	// =========================================================================
 	// PROCESS B: Fresh process, isolated dirProcB (NO local disk state from A).
@@ -98,7 +117,7 @@ test(
 	);
 
 	assert.equal(resB.stderr, "", `Process B stderr: ${resB.stderr}`);
-	const outputB = JSON.parse(resB.stdout.trim());
+	const outputB = parseChildJson(resB.stdout, "Process B");
 	assert.equal(outputB.success, true, "Process B must verify and update entities in DB");
 
 	// =========================================================================
@@ -119,7 +138,7 @@ test(
 	);
 
 	assert.equal(resC.stderr, "", `Process C stderr: ${resC.stderr}`);
-	const outputC = JSON.parse(resC.stdout.trim());
+	const outputC = parseChildJson(resC.stdout, "Process C");
 	assert.equal(outputC.verified, true, "Process C must verify final DB state");
-	assert.ok(outputC.notificationsCount >= 2, "Process C must see all persisted notifications");
+	assert.ok(Number(outputC.notificationsCount) >= 2, "Process C must see all persisted notifications");
 });
