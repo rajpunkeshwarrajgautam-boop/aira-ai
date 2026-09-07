@@ -32,30 +32,26 @@ test("Automatic Context Compression: Token Budgets & Progressive Summaries (Gate
 	assert.equal(res.salienceScore >= 90, true);
 });
 
-test("Federated Connected Knowledge Search & ACL Integrity (Gate 75)", () => {
+test("Federated Connected Knowledge refuses fabricated unauthorized connector matches (Gate 75)", async () => {
 	const service = new FederatedKnowledgeService();
 	const userId = "user_fed_1";
 
-	const result = service.search({
+	const res = await service.search({
 		userId,
 		projectId: "proj_ai_1",
 		query: "Enterprise Architecture Guide",
-		sources: ["KNOWLEDGE_ASSET", "PERSISTENT_MEMORY", "GOOGLE_DRIVE"],
+		sources: ["GOOGLE_DRIVE", "SLACK", "GMAIL", "NOTION"],
 		minScore: 0.7,
 	});
 
-	return result.then((res) => {
-		assert.equal(res.query, "Enterprise Architecture Guide");
-		assert.ok(res.matches.length >= 2);
-
-		// Every match must belong to the requesting user
-		for (const m of res.matches) {
-			assert.equal(m.acl.ownerUserId, userId);
-			assert.ok(m.provenanceUri.length > 0);
-			assert.ok(["TRUSTED_FIRST_PARTY", "AUTHORIZED_CONNECTOR"].includes(m.trustLevel));
-		}
-
-		assert.ok(res.matches.some((m) => m.source === "KNOWLEDGE_ASSET"));
-		assert.ok(res.matches.some((m) => m.source === "PERSISTENT_MEMORY"));
-	});
+	assert.equal(res.query, "Enterprise Architecture Guide");
+	assert.equal(res.matches.length, 0, "unauthorized external connectors must never synthesize provider documents");
+	assert.deepEqual(res.searchedSources, ["GOOGLE_DRIVE", "SLACK", "GMAIL", "NOTION"]);
+	for (const source of res.searchedSources) {
+		assert.ok(
+			res.degradedSources.some((entry) => entry.startsWith(`${source}:`) && entry.includes("live connector authorization is required")),
+			`${source} must degrade truthfully until a user-owned live connection is authorized`,
+		);
+	}
+	assert.equal(res.totalMatches, 0);
 });
