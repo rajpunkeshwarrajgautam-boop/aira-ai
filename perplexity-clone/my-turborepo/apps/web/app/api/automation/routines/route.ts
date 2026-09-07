@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { globalAutomationEngine, RoutineDefinitionSchema } from "@/lib/automation/engine";
+import { globalAutomationEngine } from "@/lib/automation/engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +34,10 @@ export async function POST(req: Request): Promise<Response> {
 
 	try {
 		const body = await req.json();
+		const dagValidation = globalAutomationEngine.validateDAG(body.workflowDag);
+		if (!dagValidation.valid) {
+			throw new Error(dagValidation.error ?? "Workflow DAG is invalid.");
+		}
 		const routine = await globalAutomationEngine.createRoutineAsync({
 			...body,
 			userId: session.user.id,
