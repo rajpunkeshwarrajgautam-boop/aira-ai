@@ -30,6 +30,15 @@ test("Agents expose durable definition lifecycle separately from run center", ()
   assert.match(page, /UserAgentManager/); assert.match(page, /AgentDashboard/); assert.match(manager, /\/api\/agent-platform\/user-agents/); assert.match(manager, /Save new version/);
 });
 
+test("user-agent PUT cannot bypass enterprise sharing authorization", () => {
+  const route = source("../app/api/agent-platform/user-agents/[id]/route.ts");
+  assert.match(route, /UpdateAgentInputSchema/);
+  assert.match(route, /\.strict\(\)/);
+  assert.match(route, /updateAgentAsync\(session\.user\.id, id, parsed\.data\)/);
+  assert.doesNotMatch(route, /updateAgentAsync\(session\.user\.id, id, body\)/);
+  assert.doesNotMatch(route, /shares:\s*z\./);
+});
+
 test("Artifacts have truthful empty state and canonical byte downloads", () => {
   const page = source("../app/artifacts/page.tsx"); const workspace = source("../components/artifacts/VerifiedArtifactWorkspace.tsx");
   assert.match(page, /VerifiedArtifactWorkspace/); assert.match(workspace, /\/api\/artifacts\/\$\{encodeURIComponent\(selected\.id\)\}\/download/);
