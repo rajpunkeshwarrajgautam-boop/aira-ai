@@ -29,7 +29,7 @@ export const UserAgentSchema = z.object({
 	riskPolicy: z.object({
 		requireApprovalAbove: z.enum(["LOW", "MEDIUM", "HIGH", "PROTECTED"]).default("MEDIUM"),
 	}).default({ requireApprovalAbove: "MEDIUM" }),
-	avatar: z.string().nullish().transform((value) => value ?? undefined),
+	avatar: z.string().nullish().transform((value) => value ?? undefined).optional(),
 	version: z.number().int().positive().default(1),
 	isPublic: z.boolean().default(false),
 	shares: z.array(z.object({
