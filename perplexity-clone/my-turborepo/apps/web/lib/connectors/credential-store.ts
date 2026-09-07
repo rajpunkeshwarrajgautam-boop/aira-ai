@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { prisma } from "@/lib/prisma";
 import type { ConnectorCredential } from "./types";
 
 export interface StoredConnection {
@@ -11,9 +12,67 @@ export interface StoredConnection {
 	readonly createdAt: string;
 }
 
-const MASTER_ENCRYPTION_KEY = createHash("sha256")
-	.update(process.env.ENCRYPTION_SECRET || process.env.NEXTAUTH_SECRET || "aira-truthmode-fallback-secret-key-32b")
-	.digest();
+type DbStoredConnection = {
+	id: string;
+	userId: string;
+	connectorId: string;
+	encryptedData: string;
+	iv: string;
+	tag: string;
+	createdAt: Date;
+};
+
+let localEphemeralKey: Buffer | undefined;
+
+function getMasterEncryptionKey(): Buffer {
+	const configured = process.env.ENCRYPTION_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim();
+	if (configured) {
+		return createHash("sha256").update(configured).digest();
+	}
+
+	// Database-backed/server deployments must never encrypt credentials with a
+	// predictable fallback. Local-only mode may use a process-ephemeral key
+	// because its connection store is intentionally memory-only.
+	if (process.env.DATABASE_URL || process.env.NODE_ENV === "production") {
+		throw new Error(
+			"Connector credential encryption is not configured. Set ENCRYPTION_SECRET or NEXTAUTH_SECRET on the server.",
+		);
+	}
+
+	localEphemeralKey ??= randomBytes(32);
+	return localEphemeralKey;
+}
+
+function encryptCredential(credential: ConnectorCredential): Pick<StoredConnection, "encryptedData" | "iv" | "tag"> {
+	const iv = randomBytes(12);
+	const cipher = createCipheriv("aes-256-gcm", getMasterEncryptionKey(), iv);
+	const json = JSON.stringify(credential);
+	let encrypted = cipher.update(json, "utf8", "hex");
+	encrypted += cipher.final("hex");
+	return {
+		encryptedData: encrypted,
+		iv: iv.toString("hex"),
+		tag: cipher.getAuthTag().toString("hex"),
+	};
+}
+
+function decryptCredential(stored: StoredConnection): ConnectorCredential {
+	try {
+		const decipher = createDecipheriv(
+			"aes-256-gcm",
+			getMasterEncryptionKey(),
+			Buffer.from(stored.iv, "hex"),
+		);
+		decipher.setAuthTag(Buffer.from(stored.tag, "hex"));
+		let decrypted = decipher.update(stored.encryptedData, "hex", "utf8");
+		decrypted += decipher.final("utf8");
+		return JSON.parse(decrypted) as ConnectorCredential;
+	} catch (err) {
+		throw new Error(
+			`Failed to decrypt credential for connection '${stored.connectionId}': ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+}
 
 export class ConnectorCredentialStore {
 	private connections = new Map<string, StoredConnection>();
@@ -24,49 +83,83 @@ export class ConnectorCredentialStore {
 		connectorId: string,
 		credential: ConnectorCredential,
 	): Promise<void> {
-		const iv = randomBytes(12);
-		const cipher = createCipheriv("aes-256-gcm", MASTER_ENCRYPTION_KEY, iv);
-		const json = JSON.stringify(credential);
-		let encrypted = cipher.update(json, "utf8", "hex");
-		encrypted += cipher.final("hex");
-		const tag = cipher.getAuthTag().toString("hex");
+		if (!userId.trim() || !connectionId.trim() || !connectorId.trim()) {
+			throw new Error("userId, connectionId, and connectorId are required.");
+		}
+		const encrypted = encryptCredential(credential);
+		const createdAt = new Date();
+
+		if (process.env.DATABASE_URL) {
+			const affected = await prisma.$executeRaw`
+				INSERT INTO "ConnectorConnection" (
+					"id", "userId", "connectorId", "encryptedData", "iv", "tag", "createdAt", "updatedAt"
+				) VALUES (
+					${connectionId}, ${userId}, ${connectorId}, ${encrypted.encryptedData}, ${encrypted.iv}, ${encrypted.tag}, ${createdAt}, ${createdAt}
+				)
+				ON CONFLICT ("id") DO UPDATE SET
+					"connectorId" = EXCLUDED."connectorId",
+					"encryptedData" = EXCLUDED."encryptedData",
+					"iv" = EXCLUDED."iv",
+					"tag" = EXCLUDED."tag",
+					"updatedAt" = EXCLUDED."updatedAt"
+				WHERE "ConnectorConnection"."userId" = EXCLUDED."userId"
+			`;
+			if (affected !== 1) {
+				throw new Error(`Connector connection '${connectionId}' already belongs to another user.`);
+			}
+			return;
+		}
 
 		this.connections.set(`${userId}:${connectionId}`, {
 			connectionId,
 			userId,
 			connectorId,
-			encryptedData: encrypted,
-			iv: iv.toString("hex"),
-			tag,
-			createdAt: new Date().toISOString(),
+			...encrypted,
+			createdAt: createdAt.toISOString(),
 		});
 	}
 
-	async resolveCredentialAsync(
-		userId: string,
-		connectionId: string,
-	): Promise<ConnectorCredential> {
-		const stored = this.connections.get(`${userId}:${connectionId}`);
-		if (!stored) {
-			throw new Error(`Connector connection '${connectionId}' not found or unauthorized for user '${userId}'.`);
-		}
-		if (stored.userId !== userId) {
-			throw new Error(`Unauthorized connection access: connection '${connectionId}' does not belong to user '${userId}'.`);
+	async resolveCredentialAsync(userId: string, connectionId: string): Promise<ConnectorCredential> {
+		let stored: StoredConnection | undefined;
+
+		if (process.env.DATABASE_URL) {
+			const rows = await prisma.$queryRaw<DbStoredConnection[]>`
+				SELECT "id", "userId", "connectorId", "encryptedData", "iv", "tag", "createdAt"
+				FROM "ConnectorConnection"
+				WHERE "id" = ${connectionId} AND "userId" = ${userId}
+				LIMIT 1
+			`;
+			const row = rows[0];
+			if (row) {
+				stored = {
+					connectionId: row.id,
+					userId: row.userId,
+					connectorId: row.connectorId,
+					encryptedData: row.encryptedData,
+					iv: row.iv,
+					tag: row.tag,
+					createdAt: row.createdAt.toISOString(),
+				};
+			}
+		} else {
+			stored = this.connections.get(`${userId}:${connectionId}`);
 		}
 
-		try {
-			const decipher = createDecipheriv(
-				"aes-256-gcm",
-				MASTER_ENCRYPTION_KEY,
-				Buffer.from(stored.iv, "hex"),
-			);
-			decipher.setAuthTag(Buffer.from(stored.tag, "hex"));
-			let decrypted = decipher.update(stored.encryptedData, "hex", "utf8");
-			decrypted += decipher.final("utf8");
-			return JSON.parse(decrypted) as ConnectorCredential;
-		} catch (err) {
-			throw new Error(`Failed to decrypt credential for connection '${connectionId}': ${err instanceof Error ? err.message : String(err)}`);
+		if (!stored || stored.userId !== userId) {
+			throw new Error(`Connector connection '${connectionId}' not found or unauthorized.`);
 		}
+		return decryptCredential(stored);
+	}
+
+	async revokeConnectionAsync(userId: string, connectionId: string): Promise<boolean> {
+		if (process.env.DATABASE_URL) {
+			const affected = await prisma.$executeRaw`
+				DELETE FROM "ConnectorConnection"
+				WHERE "id" = ${connectionId} AND "userId" = ${userId}
+			`;
+			return affected === 1;
+		}
+		return this.connections.delete(`${userId}:${connectionId}`);
 	}
 }
 
