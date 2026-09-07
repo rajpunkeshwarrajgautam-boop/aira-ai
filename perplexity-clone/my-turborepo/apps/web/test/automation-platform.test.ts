@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { globalAutomationEngine } from "../lib/automation/engine";
+import { globalAutomationApprovalStore } from "../lib/automation/approvals";
 
 test("Scheduled Routines & Visual DAG Workflow Validation (Gates 49, 116)", () => {
 	const userId = "user_auto_1";
@@ -78,9 +79,9 @@ test("Cross-Connector Execution & Notifications / Autonomous Work Inbox (Gates 1
 			version: 1,
 			description: "Multi-connector orchestration",
 			nodes: [
-				{ id: "n1", type: "connector", name: "Gmail Read", config: { connector: "gmail" }, inputBindings: {} },
-				{ id: "n2", type: "connector", name: "Drive Save", config: { connector: "business_files" }, inputBindings: {} },
-				{ id: "n3", type: "connector", name: "Slack Notify", config: { connector: "slack" }, inputBindings: {} },
+				{ id: "n1", type: "connector", name: "Gmail Read", config: { connector: "gmail", failurePolicy: "CONTINUE" }, inputBindings: {} },
+				{ id: "n2", type: "connector", name: "Drive Save", config: { connector: "google_drive", failurePolicy: "CONTINUE" }, inputBindings: {} },
+				{ id: "n3", type: "connector", name: "Slack Notify", config: { connector: "slack", failurePolicy: "CONTINUE" }, inputBindings: {} },
 			],
 			edges: [
 				{ id: "e1", sourceNodeId: "n1", targetNodeId: "n2" },
@@ -130,9 +131,9 @@ test("Workflow Approval Fence: Pauses on Human Review and Resumes with Authoriza
 			description: "Gated workflow",
 			nodes: [
 				{ id: "node_start", type: "trigger", name: "Start", config: {}, inputBindings: {} },
-				{ id: "node_eval", type: "agent", name: "Risk Assessment Agent", config: { role: "RISK" }, inputBindings: {} },
+				{ id: "node_eval", type: "agent", name: "Risk Assessment Agent", config: { role: "RISK", failurePolicy: "CONTINUE" }, inputBindings: {} },
 				{ id: "node_fence", type: "approval", name: "Compliance Approval Boundary", config: { prompt: "Approve transaction?" }, inputBindings: {} },
-				{ id: "node_action", type: "tool", name: "Execute Transfer", config: { action: "transfer" }, inputBindings: {} },
+				{ id: "node_action", type: "tool", name: "Execute Transfer", config: { action: "transfer", failurePolicy: "CONTINUE" }, inputBindings: {} },
 			],
 			edges: [
 				{ id: "e1", sourceNodeId: "node_start", targetNodeId: "node_eval" },
@@ -154,9 +155,12 @@ test("Workflow Approval Fence: Pauses on Human Review and Resumes with Authoriza
 	const notifs = globalAutomationEngine.getUserNotifications(userId);
 	assert.ok(notifs.some((n) => n.title.includes("Approval Required") && n.category === "approval"));
 
-	// Now execute with approval override
+	// Now resolve approval and execute with approved approval record
+	assert.ok(pausedRun.pendingApprovalId);
+	await globalAutomationApprovalStore.resolveApprovalAsync(pausedRun.pendingApprovalId, "APPROVE", userId);
 	const approvedRun = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
-		approvalOverrides: { "node_fence": true },
+		approvalId: pausedRun.pendingApprovalId,
+		runId: pausedRun.id,
 	});
 	assert.equal(approvedRun.status, "COMPLETED");
 	assert.ok(approvedRun.stepOutputs["node_action"]);

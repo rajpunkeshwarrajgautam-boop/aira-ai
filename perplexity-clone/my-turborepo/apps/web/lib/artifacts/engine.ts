@@ -513,6 +513,100 @@ export class ArtifactEngine {
 		return existing;
 	}
 
+	async getArtifactBufferAsync(
+		userId: string,
+		artifactId: string,
+		versionNumber?: number,
+	): Promise<{
+		buffer: Buffer;
+		format: ArtifactFormat;
+		mimeType: string;
+		checksum: string;
+		name: string;
+	}> {
+		const artifact = await this.getArtifactAsync(userId, artifactId);
+		if (!artifact) {
+			throw new Error(`Artifact '${artifactId}' not found or unauthorized.`);
+		}
+		const targetVersion = versionNumber !== undefined
+			? artifact.versions.find((v) => v.version === versionNumber)
+			: artifact.versions[artifact.versions.length - 1];
+		if (!targetVersion) {
+			throw new Error(`Version ${versionNumber ?? artifact.currentVersion} not found for artifact '${artifactId}'.`);
+		}
+
+		let buf: Buffer;
+		if (targetVersion.storageUri) {
+			buf = await globalBlobStorage.getBlob(targetVersion.storageUri);
+		} else if (this.validator["isBase64Binary"]?.(targetVersion.content, artifact.format) || ["PDF", "DOCX", "XLSX", "PPTX", "ZIP"].includes(artifact.format)) {
+			buf = Buffer.from(targetVersion.content, "base64");
+		} else {
+			buf = Buffer.from(targetVersion.content, "utf8");
+		}
+
+		const computedChecksum = createHash("sha256").update(buf).digest("hex");
+		if (computedChecksum !== targetVersion.checksum) {
+			throw new Error(`Artifact checksum mismatch: expected ${targetVersion.checksum}, got ${computedChecksum}`);
+		}
+
+		return {
+			buffer: buf,
+			format: artifact.format,
+			mimeType: artifact.mimeType,
+			checksum: targetVersion.checksum,
+			name: artifact.name,
+		};
+	}
+
+	async getProvenanceLineageAsync(
+		userId: string,
+		artifactId: string,
+	): Promise<Array<{
+		artifactId: string;
+		name: string;
+		version: number;
+		parentArtifactId?: string;
+		generator: string;
+		checksum: string;
+		generatedAt: string;
+	}>> {
+		const result: Array<{
+			artifactId: string;
+			name: string;
+			version: number;
+			parentArtifactId?: string;
+			generator: string;
+			checksum: string;
+			generatedAt: string;
+		}> = [];
+
+		let currentId: string | undefined = artifactId;
+		const visited = new Set<string>();
+
+		while (currentId && !visited.has(currentId)) {
+			visited.add(currentId);
+			const current = await this.getArtifactAsync(userId, currentId);
+			if (!current) break;
+
+			const activeVer = current.versions.find((v) => v.version === current.currentVersion);
+			if (!activeVer) break;
+
+			result.push({
+				artifactId: current.id,
+				name: current.name,
+				version: current.currentVersion,
+				parentArtifactId: activeVer.provenance.parentArtifactId,
+				generator: activeVer.provenance.generator,
+				checksum: activeVer.checksum,
+				generatedAt: activeVer.provenance.generatedAt,
+			});
+
+			currentId = activeVer.provenance.parentArtifactId;
+		}
+
+		return result;
+	}
+
 	async listArtifactsAsync(userId: string, projectId?: string): Promise<readonly StoredArtifact[]> {
 		if (process.env.DATABASE_URL) {
 			const records = await prisma.durableArtifact.findMany({

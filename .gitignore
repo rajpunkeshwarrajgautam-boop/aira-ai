@@ -43,5 +43,6 @@ __pycache__/
 *.py[cod]
 .neon
 .aira-store/
+.aira-blobs/
 .reticle/
 scratch/

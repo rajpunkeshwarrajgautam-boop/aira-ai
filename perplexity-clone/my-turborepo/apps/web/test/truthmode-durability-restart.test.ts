@@ -73,7 +73,7 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async () =>
 			description: "Linear execution",
 			nodes: [
 				{ id: "trig", type: "trigger", name: "2am Trigger", config: {}, inputBindings: {} },
-				{ id: "agent_step", type: "agent", name: "Audit Agent", config: { role: "AUDITOR" }, inputBindings: {} },
+				{ id: "agent_step", type: "agent", name: "Audit Agent", config: { role: "AUDITOR", failurePolicy: "CONTINUE" }, inputBindings: {} },
 				{ id: "export_step", type: "deliverable_export", name: "Export Brief", config: { format: "MARKDOWN" }, inputBindings: {} },
 			],
 			edges: [

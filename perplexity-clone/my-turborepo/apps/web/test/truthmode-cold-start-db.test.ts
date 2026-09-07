@@ -9,13 +9,17 @@ import { prisma } from "@/lib/prisma";
 
 const execFileAsync = promisify(execFile);
 
-const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1";
-const DB_URL = process.env.DATABASE_URL || "postgresql://postgres:5a9JxZilRGJStwIhp9BKUi5gwO8Z7MdP@127.0.0.1:5432/aira_gate29_local";
+const REAL_DB = process.env.AIRA_REAL_DB_RECOVERY_TESTS === "1" && Boolean(process.env.DATABASE_URL);
+const DB_URL = process.env.DATABASE_URL;
 
 test(
 	"REAL_DB: TRUTHMODE PHASE 12: Real Cold-Start Durability Across 3 Independent Subprocesses (Process A -> Process B -> Process C)",
-	{ skip: !REAL_DB, timeout: 60_000 },
+	{ skip: !REAL_DB || !DB_URL, timeout: 60_000 },
 	async (t) => {
+	if (!DB_URL) {
+		t.skip("DATABASE_URL is required when AIRA_REAL_DB_RECOVERY_TESTS=1");
+		return;
+	}
 	// 1. Create separate, isolated storage directories for each process to guarantee NO shared disk state
 	const baseTmp = tmpdir();
 	const dirProcA = mkdtempSync(join(baseTmp, "aira-proc-a-"));

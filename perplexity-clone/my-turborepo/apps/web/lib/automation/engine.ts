@@ -5,9 +5,12 @@ import { z } from "zod";
 import { globalArtifactEngine } from "../artifacts/engine";
 import { globalConnectorRegistry } from "../connectors/registry";
 import type { ConnectorCredential } from "../connectors/types";
+import { globalConnectorCredentialStore, redactSecrets } from "../connectors/credential-store";
+import { globalAutomationApprovalStore, computeParametersHash } from "./approvals";
 import { executeTool } from "../tool-gateway/gateway";
 import type { AiraToolId } from "../tool-gateway/types";
 import { selectAgentRuntime } from "../agent-runtime/registry";
+import type { AgentRuntimeId } from "../agent-runtime/types";
 import { evaluateCondition } from "./condition-evaluator";
 import { prisma } from "@/lib/prisma";
 
@@ -20,12 +23,16 @@ export type WorkflowNodeType =
 	| "condition"
 	| "deliverable_export";
 
+export type NodeFailurePolicy = "FAIL_WORKFLOW" | "CONTINUE" | "RETRY" | "BRANCH";
+
 export interface WorkflowNode {
 	readonly id: string;
 	readonly type: WorkflowNodeType;
 	readonly name: string;
 	readonly config: Record<string, unknown>;
 	readonly inputBindings: Record<string, string>; // targetParam -> "sourceNodeId.outputKey"
+	readonly failurePolicy?: NodeFailurePolicy;
+	readonly mandatory?: boolean;
 }
 
 export interface WorkflowEdge {
@@ -118,7 +125,9 @@ export interface RoutineExecutionRecord {
 	readonly stepOutputs: Record<string, unknown>;
 	readonly totalCostUsd: number;
 	readonly error?: string;
+	readonly failedNodeId?: string;
 	readonly pendingApprovalNodeId?: string;
+	readonly pendingApprovalId?: string;
 	readonly idempotencyKey?: string;
 }
 
@@ -449,8 +458,49 @@ export class AutomationEngine {
 		return deleted;
 	}
 
-	// Visual Builder DAG Cycle Detection & Topological Sort (Gate 116)
-	validateDAG(dag: VisualWorkflowDAG): { valid: boolean; cycles: boolean; order: string[] } {
+	// Visual Builder DAG Cycle Detection, Topological Sort & Secret Rejection (Gate 116 & TruthMode IV)
+	validateDAG(dag: VisualWorkflowDAG): { valid: boolean; cycles: boolean; order: string[]; secretsDetected?: boolean; error?: string } {
+		const FORBIDDEN_SECRET_KEYS = new Set([
+			"credential",
+			"accesstoken",
+			"refreshtoken",
+			"bearertoken",
+			"token",
+			"apikey",
+			"clientsecret",
+			"signingsecret",
+			"password",
+			"secret",
+			"privatekey",
+		]);
+
+		function hasSecrets(obj: unknown, depth = 0): boolean {
+			if (depth > 10 || !obj || typeof obj !== "object") return false;
+			for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+				const normalized = k.toLowerCase().replace(/[-_]/g, "");
+				if (
+					FORBIDDEN_SECRET_KEYS.has(normalized) ||
+					normalized.includes("token") ||
+					normalized.includes("secret") ||
+					normalized.includes("apikey") ||
+					normalized.includes("credential") ||
+					normalized.includes("password")
+				) return true;
+				if (typeof v === "object" && v !== null && hasSecrets(v, depth + 1)) return true;
+			}
+			return false;
+		}
+
+		if (hasSecrets(dag.nodes)) {
+			return {
+				valid: false,
+				cycles: false,
+				order: [],
+				secretsDetected: true,
+				error: "Workflow DAG contains forbidden credential/secret fields. Store credentials in encrypted credential store via connectionId.",
+			};
+		}
+
 		const inDegree = new Map<string, number>();
 		const adj = new Map<string, string[]>();
 
@@ -459,9 +509,9 @@ export class AutomationEngine {
 			adj.set(node.id, []);
 		}
 
-		for (const edge of dag.edges) {
+		for (const edge of dag.edges ?? []) {
 			if (!inDegree.has(edge.sourceNodeId) || !inDegree.has(edge.targetNodeId)) {
-				return { valid: false, cycles: false, order: [] };
+				return { valid: false, cycles: false, order: [], error: "DAG has disjoint edge references." };
 			}
 			adj.get(edge.sourceNodeId)!.push(edge.targetNodeId);
 			inDegree.set(edge.targetNodeId, inDegree.get(edge.targetNodeId)! + 1);
@@ -485,7 +535,7 @@ export class AutomationEngine {
 		}
 
 		const cycles = order.length !== dag.nodes.length;
-		return { valid: !cycles, cycles, order };
+		return { valid: !cycles, cycles, order, error: cycles ? "DAG contains cycle." : undefined };
 	}
 
 	private async saveRunRecord(record: RoutineExecutionRecord): Promise<void> {
@@ -549,11 +599,11 @@ export class AutomationEngine {
 		return run;
 	}
 
-	// Real workflow node dispatch (Gates 49, 108, 109, 110)
+	// Real workflow node dispatch (Gates 49, 108, 109, 110 & TruthMode IV)
 	async executeWorkflow(
 		routineId: string,
 		userId: string,
-		options?: { idempotencyKey?: string; approvalOverrides?: Record<string, boolean> },
+		options?: { idempotencyKey?: string; approvalId?: string; runId?: string },
 	): Promise<RoutineExecutionRecord> {
 		const routine = await this.getRoutineAsync(userId, routineId);
 		if (!routine || routine.userId !== userId) throw new Error("Routine not found or unauthorized");
@@ -576,7 +626,7 @@ export class AutomationEngine {
 						status: dbRun.status as RoutineExecutionStatus,
 						startedAt: dbRun.startedAt.toISOString(),
 						completedAt: dbRun.completedAt?.toISOString(),
-						stepOutputs: dbRun.stepOutputs as Record<string, unknown>,
+						stepOutputs: (dbRun.stepOutputs as Record<string, unknown>) ?? {},
 						totalCostUsd: dbRun.totalCostUsd,
 						idempotencyKey: dbRun.idempotencyKey ?? undefined,
 					};
@@ -589,13 +639,33 @@ export class AutomationEngine {
 			}
 		}
 
-		const { valid, order } = this.validateDAG(routine.workflowDag);
-		if (!valid) throw new Error("Workflow contains invalid cycles or disjoint references.");
+		const { valid, order, error: dagError } = this.validateDAG(routine.workflowDag);
+		if (!valid) throw new Error(`Workflow definition invalid: ${dagError || "cycles or forbidden secret fields detected."}`);
 
-		const execId = `exec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-		const startedAt = new Date().toISOString();
-		const stepOutputs: Record<string, unknown> = {};
+		let execId = options?.runId ?? `exec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+		let startedAt = new Date().toISOString();
+		let stepOutputs: Record<string, unknown> = {};
 		let totalCost = 0;
+
+		if (options?.runId) {
+			const existingRun = await this.getRunRecordAsync(userId, options.runId);
+			if (existingRun) {
+				stepOutputs = { ...existingRun.stepOutputs };
+				totalCost = existingRun.totalCostUsd;
+				startedAt = existingRun.startedAt;
+			}
+		} else if (options?.approvalId) {
+			const appr = await globalAutomationApprovalStore.getApprovalAsync(options.approvalId);
+			if (appr?.runId) {
+				execId = appr.runId;
+				const existingRun = await this.getRunRecordAsync(userId, execId);
+				if (existingRun) {
+					stepOutputs = { ...existingRun.stepOutputs };
+					totalCost = existingRun.totalCostUsd;
+					startedAt = existingRun.startedAt;
+				}
+			}
+		}
 
 		// Persist initial RUNNING state
 		await this.saveRunRecord({
@@ -614,107 +684,252 @@ export class AutomationEngine {
 				const node = routine.workflowDag.nodes.find((n) => n.id === nodeId);
 				if (!node) continue;
 
-				// REAL DISPATCH BY NODE TYPE
-				switch (node.type) {
-					case "trigger": {
-						stepOutputs[node.id] = {
-							firedAt: new Date().toISOString(),
-							type: routine.trigger.type,
-							routineId: routine.id,
-							status: "FIRED",
-						};
-						break;
-					}
+				if (stepOutputs[node.id] && node.type !== "approval") {
+					continue;
+				}
 
-					case "agent": {
-						const agentRole = (node.config.role as string) ?? "RESEARCH";
-						const skills = Array.isArray(node.config.skills) ? (node.config.skills as string[]) : [];
-						const missionPrompt = (node.config.prompt as string) || (node.config.instructions as string) || `${node.name}: Analyze task and execute role ${agentRole}.`;
+				const failurePolicy: NodeFailurePolicy = (node.config.failurePolicy as NodeFailurePolicy) ?? node.failurePolicy ?? "FAIL_WORKFLOW";
 
-						// Real agent runtime selection
-						const runtime = await selectAgentRuntime("DEERFLOW").catch(() => null);
-						const runtimeId = runtime?.id ?? "DEERFLOW";
-
-						const tokensUsed = Math.min(2048, Math.max(256, missionPrompt.length * 4));
-						const costUsd = Number(((tokensUsed / 1000) * 0.002).toFixed(6));
-						totalCost += costUsd;
-
-						stepOutputs[node.id] = {
-							status: "SUCCESS",
-							agentRole,
-							runtimeId,
-							skills,
-							output: `Autonomous mission step executed by ${node.name} (${agentRole}) via runtime ${runtimeId}. Verified skills: ${skills.join(", ") || "core"}.`,
-							tokensUsed,
-							costUsd,
-							completedAt: new Date().toISOString(),
-						};
-						break;
-					}
-
-					case "tool": {
-						const toolName = (node.config.tool as string) || (node.config.toolName as string) || "files";
-						const action = (node.config.action as string) ?? "read";
-						const input = (node.config.parameters as Record<string, unknown>) ?? (node.config.input as Record<string, unknown>) ?? {};
-
-						const toolResult = await executeTool(
-							{
-								userId,
-								projectId: (node.config.projectId as string) ?? "proj_default",
-								runId: execId,
-								taskId: `task_${node.id}`,
-								source: "SYSTEM",
-							},
-							{
-								clientRequestId: `req_${execId}_${node.id}`,
-								tool: toolName as AiraToolId,
-								action,
-								input,
-							},
-						).catch((err: unknown) => {
-							// Return structured error
-							return {
-								status: "FAILED" as const,
-								result: { error: err instanceof Error ? err.message : String(err) },
-								usage: { costUsd: 0.001 },
+				try {
+					// REAL DISPATCH BY NODE TYPE
+					switch (node.type) {
+						case "trigger": {
+							stepOutputs[node.id] = {
+								firedAt: new Date().toISOString(),
+								type: routine.trigger.type,
+								routineId: routine.id,
+								status: "FIRED",
 							};
-						});
-
-						const stepCost = (toolResult as { usage?: { costUsd?: number } }).usage?.costUsd ?? 0.002;
-						totalCost += stepCost;
-
-						const typedResult = toolResult as { status?: string; result?: unknown };
-						stepOutputs[node.id] = {
-							status: typedResult.status === "COMPLETED" ? "SUCCESS" : typedResult.status ?? "SUCCESS",
-							tool: toolName,
-							action,
-							result: typedResult.result ?? {},
-							costUsd: stepCost,
-							completedAt: new Date().toISOString(),
-						};
-						break;
-					}
-
-					case "connector": {
-						const connectorId = (node.config.connectorId as string) ?? (node.config.connector as string) ?? "unknown";
-						const adapter = globalConnectorRegistry.getAdapter(connectorId);
-						if (!adapter) {
-							throw new Error(`Connector adapter '${connectorId}' not found in registry.`);
+							break;
 						}
 
-						const defaultAction = adapter.actions[0]?.name ?? "list";
-						const action = (node.config.action as string) ?? defaultAction;
-						const params = (node.config.params as Record<string, unknown>) ?? (node.config.parameters as Record<string, unknown>) ?? {};
-						const credential = (node.config.credential as ConnectorCredential | undefined) ?? (node.config.accessToken ? { accessToken: String(node.config.accessToken) } : undefined) ?? (node.config.apiKey ? { apiKey: String(node.config.apiKey) } : undefined);
+						case "agent": {
+							const agentRole = (node.config.role as string) ?? "RESEARCH";
+							const skills = Array.isArray(node.config.skills) ? (node.config.skills as string[]) : [];
+							const missionPrompt = (node.config.prompt as string) || (node.config.instructions as string) || `${node.name}: Analyze task and execute role ${agentRole}.`;
+							const requestedRuntime = (node.config.runtimeId as AgentRuntimeId | undefined) ?? (node.config.provider as AgentRuntimeId | undefined);
 
-						const actionSpec = adapter.actions.find((a) => a.name === action);
-						let payload: Record<string, unknown>;
-						let stepStatus = "SUCCESS";
+							const runtime = await selectAgentRuntime(requestedRuntime);
+							const runtimeId = runtime.id;
 
-						if (actionSpec?.requiresApproval) {
-							// High-risk write requires approved fence
-							const isApproved = options?.approvalOverrides?.[node.id] ?? false;
-							if (!isApproved) {
+							const clientRequestId = `wf_agent_${execId}_${node.id}`;
+							const submission = await runtime.createRun({
+								userId,
+								clientRequestId,
+								objective: missionPrompt,
+								billingMode: "DELEGATED",
+							});
+
+							const runStatus = submission.run.status;
+							if (runStatus === "FAILED" || runStatus === "TERMINATED") {
+								throw new Error(submission.run.errorMessage || `Agent runtime ${runtimeId} reported task failure.`);
+							}
+
+							const resultObj = typeof submission.run.result === "object" && submission.run.result !== null
+								? (submission.run.result as Record<string, unknown>)
+								: undefined;
+							const tokensUsed = typeof resultObj?.tokensUsed === "number"
+								? resultObj.tokensUsed
+								: typeof resultObj?.tokens === "number"
+								? resultObj.tokens
+								: undefined;
+							const costUsd = typeof resultObj?.costUsd === "number"
+								? resultObj.costUsd
+								: typeof resultObj?.totalCostUsd === "number"
+								? resultObj.totalCostUsd
+								: undefined;
+
+							if (typeof costUsd === "number" && !Number.isNaN(costUsd)) {
+								totalCost += costUsd;
+							}
+
+							const agentOutput = typeof submission.run.result === "string"
+								? submission.run.result
+								: submission.run.result
+								? JSON.stringify(submission.run.result)
+								: `Runtime ${runtimeId} successfully processed task ${submission.run.id}.`;
+
+							stepOutputs[node.id] = redactSecrets({
+								status: "SUCCESS",
+								agentRole,
+								runtimeId,
+								runId: submission.run.id,
+								provider: submission.run.provider,
+								skills,
+								output: agentOutput,
+								...(tokensUsed !== undefined ? { tokensUsed } : {}),
+								...(costUsd !== undefined ? { costUsd } : {}),
+								completedAt: new Date().toISOString(),
+							});
+							break;
+						}
+
+						case "tool": {
+							const toolName = (node.config.tool as string) || (node.config.toolName as string) || (node.config.toolId as string) || "files";
+							const action = (node.config.action as string) ?? "read";
+							const input = (node.config.parameters as Record<string, unknown>) ?? (node.config.input as Record<string, unknown>) ?? {};
+
+							const toolResult = await executeTool(
+								{
+									userId,
+									projectId: (node.config.projectId as string) ?? "proj_default",
+									runId: execId,
+									taskId: `task_${node.id}`,
+									source: "SYSTEM",
+								},
+								{
+									clientRequestId: `req_${execId}_${node.id}`,
+									tool: toolName as AiraToolId,
+									action,
+									input,
+								},
+							);
+
+							const typedResult = toolResult as { status?: string; result?: unknown; usage?: { costUsd?: number } };
+							const stepCost = typedResult.usage?.costUsd ?? 0.002;
+							totalCost += stepCost;
+
+							if (typedResult.status === "FAILED") {
+								const errDetail = (typedResult.result as { error?: string })?.error ?? "Tool execution reported failure.";
+								throw new Error(errDetail);
+							}
+
+							stepOutputs[node.id] = redactSecrets({
+								status: "SUCCESS",
+								tool: toolName,
+								action,
+								result: typedResult.result ?? {},
+								costUsd: stepCost,
+								completedAt: new Date().toISOString(),
+							});
+							break;
+						}
+
+						case "connector": {
+							const connectorId = (node.config.connectorId as string) ?? (node.config.connector as string) ?? "unknown";
+							const connectionId = (node.config.connectionId as string) ?? undefined;
+
+							// Reject direct secrets inside workflow DAG (Blocker 4)
+							if (node.config.credential || node.config.accessToken || node.config.apiKey || node.config.clientSecret) {
+								throw new Error("Connector secrets must not be stored in workflow DAG. Use connectionId instead.");
+							}
+
+							const adapter = globalConnectorRegistry.getAdapter(connectorId);
+							if (!adapter) {
+								throw new Error(`Connector adapter '${connectorId}' not found in registry.`);
+							}
+
+							const defaultAction = adapter.actions[0]?.name ?? "list";
+							const action = (node.config.action as string) ?? defaultAction;
+							const params = (node.config.params as Record<string, unknown>) ?? (node.config.parameters as Record<string, unknown>) ?? {};
+
+							// Server-side credential resolution via authenticated connection lookup
+							const credential = connectionId
+								? await globalConnectorCredentialStore.resolveCredentialAsync(userId, connectionId)
+								: undefined;
+
+							const actionSpec = adapter.actions.find((a) => a.name === action);
+							const requiresApproval = actionSpec?.requiresApproval ?? (actionSpec?.risk === "HIGH" || actionSpec?.risk === "PROTECTED");
+
+							if (requiresApproval) {
+								if (options?.approvalId) {
+									// Validate and atomically consume persisted single-use approval (Blocker 3)
+									await globalAutomationApprovalStore.consumeApprovalAsync({
+										approvalId: options.approvalId,
+										userId,
+										runId: execId,
+										routineId: routine.id,
+										nodeId: node.id,
+										targetId: connectorId,
+										action,
+										parameters: params,
+									});
+								} else {
+									// Create persisted approval record and halt workflow execution
+									const approvalRecord = await globalAutomationApprovalStore.requestApprovalAsync({
+										userId,
+										runId: execId,
+										routineId: routine.id,
+										nodeId: node.id,
+										targetType: "connector",
+										targetId: connectorId,
+										action,
+										parameters: params,
+										riskLevel: actionSpec?.risk ?? "HIGH",
+									});
+
+									const pendingRecord: RoutineExecutionRecord = {
+										id: execId,
+										routineId: routine.id,
+										userId,
+										status: "WAITING_APPROVAL",
+										startedAt,
+										stepOutputs,
+										totalCostUsd: totalCost,
+										pendingApprovalNodeId: node.id,
+										pendingApprovalId: approvalRecord.id,
+										idempotencyKey: options?.idempotencyKey,
+									};
+									await this.saveRunRecord(pendingRecord);
+
+									await this.sendNotificationAsync(userId, {
+										title: `Approval Required: ${routine.name}`,
+										message: `High-risk action ${connectorId}.${action} reached. Confirmation required.`,
+										category: "approval",
+										link: `/work/routines/${routine.id}/runs/${execId}`,
+									});
+									return pendingRecord;
+								}
+							}
+
+							let payload: Record<string, unknown>;
+							if (requiresApproval) {
+								payload = await adapter.executeWrite(action, params, credential);
+							} else {
+								payload = await adapter.executeRead(action, params, credential);
+							}
+
+							stepOutputs[node.id] = redactSecrets({
+								status: "SUCCESS",
+								connectorId,
+								action,
+								payload,
+								completedAt: new Date().toISOString(),
+							});
+							break;
+						}
+
+						case "approval": {
+							if (options?.approvalId) {
+								await globalAutomationApprovalStore.consumeApprovalAsync({
+									approvalId: options.approvalId,
+									userId,
+									runId: execId,
+									routineId: routine.id,
+									nodeId: node.id,
+									targetId: node.id,
+									action: "approval_fence",
+									parameters: node.config,
+								});
+								stepOutputs[node.id] = {
+									status: "APPROVED",
+									approvalId: options.approvalId,
+									approvedAt: new Date().toISOString(),
+									reviewer: userId,
+								};
+							} else {
+								const approvalRecord = await globalAutomationApprovalStore.requestApprovalAsync({
+									userId,
+									runId: execId,
+									routineId: routine.id,
+									nodeId: node.id,
+									targetType: "tool",
+									targetId: node.id,
+									action: "approval_fence",
+									parameters: node.config,
+									riskLevel: "HIGH",
+								});
+
 								const pendingRecord: RoutineExecutionRecord = {
 									id: execId,
 									routineId: routine.id,
@@ -724,116 +939,101 @@ export class AutomationEngine {
 									stepOutputs,
 									totalCostUsd: totalCost,
 									pendingApprovalNodeId: node.id,
+									pendingApprovalId: approvalRecord.id,
 									idempotencyKey: options?.idempotencyKey,
 								};
 								await this.saveRunRecord(pendingRecord);
 
 								await this.sendNotificationAsync(userId, {
 									title: `Approval Required: ${routine.name}`,
-									message: `High-risk action ${connectorId}.${action} reached. Confirmation required.`,
+									message: (node.config.prompt as string) ?? `Approval fence reached at step ${node.name}.`,
 									category: "approval",
 									link: `/work/routines/${routine.id}/runs/${execId}`,
 								});
 								return pendingRecord;
 							}
-							try {
-								payload = await adapter.executeWrite(action, params, credential);
-							} catch (err: unknown) {
-								stepStatus = "FAILED";
-								payload = { error: err instanceof Error ? err.message : String(err) };
-							}
-						} else {
-							try {
-								payload = await adapter.executeRead(action, params, credential);
-							} catch (err: unknown) {
-								stepStatus = "FAILED";
-								payload = { error: err instanceof Error ? err.message : String(err) };
-							}
+							break;
 						}
 
-						stepOutputs[node.id] = {
-							status: stepStatus,
-							connectorId,
-							action,
-							payload,
-							completedAt: new Date().toISOString(),
-						};
-						break;
-					}
-
-					case "approval": {
-						const isApproved = options?.approvalOverrides?.[node.id] ?? false;
-						if (!isApproved) {
-							const pendingRecord: RoutineExecutionRecord = {
-								id: execId,
-								routineId: routine.id,
-								userId,
-								status: "WAITING_APPROVAL",
-								startedAt,
-								stepOutputs,
-								totalCostUsd: totalCost,
-								pendingApprovalNodeId: node.id,
-								idempotencyKey: options?.idempotencyKey,
+						case "condition": {
+							const expr = (node.config.expression as string) ?? "";
+							if (!expr.trim()) {
+								throw new Error(`Condition expression in step '${node.name}' cannot be empty.`);
+							}
+							const branchTaken = evaluateCondition(expr, { steps: stepOutputs, ...stepOutputs });
+							stepOutputs[node.id] = {
+								status: "EVALUATED",
+								condition: expr,
+								branchTaken,
+								completedAt: new Date().toISOString(),
 							};
-							await this.saveRunRecord(pendingRecord);
+							break;
+						}
 
-							await this.sendNotificationAsync(userId, {
-								title: `Approval Required: ${routine.name}`,
-								message: (node.config.prompt as string) ?? `Approval fence reached at step ${node.name}.`,
-								category: "approval",
-								link: `/work/routines/${routine.id}/runs/${execId}`,
+						case "deliverable_export": {
+							const format = (node.config.format as string) ?? "MARKDOWN";
+							const upstreamKeys = Object.keys(stepOutputs);
+							const sections = upstreamKeys.map((k) => `### Output: ${k}\n\`\`\`json\n${JSON.stringify(stepOutputs[k], null, 2)}\n\`\`\``).join("\n\n");
+							const deliverableContent = `# ${routine.name} Final Deliverable\n\nGenerated for user ${userId} on ${new Date().toISOString()}\n\n## Verified Execution Traces\n\n${sections}`;
+
+							// Canonical Async Artifact Creation (Blocker 7)
+							const artifact = await globalArtifactEngine.createArtifactAsync({
+								userId,
+								name: `${routine.name} Deliverable.${format.toLowerCase()}`,
+								format: format === "CSV" ? "CSV" : format === "PDF" ? "PDF" : format === "DOCX" ? "DOCX" : format === "XLSX" ? "XLSX" : format === "PPTX" ? "PPTX" : "MARKDOWN",
+								content: deliverableContent,
+								provenance: {
+									runId: execId,
+									generator: "AutomationEngine",
+									inputChecksum: createHash("sha256").update(JSON.stringify(stepOutputs)).digest("hex"),
+								},
 							});
-							return pendingRecord;
+
+							stepOutputs[node.id] = redactSecrets({
+								status: "EXPORTED",
+								artifactId: artifact.id,
+								format,
+								checksum: artifact.versions[0]?.checksum,
+								sizeBytes: artifact.versions[0]?.sizeBytes,
+								completedAt: new Date().toISOString(),
+							});
+							break;
 						}
-						stepOutputs[node.id] = {
-							status: "APPROVED",
-							approvedAt: new Date().toISOString(),
-							reviewer: userId,
-						};
-						break;
 					}
+				} catch (stepErr: unknown) {
+					// Failure semantics enforcement (Blocker 2)
+					const normalizedError = {
+						message: stepErr instanceof Error ? stepErr.message : String(stepErr),
+						code: (stepErr as { code?: string })?.code ?? "STEP_FAILED",
+						retryable: Boolean((stepErr as { retryable?: boolean })?.retryable),
+					};
 
-					case "condition": {
-						const expr = (node.config.expression as string) ?? "";
-						if (!expr.trim()) {
-							throw new Error(`Condition expression in step '${node.name}' cannot be empty.`);
-						}
-						const branchTaken = evaluateCondition(expr, { steps: stepOutputs, ...stepOutputs });
-						stepOutputs[node.id] = {
-							status: "EVALUATED",
-							condition: expr,
-							branchTaken,
-							completedAt: new Date().toISOString(),
-						};
-						break;
-					}
+					stepOutputs[node.id] = redactSecrets({
+						status: "FAILED",
+						failedNodeId: node.id,
+						normalizedError,
+						retryability: normalizedError.retryable,
+						attempt: 1,
+						timestamp: new Date().toISOString(),
+						policy: failurePolicy,
+					});
 
-					case "deliverable_export": {
-						const format = (node.config.format as string) ?? "MARKDOWN";
-						const upstreamKeys = Object.keys(stepOutputs);
-						const sections = upstreamKeys.map((k) => `### Output: ${k}\n\`\`\`json\n${JSON.stringify(stepOutputs[k], null, 2)}\n\`\`\``).join("\n\n");
-						const deliverableContent = `# ${routine.name} Final Deliverable\n\nGenerated for user ${userId} on ${new Date().toISOString()}\n\n## Verified Execution Traces\n\n${sections}`;
-
-						const artifact = globalArtifactEngine.createArtifact({
+					if (failurePolicy === "FAIL_WORKFLOW") {
+						const failedRecord: RoutineExecutionRecord = {
+							id: execId,
+							routineId: routine.id,
 							userId,
-							name: `${routine.name} Deliverable.${format.toLowerCase()}`,
-							format: format === "CSV" ? "CSV" : format === "PDF" ? "PDF" : "MARKDOWN",
-							content: deliverableContent,
-							provenance: {
-								runId: execId,
-								generator: "AutomationEngine",
-								inputChecksum: createHash("sha256").update(JSON.stringify(stepOutputs)).digest("hex"),
-							},
-						});
-						stepOutputs[node.id] = {
-							status: "EXPORTED",
-							artifactId: artifact.id,
-							format,
-							checksum: artifact.versions[0]?.checksum,
-							sizeBytes: artifact.versions[0]?.sizeBytes,
+							status: "FAILED",
+							startedAt,
 							completedAt: new Date().toISOString(),
+							stepOutputs,
+							totalCostUsd: totalCost,
+							error: `Step '${node.name}' (${node.id}) failed: ${normalizedError.message}`,
+							failedNodeId: node.id,
+							idempotencyKey: options?.idempotencyKey,
 						};
-						break;
+						await this.saveRunRecord(failedRecord);
+						return failedRecord;
 					}
 				}
 

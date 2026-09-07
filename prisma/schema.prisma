@@ -99,6 +99,7 @@ model User {
   automationNotifs     AutomationNotification[]
   durableArtifacts     DurableArtifact[]
   enterpriseMembers    EnterpriseMembership[]
+  automationApprovals  AutomationApproval[]
 }
 
 model Account {
@@ -417,12 +418,14 @@ model UserAgent {
   modelPolicy  Json
   tools        String[]           @default([])
   skills       String[]           @default([])
+  connectors   String[]           @default([])
   memoryPolicy Json
   budget       Json
   riskPolicy   Json
   avatar       String?
   version      Int                @default(1)
   isPublic     Boolean            @default(false)
+  shares       Json               @default("[]")
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
   versions     UserAgentVersion[]
@@ -439,7 +442,9 @@ model UserAgentVersion {
   instructions String    @db.Text
   tools        String[]  @default([])
   skills       String[]  @default([])
+  connectors   String[]  @default([])
   modelPolicy  Json
+  shares       Json      @default("[]")
   createdAt    DateTime  @default(now())
 
   @@unique([agentId, version])
@@ -606,3 +611,38 @@ model EnterpriseMembership {
   @@unique([orgId, userId])
   @@index([userId])
 }
+
+/// TruthMode IV: Durable binary blob storage (BYTEA <= 10MB)
+model DurableBlob {
+  key       String   @id
+  data      Bytes
+  mimeType  String
+  sizeBytes Int
+  checksum  String
+  createdAt DateTime @default(now())
+}
+
+/// TruthMode IV: Scope-bound, single-use persisted workflow approval record
+model AutomationApproval {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runId          String
+  routineId      String
+  nodeId         String
+  targetType     String    // "connector" | "tool"
+  targetId       String    // connectorId or toolId
+  action         String
+  parametersHash String
+  riskLevel      String    @default("HIGH")
+  status         String    @default("PENDING") // "PENDING" | "APPROVED" | "DENIED" | "CONSUMED" | "EXPIRED"
+  requestedAt    DateTime  @default(now())
+  approvedAt     DateTime?
+  approvedBy     String?
+  expiresAt      DateTime
+  consumedAt     DateTime?
+
+  @@index([userId, status])
+  @@index([runId, nodeId])
+}
+

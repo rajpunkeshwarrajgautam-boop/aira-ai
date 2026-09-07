@@ -16,6 +16,6 @@ export async function GET(
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 
 	const { id } = await context.params;
-	const lineage = globalArtifactEngine.getProvenanceLineage(session.user.id, id);
+	const lineage = await globalArtifactEngine.getProvenanceLineageAsync(session.user.id, id);
 	return json({ lineage });
 }

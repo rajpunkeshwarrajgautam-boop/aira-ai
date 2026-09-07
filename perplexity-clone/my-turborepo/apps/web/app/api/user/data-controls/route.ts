@@ -18,13 +18,15 @@ export async function GET(): Promise<Response> {
 
 	// Return summary counts of user data
 	const userId = session.user.id;
-	const [conversationCount, memoryCount, researchCount] = await Promise.all([
+	const [conversationCount, memoryCount, researchCount, customAgentsList, customSkillsList] = await Promise.all([
 		prisma.conversation.count({ where: { userId } }).catch(() => 0),
 		prisma.userMemory.count({ where: { userId } }).catch(() => 0),
 		prisma.researchHistory.count({ where: { userId } }).catch(() => 0),
+		globalUserAgentStore.listAgentsAsync(userId).catch(() => []),
+		globalSkillsStore.listSkillsAsync(userId).catch(() => []),
 	]);
-	const customAgentCount = globalUserAgentStore.listAgents(userId).filter((a) => a.userId === userId).length;
-	const customSkillCount = globalSkillsStore.listSkills(userId).filter((s) => s.userId === userId).length;
+	const customAgentCount = customAgentsList.filter((a) => a.userId === userId).length;
+	const customSkillCount = customSkillsList.filter((s) => s.userId === userId).length;
 
 	return json({
 		summary: {
@@ -50,17 +52,19 @@ export async function POST(req: Request): Promise<Response> {
 
 	if (body?.action === "export") {
 		// Full export of user data
-		const [conversations, memories, researchHistory] = await Promise.all([
+		const [conversations, memories, researchHistory, allAgents, allSkills] = await Promise.all([
 			prisma.conversation.findMany({
 				where: { userId },
 				include: { messages: true },
 			}).catch(() => []),
 			prisma.userMemory.findMany({ where: { userId } }).catch(() => []),
 			prisma.researchHistory.findMany({ where: { userId } }).catch(() => []),
+			globalUserAgentStore.listAgentsAsync(userId).catch(() => []),
+			globalSkillsStore.listSkillsAsync(userId).catch(() => []),
 		]);
 
-		const customAgents = globalUserAgentStore.listAgents(userId).filter((a) => a.userId === userId);
-		const customSkills = globalSkillsStore.listSkills(userId).filter((s) => s.userId === userId);
+		const customAgents = allAgents.filter((a) => a.userId === userId);
+		const customSkills = allSkills.filter((s) => s.userId === userId);
 
 		return json({
 			exportDate: new Date().toISOString(),

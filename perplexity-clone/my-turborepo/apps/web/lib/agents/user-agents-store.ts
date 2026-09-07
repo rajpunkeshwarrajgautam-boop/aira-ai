@@ -48,7 +48,9 @@ export interface AgentVersionRecord {
 	readonly instructions: string;
 	readonly tools: readonly string[];
 	readonly skills: readonly string[];
+	readonly connectors?: readonly string[];
 	readonly modelPolicy: UserAgent["modelPolicy"];
+	readonly shares?: readonly { workspaceId: string; accessLevel: "READ" | "EXECUTE" | "MANAGE" }[];
 	readonly createdAt: string;
 }
 
@@ -126,7 +128,9 @@ export class UserAgentStore {
 			instructions: agent.instructions,
 			tools: [...agent.tools],
 			skills: [...agent.skills],
+			connectors: [...agent.connectors],
 			modelPolicy: { ...agent.modelPolicy },
+			shares: [...agent.shares],
 			createdAt: new Date().toISOString(),
 		};
 		const existing = this.versions.get(agent.id) ?? [];
@@ -170,12 +174,14 @@ export class UserAgentStore {
 						modelPolicy: validated.modelPolicy,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						memoryPolicy: validated.memoryPolicy,
 						budget: validated.budget,
 						riskPolicy: validated.riskPolicy,
 						avatar: validated.avatar,
 						version: validated.version,
 						isPublic: validated.isPublic,
+						shares: validated.shares as never,
 					},
 				});
 				await tx.userAgentVersion.create({
@@ -185,7 +191,9 @@ export class UserAgentStore {
 						instructions: validated.instructions,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						modelPolicy: validated.modelPolicy,
+						shares: validated.shares as never,
 					},
 				});
 			}).catch(() => null);
@@ -227,12 +235,14 @@ export class UserAgentStore {
 						modelPolicy: validated.modelPolicy,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						memoryPolicy: validated.memoryPolicy,
 						budget: validated.budget,
 						riskPolicy: validated.riskPolicy,
 						avatar: validated.avatar,
 						version: validated.version,
 						isPublic: validated.isPublic,
+						shares: validated.shares as never,
 					},
 				});
 				await tx.userAgentVersion.create({
@@ -242,7 +252,9 @@ export class UserAgentStore {
 						instructions: validated.instructions,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						modelPolicy: validated.modelPolicy,
+						shares: validated.shares as never,
 					},
 				});
 			});
@@ -275,8 +287,8 @@ export class UserAgentStore {
 				...dbAgent,
 				createdAt: dbAgent.createdAt.toISOString(),
 				updatedAt: dbAgent.updatedAt.toISOString(),
-				connectors: [],
-				shares: [],
+				connectors: dbAgent.connectors ?? [],
+				shares: Array.isArray(dbAgent.shares) ? dbAgent.shares : [],
 			});
 		}
 		return this.getAgent(userId, agentId);
@@ -298,7 +310,9 @@ export class UserAgentStore {
 				instructions: r.instructions,
 				tools: r.tools,
 				skills: r.skills,
+				connectors: r.connectors ?? [],
 				modelPolicy: r.modelPolicy as unknown as UserAgent["modelPolicy"],
+				shares: Array.isArray(r.shares) ? (r.shares as unknown as { workspaceId: string; accessLevel: "READ" | "EXECUTE" | "MANAGE" }[]) : [],
 				createdAt: r.createdAt.toISOString(),
 			}));
 		}
@@ -322,8 +336,8 @@ export class UserAgentStore {
 					...dbAgent,
 					createdAt: dbAgent.createdAt.toISOString(),
 					updatedAt: dbAgent.updatedAt.toISOString(),
-					connectors: [],
-					shares: [],
+					connectors: dbAgent.connectors ?? [],
+					shares: Array.isArray(dbAgent.shares) ? dbAgent.shares : [],
 				}),
 			);
 		}
@@ -362,12 +376,14 @@ export class UserAgentStore {
 						modelPolicy: validated.modelPolicy,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						memoryPolicy: validated.memoryPolicy,
 						budget: validated.budget,
 						riskPolicy: validated.riskPolicy,
 						avatar: validated.avatar,
 						version: nextVersion,
 						isPublic: validated.isPublic,
+						shares: validated.shares as never,
 					},
 				});
 				await tx.userAgentVersion.create({
@@ -377,7 +393,9 @@ export class UserAgentStore {
 						instructions: validated.instructions,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						modelPolicy: validated.modelPolicy,
+						shares: validated.shares as never,
 					},
 				});
 			}).catch(() => null);
@@ -415,12 +433,14 @@ export class UserAgentStore {
 						modelPolicy: validated.modelPolicy,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						memoryPolicy: validated.memoryPolicy,
 						budget: validated.budget,
 						riskPolicy: validated.riskPolicy,
 						avatar: validated.avatar,
 						version: nextVersion,
 						isPublic: validated.isPublic,
+						shares: validated.shares as never,
 					},
 				});
 				await tx.userAgentVersion.create({
@@ -430,7 +450,9 @@ export class UserAgentStore {
 						instructions: validated.instructions,
 						tools: validated.tools,
 						skills: validated.skills,
+						connectors: validated.connectors,
 						modelPolicy: validated.modelPolicy,
+						shares: validated.shares as never,
 					},
 				});
 			});
