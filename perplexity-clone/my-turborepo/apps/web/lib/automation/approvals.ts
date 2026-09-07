@@ -52,6 +52,44 @@ export function computeParametersHash(params: unknown): string {
 	return createHash("sha256").update(canonical).digest("hex");
 }
 
+function toDto(row: {
+	id: string;
+	userId: string;
+	runId: string;
+	routineId: string;
+	nodeId: string;
+	targetType: string;
+	targetId: string;
+	action: string;
+	parametersHash: string;
+	riskLevel: string;
+	status: string;
+	requestedAt: Date;
+	approvedAt: Date | null;
+	approvedBy: string | null;
+	expiresAt: Date;
+	consumedAt: Date | null;
+}): AutomationApprovalRecord {
+	return {
+		id: row.id,
+		userId: row.userId,
+		runId: row.runId,
+		routineId: row.routineId,
+		nodeId: row.nodeId,
+		targetType: row.targetType as "connector" | "tool",
+		targetId: row.targetId,
+		action: row.action,
+		parametersHash: row.parametersHash,
+		riskLevel: row.riskLevel as "LOW" | "MEDIUM" | "HIGH" | "PROTECTED",
+		status: row.status as AutomationApprovalRecord["status"],
+		requestedAt: row.requestedAt.toISOString(),
+		approvedAt: row.approvedAt?.toISOString(),
+		approvedBy: row.approvedBy ?? undefined,
+		expiresAt: row.expiresAt.toISOString(),
+		consumedAt: row.consumedAt?.toISOString(),
+	};
+}
+
 export class AutomationApprovalStore {
 	private inMemoryApprovals = new Map<string, AutomationApprovalRecord>();
 
@@ -70,6 +108,9 @@ export class AutomationApprovalStore {
 		const id = `appr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 		const now = new Date();
 		const ttl = input.ttlMs ?? 24 * 60 * 60 * 1000;
+		if (!Number.isFinite(ttl) || ttl <= 0) {
+			throw new AutomationApprovalError("APPROVAL_TTL_INVALID", "Approval TTL must be positive.", 400);
+		}
 		const expiresAt = new Date(now.getTime() + ttl);
 		const parametersHash = computeParametersHash(input.parameters);
 
@@ -121,42 +162,43 @@ export class AutomationApprovalStore {
 		const now = new Date();
 
 		if (process.env.DATABASE_URL) {
-			const existing = await prisma.automationApproval.findUnique({
-				where: { id: approvalId },
-			});
+			const existing = await prisma.automationApproval.findUnique({ where: { id: approvalId } });
 			if (!existing) {
 				throw new AutomationApprovalError("APPROVAL_NOT_FOUND", `Approval ${approvalId} not found.`, 404);
+			}
+			if (existing.userId !== resolverUserId) {
+				throw new AutomationApprovalError("APPROVAL_RESOLVER_UNAUTHORIZED", "Only the approval owner may resolve this request.", 403);
+			}
+			if (existing.expiresAt.getTime() <= now.getTime()) {
+				await prisma.automationApproval.updateMany({
+					where: { id: approvalId, status: "PENDING" },
+					data: { status: "EXPIRED" },
+				});
+				throw new AutomationApprovalError("APPROVAL_EXPIRED", "Approval has expired.", 403);
 			}
 			if (existing.status !== "PENDING") {
 				throw new AutomationApprovalError("APPROVAL_CONFLICT", `Approval already resolved as ${existing.status}.`, 409);
 			}
+
 			const nextStatus = decision === "APPROVE" ? "APPROVED" : "DENIED";
-			const updated = await prisma.automationApproval.update({
-				where: { id: approvalId },
+			const result = await prisma.automationApproval.updateMany({
+				where: {
+					id: approvalId,
+					userId: resolverUserId,
+					status: "PENDING",
+					expiresAt: { gt: now },
+				},
 				data: {
 					status: nextStatus,
 					approvedAt: decision === "APPROVE" ? now : null,
 					approvedBy: resolverUserId,
 				},
 			});
-			const dto: AutomationApprovalRecord = {
-				id: updated.id,
-				userId: updated.userId,
-				runId: updated.runId,
-				routineId: updated.routineId,
-				nodeId: updated.nodeId,
-				targetType: updated.targetType as "connector" | "tool",
-				targetId: updated.targetId,
-				action: updated.action,
-				parametersHash: updated.parametersHash,
-				riskLevel: updated.riskLevel as "LOW" | "MEDIUM" | "HIGH" | "PROTECTED",
-				status: updated.status as "PENDING" | "APPROVED" | "DENIED" | "CONSUMED" | "EXPIRED",
-				requestedAt: updated.requestedAt.toISOString(),
-				approvedAt: updated.approvedAt?.toISOString(),
-				approvedBy: updated.approvedBy ?? undefined,
-				expiresAt: updated.expiresAt.toISOString(),
-				consumedAt: updated.consumedAt?.toISOString(),
-			};
+			if (result.count !== 1) {
+				throw new AutomationApprovalError("APPROVAL_CONFLICT", "Approval was concurrently resolved or expired.", 409);
+			}
+			const updated = await prisma.automationApproval.findUniqueOrThrow({ where: { id: approvalId } });
+			const dto = toDto(updated);
 			this.inMemoryApprovals.set(approvalId, dto);
 			return dto;
 		}
@@ -164,6 +206,13 @@ export class AutomationApprovalStore {
 		const existing = this.inMemoryApprovals.get(approvalId);
 		if (!existing) {
 			throw new AutomationApprovalError("APPROVAL_NOT_FOUND", `Approval ${approvalId} not found.`, 404);
+		}
+		if (existing.userId !== resolverUserId) {
+			throw new AutomationApprovalError("APPROVAL_RESOLVER_UNAUTHORIZED", "Only the approval owner may resolve this request.", 403);
+		}
+		if (new Date(existing.expiresAt).getTime() <= now.getTime()) {
+			existing.status = "EXPIRED";
+			throw new AutomationApprovalError("APPROVAL_EXPIRED", "Approval has expired.", 403);
 		}
 		if (existing.status !== "PENDING") {
 			throw new AutomationApprovalError("APPROVAL_CONFLICT", `Approval already resolved as ${existing.status}.`, 409);
@@ -176,28 +225,8 @@ export class AutomationApprovalStore {
 
 	async getApprovalAsync(approvalId: string): Promise<AutomationApprovalRecord | null> {
 		if (process.env.DATABASE_URL) {
-			const row = await prisma.automationApproval.findUnique({
-				where: { id: approvalId },
-			});
-			if (!row) return null;
-			return {
-				id: row.id,
-				userId: row.userId,
-				runId: row.runId,
-				routineId: row.routineId,
-				nodeId: row.nodeId,
-				targetType: row.targetType as "connector" | "tool",
-				targetId: row.targetId,
-				action: row.action,
-				parametersHash: row.parametersHash,
-				riskLevel: row.riskLevel as "LOW" | "MEDIUM" | "HIGH" | "PROTECTED",
-				status: row.status as "PENDING" | "APPROVED" | "DENIED" | "CONSUMED" | "EXPIRED",
-				requestedAt: row.requestedAt.toISOString(),
-				approvedAt: row.approvedAt?.toISOString(),
-				approvedBy: row.approvedBy ?? undefined,
-				expiresAt: row.expiresAt.toISOString(),
-				consumedAt: row.consumedAt?.toISOString(),
-			};
+			const row = await prisma.automationApproval.findUnique({ where: { id: approvalId } });
+			return row ? toDto(row) : null;
 		}
 		return this.inMemoryApprovals.get(approvalId) ?? null;
 	}
@@ -208,6 +237,7 @@ export class AutomationApprovalStore {
 		runId: string;
 		routineId: string;
 		nodeId: string;
+		targetType?: "connector" | "tool";
 		targetId: string;
 		action: string;
 		parameters: unknown;
@@ -228,6 +258,9 @@ export class AutomationApprovalStore {
 		if (approval.nodeId !== expected.nodeId) {
 			throw new AutomationApprovalError("APPROVAL_WRONG_NODE", "Approval is bound to a different node.", 403);
 		}
+		if (expected.targetType && approval.targetType !== expected.targetType) {
+			throw new AutomationApprovalError("APPROVAL_WRONG_TARGET_TYPE", "Approval is bound to a different target type.", 403);
+		}
 		if (approval.targetId !== expected.targetId) {
 			throw new AutomationApprovalError("APPROVAL_WRONG_TARGET", "Approval is bound to a different connector/tool target.", 403);
 		}
@@ -239,34 +272,49 @@ export class AutomationApprovalStore {
 		if (approval.parametersHash !== expectedHash) {
 			throw new AutomationApprovalError("APPROVAL_PARAMETERS_MUTATED", "Approval parameter hash mismatch: action parameters were changed.", 403);
 		}
-
 		if (new Date(approval.expiresAt).getTime() <= Date.now()) {
 			throw new AutomationApprovalError("APPROVAL_EXPIRED", "Approval has expired.", 403);
 		}
-
 		if (approval.consumedAt || approval.status === "CONSUMED") {
 			throw new AutomationApprovalError("APPROVAL_REPLAYED", "Approval was already consumed (single-use replay rejected).", 403);
 		}
-
 		if (approval.status !== "APPROVED") {
 			throw new AutomationApprovalError("APPROVAL_NOT_APPROVED", `Approval status is ${approval.status}, not APPROVED.`, 403);
 		}
 
 		const now = new Date();
-
 		if (process.env.DATABASE_URL) {
-			const updated = await prisma.automationApproval.update({
-				where: { id: approval.id },
-				data: {
-					status: "CONSUMED",
-					consumedAt: now,
+			const result = await prisma.automationApproval.updateMany({
+				where: {
+					id: approval.id,
+					userId: expected.userId,
+					runId: expected.runId,
+					routineId: expected.routineId,
+					nodeId: expected.nodeId,
+					...(expected.targetType ? { targetType: expected.targetType } : {}),
+					targetId: expected.targetId,
+					action: expected.action,
+					parametersHash: expectedHash,
+					status: "APPROVED",
+					consumedAt: null,
+					expiresAt: { gt: now },
 				},
+				data: { status: "CONSUMED", consumedAt: now },
 			});
-			const dto: AutomationApprovalRecord = {
-				...approval,
-				status: "CONSUMED",
-				consumedAt: now.toISOString(),
-			};
+
+			if (result.count !== 1) {
+				const current = await prisma.automationApproval.findUnique({ where: { id: approval.id } });
+				if (current?.status === "CONSUMED" || current?.consumedAt) {
+					throw new AutomationApprovalError("APPROVAL_REPLAYED", "Approval was already consumed (single-use replay rejected).", 403);
+				}
+				if (current && current.expiresAt.getTime() <= Date.now()) {
+					throw new AutomationApprovalError("APPROVAL_EXPIRED", "Approval has expired.", 403);
+				}
+				throw new AutomationApprovalError("APPROVAL_CONFLICT", "Approval could not be consumed atomically.", 409);
+			}
+
+			const updated = await prisma.automationApproval.findUniqueOrThrow({ where: { id: approval.id } });
+			const dto = toDto(updated);
 			this.inMemoryApprovals.set(approval.id, dto);
 			return dto;
 		}
