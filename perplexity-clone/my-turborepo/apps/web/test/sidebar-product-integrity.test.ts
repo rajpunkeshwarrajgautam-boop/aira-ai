@@ -38,7 +38,7 @@ test("Artifacts have truthful empty state and canonical byte downloads", () => {
 
 test("Global Search covers projects artifacts and knowledge", () => {
   const route = source("../app/api/global-search/route.ts"); const page = source("../app/workspace-search/page.tsx");
-  for (const kind of ["project", "artifact", "knowledge"]) { assert.match(route, new RegExp(`type: \\\"${kind}\\\"`)); assert.match(page, new RegExp(`\\\"${kind}\\\"`)); }
+  for (const kind of ["project", "artifact", "knowledge"]) { assert.match(route, new RegExp(`type: "${kind}"`)); assert.match(page, new RegExp(`"${kind}"`)); }
 });
 
 test("Federated knowledge contains no invented provider documents", () => {
