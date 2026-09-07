@@ -17,7 +17,7 @@ export async function GET(): Promise<Response> {
 		return json({ error: { code: "UNAUTHENTICATED", message: "Authentication required." } }, { status: 401 });
 	}
 
-	const routines = globalAutomationEngine.listUserRoutines(session.user.id);
+	const routines = await globalAutomationEngine.listRoutinesAsync(session.user.id);
 	const templates = globalAutomationEngine.templates;
 
 	return json({
@@ -34,7 +34,7 @@ export async function POST(req: Request): Promise<Response> {
 
 	try {
 		const body = await req.json();
-		const routine = globalAutomationEngine.createRoutine({
+		const routine = await globalAutomationEngine.createRoutineAsync({
 			...body,
 			userId: session.user.id,
 		});

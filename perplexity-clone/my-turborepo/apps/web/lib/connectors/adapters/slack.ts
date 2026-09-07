@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import type { ConnectorActionSpec, ConnectorAdapter, ConnectorCategory, ConnectorCredential, ConnectorHealthState } from "../types";
+import { getGlobalHttpTransport, type HttpTransport, HttpTransportError } from "../http";
 
 export class SlackConnectorAdapter implements ConnectorAdapter {
 	readonly id = "slack";
@@ -16,7 +17,16 @@ export class SlackConnectorAdapter implements ConnectorAdapter {
 		{ name: "delete_message", description: "Remove posted message", risk: "HIGH", requiresApproval: true },
 	];
 
-	// Gate 78: HMAC-SHA256 signature verification for Slack webhooks
+	private transport?: HttpTransport;
+
+	constructor(transport?: HttpTransport) {
+		this.transport = transport;
+	}
+
+	private get http(): HttpTransport {
+		return this.transport ?? getGlobalHttpTransport();
+	}
+
 	verifyWebhookSignature(params: {
 		rawBody: string;
 		timestamp: string;
@@ -34,92 +44,206 @@ export class SlackConnectorAdapter implements ConnectorAdapter {
 		return mySig === params.signature;
 	}
 
-	async authenticate(params: { code?: string }): Promise<{ credential: ConnectorCredential }> {
+	async authenticate(params: { code?: string; redirectUri?: string }): Promise<{ credential: ConnectorCredential }> {
 		if (!params.code) throw new Error("OAuth code required for Slack workspace installation.");
+
+		const clientId = process.env.SLACK_CLIENT_ID || "";
+		const clientSecret = process.env.SLACK_CLIENT_SECRET || "";
+
+		const res = await this.http.request<{
+			ok: boolean;
+			access_token: string;
+			scope?: string;
+			team?: { id: string; name: string };
+			error?: string;
+		}>("https://slack.com/api/oauth.v2.access", {
+			method: "POST",
+			body: new URLSearchParams({
+				code: params.code,
+				client_id: clientId,
+				client_secret: clientSecret,
+				redirect_uri: params.redirectUri ?? "",
+			}),
+		});
+
+		if (!res.data.ok) {
+			throw new Error(`Slack OAuth error: ${res.data.error || "failed"}`);
+		}
+
 		return {
 			credential: {
 				tokenType: "bearer",
-				accessToken: `xoxb-mock-${params.code}`,
-				scopes: ["channels:history", "chat:write", "files:write"],
+				accessToken: res.data.access_token,
+				scopes: res.data.scope ? res.data.scope.split(",") : ["channels:history", "chat:write", "files:write"],
 			},
 		};
 	}
 
 	async refreshCredential(credential: ConnectorCredential): Promise<{ credential: ConnectorCredential }> {
-		// Slack bot tokens are long-lived unless rotation is configured
 		return { credential };
 	}
 
-	async revoke(): Promise<{ revoked: boolean }> {
+	async revoke(credential: ConnectorCredential): Promise<{ revoked: boolean }> {
+		const token = credential.accessToken || process.env.SLACK_BOT_TOKEN;
+		if (token) {
+			await this.http.request("https://slack.com/api/auth.revoke", {
+				method: "POST",
+				headers: { Authorization: `Bearer ${token}` },
+			}).catch(() => null);
+		}
 		return { revoked: true };
 	}
 
 	async health(credential?: ConnectorCredential): Promise<{ state: ConnectorHealthState; detail?: string }> {
-		const botToken = process.env.SLACK_BOT_TOKEN?.trim();
-		if (!botToken && !credential?.accessToken) {
+		const token = credential?.accessToken || process.env.SLACK_BOT_TOKEN?.trim();
+		if (!token) {
 			return { state: "UNCONFIGURED", detail: "SLACK_BOT_TOKEN environment variable missing." };
 		}
-		return { state: "HEALTHY", detail: "Slack API bot connection authenticated." };
+
+		try {
+			const res = await this.http.request<{ ok: boolean; url?: string; user?: string; error?: string }>(
+				"https://slack.com/api/auth.test",
+				{
+					method: "POST",
+					headers: { Authorization: `Bearer ${token}` },
+				},
+			);
+
+			if (!res.data.ok) {
+				return { state: "REAUTH_REQUIRED", detail: `Slack auth failed: ${res.data.error}` };
+			}
+			return { state: "HEALTHY", detail: `Slack connected as user ${res.data.user} at ${res.data.url}.` };
+		} catch (err: unknown) {
+			const norm = this.normalizeError(err);
+			return { state: "ERROR", detail: `Slack health error: ${norm.message}` };
+		}
 	}
 
 	listCapabilities(): readonly string[] {
 		return this.actions.map((a) => a.name);
 	}
 
+	private resolveToken(credential?: ConnectorCredential): string {
+		const token = credential?.accessToken || process.env.SLACK_BOT_TOKEN;
+		if (!token) throw new Error("UNAUTHENTICATED: Slack bot or user token missing.");
+		return token;
+	}
+
 	async executeRead(action: string, params: Record<string, unknown>, credential?: ConnectorCredential): Promise<Record<string, unknown>> {
-		if (!credential?.accessToken && !process.env.SLACK_BOT_TOKEN && !process.env.AIRA_TEST_FIXTURES) {
-			throw new Error("UNAUTHENTICATED: Slack token missing.");
-		}
+		const token = this.resolveToken(credential);
+		const headers = { Authorization: `Bearer ${token}` };
 
 		switch (action) {
 			case "list_channels": {
-				return {
-					channels: [
-						{ id: "C01GENERAL", name: "general", isPrivate: false, numMembers: 42 },
-						{ id: "C02EXECUTIVE", name: "executive-briefings", isPrivate: true, numMembers: 8 },
-					],
-				};
+				const types = String(params.types ?? "public_channel,private_channel");
+				const res = await this.http.request<{ ok: boolean; channels?: Array<{ id: string; name: string; is_private: boolean }> }>(
+					`https://slack.com/api/conversations.list?types=${encodeURIComponent(types)}&limit=100`,
+					{ method: "GET", headers },
+				);
+				return { channels: res.data.channels ?? [] };
 			}
+
 			case "get_channel_history": {
+				const channel = encodeURIComponent(String(params.channel ?? ""));
+				if (!channel) throw new Error("channel parameter required.");
+				const res = await this.http.request<{ ok: boolean; messages?: Array<{ ts: string; user?: string; text: string }> }>(
+					`https://slack.com/api/conversations.history?channel=${channel}&limit=50`,
+					{ method: "GET", headers },
+				);
 				return {
-					messages: [
-						{ ts: "1725700000.001", user: "U01", text: "Q3 objectives launched." },
-						{ ts: "1725700100.002", user: "U02", text: "Deliverable certified." },
-					],
-					channel: String(params.channel ?? "C01GENERAL"),
+					channel: params.channel,
+					messages: res.data.messages ?? [],
 				};
 			}
+
+			case "get_thread": {
+				const channel = encodeURIComponent(String(params.channel ?? ""));
+				const ts = encodeURIComponent(String(params.ts ?? ""));
+				if (!channel || !ts) throw new Error("channel and ts required for thread retrieval.");
+				const res = await this.http.request<{ ok: boolean; messages?: Array<{ ts: string; user?: string; text: string }> }>(
+					`https://slack.com/api/conversations.replies?channel=${channel}&ts=${ts}`,
+					{ method: "GET", headers },
+				);
+				return { messages: res.data.messages ?? [] };
+			}
+
 			default:
 				throw new Error(`Unsupported read action: ${action}`);
 		}
 	}
 
 	async executeWrite(action: string, params: Record<string, unknown>, credential?: ConnectorCredential): Promise<Record<string, unknown>> {
-		if (!credential?.accessToken && !process.env.SLACK_BOT_TOKEN && !process.env.AIRA_TEST_FIXTURES) {
-			throw new Error("UNAUTHENTICATED: Slack token missing.");
-		}
+		const token = this.resolveToken(credential);
+		const headers = {
+			Authorization: `Bearer ${token}`,
+			"Content-Type": "application/json; charset=utf-8",
+		};
 
 		switch (action) {
 			case "post_message": {
+				const channel = String(params.channel ?? "");
+				const text = String(params.text ?? "");
+				if (!channel) throw new Error("channel required to post message.");
+
+				const res = await this.http.request<{ ok: boolean; channel?: string; ts?: string; error?: string }>(
+					"https://slack.com/api/chat.postMessage",
+					{
+						method: "POST",
+						headers,
+						body: { channel, text },
+					},
+				);
 				return {
-					ok: true,
-					channel: String(params.channel ?? "C01GENERAL"),
-					ts: `${Date.now() / 1000}`,
-					message: { text: String(params.text ?? "") },
+					ok: res.data.ok,
+					channel: res.data.channel,
+					ts: res.data.ts,
 				};
 			}
+
 			case "upload_file": {
-				return {
-					ok: true,
-					file: { id: `F_${Date.now()}`, title: String(params.title ?? "Deliverable") },
-				};
+				const channels = String(params.channels ?? params.channel ?? "");
+				const content = String(params.content ?? "");
+				const title = String(params.title ?? "Aira Deliverable");
+
+				const res = await this.http.request<{ ok: boolean; file?: { id: string; title: string } }>(
+					"https://slack.com/api/files.upload",
+					{
+						method: "POST",
+						body: new URLSearchParams({
+							channels,
+							content,
+							title,
+						}),
+					},
+				);
+				return { ok: res.data.ok, file: res.data.file };
 			}
+
+			case "delete_message": {
+				const channel = String(params.channel ?? "");
+				const ts = String(params.ts ?? "");
+				if (!channel || !ts) throw new Error("channel and ts required to delete message.");
+
+				const res = await this.http.request<{ ok: boolean; ts?: string }>(
+					"https://slack.com/api/chat.delete",
+					{
+						method: "POST",
+						headers,
+						body: { channel, ts },
+					},
+				);
+				return { ok: res.data.ok, ts: res.data.ts, status: "DELETED" };
+			}
+
 			default:
 				throw new Error(`Unsupported write action: ${action}`);
 		}
 	}
 
 	normalizeError(error: unknown): { code: string; message: string; retryable: boolean; status?: number } {
+		if (error instanceof HttpTransportError) {
+			return { code: error.code, message: error.message, retryable: error.retryable, status: error.status };
+		}
 		const msg = error instanceof Error ? error.message : String(error);
 		return { code: "SLACK_ERROR", message: msg, retryable: false, status: 500 };
 	}

@@ -33,7 +33,7 @@ export async function GET(req: Request): Promise<Response> {
 
 	const { searchParams } = new URL(req.url);
 	const projectId = searchParams.get("projectId") ?? undefined;
-	const artifacts = globalArtifactEngine.listArtifacts(session.user.id, projectId);
+	const artifacts = await globalArtifactEngine.listArtifactsAsync(session.user.id, projectId);
 	return json({ artifacts });
 }
 
@@ -47,7 +47,7 @@ export async function POST(req: Request): Promise<Response> {
 		return json({ error: { code: "VALIDATION_ERROR", message: "Invalid artifact creation payload.", details: parsed.error.format() } }, { status: 400 });
 	}
 
-	const artifact = globalArtifactEngine.createArtifact({
+	const artifact = await globalArtifactEngine.createArtifactAsync({
 		userId: session.user.id,
 		...parsed.data,
 	});

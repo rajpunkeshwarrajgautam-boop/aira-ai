@@ -11,6 +11,7 @@ import {
 	unpackZip,
 } from "./native-formats";
 import { prisma } from "@/lib/prisma";
+import { globalBlobStorage } from "./blob-storage";
 
 export * from "./types";
 import type {
@@ -376,6 +377,266 @@ export class ArtifactEngine {
 		} catch {
 			// Non-blocking
 		}
+	}
+
+	async createArtifactAsync(params: {
+		userId: string;
+		projectId?: string;
+		name: string;
+		format: ArtifactFormat;
+		content: string | Buffer;
+		provenance: Omit<ArtifactProvenance, "generatedAt">;
+		tags?: string[];
+		isPublic?: boolean;
+	}): Promise<StoredArtifact> {
+		const id = `art_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+		const now = new Date().toISOString();
+
+		let contentStr = Buffer.isBuffer(params.content) ? params.content.toString("base64") : params.content;
+		let storageUri: string | undefined;
+
+		const validation = this.validator.validate(params.format, params.content);
+		const rawBuf = Buffer.isBuffer(params.content) ? params.content : Buffer.from(params.content, "utf8");
+		const checksum = createHash("sha256").update(rawBuf).digest("hex");
+		const sizeBytes = rawBuf.length;
+
+		if (sizeBytes > 32_768 || ["PDF", "DOCX", "XLSX", "PPTX", "ZIP"].includes(params.format)) {
+			const blobMeta = await globalBlobStorage.putBlob(`${id}_v1`, rawBuf, this.resolveMimeType(params.format));
+			storageUri = blobMeta.storageUri;
+			contentStr = contentStr.slice(0, 4096);
+		}
+
+		const firstVersion: ArtifactVersion = {
+			version: 1,
+			content: contentStr,
+			storageUri,
+			checksum,
+			sizeBytes,
+			validation,
+			provenance: {
+				...params.provenance,
+				generatedAt: now,
+			},
+			createdAt: now,
+		};
+
+		const artifact: StoredArtifact = {
+			id,
+			userId: params.userId,
+			projectId: params.projectId,
+			name: params.name,
+			format: params.format,
+			mimeType: this.resolveMimeType(params.format),
+			currentVersion: 1,
+			versions: [firstVersion],
+			tags: params.tags ?? [],
+			isPublic: params.isPublic ?? false,
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		if (process.env.DATABASE_URL) {
+			await prisma.$transaction(async (tx) => {
+				await tx.durableArtifact.create({
+					data: {
+						id: artifact.id,
+						userId: artifact.userId,
+						projectId: artifact.projectId ?? null,
+						name: artifact.name,
+						format: artifact.format,
+						mimeType: artifact.mimeType,
+						currentVersion: 1,
+						tags: [...artifact.tags],
+						isPublic: artifact.isPublic,
+					},
+				});
+				await tx.durableArtifactVersion.create({
+					data: {
+						artifactId: artifact.id,
+						version: 1,
+						content: firstVersion.content,
+						storageUri: firstVersion.storageUri ?? null,
+						checksum: firstVersion.checksum,
+						sizeBytes: firstVersion.sizeBytes,
+						validation: firstVersion.validation as never,
+						provenance: firstVersion.provenance as never,
+					},
+				});
+			});
+		}
+
+		this.artifacts.set(id, artifact);
+		this.versions.set(id, [firstVersion]);
+		this.persistToDisk();
+
+		return artifact;
+	}
+
+	async getArtifactAsync(userId: string, artifactId: string): Promise<StoredArtifact | null> {
+		if (process.env.DATABASE_URL) {
+			const record = await prisma.durableArtifact.findUnique({
+				where: { id: artifactId },
+				include: { versions: { orderBy: { version: "asc" } } },
+			});
+			if (!record) return null;
+			if (record.userId !== userId && !record.isPublic) return null;
+
+			const versions: ArtifactVersion[] = record.versions.map((v) => ({
+				version: v.version,
+				content: v.content,
+				storageUri: v.storageUri ?? undefined,
+				checksum: v.checksum,
+				sizeBytes: v.sizeBytes,
+				validation: v.validation as never,
+				provenance: v.provenance as never,
+				createdAt: v.createdAt.toISOString(),
+			}));
+
+			return {
+				id: record.id,
+				userId: record.userId,
+				projectId: record.projectId ?? undefined,
+				name: record.name,
+				format: record.format as ArtifactFormat,
+				mimeType: record.mimeType,
+				currentVersion: record.currentVersion,
+				versions,
+				tags: record.tags,
+				isPublic: record.isPublic,
+				createdAt: record.createdAt.toISOString(),
+				updatedAt: record.updatedAt.toISOString(),
+			};
+		}
+		const existing = this.artifacts.get(artifactId);
+		if (!existing) return null;
+		if (existing.userId !== userId && !existing.isPublic) return null;
+		return existing;
+	}
+
+	async listArtifactsAsync(userId: string, projectId?: string): Promise<readonly StoredArtifact[]> {
+		if (process.env.DATABASE_URL) {
+			const records = await prisma.durableArtifact.findMany({
+				where: {
+					userId,
+					...(projectId ? { projectId } : {}),
+				},
+				include: { versions: { orderBy: { version: "asc" } } },
+				orderBy: { createdAt: "desc" },
+			});
+			return records.map((record) => ({
+				id: record.id,
+				userId: record.userId,
+				projectId: record.projectId ?? undefined,
+				name: record.name,
+				format: record.format as ArtifactFormat,
+				mimeType: record.mimeType,
+				currentVersion: record.currentVersion,
+				versions: record.versions.map((v) => ({
+					version: v.version,
+					content: v.content,
+					storageUri: v.storageUri ?? undefined,
+					checksum: v.checksum,
+					sizeBytes: v.sizeBytes,
+					validation: v.validation as never,
+					provenance: v.provenance as never,
+					createdAt: v.createdAt.toISOString(),
+				})),
+				tags: record.tags,
+				isPublic: record.isPublic,
+				createdAt: record.createdAt.toISOString(),
+				updatedAt: record.updatedAt.toISOString(),
+			}));
+		}
+		return this.listArtifacts(userId, projectId);
+	}
+
+	async deleteArtifactAsync(userId: string, artifactId: string): Promise<boolean> {
+		if (process.env.DATABASE_URL) {
+			const existing = await prisma.durableArtifact.findUnique({ where: { id: artifactId } });
+			if (!existing || existing.userId !== userId) return false;
+			await prisma.durableArtifact.delete({ where: { id: artifactId } });
+		}
+		this.versions.delete(artifactId);
+		const deleted = this.artifacts.delete(artifactId);
+		this.persistToDisk();
+		return deleted;
+	}
+
+	async updateArtifactVersionAsync(params: {
+		userId: string;
+		artifactId: string;
+		content: string | Buffer;
+		provenance: Omit<ArtifactProvenance, "generatedAt">;
+	}): Promise<StoredArtifact | null> {
+		const existing = await this.getArtifactAsync(params.userId, params.artifactId);
+		if (!existing || existing.userId !== params.userId) return null;
+
+		const nextVersionNumber = existing.currentVersion + 1;
+		const now = new Date().toISOString();
+
+		const contentStr = Buffer.isBuffer(params.content)
+			? params.content.toString("base64")
+			: params.content;
+
+		const validation = this.validator.validate(existing.format, params.content);
+		const checksum = createHash("sha256")
+			.update(Buffer.isBuffer(params.content) ? params.content : Buffer.from(params.content, "utf8"))
+			.digest("hex");
+
+		const sizeBytes = Buffer.isBuffer(params.content)
+			? params.content.length
+			: Buffer.byteLength(params.content, "utf8");
+
+		const newVersion: ArtifactVersion = {
+			version: nextVersionNumber,
+			content: contentStr,
+			checksum,
+			sizeBytes,
+			validation,
+			provenance: {
+				...params.provenance,
+				generatedAt: now,
+			},
+			createdAt: now,
+		};
+
+		if (process.env.DATABASE_URL) {
+			await prisma.$transaction(async (tx) => {
+				await tx.durableArtifact.update({
+					where: { id: params.artifactId },
+					data: {
+						currentVersion: nextVersionNumber,
+						updatedAt: new Date(now),
+					},
+				});
+				await tx.durableArtifactVersion.create({
+					data: {
+						artifactId: params.artifactId,
+						version: nextVersionNumber,
+						content: newVersion.content,
+						storageUri: newVersion.storageUri ?? null,
+						checksum: newVersion.checksum,
+						sizeBytes: newVersion.sizeBytes,
+						validation: newVersion.validation as never,
+						provenance: newVersion.provenance as never,
+					},
+				});
+			});
+		}
+
+		const updatedVersions = [...(this.versions.get(params.artifactId) ?? existing.versions), newVersion];
+		const updated: StoredArtifact = {
+			...existing,
+			currentVersion: nextVersionNumber,
+			versions: updatedVersions,
+			updatedAt: now,
+		};
+
+		this.artifacts.set(params.artifactId, updated);
+		this.versions.set(params.artifactId, updatedVersions);
+		this.persistToDisk();
+
+		return updated;
 	}
 
 	createArtifact(params: {

@@ -14,7 +14,7 @@ export async function GET(
 	context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
 	const { id } = await context.params;
-	const skill = globalSkillsStore.getSkill(id);
+	const skill = await globalSkillsStore.getSkillAsync(id);
 	if (!skill) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
 	return json({ skill });
 }
@@ -31,7 +31,7 @@ export async function PATCH(
 		return json({ error: { code: "BAD_REQUEST", message: "Field 'enabled' (boolean) is required." } }, { status: 400 });
 	}
 
-	const ok = globalSkillsStore.toggleSkill(id, body.enabled);
+	const ok = await globalSkillsStore.toggleSkillAsync(id, body.enabled);
 	if (!ok) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
 	return json({ updated: true, enabled: body.enabled });
 }
@@ -43,7 +43,7 @@ export async function DELETE(
 	const session = await auth();
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	const { id } = await context.params;
-	const deleted = globalSkillsStore.uninstallSkill(session.user.id, id);
+	const deleted = await globalSkillsStore.uninstallSkillAsync(session.user.id, id);
 	if (!deleted) return json({ error: { code: "NOT_FOUND", message: "Skill not found or cannot be deleted." } }, { status: 404 });
 	return json({ deleted: true });
 }

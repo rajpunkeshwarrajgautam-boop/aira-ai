@@ -39,7 +39,7 @@ const CreateAgentInputSchema = z.object({
 export async function GET(): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
-	const agents = globalUserAgentStore.listAgents(session.user.id);
+	const agents = await globalUserAgentStore.listAgentsAsync(session.user.id);
 	return json({ agents });
 }
 
@@ -52,6 +52,6 @@ export async function POST(req: Request): Promise<Response> {
 		return json({ error: { code: "VALIDATION_ERROR", message: "Invalid agent creation parameters.", details: parsed.error.format() } }, { status: 400 });
 	}
 
-	const agent = globalUserAgentStore.createAgent(session.user.id, parsed.data);
+	const agent = await globalUserAgentStore.createAgentAsync(session.user.id, parsed.data);
 	return json({ agent }, { status: 201 });
 }

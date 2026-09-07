@@ -17,7 +17,7 @@ export async function GET(
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 
 	const { id } = await context.params;
-	const artifact = globalArtifactEngine.getArtifact(session.user.id, id);
+	const artifact = await globalArtifactEngine.getArtifactAsync(session.user.id, id);
 	if (!artifact) return json({ error: { code: "NOT_FOUND", message: "Artifact not found." } }, { status: 404 });
 	return json({ artifact });
 }
@@ -48,7 +48,7 @@ export async function PUT(
 		return json({ error: { code: "BAD_REQUEST", message: "content and provenance are required." } }, { status: 400 });
 	}
 
-	const updated = globalArtifactEngine.updateArtifactVersion({
+	const updated = await globalArtifactEngine.updateArtifactVersionAsync({
 		userId: session.user.id,
 		artifactId: id,
 		content: body.content,
@@ -67,7 +67,7 @@ export async function DELETE(
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 
 	const { id } = await context.params;
-	const deleted = globalArtifactEngine.deleteArtifact(session.user.id, id);
+	const deleted = await globalArtifactEngine.deleteArtifactAsync(session.user.id, id);
 	if (!deleted) return json({ error: { code: "NOT_FOUND", message: "Artifact not found or unauthorized." } }, { status: 404 });
 	return json({ deleted: true });
 }

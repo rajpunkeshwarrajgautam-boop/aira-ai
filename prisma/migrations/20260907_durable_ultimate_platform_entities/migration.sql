@@ -178,3 +178,50 @@ CREATE TABLE IF NOT EXISTS "EnterpriseMembership" (
 );
 
 CREATE INDEX IF NOT EXISTS "EnterpriseMembership_userId_idx" ON "EnterpriseMembership"("userId");
+
+-- Security hardening: RLS and privilege lockdown for durable ultimate platform entities
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array[
+    'UserAgent',
+    'UserAgentVersion',
+    'InstallableSkill',
+    'AutomationRoutine',
+    'AutomationRoutineVersion',
+    'AutomationRoutineRun',
+    'AutomationNotification',
+    'DurableArtifact',
+    'DurableArtifactVersion',
+    'EnterpriseOrganization',
+    'EnterpriseWorkspace',
+    'EnterpriseMembership'
+  ]
+  loop
+    execute format('alter table public.%I enable row level security', table_name);
+    begin
+      execute format('create policy "deny_direct_data_api_access" on public.%I for all to anon, authenticated using (false) with check (false)', table_name);
+    exception when duplicate_object then
+      null;
+    end;
+  end loop;
+end
+$$;
+
+revoke all privileges on table
+  "UserAgent",
+  "UserAgentVersion",
+  "InstallableSkill",
+  "AutomationRoutine",
+  "AutomationRoutineVersion",
+  "AutomationRoutineRun",
+  "AutomationNotification",
+  "DurableArtifact",
+  "DurableArtifactVersion",
+  "EnterpriseOrganization",
+  "EnterpriseWorkspace",
+  "EnterpriseMembership"
+from anon, authenticated, service_role;
+
+notify pgrst, 'reload schema';

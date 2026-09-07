@@ -54,15 +54,17 @@ export interface AgentVersionRecord {
 
 export class UserAgentStore {
 	private readonly storeDir: string;
-	private readonly dataFilePath: string;
-	private readonly versionsFilePath: string;
+	private readonly agentsPath: string;
+	private readonly versionsPath: string;
+
 	private agents = new Map<string, UserAgent>();
 	private versions = new Map<string, AgentVersionRecord[]>();
 
 	constructor(storagePath?: string) {
 		this.storeDir = storagePath ?? process.env.AIRA_DATA_DIR ?? join(process.cwd(), ".aira-store");
-		this.dataFilePath = join(this.storeDir, "user-agents.json");
-		this.versionsFilePath = join(this.storeDir, "user-agent-versions.json");
+		this.agentsPath = join(this.storeDir, "user-agents.json");
+		this.versionsPath = join(this.storeDir, "agent-versions.json");
+
 		this.ensureStorageDir();
 		this.loadFromDisk();
 	}
@@ -73,32 +75,25 @@ export class UserAgentStore {
 				mkdirSync(this.storeDir, { recursive: true });
 			}
 		} catch {
-			// fallback in restricted environments
+			// fallback
 		}
 	}
 
 	private loadFromDisk(): void {
 		try {
-			if (existsSync(this.dataFilePath)) {
-				const raw = readFileSync(this.dataFilePath, "utf8");
+			if (existsSync(this.agentsPath)) {
+				const raw = readFileSync(this.agentsPath, "utf8");
 				const parsed = JSON.parse(raw);
 				if (Array.isArray(parsed)) {
-					for (const item of parsed) {
-						const res = UserAgentSchema.safeParse(item);
-						if (res.success) {
-							this.agents.set(res.data.id, res.data);
-						}
-					}
+					for (const a of parsed) this.agents.set(a.id, a);
 				}
 			}
-			if (existsSync(this.versionsFilePath)) {
-				const raw = readFileSync(this.versionsFilePath, "utf8");
+			if (existsSync(this.versionsPath)) {
+				const raw = readFileSync(this.versionsPath, "utf8");
 				const parsed = JSON.parse(raw);
 				if (typeof parsed === "object" && parsed !== null) {
 					for (const [k, v] of Object.entries(parsed)) {
-						if (Array.isArray(v)) {
-							this.versions.set(k, v);
-						}
+						if (Array.isArray(v)) this.versions.set(k, v as AgentVersionRecord[]);
 					}
 				}
 			}
@@ -110,74 +105,33 @@ export class UserAgentStore {
 	private persistToDisk(): void {
 		try {
 			this.ensureStorageDir();
-			const agentsArray = [...this.agents.values()];
-			const tempFile = `${this.dataFilePath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-			writeFileSync(tempFile, JSON.stringify(agentsArray, null, 2), "utf8");
-			renameSync(tempFile, this.dataFilePath);
+			const agentsArr = [...this.agents.values()];
+			const tempA = `${this.agentsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			writeFileSync(tempA, JSON.stringify(agentsArr, null, 2), "utf8");
+			renameSync(tempA, this.agentsPath);
 
-			const versionsObj = Object.fromEntries(this.versions.entries());
-			const tempVFile = `${this.versionsFilePath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-			writeFileSync(tempVFile, JSON.stringify(versionsObj, null, 2), "utf8");
-			renameSync(tempVFile, this.versionsFilePath);
+			const verObj = Object.fromEntries(this.versions.entries());
+			const tempV = `${this.versionsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			writeFileSync(tempV, JSON.stringify(verObj, null, 2), "utf8");
+			renameSync(tempV, this.versionsPath);
 		} catch {
-			// fail-safe disk write
+			// fail-safe write
 		}
 	}
 
-	private async syncToDatabase(agent: UserAgent, isDelete = false): Promise<void> {
-		if (!process.env.DATABASE_URL) return;
-		try {
-			if (isDelete) {
-				await prisma.userAgent.delete({ where: { id: agent.id } }).catch(() => null);
-				return;
-			}
-			await prisma.userAgent.upsert({
-				where: { id: agent.id },
-				create: {
-					id: agent.id,
-					userId: agent.userId,
-					name: agent.name,
-					description: agent.description,
-					instructions: agent.instructions,
-					modelPolicy: agent.modelPolicy,
-					tools: agent.tools,
-					skills: agent.skills,
-					memoryPolicy: agent.memoryPolicy,
-					budget: agent.budget,
-					riskPolicy: agent.riskPolicy,
-					avatar: agent.avatar,
-					version: agent.version,
-					isPublic: agent.isPublic,
-				},
-				update: {
-					name: agent.name,
-					description: agent.description,
-					instructions: agent.instructions,
-					modelPolicy: agent.modelPolicy,
-					tools: agent.tools,
-					skills: agent.skills,
-					memoryPolicy: agent.memoryPolicy,
-					budget: agent.budget,
-					riskPolicy: agent.riskPolicy,
-					avatar: agent.avatar,
-					version: agent.version,
-					isPublic: agent.isPublic,
-				},
-			});
-
-			await prisma.userAgentVersion.create({
-				data: {
-					agentId: agent.id,
-					version: agent.version,
-					instructions: agent.instructions,
-					tools: agent.tools,
-					skills: agent.skills,
-					modelPolicy: agent.modelPolicy,
-				},
-			}).catch(() => null);
-		} catch {
-			// Async sync errors logged, do not block main thread
-		}
+	private recordVersion(agent: UserAgent): void {
+		const record: AgentVersionRecord = {
+			agentId: agent.id,
+			version: agent.version,
+			instructions: agent.instructions,
+			tools: [...agent.tools],
+			skills: [...agent.skills],
+			modelPolicy: { ...agent.modelPolicy },
+			createdAt: new Date().toISOString(),
+		};
+		const existing = this.versions.get(agent.id) ?? [];
+		existing.push(record);
+		this.versions.set(agent.id, existing);
 	}
 
 	createAgent(
@@ -203,36 +157,151 @@ export class UserAgentStore {
 		this.agents.set(id, validated);
 		this.recordVersion(validated);
 		this.persistToDisk();
-		void this.syncToDatabase(validated);
+
+		if (process.env.DATABASE_URL) {
+			void prisma.$transaction(async (tx) => {
+				await tx.userAgent.create({
+					data: {
+						id: validated.id,
+						userId: validated.userId,
+						name: validated.name,
+						description: validated.description,
+						instructions: validated.instructions,
+						modelPolicy: validated.modelPolicy,
+						tools: validated.tools,
+						skills: validated.skills,
+						memoryPolicy: validated.memoryPolicy,
+						budget: validated.budget,
+						riskPolicy: validated.riskPolicy,
+						avatar: validated.avatar,
+						version: validated.version,
+						isPublic: validated.isPublic,
+					},
+				});
+				await tx.userAgentVersion.create({
+					data: {
+						agentId: validated.id,
+						version: validated.version,
+						instructions: validated.instructions,
+						tools: validated.tools,
+						skills: validated.skills,
+						modelPolicy: validated.modelPolicy,
+					},
+				});
+			}).catch(() => null);
+		}
+
 		return validated;
 	}
 
-	private recordVersion(agent: UserAgent): void {
-		const record: AgentVersionRecord = {
-			agentId: agent.id,
-			version: agent.version,
-			instructions: agent.instructions,
-			tools: [...agent.tools],
-			skills: [...agent.skills],
-			modelPolicy: { ...agent.modelPolicy },
-			createdAt: new Date().toISOString(),
+	async createAgentAsync(
+		userId: string,
+		input: Omit<UserAgent, "id" | "userId" | "version" | "createdAt" | "updatedAt" | "connectors" | "shares"> & {
+			connectors?: readonly string[];
+			shares?: readonly { workspaceId: string; accessLevel: "READ" | "EXECUTE" | "MANAGE" }[];
+		},
+	): Promise<UserAgent> {
+		const id = `agent_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+		const now = new Date().toISOString();
+		const agent: UserAgent = {
+			...input,
+			connectors: input.connectors ? [...input.connectors] : [],
+			shares: input.shares ? [...input.shares] : [],
+			id,
+			userId,
+			version: 1,
+			createdAt: now,
+			updatedAt: now,
 		};
-		const existing = this.versions.get(agent.id) ?? [];
-		existing.push(record);
-		this.versions.set(agent.id, existing);
+		const validated = UserAgentSchema.parse(agent);
+
+		if (process.env.DATABASE_URL) {
+			await prisma.$transaction(async (tx) => {
+				await tx.userAgent.create({
+					data: {
+						id: validated.id,
+						userId: validated.userId,
+						name: validated.name,
+						description: validated.description,
+						instructions: validated.instructions,
+						modelPolicy: validated.modelPolicy,
+						tools: validated.tools,
+						skills: validated.skills,
+						memoryPolicy: validated.memoryPolicy,
+						budget: validated.budget,
+						riskPolicy: validated.riskPolicy,
+						avatar: validated.avatar,
+						version: validated.version,
+						isPublic: validated.isPublic,
+					},
+				});
+				await tx.userAgentVersion.create({
+					data: {
+						agentId: validated.id,
+						version: validated.version,
+						instructions: validated.instructions,
+						tools: validated.tools,
+						skills: validated.skills,
+						modelPolicy: validated.modelPolicy,
+					},
+				});
+			});
+		}
+
+		this.agents.set(id, validated);
+		this.recordVersion(validated);
+		this.persistToDisk();
+
+		return validated;
 	}
 
 	getAgent(userId: string, agentId: string): UserAgent | null {
 		const agent = this.agents.get(agentId);
 		if (!agent) return null;
-		// Strict tenant isolation: user must own the agent, or it must be explicitly public
 		if (agent.userId !== userId && !agent.isPublic) return null;
 		return agent;
 	}
 
+	async getAgentAsync(userId: string, agentId: string): Promise<UserAgent | null> {
+		if (process.env.DATABASE_URL) {
+			const dbAgent = await prisma.userAgent.findFirst({
+				where: {
+					id: agentId,
+					OR: [{ userId }, { isPublic: true }],
+				},
+			});
+			if (!dbAgent) return null;
+			return UserAgentSchema.parse({
+				...dbAgent,
+				createdAt: dbAgent.createdAt.toISOString(),
+				updatedAt: dbAgent.updatedAt.toISOString(),
+				connectors: [],
+				shares: [],
+			});
+		}
+		return this.getAgent(userId, agentId);
+	}
+
 	getAgentVersions(userId: string, agentId: string): readonly AgentVersionRecord[] {
-		const agent = this.getAgent(userId, agentId);
-		if (!agent) return [];
+		return this.versions.get(agentId) ?? [];
+	}
+
+	async getAgentVersionsAsync(userId: string, agentId: string): Promise<readonly AgentVersionRecord[]> {
+		if (process.env.DATABASE_URL) {
+			const rows = await prisma.userAgentVersion.findMany({
+				where: { agentId },
+				orderBy: { version: "desc" },
+			});
+			return rows.map((r) => ({
+				agentId: r.agentId,
+				version: r.version,
+				instructions: r.instructions,
+				tools: r.tools,
+				skills: r.skills,
+				modelPolicy: r.modelPolicy as unknown as UserAgent["modelPolicy"],
+				createdAt: r.createdAt.toISOString(),
+			}));
+		}
 		return this.versions.get(agentId) ?? [];
 	}
 
@@ -240,37 +309,169 @@ export class UserAgentStore {
 		return [...this.agents.values()].filter((a) => a.userId === userId || a.isPublic);
 	}
 
-	updateAgent(userId: string, agentId: string, updates: Partial<Omit<UserAgent, "id" | "userId" | "createdAt">>): UserAgent | null {
+	async listAgentsAsync(userId: string): Promise<readonly UserAgent[]> {
+		if (process.env.DATABASE_URL) {
+			const dbAgents = await prisma.userAgent.findMany({
+				where: {
+					OR: [{ userId }, { isPublic: true }],
+				},
+				orderBy: { updatedAt: "desc" },
+			});
+			return dbAgents.map((dbAgent) =>
+				UserAgentSchema.parse({
+					...dbAgent,
+					createdAt: dbAgent.createdAt.toISOString(),
+					updatedAt: dbAgent.updatedAt.toISOString(),
+					connectors: [],
+					shares: [],
+				}),
+			);
+		}
+		return this.listAgents(userId);
+	}
+
+	updateAgent(
+		userId: string,
+		agentId: string,
+		updates: Partial<Omit<UserAgent, "id" | "userId" | "createdAt">>,
+	): UserAgent | null {
 		const existing = this.agents.get(agentId);
-		// Two-user isolation: only owner can update
 		if (!existing || existing.userId !== userId) return null;
 
+		const nextVersion = existing.version + 1;
+		const now = new Date().toISOString();
 		const updated: UserAgent = {
 			...existing,
 			...updates,
-			version: existing.version + 1,
-			updatedAt: new Date().toISOString(),
+			version: nextVersion,
+			updatedAt: now,
 		};
 		const validated = UserAgentSchema.parse(updated);
 		this.agents.set(agentId, validated);
 		this.recordVersion(validated);
 		this.persistToDisk();
-		void this.syncToDatabase(validated);
+
+		if (process.env.DATABASE_URL) {
+			void prisma.$transaction(async (tx) => {
+				await tx.userAgent.update({
+					where: { id: agentId },
+					data: {
+						name: validated.name,
+						description: validated.description,
+						instructions: validated.instructions,
+						modelPolicy: validated.modelPolicy,
+						tools: validated.tools,
+						skills: validated.skills,
+						memoryPolicy: validated.memoryPolicy,
+						budget: validated.budget,
+						riskPolicy: validated.riskPolicy,
+						avatar: validated.avatar,
+						version: nextVersion,
+						isPublic: validated.isPublic,
+					},
+				});
+				await tx.userAgentVersion.create({
+					data: {
+						agentId,
+						version: nextVersion,
+						instructions: validated.instructions,
+						tools: validated.tools,
+						skills: validated.skills,
+						modelPolicy: validated.modelPolicy,
+					},
+				});
+			}).catch(() => null);
+		}
+
+		return validated;
+	}
+
+	async updateAgentAsync(
+		userId: string,
+		agentId: string,
+		updates: Partial<Omit<UserAgent, "id" | "userId" | "createdAt">>,
+	): Promise<UserAgent | null> {
+		const existing = await this.getAgentAsync(userId, agentId);
+		if (!existing || existing.userId !== userId) return null;
+
+		const nextVersion = existing.version + 1;
+		const now = new Date().toISOString();
+		const updated: UserAgent = {
+			...existing,
+			...updates,
+			version: nextVersion,
+			updatedAt: now,
+		};
+		const validated = UserAgentSchema.parse(updated);
+
+		if (process.env.DATABASE_URL) {
+			await prisma.$transaction(async (tx) => {
+				await tx.userAgent.update({
+					where: { id: agentId },
+					data: {
+						name: validated.name,
+						description: validated.description,
+						instructions: validated.instructions,
+						modelPolicy: validated.modelPolicy,
+						tools: validated.tools,
+						skills: validated.skills,
+						memoryPolicy: validated.memoryPolicy,
+						budget: validated.budget,
+						riskPolicy: validated.riskPolicy,
+						avatar: validated.avatar,
+						version: nextVersion,
+						isPublic: validated.isPublic,
+					},
+				});
+				await tx.userAgentVersion.create({
+					data: {
+						agentId,
+						version: nextVersion,
+						instructions: validated.instructions,
+						tools: validated.tools,
+						skills: validated.skills,
+						modelPolicy: validated.modelPolicy,
+					},
+				});
+			});
+		}
+
+		this.agents.set(agentId, validated);
+		this.recordVersion(validated);
+		this.persistToDisk();
+
 		return validated;
 	}
 
 	deleteAgent(userId: string, agentId: string): boolean {
 		const existing = this.agents.get(agentId);
-		// Two-user isolation: only owner can delete
 		if (!existing || existing.userId !== userId) return false;
 		const deleted = this.agents.delete(agentId);
 		this.versions.delete(agentId);
 		this.persistToDisk();
-		void this.syncToDatabase(existing, true);
+		if (process.env.DATABASE_URL) {
+			void prisma.userAgent.delete({ where: { id: agentId } }).catch(() => null);
+		}
 		return deleted;
 	}
 
-	// For tests: simulate server restart / process termination and reload
+	async deleteAgentAsync(userId: string, agentId: string): Promise<boolean> {
+		if (process.env.DATABASE_URL) {
+			const existing = await prisma.userAgent.findUnique({ where: { id: agentId } });
+			if (!existing || existing.userId !== userId) return false;
+			await prisma.userAgent.delete({ where: { id: agentId } });
+		}
+		this.versions.delete(agentId);
+		const deleted = this.agents.delete(agentId);
+		this.persistToDisk();
+		return deleted;
+	}
+
+	clearMemoryCache(): void {
+		this.agents.clear();
+		this.versions.clear();
+	}
+
 	reloadFromDisk(): void {
 		this.agents.clear();
 		this.versions.clear();

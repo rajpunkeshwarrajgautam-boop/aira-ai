@@ -23,7 +23,7 @@ export async function POST(req: Request): Promise<Response> {
 
 		if (action === "create_org") {
 			const { name, slug, ssoConfig, securityPolicy } = body;
-			const org = globalEnterpriseOrgManager.createOrganization({
+			const org = await globalEnterpriseOrgManager.createOrganizationAsync({
 				name,
 				slug,
 				ownerUserId: session.user.id,
@@ -35,11 +35,11 @@ export async function POST(req: Request): Promise<Response> {
 
 		if (action === "create_workspace") {
 			const { orgId, name, budgetLimitUsd, allowedToolIds } = body;
-			const isAuthorized = globalEnterpriseOrgManager.canPerformAction(orgId, session.user.id, "ADMIN");
+			const isAuthorized = await globalEnterpriseOrgManager.canPerformActionAsync(orgId, session.user.id, "ADMIN");
 			if (!isAuthorized) {
 				return json({ error: { code: "FORBIDDEN", message: "Requires ADMIN role." } }, { status: 403 });
 			}
-			const workspace = globalEnterpriseOrgManager.createWorkspace({
+			const workspace = await globalEnterpriseOrgManager.createWorkspaceAsync({
 				orgId,
 				name,
 				budgetLimitUsd,

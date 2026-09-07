@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ArtifactEngine, ArtifactValidator } from "../lib/artifacts/engine";
+import { unpackZip } from "../lib/artifacts/native-formats";
 
 test("Artifact Validator: Format Integrity & Validation (Gate 65)", () => {
 	const validator = new ArtifactValidator();
@@ -169,7 +170,7 @@ test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validatio
 	const engine = new ArtifactEngine();
 	const validator = new ArtifactValidator();
 
-	// 1. Native PDF
+	// 1. Native PDF Reopen
 	const pdfBuf = engine.generatePdf({
 		title: "Quarterly Financial Analysis",
 		bodyLines: ["Revenue grew 45% YoY.", "Gross margin reached 82%."],
@@ -177,8 +178,14 @@ test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validatio
 	const pdfValidation = validator.validate("PDF", pdfBuf);
 	assert.equal(pdfValidation.isValid, true);
 	assert.ok((pdfValidation.metrics.pageCount ?? 0) >= 1);
+	const pdfStr = pdfBuf.toString("utf8");
+	assert.ok(pdfStr.startsWith("%PDF-1.4"), "PDF must have %PDF-1.4 header");
+	assert.ok(pdfStr.includes("/Type /Catalog"), "PDF must have Catalog");
+	assert.ok(pdfStr.includes("/Type /Pages"), "PDF must have Pages tree");
+	assert.ok(pdfStr.includes("/Type /Page"), "PDF must have Page object");
+	assert.ok(pdfStr.includes("%%EOF"), "PDF must end with %%EOF marker");
 
-	// 2. Native DOCX (Open XML ZIP)
+	// 2. Native DOCX Reopen (Open XML ZIP)
 	const docxBuf = engine.generateDocx({
 		title: "AIRA Architecture Brief",
 		headings: ["System Invariants", "Tool Gateway"],
@@ -188,8 +195,20 @@ test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validatio
 	const docxValidation = validator.validate("DOCX", docxBuf);
 	assert.equal(docxValidation.isValid, true);
 	assert.ok((docxValidation.metrics.wordCount ?? 0) > 0);
+	const docxUnpacked = new Map(unpackZip(docxBuf).map((f) => [f.path, f.data]));
+	assert.ok(docxUnpacked.has("word/document.xml"), "DOCX must contain word/document.xml");
+	assert.ok(docxUnpacked.has("[Content_Types].xml"), "DOCX must contain [Content_Types].xml");
+	const docXml = docxUnpacked.get("word/document.xml")?.toString("utf8") ?? "";
+	assert.ok(docXml.includes("<w:p>"), "DOCX document must contain paragraphs");
+	assert.ok(docXml.includes("<w:tbl>"), "DOCX document must contain table");
+	assert.ok(docXml.includes("<w:tr>"), "DOCX table must contain table rows");
+	assert.ok(docXml.includes("<w:tc>"), "DOCX table must contain table cells");
+	assert.ok(docXml.includes("AIRA Architecture Brief"), "DOCX title must survive reopen");
+	assert.ok(docXml.includes("System Invariants"), "DOCX heading must survive reopen");
+	assert.ok(docXml.includes("The system guarantees fail-closed isolation."), "DOCX paragraph must survive reopen");
+	assert.ok(docXml.includes("AgentRuntime"), "DOCX table content must survive reopen");
 
-	// 3. Native XLSX (Open XML ZIP)
+	// 3. Native XLSX Reopen (Open XML ZIP)
 	const xlsxBuf = engine.generateXlsx([{
 		name: "Financials",
 		headers: ["Item", "Q1", "Q2"],
@@ -200,7 +219,27 @@ test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validatio
 	assert.equal(xlsxValidation.isValid, true);
 	assert.equal(xlsxValidation.metrics.rowCount, 3);
 
-	// 4. Native PPTX (Open XML ZIP)
+	// 3b. Native Multi-Sheet XLSX Reopen: prove at least two worksheets survive reopen
+	const multiXlsxBuf = engine.generateXlsx([
+		{ name: "Revenue", headers: ["Quarter", "Amount"], rows: [["Q1", 1000], ["Q2", 1500]] },
+		{ name: "Headcount", headers: ["Dept", "Count"], rows: [["Eng", 25], ["Sales", 10]] },
+	]);
+	const multiXlsxValidation = validator.validate("XLSX", multiXlsxBuf);
+	assert.equal(multiXlsxValidation.isValid, true);
+	const multiUnpacked = new Map(unpackZip(multiXlsxBuf).map((f) => [f.path, f.data]));
+	assert.ok(multiUnpacked.has("xl/worksheets/sheet1.xml"), "Multi-sheet XLSX must have sheet1.xml");
+	assert.ok(multiUnpacked.has("xl/worksheets/sheet2.xml"), "Multi-sheet XLSX must have sheet2.xml");
+	const sheet1Xml = multiUnpacked.get("xl/worksheets/sheet1.xml")?.toString("utf8") ?? "";
+	const sheet2Xml = multiUnpacked.get("xl/worksheets/sheet2.xml")?.toString("utf8") ?? "";
+	assert.ok(sheet1Xml.includes('t="inlineStr"'), "Sheet1 must contain inlineStr");
+	assert.ok(!sheet1Xml.includes('r="A1 t='), "Sheet1 XML attributes must be valid");
+	assert.ok(sheet1Xml.includes("<row"), "Sheet1 must contain rows");
+	assert.ok(sheet2Xml.includes("<row"), "Sheet2 must contain rows");
+	const wbXml = multiUnpacked.get("xl/workbook.xml")?.toString("utf8") ?? "";
+	assert.ok(wbXml.includes('name="Revenue"'), "Workbook must contain Revenue sheet");
+	assert.ok(wbXml.includes('name="Headcount"'), "Workbook must contain Headcount sheet");
+
+	// 4. Native PPTX Reopen: prove all generated slides survive reopen
 	const pptxBuf = engine.generatePptx({
 		title: "AIRA Platform Strategy",
 		slides: [
@@ -210,9 +249,19 @@ test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validatio
 	});
 	const pptxValidation = validator.validate("PPTX", pptxBuf);
 	assert.equal(pptxValidation.isValid, true);
-	assert.ok((pptxValidation.metrics.slideCount ?? 0) >= 1);
+	assert.ok((pptxValidation.metrics.slideCount ?? 0) >= 2);
+	const pptxUnpacked = new Map(unpackZip(pptxBuf).map((f) => [f.path, f.data]));
+	assert.ok(pptxUnpacked.has("ppt/presentation.xml"), "PPTX must contain ppt/presentation.xml");
+	assert.ok(pptxUnpacked.has("ppt/slides/slide1.xml"), "PPTX must contain slide1.xml");
+	assert.ok(pptxUnpacked.has("ppt/slides/slide2.xml"), "PPTX must contain slide2.xml");
+	const slide1Xml = pptxUnpacked.get("ppt/slides/slide1.xml")?.toString("utf8") ?? "";
+	const slide2Xml = pptxUnpacked.get("ppt/slides/slide2.xml")?.toString("utf8") ?? "";
+	assert.ok(slide1Xml.includes("Vision"), "Slide 1 must contain Vision title");
+	assert.ok(slide1Xml.includes("128 Gates Complete"), "Slide 1 must contain first bullet");
+	assert.ok(slide2Xml.includes("Execution"), "Slide 2 must contain Execution title");
+	assert.ok(slide2Xml.includes("Real node dispatch"), "Slide 2 must contain bullet text");
 
-	// 5. Native ZIP Archive
+	// 5. Native ZIP Archive Reopen
 	const zipBuf = engine.generateZip([
 		{ path: "summary.txt", data: "Executive summary text" },
 		{ path: "data.csv", data: "a,b\n1,2" },
@@ -220,6 +269,9 @@ test("Native Deliverables: PDF, DOCX, XLSX, PPTX, and ZIP Generation & Validatio
 	const zipValidation = validator.validate("ZIP", zipBuf);
 	assert.equal(zipValidation.isValid, true);
 	assert.equal(zipValidation.metrics.archiveFilesCount, 2);
+	const zipUnpacked = new Map(unpackZip(zipBuf).map((f) => [f.path, f.data]));
+	assert.equal(zipUnpacked.get("summary.txt")?.toString("utf8"), "Executive summary text");
+	assert.equal(zipUnpacked.get("data.csv")?.toString("utf8"), "a,b\n1,2");
 });
 
 test("Artifact Durability: Survives Process Restart & Reload (Gate 65 & Phase 12)", () => {

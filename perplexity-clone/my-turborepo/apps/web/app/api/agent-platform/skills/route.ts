@@ -23,7 +23,7 @@ const InstallSkillInputSchema = z.object({
 
 export async function GET(): Promise<Response> {
 	const session = await auth();
-	const skills = globalSkillsStore.listSkills(session?.user?.id);
+	const skills = await globalSkillsStore.listSkillsAsync(session?.user?.id);
 	return json({ skills });
 }
 
@@ -36,7 +36,7 @@ export async function POST(req: Request): Promise<Response> {
 		return json({ error: { code: "VALIDATION_ERROR", message: "Invalid skill parameters.", details: parsed.error.format() } }, { status: 400 });
 	}
 
-	const skill = globalSkillsStore.installSkill(session.user.id, {
+	const skill = await globalSkillsStore.installSkillAsync(session.user.id, {
 		...parsed.data,
 		enabled: true,
 	});

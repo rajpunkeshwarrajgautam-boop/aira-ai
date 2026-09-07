@@ -45,7 +45,7 @@ export interface ConnectorManifest {
 }
 
 export interface ConnectorCredential {
-	readonly tokenType: "bearer" | "oauth2" | "api_key";
+	readonly tokenType?: "bearer" | "oauth2" | "api_key";
 	readonly accessToken?: string;
 	readonly refreshToken?: string;
 	readonly expiresAt?: number;

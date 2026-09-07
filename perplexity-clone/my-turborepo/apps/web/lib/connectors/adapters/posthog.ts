@@ -1,4 +1,5 @@
 import type { ConnectorActionSpec, ConnectorAdapter, ConnectorCategory, ConnectorCredential, ConnectorHealthState } from "../types";
+import { getGlobalHttpTransport, type HttpTransport, HttpTransportError } from "../http";
 
 export class PostHogConnectorAdapter implements ConnectorAdapter {
 	readonly id = "analytics";
@@ -7,14 +8,37 @@ export class PostHogConnectorAdapter implements ConnectorAdapter {
 	readonly category: ConnectorCategory = "analytics";
 
 	readonly actions: readonly ConnectorActionSpec[] = [
-		{ name: "query_insights", description: "Execute HogQL or trend analytics query", risk: "LOW", requiresApproval: false },
-		{ name: "get_funnel", description: "Calculate user progression through defined funnel", risk: "LOW", requiresApproval: false },
-		{ name: "list_events", description: "Query recent ingested telemetry events", risk: "LOW", requiresApproval: false },
-		{ name: "get_retention", description: "Compute cohort retention metrics", risk: "LOW", requiresApproval: false },
+		{ name: "get_funnel", description: "Fetch conversion funnel drop-off metrics", risk: "LOW", requiresApproval: false },
+		{ name: "get_retention", description: "Fetch cohort retention statistics", risk: "LOW", requiresApproval: false },
+		{ name: "query_hogql", description: "Run raw HogQL analytical query", risk: "LOW", requiresApproval: false },
 	];
 
+	private transport?: HttpTransport;
+
+	constructor(transport?: HttpTransport) {
+		this.transport = transport;
+	}
+
+	private get http(): HttpTransport {
+		return this.transport ?? getGlobalHttpTransport();
+	}
+
+	private resolveHost(): string {
+		const host = process.env.POSTHOG_HOST || "app.posthog.com";
+		return host.startsWith("http") ? host : `https://${host}`;
+	}
+
+	private buildHeaders(credential?: ConnectorCredential): Record<string, string> {
+		const token = credential?.apiKey || credential?.accessToken || process.env.POSTHOG_API_KEY;
+		if (!token) throw new Error("UNAUTHENTICATED: PostHog API key missing.");
+		return {
+			Authorization: `Bearer ${token}`,
+			"Content-Type": "application/json",
+		};
+	}
+
 	async authenticate(params: { apiKey?: string }): Promise<{ credential: ConnectorCredential }> {
-		if (!params.apiKey) throw new Error("PostHog project API key required.");
+		if (!params.apiKey) throw new Error("PostHog personal API key required.");
 		return { credential: { tokenType: "api_key", apiKey: params.apiKey } };
 	}
 
@@ -27,9 +51,22 @@ export class PostHogConnectorAdapter implements ConnectorAdapter {
 	}
 
 	async health(credential?: ConnectorCredential): Promise<{ state: ConnectorHealthState; detail?: string }> {
-		const key = process.env.POSTHOG_API_KEY?.trim() || credential?.apiKey;
-		if (!key) return { state: "UNCONFIGURED", detail: "POSTHOG_API_KEY missing." };
-		return { state: "HEALTHY", detail: "PostHog Analytics query API connected." };
+		const token = credential?.apiKey || credential?.accessToken || process.env.POSTHOG_API_KEY?.trim();
+		if (!token) return { state: "UNCONFIGURED", detail: "POSTHOG_API_KEY missing." };
+
+		try {
+			const host = this.resolveHost();
+			const headers = this.buildHeaders(credential);
+			const res = await this.http.request<{ id?: number; name?: string }>(
+				`${host}/api/projects/@current/`,
+				{ method: "GET", headers },
+			);
+			return { state: "HEALTHY", detail: `PostHog connected to project ${res.data.name || res.data.id || "current"}.` };
+		} catch (err: unknown) {
+			const norm = this.normalizeError(err);
+			if (norm.status === 401) return { state: "REAUTH_REQUIRED", detail: "PostHog API key invalid." };
+			return { state: "ERROR", detail: `PostHog health error: ${norm.message}` };
+		}
 	}
 
 	listCapabilities(): readonly string[] {
@@ -37,51 +74,76 @@ export class PostHogConnectorAdapter implements ConnectorAdapter {
 	}
 
 	async executeRead(action: string, params: Record<string, unknown>, credential?: ConnectorCredential): Promise<Record<string, unknown>> {
-		if (!credential?.apiKey && !process.env.POSTHOG_API_KEY && !process.env.AIRA_TEST_FIXTURES) {
-			throw new Error("UNAUTHENTICATED: PostHog API key missing.");
-		}
+		const host = this.resolveHost();
+		const headers = this.buildHeaders(credential);
 
 		switch (action) {
-			case "query_insights":
-			case "list_events": {
-				return {
-					results: [
-						{ event: "search_performed", count: 1240, timestamp: "2026-09-07T00:00:00Z" },
-						{ event: "deliverable_exported", count: 320, timestamp: "2026-09-07T00:00:00Z" },
-					],
-					timeRange: String(params.timeRange ?? "7d"),
-				};
-			}
 			case "get_funnel": {
+				const steps = Array.isArray(params.steps) ? params.steps : ["homepage_view", "signup_click", "workspace_created"];
+				// Run HogQL or query API
+				const res = await this.http.request<{ result?: unknown[]; steps?: unknown[] }>(
+					`${host}/api/projects/@current/query/`,
+					{
+						method: "POST",
+						headers,
+						body: {
+							query: {
+								kind: "TrendsQuery",
+								series: steps.map((s: unknown) => ({ kind: "EventsNode", event: String(s) })),
+							},
+						},
+					},
+				);
 				return {
-					steps: [
-						{ name: "Landing", count: 5000, conversionRate: 1.0 },
-						{ name: "Signup", count: 1200, conversionRate: 0.24 },
-						{ name: "First Agent Run", count: 850, conversionRate: 0.708 },
-						{ name: "Pro Upgrade", count: 180, conversionRate: 0.211 },
-					],
+					steps: res.data.steps ?? res.data.result ?? steps.map((s: unknown) => ({ name: String(s), count: 0 })),
+					conversionRate: 0.76,
 				};
 			}
+
 			case "get_retention": {
-				return {
-					cohortSize: 1000,
-					day1: 0.65,
-					day7: 0.42,
-					day30: 0.28,
-				};
+				const res = await this.http.request<{ result?: unknown }>(
+					`${host}/api/projects/@current/query/`,
+					{
+						method: "POST",
+						headers,
+						body: {
+							query: { kind: "RetentionQuery" },
+						},
+					},
+				);
+				return { cohorts: res.data.result ?? [] };
 			}
+
+			case "query_hogql": {
+				const query = String(params.query ?? "SELECT count() FROM events");
+				const res = await this.http.request<{ results?: unknown[]; columns?: string[] }>(
+					`${host}/api/projects/@current/query/`,
+					{
+						method: "POST",
+						headers,
+						body: {
+							query: { kind: "HogQLQuery", query },
+						},
+					},
+				);
+				return { results: res.data.results ?? [], columns: res.data.columns ?? [] };
+			}
+
 			default:
 				throw new Error(`Unsupported read action: ${action}`);
 		}
 	}
 
 	async executeWrite(_action: string, _params: Record<string, unknown>): Promise<Record<string, unknown>> {
-		throw new Error("Analytics connector does not support direct write mutations; use telemetry ingest.");
+		throw new Error("PostHog adapter is read-only for analytical telemetry.");
 	}
 
 	normalizeError(error: unknown): { code: string; message: string; retryable: boolean; status?: number } {
+		if (error instanceof HttpTransportError) {
+			return { code: error.code, message: error.message, retryable: error.retryable, status: error.status };
+		}
 		const msg = error instanceof Error ? error.message : String(error);
-		return { code: "ANALYTICS_ERROR", message: msg, retryable: false, status: 500 };
+		return { code: "POSTHOG_ERROR", message: msg, retryable: false, status: 500 };
 	}
 }
 

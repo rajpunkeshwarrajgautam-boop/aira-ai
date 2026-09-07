@@ -1,20 +1,70 @@
 import type { ConnectorActionSpec, ConnectorAdapter, ConnectorCategory, ConnectorCredential, ConnectorHealthState } from "../types";
+import { getGlobalHttpTransport, type HttpTransport, HttpTransportError } from "../http";
 
 export class ShopifyConnectorAdapter implements ConnectorAdapter {
 	readonly id = "shopify";
-	readonly name = "Shopify Storefront";
+	readonly name = "Shopify Store";
 	readonly provider = "shopify";
 	readonly category: ConnectorCategory = "ecommerce";
 
 	readonly actions: readonly ConnectorActionSpec[] = [
-		{ name: "get_orders", description: "List store order history and fulfillment states", risk: "LOW", requiresApproval: false },
-		{ name: "get_products", description: "Retrieve catalog items, inventory and pricing", risk: "LOW", requiresApproval: false },
-		{ name: "get_inventory", description: "Query stock levels across locations", risk: "LOW", requiresApproval: false },
+		{ name: "list_orders", description: "Query recent storefront orders", risk: "LOW", requiresApproval: false },
+		{ name: "list_products", description: "Query inventory products and variants", risk: "LOW", requiresApproval: false },
+		{ name: "refund", description: "Process refund or dispute (strictly protected)", risk: "PROTECTED", requiresApproval: true },
 	];
 
-	async authenticate(params: { apiKey?: string; code?: string }): Promise<{ credential: ConnectorCredential }> {
-		if (!params.apiKey && !params.code) throw new Error("Shopify Admin Access Token required.");
-		return { credential: { tokenType: "bearer", accessToken: params.apiKey ?? `shpat_${params.code}` } };
+	private transport?: HttpTransport;
+
+	constructor(transport?: HttpTransport) {
+		this.transport = transport;
+	}
+
+	private get http(): HttpTransport {
+		return this.transport ?? getGlobalHttpTransport();
+	}
+
+	private resolveShopUrl(credential?: ConnectorCredential): string {
+		const shop = process.env.SHOPIFY_SHOP_DOMAIN || "aira-demo";
+		const clean = shop.replace(/\.myshopify\.com$/, "");
+		return `https://${clean}.myshopify.com/admin/api/2024-01`;
+	}
+
+	private buildHeaders(credential?: ConnectorCredential): Record<string, string> {
+		const token = credential?.apiKey || credential?.accessToken || process.env.SHOPIFY_ACCESS_TOKEN;
+		if (!token) throw new Error("UNAUTHENTICATED: Shopify access token missing.");
+		return {
+			"X-Shopify-Access-Token": token,
+			"Content-Type": "application/json",
+		};
+	}
+
+	async authenticate(params: { apiKey?: string; code?: string; shop?: string }): Promise<{ credential: ConnectorCredential }> {
+		if (params.apiKey) return { credential: { tokenType: "api_key", apiKey: params.apiKey } };
+		if (!params.code) throw new Error("Shopify access token or OAuth authorization code required.");
+
+		const clientId = process.env.SHOPIFY_API_KEY || "";
+		const clientSecret = process.env.SHOPIFY_API_SECRET || "";
+		const shop = params.shop || process.env.SHOPIFY_SHOP_DOMAIN || "aira-demo";
+
+		const res = await this.http.request<{ access_token: string; scope: string }>(
+			`https://${shop}.myshopify.com/admin/oauth/access_token`,
+			{
+				method: "POST",
+				body: {
+					client_id: clientId,
+					client_secret: clientSecret,
+					code: params.code,
+				},
+			},
+		);
+
+		return {
+			credential: {
+				tokenType: "bearer",
+				accessToken: res.data.access_token,
+				scopes: res.data.scope.split(","),
+			},
+		};
 	}
 
 	async refreshCredential(credential: ConnectorCredential): Promise<{ credential: ConnectorCredential }> {
@@ -26,9 +76,22 @@ export class ShopifyConnectorAdapter implements ConnectorAdapter {
 	}
 
 	async health(credential?: ConnectorCredential): Promise<{ state: ConnectorHealthState; detail?: string }> {
-		const token = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN?.trim() || credential?.accessToken;
-		if (!token) return { state: "UNCONFIGURED", detail: "SHOPIFY_ADMIN_ACCESS_TOKEN missing." };
-		return { state: "HEALTHY", detail: "Shopify Storefront API connected." };
+		const token = credential?.apiKey || credential?.accessToken || process.env.SHOPIFY_ACCESS_TOKEN?.trim();
+		if (!token) return { state: "UNCONFIGURED", detail: "SHOPIFY_ACCESS_TOKEN missing." };
+
+		try {
+			const baseUrl = this.resolveShopUrl(credential);
+			const headers = this.buildHeaders(credential);
+			const res = await this.http.request<{ shop?: { name: string; domain: string } }>(
+				`${baseUrl}/shop.json`,
+				{ method: "GET", headers },
+			);
+			return { state: "HEALTHY", detail: `Shopify connected to store ${res.data.shop?.name || res.data.shop?.domain || "store"}.` };
+		} catch (err: unknown) {
+			const norm = this.normalizeError(err);
+			if (norm.status === 401) return { state: "REAUTH_REQUIRED", detail: "Shopify token invalid." };
+			return { state: "ERROR", detail: `Shopify health error: ${norm.message}` };
+		}
 	}
 
 	listCapabilities(): readonly string[] {
@@ -36,37 +99,42 @@ export class ShopifyConnectorAdapter implements ConnectorAdapter {
 	}
 
 	async executeRead(action: string, _params: Record<string, unknown>, credential?: ConnectorCredential): Promise<Record<string, unknown>> {
-		if (!credential?.accessToken && !process.env.SHOPIFY_ADMIN_ACCESS_TOKEN && !process.env.AIRA_TEST_FIXTURES) {
-			throw new Error("UNAUTHENTICATED: Shopify token missing.");
+		const baseUrl = this.resolveShopUrl(credential);
+		const headers = this.buildHeaders(credential);
+
+		switch (action) {
+			case "list_orders": {
+				const res = await this.http.request<{ orders?: unknown[] }>(
+					`${baseUrl}/orders.json?status=any&limit=50`,
+					{ method: "GET", headers },
+				);
+				return { orders: res.data.orders ?? [] };
+			}
+
+			case "list_products": {
+				const res = await this.http.request<{ products?: unknown[] }>(
+					`${baseUrl}/products.json?limit=50`,
+					{ method: "GET", headers },
+				);
+				return { products: res.data.products ?? [] };
+			}
+
+			default:
+				throw new Error(`Unsupported read action: ${action}`);
 		}
-		if (action === "get_orders") {
-			return {
-				orders: [
-					{ id: 1001, total_price: "159.00", currency: "USD", financial_status: "paid" },
-					{ id: 1002, total_price: "249.50", currency: "USD", financial_status: "paid" },
-				],
-			};
-		}
-		if (action === "get_products") {
-			return {
-				products: [
-					{ id: 2001, title: "AIRA Pro Subscription", price: "20.00" },
-					{ id: 2002, title: "Enterprise Seat License", price: "50.00" },
-				],
-			};
-		}
-		if (action === "get_inventory") {
-			return { inventory_levels: [{ location_id: 1, available: 9999 }] };
-		}
-		throw new Error(`Unsupported read action: ${action}`);
 	}
 
-	async executeWrite(_action: string): Promise<Record<string, unknown>> {
-		// Strictly read-only to guarantee no financial side-effects
-		throw new Error("Ecommerce write mutations (refunds, order placement) are strictly disabled without explicit user authorization.");
+	async executeWrite(action: string, _params: Record<string, unknown>): Promise<Record<string, unknown>> {
+		if (action === "refund") {
+			throw new Error("Ecommerce write mutations (e.g. refund/cancel) are strictly disabled during certification.");
+		}
+		throw new Error(`Unsupported write action: ${action}`);
 	}
 
 	normalizeError(error: unknown): { code: string; message: string; retryable: boolean; status?: number } {
+		if (error instanceof HttpTransportError) {
+			return { code: error.code, message: error.message, retryable: error.retryable, status: error.status };
+		}
 		const msg = error instanceof Error ? error.message : String(error);
 		return { code: "SHOPIFY_ERROR", message: msg, retryable: false, status: 500 };
 	}

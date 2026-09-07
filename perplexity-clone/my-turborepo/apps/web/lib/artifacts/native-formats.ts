@@ -207,19 +207,84 @@ ${bodyContent}
 /**
  * Generate native Excel Open XML (.xlsx)
  */
-export function generateNativeXlsx(sheets: readonly {
-	readonly name: string;
-	readonly headers: readonly string[];
-	readonly rows: readonly (string | number)[][];
-	readonly formulas?: Readonly<Record<string, string>>;
-}[]): Buffer {
+function colToLetter(colIndex: number): string {
+	let temp = colIndex;
+	let letter = "";
+	while (temp >= 0) {
+		letter = String.fromCharCode((temp % 26) + 65) + letter;
+		temp = Math.floor(temp / 26) - 1;
+	}
+	return letter;
+}
+
+export function generateNativeXlsx(
+	sheets: readonly {
+		readonly name: string;
+		readonly headers: readonly string[];
+		readonly rows: readonly (string | number)[][];
+		readonly formulas?: Readonly<Record<string, string>>;
+	}[],
+): Buffer {
+	const validSheets = sheets.length > 0 ? sheets : [{ name: "Sheet1", headers: [], rows: [] }];
+
+	let contentTypesOverrides = "";
+	let workbookRelsEntries = "";
+	let workbookSheets = "";
+	const zipFiles: { path: string; data: string | Buffer }[] = [];
+
+	validSheets.forEach((sheet, idx) => {
+		const sheetNum = idx + 1;
+		const rId = `rId${sheetNum}`;
+		const sheetPath = `xl/worksheets/sheet${sheetNum}.xml`;
+
+		contentTypesOverrides += `  <Override PartName="/${sheetPath}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>\n`;
+		workbookRelsEntries += `  <Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${sheetNum}.xml"/>\n`;
+		workbookSheets += `    <sheet name="${escapeXml(sheet.name || `Sheet${sheetNum}`)}" sheetId="${sheetNum}" r:id="${rId}"/>\n`;
+
+		let sheetData = "";
+		if (sheet.headers.length > 0) {
+			sheetData += `    <row r="1">\n`;
+			sheet.headers.forEach((h, colIdx) => {
+				const colLetter = colToLetter(colIdx);
+				sheetData += `      <c r="${colLetter}1" t="inlineStr"><is><t>${escapeXml(h)}</t></is></c>\n`;
+			});
+			sheetData += `    </row>\n`;
+		}
+
+		sheet.rows.forEach((row, rowIdx) => {
+			const rNum = rowIdx + 2;
+			sheetData += `    <row r="${rNum}">\n`;
+			row.forEach((val, colIdx) => {
+				const colLetter = colToLetter(colIdx);
+				const cellRef = `${colLetter}${rNum}`;
+				const formula = sheet.formulas?.[cellRef];
+
+				if (formula) {
+					sheetData += `      <c r="${cellRef}"><f>${escapeXml(formula)}</f><v>${escapeXml(String(val))}</v></c>\n`;
+				} else if (typeof val === "number") {
+					sheetData += `      <c r="${cellRef}"><v>${val}</v></c>\n`;
+				} else {
+					sheetData += `      <c r="${cellRef}" t="inlineStr"><is><t>${escapeXml(String(val))}</t></is></c>\n`;
+				}
+			});
+			sheetData += `    </row>\n`;
+		});
+
+		const worksheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+${sheetData}  </sheetData>
+</worksheet>`;
+
+		zipFiles.push({ path: sheetPath, data: worksheetXml });
+	});
+
 	const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-</Types>`;
+${contentTypesOverrides}</Types>`;
 
 	const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -228,63 +293,22 @@ export function generateNativeXlsx(sheets: readonly {
 
 	const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-</Relationships>`;
+${workbookRelsEntries}</Relationships>`;
 
 	const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>
-    <sheet name="${escapeXml(sheets[0]?.name ?? "Sheet1")}" sheetId="1" r:id="rId1"/>
-  </sheets>
+${workbookSheets}  </sheets>
 </workbook>`;
 
-	const primarySheet = sheets[0] ?? { name: "Sheet1", headers: [], rows: [] };
-	let sheetData = "";
-
-	// Header row 1
-	if (primarySheet.headers.length > 0) {
-		sheetData += `    <row r="1">\n`;
-		primarySheet.headers.forEach((h, colIdx) => {
-			const colLetter = String.fromCharCode(65 + colIdx);
-			sheetData += `      <c r="${colLetter}1" t="inlineStr"><is><t>${escapeXml(h)}</t></is></c>\n`;
-		});
-		sheetData += `    </row>\n`;
-	}
-
-	// Data rows
-	primarySheet.rows.forEach((row, rowIdx) => {
-		const rNum = rowIdx + 2;
-		sheetData += `    <row r="${rNum}">\n`;
-		row.forEach((val, colIdx) => {
-			const colLetter = String.fromCharCode(65 + colIdx);
-			const cellRef = `${colLetter}${rNum}`;
-			const formula = primarySheet.formulas?.[cellRef];
-
-			if (formula) {
-				sheetData += `      <c r="${cellRef}"><f>${escapeXml(formula)}</f><v>${escapeXml(String(val))}</v></c>\n`;
-			} else if (typeof val === "number") {
-				sheetData += `      <c r="${cellRef}"><v>${val}</v></c>\n`;
-			} else {
-				sheetData += `      <c r="${cellRef} t="inlineStr"><is><t>${escapeXml(String(val))}</t></is></c>\n`;
-			}
-		});
-		sheetData += `    </row>\n`;
-	});
-
-	const worksheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetData>
-${sheetData}
-  </sheetData>
-</worksheet>`;
-
-	return buildZip([
+	zipFiles.push(
 		{ path: "[Content_Types].xml", data: contentTypes },
 		{ path: "_rels/.rels", data: rels },
 		{ path: "xl/_rels/workbook.xml.rels", data: workbookRels },
 		{ path: "xl/workbook.xml", data: workbook },
-		{ path: "xl/worksheets/sheet1.xml", data: worksheetXml },
-	]);
+	);
+
+	return buildZip(zipFiles);
 }
 
 /**
@@ -294,13 +318,48 @@ export function generateNativePptx(input: {
 	readonly title: string;
 	readonly slides: readonly { readonly title: string; readonly bullets: readonly string[] }[];
 }): Buffer {
+	const slides = input.slides.length > 0 ? input.slides : [{ title: input.title, bullets: [] }];
+
+	let contentTypesOverrides = "";
+	let presRelsEntries = "";
+	let sldIdEntries = "";
+	const zipEntries: ZipFileEntry[] = [];
+
+	for (let i = 0; i < slides.length; i++) {
+		const slideIndex = i + 1;
+		const slide = slides[i]!;
+
+		contentTypesOverrides += `  <Override PartName="/ppt/slides/slide${slideIndex}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>\n`;
+		presRelsEntries += `  <Relationship Id="rId${slideIndex}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${slideIndex}.xml"/>\n`;
+		sldIdEntries += `    <p:sldId id="${255 + slideIndex}" r:id="rId${slideIndex}"/>\n`;
+
+		let textContent = `            <a:p><a:r><a:t>${escapeXml(slide.title)}</a:t></a:r></a:p>\n`;
+		for (const b of slide.bullets) {
+			textContent += `            <a:p><a:r><a:t>• ${escapeXml(b)}</a:t></a:r></a:p>\n`;
+		}
+
+		const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld>
+    <p:spTree>
+      <p:sp>
+        <p:txBody>
+          <a:bodyPr/>
+${textContent}        </p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sld>`;
+
+		zipEntries.push({ path: `ppt/slides/slide${slideIndex}.xml`, data: slideXml });
+	}
+
 	const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
-  <Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
-</Types>`;
+${contentTypesOverrides}</Types>`;
 
 	const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -309,42 +368,20 @@ export function generateNativePptx(input: {
 
 	const presRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
-</Relationships>`;
+${presRelsEntries}</Relationships>`;
 
 	const presentationXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <p:sldIdLst>
-    <p:sldId id="256" r:id="rId1"/>
-  </p:sldIdLst>
+${sldIdEntries}  </p:sldIdLst>
 </p:presentation>`;
-
-	const firstSlide = input.slides[0] ?? { title: input.title, bullets: [] };
-	let textContent = `            <a:p><a:r><a:t>${escapeXml(firstSlide.title)}</a:t></a:r></a:p>\n`;
-	for (const b of firstSlide.bullets) {
-		textContent += `            <a:p><a:r><a:t>• ${escapeXml(b)}</a:t></a:r></a:p>\n`;
-	}
-
-	const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-  <p:cSld>
-    <p:spTree>
-      <p:sp>
-        <p:txBody>
-          <a:bodyPr/>
-${textContent}
-        </p:txBody>
-      </p:sp>
-    </p:spTree>
-  </p:cSld>
-</p:sld>`;
 
 	return buildZip([
 		{ path: "[Content_Types].xml", data: contentTypes },
 		{ path: "_rels/.rels", data: rels },
 		{ path: "ppt/_rels/presentation.xml.rels", data: presRels },
 		{ path: "ppt/presentation.xml", data: presentationXml },
-		{ path: "ppt/slides/slide1.xml", data: slideXml },
+		...zipEntries,
 	]);
 }
 
