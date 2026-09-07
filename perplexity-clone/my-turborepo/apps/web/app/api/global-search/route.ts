@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { listConversations } from "@/lib/conversation-memory";
 import { searchConversationMessages } from "@/lib/global-search";
 import { listUserMemories } from "@/lib/persistent-memory";
-import { listProjects } from "@/lib/agent-platform/store";
 import { globalArtifactEngine } from "@/lib/artifacts/engine";
 import { listKnowledgeAssets } from "@/lib/knowledge-assets";
 
@@ -20,11 +19,14 @@ export async function GET(req: Request): Promise<Response> {
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return Response.json({ results: [] });
   const needle = q.toLowerCase();
+  const projectSearch = import("@/lib/agent-platform/store")
+    .then((store) => store.listProjects(session.user.id))
+    .catch(() => []);
   const [conversations, memories, messageMatches, projects, artifacts, knowledgeAssets] = await Promise.all([
     listConversations(session.user.id, 40),
     listUserMemories(session.user.id, 100),
     searchConversationMessages(session.user.id, q, 40),
-    listProjects(session.user.id).catch(() => []),
+    projectSearch,
     globalArtifactEngine.listArtifactsAsync(session.user.id).catch(() => []),
     listKnowledgeAssets(session.user.id, 60).catch(() => []),
   ]);
