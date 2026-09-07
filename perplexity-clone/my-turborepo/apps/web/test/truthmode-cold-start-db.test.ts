@@ -18,8 +18,10 @@ function parseChildJson(stdout: string, label: string): Record<string, unknown> 
 		.map((line) => line.trim())
 		.filter(Boolean);
 	for (let index = lines.length - 1; index >= 0; index -= 1) {
+		const line = lines[index];
+		if (!line) continue;
 		try {
-			const parsed: unknown = JSON.parse(lines[index]);
+			const parsed: unknown = JSON.parse(line);
 			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
 				return parsed as Record<string, unknown>;
 			}
