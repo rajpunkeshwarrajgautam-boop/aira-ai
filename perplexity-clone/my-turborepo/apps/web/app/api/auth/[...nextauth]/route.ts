@@ -1,5 +1,6 @@
 import { handlers } from "@/auth";
-import type { NextRequest } from "next/server";
+import { trustedAuthRequestHeaders } from "@/lib/auth-origin";
+import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,16 +19,30 @@ function authRequestDiagnostics(request: NextRequest) {
 	};
 }
 
+function normalizeAuthRequest(request: NextRequest): NextRequest | null {
+	const headers = trustedAuthRequestHeaders(request.url, request.headers);
+	if (!headers) return null;
+	return new NextRequest(request, { headers });
+}
+
 async function runAuthHandler(
 	handler: (request: NextRequest) => Promise<Response>,
 	request: NextRequest,
 ): Promise<Response> {
-	const diagnostics = authRequestDiagnostics(request);
+	const normalizedRequest = normalizeAuthRequest(request);
+	if (!normalizedRequest) {
+		return Response.json(
+			{ error: { code: "INVALID_HOST", message: "Request host is not trusted." } },
+			{ status: 400, headers: { "Cache-Control": "no-store" } },
+		);
+	}
+
+	const diagnostics = authRequestDiagnostics(normalizedRequest);
 	if (diagnostics.path.includes("/callback/") || diagnostics.path.includes("/signin/")) {
 		console.info("[auth:request]", diagnostics);
 	}
 
-	const response = await handler(request);
+	const response = await handler(normalizedRequest);
 	if (diagnostics.path.includes("/callback/") || diagnostics.path.includes("/signin/")) {
 		const setCookie = response.headers.get("set-cookie") ?? "";
 		console.info("[auth:response]", {

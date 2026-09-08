@@ -17,17 +17,6 @@ function oauthFlags() {
 	};
 }
 
-function canonicalOrigin(): string | undefined {
-	const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
-	if (!configuredUrl) return undefined;
-
-	try {
-		return new URL(configuredUrl).origin;
-	} catch {
-		return undefined;
-	}
-}
-
 export const metadata: Metadata = {
 	title: "Sign in — AiraAI",
 	description: "Sign in to AiraAI with Google or GitHub",
@@ -35,7 +24,6 @@ export const metadata: Metadata = {
 
 export default function SignInPage() {
 	const { google: showGoogle, github: showGitHub } = oauthFlags();
-	const authOrigin = canonicalOrigin();
 
 	return (
 		<div className="aira-shell relative flex min-h-dvh flex-col items-center justify-center px-4 py-12 sm:py-16">
@@ -55,7 +43,7 @@ export default function SignInPage() {
 						</div>
 						<div className="mt-7">
 							<Suspense fallback={<div className="flex h-[118px] items-center justify-center rounded-2xl bg-surface-inset/70"><span className="aira-orbit-loader" aria-hidden /></div>}>
-								<SignInPanel showGoogle={showGoogle} showGitHub={showGitHub} canonicalOrigin={authOrigin} />
+								<SignInPanel showGoogle={showGoogle} showGitHub={showGitHub} />
 							</Suspense>
 						</div>
 					</div>
