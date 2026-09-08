@@ -23,12 +23,17 @@ const REQUIRED_TABLES = [
 
 type TableRow = { table_name: string };
 type DatabaseRow = { database_name: string; server_version: string };
+type SystemRow = { system_identifier: string };
 type MigrationRelationRow = { migration_relation: string | null };
 type MigrationRow = {
   migration_name: string;
   finished_at: Date | null;
   rolled_back_at: Date | null;
 };
+
+function fingerprint(value: string): string {
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
+}
 
 function databaseProvider(hostname: string): "neon" | "supabase" | "other" {
   if (hostname.endsWith(".neon.tech")) return "neon";
@@ -55,6 +60,9 @@ export async function GET(): Promise<Response> {
 
   const [database] = await prisma.$queryRaw<DatabaseRow[]>`
     SELECT current_database() AS database_name, current_setting('server_version') AS server_version
+  `;
+  const [system] = await prisma.$queryRaw<SystemRow[]>`
+    SELECT system_identifier::text AS system_identifier FROM pg_control_system()
   `;
   const tables = await prisma.$queryRaw<TableRow[]>`
     SELECT table_name
@@ -91,7 +99,8 @@ export async function GET(): Promise<Response> {
       gitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       database: {
         provider: databaseProvider(hostname),
-        hostFingerprint: createHash("sha256").update(hostname).digest("hex").slice(0, 16),
+        hostFingerprint: fingerprint(hostname),
+        systemFingerprint: system?.system_identifier ? fingerprint(system.system_identifier) : null,
         name: database?.database_name ?? null,
         serverVersion: database?.server_version ?? null,
       },
