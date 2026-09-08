@@ -4,7 +4,7 @@ import { ExternalLink, Loader2, Play, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type CapabilityPlan = {
   missionId: string;
@@ -18,6 +18,17 @@ type CapabilityPlan = {
 type LaunchResult = { projectId: string; runId: string; status: string };
 
 type ApiError = { error?: { message?: string } };
+
+type RuntimeStatus = {
+  feature?: {
+    enabled?: boolean;
+    configured?: boolean;
+    ready?: boolean;
+    preferredProvider?: string | null;
+  };
+};
+
+type RuntimeState = "checking" | "ready" | "unavailable";
 
 const effortMap = {
   LOW: "low",
@@ -41,6 +52,37 @@ export function WorkExecutionWorkspace() {
   const [launch, setLaunch] = useState<LaunchResult | null>(null);
   const [busy, setBusy] = useState<"plan" | "launch" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runtimeState, setRuntimeState] = useState<RuntimeState>("checking");
+
+  useEffect(() => {
+    if (sessionStatus === "loading") return;
+    if (sessionStatus !== "authenticated") {
+      setRuntimeState("checking");
+      return;
+    }
+
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/agents/runs?limit=1", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          setRuntimeState("unavailable");
+          return;
+        }
+        const body = (await response.json()) as RuntimeStatus;
+        setRuntimeState(body.feature?.ready === true ? "ready" : "unavailable");
+      } catch (cause) {
+        if ((cause as { name?: string })?.name !== "AbortError") {
+          setRuntimeState("unavailable");
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [sessionStatus]);
 
   async function generatePlan() {
     const goal = objective.trim();
@@ -102,6 +144,10 @@ export function WorkExecutionWorkspace() {
   async function executePlan() {
     const goal = objective.trim();
     if (!plan || goal.length < 3) return;
+    if (runtimeState !== "ready") {
+      setError("Managed execution is not available in this deployment. Planning remains available while the autonomous execution plane is offline or not configured.");
+      return;
+    }
     setBusy("launch");
     setError(null);
     try {
@@ -144,14 +190,22 @@ export function WorkExecutionWorkspace() {
     }
   }
 
+  const managedRunUnavailable = sessionStatus === "authenticated" && runtimeState === "unavailable";
+
   return (
     <main className="min-h-[calc(100dvh-58px)] bg-[#090b0e] px-4 py-6 text-[#ecece8] md:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <header>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b89a51]">Work Mode</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] md:text-3xl">Outcome → plan → real managed run</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#858b94]">This surface launches the same persisted Agent Platform used by Build. It never marks a deliverable complete with client-side timers or fabricated checksums.</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] md:text-3xl">Outcome → plan → managed execution</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#858b94]">Planning is available independently. Managed execution launches only when a real autonomous runtime reports ready; AIRA never fabricates execution or completion.</p>
         </header>
+
+        {managedRunUnavailable ? (
+          <div role="status" className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-100">
+            Managed execution is currently unavailable because no autonomous execution runtime is ready for this deployment. You can still generate and inspect plans; launch remains disabled until a real runtime is healthy.
+          </div>
+        ) : null}
 
         {error ? <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">{error}</div> : null}
 
@@ -171,7 +225,7 @@ export function WorkExecutionWorkspace() {
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={() => void generatePlan()} disabled={busy !== null || objective.trim().length < 3} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.09] bg-[#15191e] px-4 py-2.5 text-sm font-semibold text-[#d9d9d4] disabled:opacity-40">{busy === "plan" ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4 text-[#d0ae55]" />}Generate plan</button>
-              <button type="button" onClick={() => void executePlan()} disabled={busy !== null || !plan} className="inline-flex items-center gap-2 rounded-xl bg-[#d0ae55] px-4 py-2.5 text-sm font-semibold text-[#111214] disabled:opacity-40">{busy === "launch" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}Launch managed run</button>
+              <button type="button" onClick={() => void executePlan()} disabled={busy !== null || !plan || runtimeState !== "ready"} title={runtimeState === "unavailable" ? "Managed execution requires a configured, healthy autonomous runtime." : undefined} className="inline-flex items-center gap-2 rounded-xl bg-[#d0ae55] px-4 py-2.5 text-sm font-semibold text-[#111214] disabled:opacity-40">{busy === "launch" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}Launch managed run</button>
             </div>
           </div>
 
