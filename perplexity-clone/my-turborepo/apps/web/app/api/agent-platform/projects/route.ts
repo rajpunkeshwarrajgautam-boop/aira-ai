@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { selectAgentRuntime } from "@/lib/agent-runtime/registry";
+import { AgentRuntimeError } from "@/lib/agent-runtime/types";
 import { createProject, listProjects } from "@/lib/agent-platform/store";
 
 export const runtime = "nodejs";
@@ -28,6 +30,21 @@ export async function POST(req: Request): Promise<Response> {
 	const body = await req.json().catch(() => null);
 	const parsed = CreateProjectSchema.safeParse(body);
 	if (!parsed.success) return json({ error: { code: "VALIDATION_ERROR", message: "Provide a project name and objective.", details: z.treeifyError(parsed.error) } }, { status: 400 });
+
+	if (parsed.data.config?.source === "work-mode") {
+		try {
+			await selectAgentRuntime();
+		} catch (error) {
+			if (error instanceof AgentRuntimeError) {
+				return json(
+					{ error: { code: error.code, message: error.message, retryable: error.retryable } },
+					{ status: error.status },
+				);
+			}
+			throw error;
+		}
+	}
+
 	const project = await createProject({ userId: session.user.id, ...parsed.data });
 	return json({ project }, { status: 201 });
 }
