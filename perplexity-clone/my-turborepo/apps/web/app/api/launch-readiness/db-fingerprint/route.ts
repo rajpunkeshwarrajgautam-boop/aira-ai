@@ -1,0 +1,108 @@
+import { createHash } from "node:crypto";
+
+import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const REQUIRED_TABLES = [
+  "AgentProject",
+  "AgentRun",
+  "AgentTask",
+  "BrowserSession",
+  "UserAgent",
+  "UserAgentVersion",
+  "AutomationRoutine",
+  "AutomationRoutineRun",
+  "DurableArtifact",
+  "DurableArtifactVersion",
+  "EnterpriseOrganization",
+  "EnterpriseWorkspace",
+  "EnterpriseMembership",
+] as const;
+
+type TableRow = { table_name: string };
+type DatabaseRow = { database_name: string; server_version: string };
+type MigrationRelationRow = { migration_relation: string | null };
+type MigrationRow = {
+  migration_name: string;
+  finished_at: Date | null;
+  rolled_back_at: Date | null;
+};
+
+function databaseProvider(hostname: string): "neon" | "supabase" | "other" {
+  if (hostname.endsWith(".neon.tech")) return "neon";
+  if (hostname.endsWith(".supabase.co") || hostname.includes("supabase")) return "supabase";
+  return "other";
+}
+
+export async function GET(): Promise<Response> {
+  if (process.env.VERCEL_ENV !== "preview") {
+    return Response.json({ error: { code: "NOT_FOUND", message: "Not found." } }, { status: 404 });
+  }
+
+  const rawDatabaseUrl = process.env.DATABASE_URL;
+  if (!rawDatabaseUrl) {
+    return Response.json({ error: { code: "DATABASE_UNCONFIGURED", message: "Preview DATABASE_URL is not configured." } }, { status: 503 });
+  }
+
+  let hostname: string;
+  try {
+    hostname = new URL(rawDatabaseUrl).hostname.toLowerCase();
+  } catch {
+    return Response.json({ error: { code: "DATABASE_URL_INVALID", message: "Preview DATABASE_URL is invalid." } }, { status: 503 });
+  }
+
+  const [database] = await prisma.$queryRaw<DatabaseRow[]>`
+    SELECT current_database() AS database_name, current_setting('server_version') AS server_version
+  `;
+  const tables = await prisma.$queryRaw<TableRow[]>`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name IN (
+        'AgentProject', 'AgentRun', 'AgentTask', 'BrowserSession',
+        'UserAgent', 'UserAgentVersion', 'AutomationRoutine', 'AutomationRoutineRun',
+        'DurableArtifact', 'DurableArtifactVersion', 'EnterpriseOrganization',
+        'EnterpriseWorkspace', 'EnterpriseMembership'
+      )
+    ORDER BY table_name
+  `;
+  const [migrationRelation] = await prisma.$queryRaw<MigrationRelationRow[]>`
+    SELECT to_regclass('public."_prisma_migrations"')::text AS migration_relation
+  `;
+
+  let migrations: MigrationRow[] = [];
+  if (migrationRelation?.migration_relation) {
+    migrations = await prisma.$queryRaw<MigrationRow[]>`
+      SELECT migration_name, finished_at, rolled_back_at
+      FROM "_prisma_migrations"
+      ORDER BY started_at DESC
+      LIMIT 40
+    `;
+  }
+
+  const existingTables = new Set(tables.map((row) => row.table_name));
+  const tableStatus = Object.fromEntries(REQUIRED_TABLES.map((table) => [table, existingTables.has(table)]));
+
+  return Response.json(
+    {
+      environment: process.env.VERCEL_ENV,
+      gitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      database: {
+        provider: databaseProvider(hostname),
+        hostFingerprint: createHash("sha256").update(hostname).digest("hex").slice(0, 16),
+        name: database?.database_name ?? null,
+        serverVersion: database?.server_version ?? null,
+      },
+      migrationTablePresent: Boolean(migrationRelation?.migration_relation),
+      migrations: migrations.map((migration) => ({
+        name: migration.migration_name,
+        finished: Boolean(migration.finished_at),
+        rolledBack: Boolean(migration.rolled_back_at),
+      })),
+      tables: tableStatus,
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
