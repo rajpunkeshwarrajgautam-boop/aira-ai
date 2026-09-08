@@ -1,13 +1,38 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { MissionInput } from "../lib/contracts/mission";
 
 function source(relative: string): string { return readFileSync(new URL(relative, import.meta.url), "utf8"); }
 
 test("sidebar Work dispatches managed runs instead of client simulation", () => {
-  const page = source("../app/work/page.tsx"); const workspace = source("../components/work/WorkExecutionWorkspace.tsx");
+  const page = source("../app/work/page.tsx"); const workspace = source("../components/work/WorkExecutionWorkspace.tsx"); const planRoute = source("../app/api/agent-platform/plan/route.ts");
   assert.match(page, /WorkExecutionWorkspace/); assert.match(workspace, /\/api\/agent-platform\/projects/); assert.match(workspace, /\/runs/);
   assert.doesNotMatch(workspace, /setTimeout\(/); assert.doesNotMatch(workspace, /Certified cryptographically|fake validation/i);
+  assert.match(workspace, /type: "ANALYSIS_REPORT"/); assert.match(workspace, /formatRequirements: "markdown"/); assert.match(workspace, /requiredEvidence:/);
+  assert.match(workspace, /effort: effortMap\[effort\]/); assert.match(workspace, /maxCostUsd: maxBudgetUsd/); assert.doesNotMatch(workspace, /budget:\s*\{\s*maxCostUsd/);
+  assert.match(planRoute, /userId: session\.user\.id/); assert.match(planRoute, /globalCapabilityPlanner\.plan\(parsed\.data\)/);
+});
+
+test("Work planning payload matches the canonical MissionInput contract", () => {
+  const parsed = MissionInput.safeParse({
+    id: "work-test-mission",
+    userId: "server-authoritative-user",
+    objective: "Create a concise onboarding improvement plan",
+    constraints: ["Stay within the declared cost ceiling", "Do not claim completion without evidence"],
+    expectedDeliverables: [{ type: "ANALYSIS_REPORT", title: "Validated work deliverable", formatRequirements: "markdown" }],
+    acceptanceCriteria: [
+      { id: "work-ac-1", description: "Requested outcome is addressed", requiredEvidence: ["persisted deliverable"], weight: 1 },
+      { id: "work-ac-2", description: "Execution failures remain visible", requiredEvidence: ["run status"], weight: 1 },
+    ],
+    effort: "low",
+    maxCostUsd: 1,
+    maxTokens: 200_000,
+    allowedTools: [],
+    maxRiskClass: "MEDIUM",
+    privacyMode: "STANDARD",
+  });
+  assert.equal(parsed.success, true);
 });
 
 test("Browser Agent reuses canonical BrowserWorkspace", () => {

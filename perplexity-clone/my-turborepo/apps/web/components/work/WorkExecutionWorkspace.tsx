@@ -19,6 +19,13 @@ type LaunchResult = { projectId: string; runId: string; status: string };
 
 type ApiError = { error?: { message?: string } };
 
+const effortMap = {
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
+  MAXIMUM: "exhaustive",
+} as const;
+
 async function readError(response: Response): Promise<Error> {
   const body = (await response.json().catch(() => null)) as ApiError | null;
   return new Error(body?.error?.message ?? `Request failed (${response.status}).`);
@@ -55,19 +62,31 @@ export function WorkExecutionWorkspace() {
           constraints: ["Stay within the declared cost ceiling", "Do not claim completion without evidence"],
           expectedDeliverables: [
             {
-              id: "work-deliverable",
-              type: "REPORT",
+              type: "ANALYSIS_REPORT",
               title: "Validated work deliverable",
-              description: "Evidence-backed output for the requested outcome",
-              format: "markdown",
+              formatRequirements: "markdown",
             },
           ],
           acceptanceCriteria: [
-            { id: "work-ac-1", description: "Requested outcome is addressed", weight: 1 },
-            { id: "work-ac-2", description: "Execution failures remain visible", weight: 1 },
+            {
+              id: "work-ac-1",
+              description: "Requested outcome is addressed",
+              requiredEvidence: ["A persisted deliverable addressing the requested outcome"],
+              weight: 1,
+            },
+            {
+              id: "work-ac-2",
+              description: "Execution failures remain visible",
+              requiredEvidence: ["Persisted run status and failure evidence when applicable"],
+              weight: 1,
+            },
           ],
-          effort,
-          budget: { maxCostUsd: maxBudgetUsd, maxDurationMinutes: 30 },
+          effort: effortMap[effort],
+          maxCostUsd: maxBudgetUsd,
+          maxTokens: 200_000,
+          allowedTools: [],
+          maxRiskClass: "MEDIUM",
+          privacyMode: "STANDARD",
         }),
       });
       if (!response.ok) throw await readError(response);
@@ -147,7 +166,7 @@ export function WorkExecutionWorkspace() {
                 </select>
               </label>
               <label className="text-xs text-[#858b94]">Cost ceiling (USD)
-                <input type="number" min={0} max={250} step={0.5} value={maxBudgetUsd} onChange={(event) => setMaxBudgetUsd(Math.max(0, Number(event.target.value) || 0))} className="mt-1 block w-full rounded-lg border border-white/[0.08] bg-[#14181d] px-3 py-2 text-sm text-[#d8d8d4]" />
+                <input type="number" min={0.5} max={250} step={0.5} value={maxBudgetUsd} onChange={(event) => setMaxBudgetUsd(Math.max(0.5, Number(event.target.value) || 0.5))} className="mt-1 block w-full rounded-lg border border-white/[0.08] bg-[#14181d] px-3 py-2 text-sm text-[#d8d8d4]" />
               </label>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
