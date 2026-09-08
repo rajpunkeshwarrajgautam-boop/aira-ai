@@ -125,9 +125,13 @@ test("the retired OmniRoute Preview access mechanism is absent from runtime and 
 	);
 	assert.ok(
 		proxy.includes(
-			"return (authenticatedProxy as unknown as NextMiddleware)(req, event)",
+			"return (authenticatedProxy as unknown as NextMiddleware)(normalizedRequest, event)",
 		),
-		"proxy must delegate through authenticated Auth.js middleware",
+		"proxy must delegate its normalized trusted request through authenticated Auth.js middleware",
+	);
+	assert.ok(
+		proxy.includes("trustedAuthRequestHeaders(req.url, req.headers)"),
+		"proxy must validate and normalize the request origin before Auth.js middleware delegation",
 	);
 	assert.ok(
 		layout.includes("<Providers>{children}</Providers>"),
