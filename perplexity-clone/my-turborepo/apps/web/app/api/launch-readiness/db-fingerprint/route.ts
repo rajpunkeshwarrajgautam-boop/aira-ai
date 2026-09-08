@@ -21,6 +21,15 @@ const REQUIRED_TABLES = [
   "EnterpriseMembership",
 ] as const;
 
+const CANDIDATE_DATABASE_ENV_NAMES = [
+  "DATABASE_URL",
+  "PREVIEW_DATABASE_URL",
+  "NEON_DATABASE_URL",
+  "POSTGRES_URL",
+  "POSTGRES_PRISMA_URL",
+  "POSTGRES_URL_NON_POOLING",
+] as const;
+
 type TableRow = { table_name: string };
 type DatabaseRow = { database_name: string; server_version: string };
 type SystemRow = { system_identifier: string };
@@ -92,6 +101,9 @@ export async function GET(): Promise<Response> {
 
   const existingTables = new Set(tables.map((row) => row.table_name));
   const tableStatus = Object.fromEntries(REQUIRED_TABLES.map((table) => [table, existingTables.has(table)]));
+  const databaseEnvStatus = Object.fromEntries(
+    CANDIDATE_DATABASE_ENV_NAMES.map((name) => [name, Boolean(process.env[name]?.trim())]),
+  );
 
   return Response.json(
     {
@@ -104,6 +116,7 @@ export async function GET(): Promise<Response> {
         name: database?.database_name ?? null,
         serverVersion: database?.server_version ?? null,
       },
+      databaseEnvStatus,
       migrationTablePresent: Boolean(migrationRelation?.migration_relation),
       migrations: migrations.map((migration) => ({
         name: migration.migration_name,
