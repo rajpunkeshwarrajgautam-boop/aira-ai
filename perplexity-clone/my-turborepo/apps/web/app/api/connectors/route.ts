@@ -18,7 +18,7 @@ export async function GET(): Promise<Response> {
 	}
 
 	const connectors = globalConnectorRegistry.list();
-	const plugins = globalConnectorRegistry.listPlugins();
+	const plugins = globalConnectorRegistry.listPluginsForUser(session.user.id);
 
 	return json({
 		connectors,
@@ -41,7 +41,7 @@ export async function POST(req: Request): Promise<Response> {
 	try {
 		const body = await req.json();
 		const plugin = PluginPackageSchema.parse(body);
-		globalConnectorRegistry.installPlugin(plugin);
+		globalConnectorRegistry.installPluginForUser(session.user.id, plugin);
 		return json({ success: true, plugin }, { status: 201 });
 	} catch (error) {
 		return json(
