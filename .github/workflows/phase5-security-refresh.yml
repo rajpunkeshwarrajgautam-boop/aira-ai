@@ -1,0 +1,85 @@
+name: Phase 5 Security Dependency Refresh
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/phase5-security-refresh.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase5-security-refresh-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-lockfile:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'integration/aira-ultimate-platform'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/aira-ultimate-platform
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Apply security-only dependency floors
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          for (const file of [
+            'perplexity-clone/my-turborepo/apps/docs/package.json',
+            'perplexity-clone/my-turborepo/apps/web/package.json',
+          ]) {
+            const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (!json.dependencies?.next) throw new Error(`next dependency missing from ${file}`);
+            json.dependencies.next = '16.3.3';
+            fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n');
+          }
+          NODE
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('pnpm-workspace.yaml')
+          text = path.read_text()
+          old = '  sharp: 0.35.0\n'
+          if old not in text:
+              raise SystemExit('expected sharp 0.35.0 override was not found')
+          path.write_text(text.replace(old, '  sharp: 0.35.4\n', 1))
+          PY
+
+      - name: Regenerate lockfile deterministically
+        run: pnpm install --lockfile-only
+
+      - name: Verify frozen install and production audit
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm audit --prod
+
+      - name: Remove temporary refresh workflow
+        run: git rm .github/workflows/phase5-security-refresh.yml
+
+      - name: Commit regenerated dependency state
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            perplexity-clone/my-turborepo/apps/docs/package.json \
+            perplexity-clone/my-turborepo/apps/web/package.json \
+            pnpm-workspace.yaml \
+            pnpm-lock.yaml \
+            .github/workflows/phase5-security-refresh.yml
+          git diff --cached --check
+          git commit -m "fix(deps): patch production audit vulnerabilities"
+          git push origin HEAD:integration/aira-ultimate-platform
