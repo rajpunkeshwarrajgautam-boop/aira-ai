@@ -13,7 +13,7 @@ function readJson(relativePath: string): { dependencies?: Record<string, string>
 	};
 }
 
-function numericVersion(value: string): readonly number[] {
+function numericVersion(value: string): readonly [number, number, number] {
 	const match = value.match(/(\d+)\.(\d+)\.(\d+)/);
 	assert.ok(match, `expected a pinned semantic version, received ${value}`);
 	return [Number(match[1]), Number(match[2]), Number(match[3])];
@@ -22,7 +22,7 @@ function numericVersion(value: string): readonly number[] {
 function atLeast(actual: string, minimum: string): boolean {
 	const left = numericVersion(actual);
 	const right = numericVersion(minimum);
-	for (let index = 0; index < 3; index += 1) {
+	for (const index of [0, 1, 2] as const) {
 		if (left[index] > right[index]) return true;
 		if (left[index] < right[index]) return false;
 	}
