@@ -131,14 +131,21 @@ test("integrations shortcut lands on an actual settings anchor", () => {
 	assert.ok(settings.includes("INTEGRATION_DESTINATIONS"));
 });
 
-test("pricing preserves Pro and Team checkout selections", () => {
+test("paid checkout stays fail-closed until commercial activation is explicitly enabled", () => {
 	const pricing = read("app/pricing/page.tsx");
 	const upgrade = read("app/upgrade/page.tsx");
-	assert.ok(pricing.includes('"/upgrade?plan=pro"'));
-	assert.ok(pricing.includes('"/upgrade?plan=team"'));
-	assert.ok(pricing.includes('fetch("/api/billing/status"'));
-	assert.ok(upgrade.includes('new URLSearchParams(window.location.search).get("plan")'));
-	assert.ok(upgrade.includes("callbackUrl = requested ? `/upgrade?plan=${requested}` : \"/upgrade\""));
+	const checkout = read("app/api/billing/checkout/route.ts");
+	assert.ok(pricing.includes("Paid upgrades unavailable"));
+	assert.ok(pricing.includes("No payment can be started from this release candidate"));
+	assert.ok(!pricing.includes('"/upgrade?plan=pro"'));
+	assert.ok(!pricing.includes('"/upgrade?plan=team"'));
+	assert.ok(upgrade.includes("Paid upgrades are not available yet"));
+	assert.ok(upgrade.includes("will not start a payment or create a subscription"));
+	assert.ok(!upgrade.includes('fetch("/api/billing/checkout"'));
+	assert.ok(!upgrade.includes("subscriptionsCheckout"));
+	assert.ok(checkout.includes("CASHFREE_CHECKOUT_ENABLED"));
+	assert.ok(checkout.includes('code: "CHECKOUT_DISABLED"'));
+	assert.ok(checkout.includes('status: 503'));
 });
 
 test("admin analytics navigation is capability-aware", () => {

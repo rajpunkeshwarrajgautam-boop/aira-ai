@@ -96,6 +96,9 @@ export default function PricingPage() {
 					<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border-subtle bg-white/75 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-content-secondary shadow-sm backdrop-blur"><Sparkles className="size-3.5 text-accent" aria-hidden /> Simple pricing</div>
 					<h1 className="aira-display mt-5 text-4xl sm:text-5xl md:text-6xl">Choose how far <span className="aira-gradient-text">Aira can go.</span></h1>
 					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-content-tertiary sm:text-base">Start free. Move up when deeper research, more usage, or autonomous work starts saving you real time.</p>
+					<div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-100" role="status">
+						Paid checkout is currently disabled while AIRA completes commercial activation and live payment certification. No payment can be started from this release candidate.
+					</div>
 				</div>
 
 				<div className="relative mt-11 grid gap-4 md:grid-cols-3 md:items-stretch">
@@ -103,7 +106,6 @@ export default function PricingPage() {
 						const Icon = plan.icon;
 						const key = planKey(plan.name);
 						const isCurrent = activePlan === key;
-						const checkoutHref = plan.name === "Team" ? "/upgrade?plan=team" : "/upgrade?plan=pro";
 						return (
 							<section key={plan.name} className={cn("aira-premium-card aira-card-hover relative flex flex-col overflow-hidden rounded-[28px] p-6", plan.highlight && "aira-pro-glow border-accent/25 md:-translate-y-2")}>
 								{plan.highlight ? <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.15),transparent_72%)]" aria-hidden /> : null}
@@ -125,7 +127,7 @@ export default function PricingPage() {
 								) : plan.name === "Free" ? (
 									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-surface-inset/60"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
 								) : (
-									<Button asChild className={cn("aira-shine-button relative h-11 w-full rounded-xl shadow-sm", plan.highlight ? "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] hover:opacity-95" : "bg-content-primary hover:bg-content-primary/90")}><Link href={checkoutHref}>{plan.name === "Pro" ? "Upgrade to Pro" : "Choose Team"}</Link></Button>
+									<Button type="button" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Paid upgrades unavailable</Button>
 								)}
 							</section>
 						);

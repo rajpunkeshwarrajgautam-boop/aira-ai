@@ -25,6 +25,10 @@ const BodySchema = z.object({
 	customerPhone: z.string().min(8).max(32),
 });
 
+function paidCheckoutEnabled(): boolean {
+	return process.env.CASHFREE_CHECKOUT_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export async function POST(req: Request): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id || !session.user.email) {
@@ -35,7 +39,23 @@ export async function POST(req: Request): Promise<Response> {
 					message: "Sign in to start checkout.",
 				},
 			},
-			{ status: 401 },
+			{ status: 401, headers: { "Cache-Control": "no-store" } },
+		);
+	}
+
+	// Commercial activation is intentionally fail-closed. Cashfree credentials may
+	// exist for sandbox or future rollout work, but credentials alone must never make
+	// paid checkout customer-accessible. Enable this only after explicit release
+	// authorization and live callback/webhook certification.
+	if (!paidCheckoutEnabled()) {
+		return Response.json(
+			{
+				error: {
+					code: "CHECKOUT_DISABLED",
+					message: "Paid upgrades are not available yet.",
+				},
+			},
+			{ status: 503, headers: { "Cache-Control": "no-store" } },
 		);
 	}
 
