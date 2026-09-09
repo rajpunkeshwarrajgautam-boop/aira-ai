@@ -25,11 +25,12 @@ export type PluginPackage = z.infer<typeof PluginPackageSchema>;
 
 type HealthCache = { state: ConnectorHealthState; detail?: string; checkedAt: number };
 const HEALTH_TTL_MS = 60_000;
+const LEGACY_TEST_PLUGIN_OWNER = "__aira_test_only_plugin_owner__";
 
 export class ConnectorRegistry {
   private connectors = new Map<string, ConnectorManifest>();
   private adapters = new Map<string, ConnectorAdapter>();
-  private plugins = new Map<string, PluginPackage>();
+  private pluginsByUser = new Map<string, Map<string, PluginPackage>>();
   private liveHealth = new Map<string, HealthCache>();
 
   constructor() { this.registerBuiltinAdapters(); }
@@ -108,9 +109,41 @@ export class ConnectorRegistry {
   list(): readonly ConnectorManifest[] { return Array.from(this.connectors.keys()).map((id) => this.get(id)!); }
   async executeRead(connectorId: string, action: string, params: Record<string, unknown>, credential?: ConnectorCredential): Promise<Record<string, unknown>> { const adapter = this.adapters.get(connectorId); if (!adapter) throw new Error(`Connector adapter ${connectorId} not found.`); return adapter.executeRead(action, params, credential); }
   async executeWrite(connectorId: string, action: string, params: Record<string, unknown>, credential?: ConnectorCredential): Promise<Record<string, unknown>> { const adapter = this.adapters.get(connectorId); if (!adapter) throw new Error(`Connector adapter ${connectorId} not found.`); return adapter.executeWrite(action, params, credential); }
-  installPlugin(pkg: PluginPackage): void { const validated = PluginPackageSchema.parse(pkg); this.plugins.set(validated.id, validated); }
-  getPlugin(id: string): PluginPackage | undefined { return this.plugins.get(id); }
-  listPlugins(): readonly PluginPackage[] { return Array.from(this.plugins.values()); }
+
+  installPluginForUser(userId: string, pkg: PluginPackage): void {
+    const owner = userId.trim();
+    if (!owner) throw new Error("Plugin owner is required.");
+    const validated = PluginPackageSchema.parse(pkg);
+    const plugins = this.pluginsByUser.get(owner) ?? new Map<string, PluginPackage>();
+    plugins.set(validated.id, validated);
+    this.pluginsByUser.set(owner, plugins);
+  }
+
+  getPluginForUser(userId: string, id: string): PluginPackage | undefined {
+    return this.pluginsByUser.get(userId)?.get(id);
+  }
+
+  listPluginsForUser(userId: string): readonly PluginPackage[] {
+    return Array.from(this.pluginsByUser.get(userId)?.values() ?? []);
+  }
+
+  /** @deprecated Test-only compatibility. Production request paths must use user-scoped plugin methods. */
+  installPlugin(pkg: PluginPackage): void {
+    if (process.env.NODE_ENV === "production") throw new Error("Unscoped plugin installation is disabled in production.");
+    this.installPluginForUser(LEGACY_TEST_PLUGIN_OWNER, pkg);
+  }
+
+  /** @deprecated Test-only compatibility. Production request paths must use user-scoped plugin methods. */
+  getPlugin(id: string): PluginPackage | undefined {
+    if (process.env.NODE_ENV === "production") return undefined;
+    return this.getPluginForUser(LEGACY_TEST_PLUGIN_OWNER, id);
+  }
+
+  /** @deprecated Test-only compatibility. Production request paths must use user-scoped plugin methods. */
+  listPlugins(): readonly PluginPackage[] {
+    if (process.env.NODE_ENV === "production") return [];
+    return this.listPluginsForUser(LEGACY_TEST_PLUGIN_OWNER);
+  }
 }
 
 export const globalConnectorRegistry = new ConnectorRegistry();
