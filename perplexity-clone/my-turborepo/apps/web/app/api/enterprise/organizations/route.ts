@@ -12,9 +12,24 @@ function json(body: unknown, init?: ResponseInit): Response {
 }
 
 type GovernanceRow = { orgId: string; orgName: string; slug: string; role: string; workspaceId: string | null; workspaceName: string | null };
+type OrganizationRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+const ROLE_RANK: Record<OrganizationRole, number> = { OWNER: 4, ADMIN: 3, MEMBER: 2, VIEWER: 1 };
+
 const CreateOrgSchema = z.object({ action: z.literal("create_org"), name: z.string().trim().min(2).max(100), slug: z.string().trim().min(2).max(64).regex(/^[a-z0-9-]+$/) });
 const CreateWorkspaceSchema = z.object({ action: z.literal("create_workspace"), orgId: z.string().min(1), name: z.string().trim().min(2).max(100), budgetLimitUsd: z.number().min(0).optional(), allowedToolIds: z.array(z.string()).optional() });
 const ShareSchema = z.object({ action: z.literal("share_agent"), agentId: z.string().min(1), workspaceId: z.string().min(1), permission: z.enum(["USE", "EDIT", "ADMIN"]) });
+
+async function hasOrganizationRole(orgId: string, userId: string, requiredRole: OrganizationRole): Promise<boolean> {
+  // The durable database is authoritative for access. Never fall back to an
+  // in-memory membership after a membership has been revoked from PostgreSQL.
+  const membership = await prisma.enterpriseMembership.findUnique({
+    where: { orgId_userId: { orgId, userId } },
+    select: { role: true },
+  });
+  if (!membership) return false;
+  const role = membership.role as OrganizationRole;
+  return ROLE_RANK[role] >= ROLE_RANK[requiredRole];
+}
 
 export async function GET(): Promise<Response> {
   const session = await auth();
@@ -48,7 +63,7 @@ export async function POST(req: Request): Promise<Response> {
     }
     if ((raw as { action?: string }).action === "create_workspace") {
       const parsed = CreateWorkspaceSchema.parse(raw);
-      if (!(await globalEnterpriseOrgManager.canPerformActionAsync(parsed.orgId, session.user.id, "ADMIN"))) return json({ error: { code: "FORBIDDEN", message: "Requires ADMIN role." } }, { status: 403 });
+      if (!(await hasOrganizationRole(parsed.orgId, session.user.id, "ADMIN"))) return json({ error: { code: "FORBIDDEN", message: "Requires ADMIN role." } }, { status: 403 });
       const workspace = await globalEnterpriseOrgManager.createWorkspaceAsync({ orgId: parsed.orgId, name: parsed.name, budgetLimitUsd: parsed.budgetLimitUsd, allowedToolIds: parsed.allowedToolIds });
       return json({ workspace }, { status: 201 });
     }
@@ -56,7 +71,7 @@ export async function POST(req: Request): Promise<Response> {
       const parsed = ShareSchema.parse(raw);
       const workspace = await prisma.enterpriseWorkspace.findUnique({ where: { id: parsed.workspaceId }, select: { id: true, orgId: true } });
       if (!workspace) return json({ error: { code: "NOT_FOUND", message: "Workspace not found." } }, { status: 404 });
-      if (!(await globalEnterpriseOrgManager.canPerformActionAsync(workspace.orgId, session.user.id, "ADMIN"))) return json({ error: { code: "FORBIDDEN", message: "Requires ADMIN role in the workspace organization." } }, { status: 403 });
+      if (!(await hasOrganizationRole(workspace.orgId, session.user.id, "ADMIN"))) return json({ error: { code: "FORBIDDEN", message: "Requires ADMIN role in the workspace organization." } }, { status: 403 });
       const agent = await globalUserAgentStore.getAgentAsync(session.user.id, parsed.agentId);
       if (!agent || agent.userId !== session.user.id) return json({ error: { code: "NOT_FOUND", message: "Agent not found." } }, { status: 404 });
       const accessLevel = parsed.permission === "ADMIN" ? "MANAGE" : parsed.permission === "EDIT" ? "EXECUTE" : "READ";
@@ -68,6 +83,7 @@ export async function POST(req: Request): Promise<Response> {
     return json({ error: { code: "BAD_REQUEST", message: "Unknown governance action." } }, { status: 400 });
   } catch (error) {
     if (error instanceof z.ZodError) return json({ error: { code: "VALIDATION_ERROR", message: "Invalid governance action.", details: z.treeifyError(error) } }, { status: 400 });
-    return json({ error: { code: "ORGANIZATION_ACTION_FAILED", message: error instanceof Error ? error.message : "Action failed." } }, { status: 500 });
+    console.error("[enterprise:organizations] action failed", error instanceof Error ? error.message : "unknown error");
+    return json({ error: { code: "ORGANIZATION_ACTION_FAILED", message: "Organization action failed." } }, { status: 500 });
   }
 }
