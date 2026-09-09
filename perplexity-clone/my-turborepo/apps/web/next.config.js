@@ -3,7 +3,6 @@
 const nextConfig = {
   env: {
     AIRA_BUILD_PHASE: "1",
-    AUTH_SECRET: process.env.AUTH_SECRET || "build_fallback_secret_32_characters_minimum_entropy",
   },
   experimental: {
     externalDir: true,
