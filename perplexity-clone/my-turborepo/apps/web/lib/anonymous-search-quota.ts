@@ -31,7 +31,9 @@ export async function assertAnonymousSearchAllowed(anonymousId: string): Promise
 	await prisma.$transaction(async (tx) => {
 		// Serialize quota decisions for the same anonymous visitor. hashtextextended
 		// gives a stable 64-bit advisory-lock key without persisting the identifier.
-		await tx.$queryRaw`select pg_advisory_xact_lock(hashtextextended(${owner}, 0))`;
+		// pg_advisory_xact_lock() returns void — use $executeRaw (not $queryRaw)
+		// to avoid Prisma's "Failed to deserialize column of type 'void'" error.
+		await tx.$executeRaw`select pg_advisory_xact_lock(hashtextextended(${owner}, 0))`;
 
 		const [row] = await tx.$queryRaw<Array<{ count: bigint }>>`
 			select count(*)::bigint as count
