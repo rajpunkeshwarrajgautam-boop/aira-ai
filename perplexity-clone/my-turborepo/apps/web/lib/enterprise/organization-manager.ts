@@ -309,11 +309,15 @@ export class EnterpriseOrganizationManager {
 
 	async getMemberRoleAsync(orgId: string, userId: string): Promise<OrganizationRole | null> {
 		if (process.env.DATABASE_URL) {
+			// The durable database is authoritative for membership when a DATABASE_URL is
+			// configured. Do NOT fall back to the in-memory store: a revoked membership
+			// must yield null immediately rather than persisting from a stale cache.
 			const member = await prisma.enterpriseMembership.findUnique({
 				where: { orgId_userId: { orgId, userId } },
 			});
-			if (member) return member.role as OrganizationRole;
+			return member ? (member.role as OrganizationRole) : null;
 		}
+		// No DATABASE_URL: test / local-only path — in-memory store is acceptable.
 		return this.getMemberRole(orgId, userId);
 	}
 
