@@ -86,6 +86,9 @@ test(
 				...process.env,
 				DATABASE_URL: DB_URL,
 				AIRA_DATA_DIR: dirProcA,
+				// Suppress Node.js experimental-feature diagnostic noise from --experimental-test-module-mocks.
+				// Genuine runtime errors still propagate through non-zero exit codes.
+				NODE_NO_WARNINGS: "1",
 			},
 		},
 	);
@@ -114,6 +117,7 @@ test(
 				...process.env,
 				DATABASE_URL: DB_URL,
 				AIRA_DATA_DIR: dirProcB,
+				NODE_NO_WARNINGS: "1",
 			},
 		},
 	);
@@ -135,6 +139,7 @@ test(
 				...process.env,
 				DATABASE_URL: DB_URL,
 				AIRA_DATA_DIR: dirProcC,
+				NODE_NO_WARNINGS: "1",
 			},
 		},
 	);

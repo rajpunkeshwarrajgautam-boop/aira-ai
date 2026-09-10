@@ -86,5 +86,11 @@ test("connector registry never derives HEALTHY from env presence", () => {
 
 test("Governance uses real organization API and share action is owner and org-role scoped", () => {
   const page = source("../app/governance/page.tsx"); const route = source("../app/api/enterprise/organizations/route.ts");
-  assert.match(page, /\/api\/enterprise\/organizations/); assert.match(route, /canPerformActionAsync\(workspace\.orgId, session\.user\.id, "ADMIN"\)/); assert.match(route, /agent\.userId !== session\.user\.id/); assert.match(route, /updateAgentAsync/);
+  // Phase 6 security: governance uses database-authoritative membership (not stale in-memory canPerformActionAsync).
+  // The full DB-authoritative membership invariants are verified in phase6-security-regressions.test.ts.
+  assert.match(page, /\/api\/enterprise\/organizations/);
+  assert.match(route, /prisma\.enterpriseMembership\.findUnique/);
+  assert.match(route, /hasOrganizationRole/);
+  assert.match(route, /agent\.userId !== session\.user\.id/);
+  assert.match(route, /updateAgentAsync/);
 });
