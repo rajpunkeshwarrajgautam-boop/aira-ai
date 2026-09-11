@@ -1,8 +1,9 @@
 # AIRA RELEASE 3 PRODUCT ACTIVATION REPORT
 
-**Base SHA**: `21c39924b25d3e7e2a9f5c5983eefb52484c70cf`  
+**Production Base SHA**: `21c39924b25d3e7e2a9f5c5983eefb52484c70cf`  
+**Certified Product Code SHA**: `222f9b47b932ac56800a932a8d3897bfcfef1ea0`  
 **Branch**: `feat/aira-release-3-product-activation`  
-**Candidate Status**: `FROZEN_CANDIDATE_COMMITTED`  
+**Draft PR**: `https://github.com/rajpunkeshwarrajgautam-boop/aira-ai/pull/128`  
 
 ---
 
