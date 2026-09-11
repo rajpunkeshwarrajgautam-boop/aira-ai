@@ -8,6 +8,7 @@ import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 
 from docx import Document
 from pypdf import PdfReader
@@ -66,6 +67,25 @@ def download(url):
     return data
 
 
+def validate_docx_zip(data, max_entries=2000, max_uncompressed_bytes=50 * 1024 * 1024, max_ratio=100):
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            infolist = zf.infolist()
+            if len(infolist) > max_entries:
+                raise RuntimeError("DOCX entry count exceeds safety limit")
+            total_uncompressed = 0
+            for info in infolist:
+                if ".." in info.filename or info.filename.startswith("/") or info.filename.startswith("\\"):
+                    raise RuntimeError("DOCX path traversal detected")
+                total_uncompressed += info.file_size
+                if total_uncompressed > max_uncompressed_bytes:
+                    raise RuntimeError("DOCX total uncompressed size exceeds safety limit")
+                if info.compress_size > 0 and (info.file_size / info.compress_size) > max_ratio and info.file_size > 1024 * 1024:
+                    raise RuntimeError("DOCX compression ratio bomb detected")
+    except zipfile.BadZipFile:
+        raise RuntimeError("invalid or corrupted DOCX archive")
+
+
 def extract_text(data, mime_type):
     if mime_type in {"text/plain", "text/markdown", "text/csv", "application/json"}:
         return data.decode("utf-8", errors="replace")
@@ -76,6 +96,7 @@ def extract_text(data, mime_type):
             parts.append(page.extract_text() or "")
         return "\n\n".join(parts)
     if mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        validate_docx_zip(data)
         doc = Document(io.BytesIO(data))
         return "\n".join(paragraph.text for paragraph in doc.paragraphs)
     if mime_type in {"image/png", "image/jpeg", "image/webp"}:
