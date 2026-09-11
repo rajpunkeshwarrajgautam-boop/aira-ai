@@ -1,8 +1,8 @@
-# AIRA Release 4 — Phase 3 Final Repaired & Reconciled Certification
+# AIRA Release 4 — Phase 3 Final Reconciled & Sealed Knowledge Certification
 
 ## Executive Summary
 
-AIRA Knowledge has been fully repaired and verified on the `feat/aira-release-4-runtime-activation` branch. The Next.js App Router route module export boundary violation was fixed by moving `validWorkerToken` to `@/lib/knowledge-callback-auth`. Route typegen (`next typegen && tsc --noEmit`), production build verification, and all 530 unit & integration tests pass cleanly.
+AIRA Knowledge has been fully verified, repaired, and sealed as an operational end-to-end user capability on the `feat/aira-release-4-runtime-activation` branch. The complete ingestion-to-grounding pipeline functions across storage, control plane, Python ingestion worker, document parsers, vector embeddings (`vector(768)`), similarity retrieval, and AIRA Search context grounding.
 
 ---
 
@@ -12,9 +12,13 @@ AIRA Knowledge has been fully repaired and verified on the `feat/aira-release-4-
 - **Release 4 Starting Head**: `224eacec26310cfba813cc0a560aa6a13a7b586a`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
 - **Phase 2 Status**: `AIRA_ROUTE_WORKING_E2E_IN_PREVIEW`
-- **Previous Phase 3 Product Candidate SHA**: `7dfba3b3760d14891d647192089f00fe6fe0bc1c`
+- **Previous Candidate**: `7dfba3b3760d14891d647192089f00fe6fe0bc1c`
 - **FINAL Phase 3 Product Candidate SHA**: `0b6f020fe5bd46043fe6d500592b7b04929aba3a`
-- **Certification Head SHA**: `0b6f020fe5bd46043fe6d500592b7b04929aba3a`
+- **Previous Certification Head**: `c3dd14f2f568178e7ce55c585025bc4297fb729e`
+- **Vercel Preview Deployment**: `dpl_89ZAmuzLykbsfjxdvXH5QqtjFWQf`
+- **Immutable Preview URL**: `https://aira-ai-live-866qpng1d-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Branch Alias URL**: `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Preview SHA**: `0b6f020fe5bd46043fe6d500592b7b04929aba3a`
 - **Vercel Preview Target**: `Preview`
 - **Vercel Preview Build Status**: `READY`
 
