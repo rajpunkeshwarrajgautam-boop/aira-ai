@@ -13,7 +13,10 @@ param(
     [string]$WorkDir = (Join-Path $env:TEMP 'aira-omniroute-fly'),
 
     [ValidatePattern('^v?\d+\.\d+\.\d+$')]
-    [string]$OmniRouteTag = 'v0.1.28'
+    [string]$OmniRouteTag = 'v3.8.50',
+
+    [ValidatePattern('^[0-9a-f]{40}$')]
+    [string]$ExpectedCommitSha = '5458026c216f77a3da68ea49152dc33470cfe2cb'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -105,6 +108,18 @@ $sourceDir = Join-Path $WorkDir 'OmniRoute'
 & git clone --depth 1 --branch $tag --single-branch 'https://github.com/diegosouzapw/OmniRoute.git' $sourceDir
 if ($LASTEXITCODE -ne 0) {
     throw "Could not clone OmniRoute release $tag."
+}
+
+Push-Location $sourceDir
+try {
+    $actualCommitSha = (& git rev-parse HEAD).Trim()
+    Write-Host "Resolved OmniRoute commit SHA: $actualCommitSha"
+    if ($ExpectedCommitSha -and $actualCommitSha -ne $ExpectedCommitSha) {
+        throw "Commit SHA mismatch! Expected $ExpectedCommitSha but got $actualCommitSha for tag $tag."
+    }
+}
+finally {
+    Pop-Location
 }
 
 $flyToml = Join-Path $sourceDir 'fly.toml'
