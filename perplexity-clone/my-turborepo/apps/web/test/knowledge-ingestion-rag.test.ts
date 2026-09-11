@@ -62,7 +62,7 @@ test("GATE 11: Text Formatting & Nomic Task Prefix Formatting", () => {
 	assert.equal(openaiInput, "Zephyr value");
 });
 
-import { validWorkerToken } from "../app/api/knowledge/callback/route";
+import { validWorkerToken } from "../lib/knowledge-callback-auth";
 
 test("GATE 12: Worker Callback Token Authentication Contract", async () => {
 	const expectedToken = "secret-worker-token-12345";
