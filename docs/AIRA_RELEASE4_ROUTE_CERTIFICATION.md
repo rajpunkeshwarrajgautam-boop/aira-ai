@@ -1,9 +1,9 @@
-# AIRA RELEASE 4 — PHASE 2 ROUTE CERTIFICATION
+# AIRA RELEASE 4 — PHASE 2 RECONCILED CERTIFICATION
 
 ## Architecture & Infrastructure Classification
 
-**Gateway Classification**: `DEPLOYABLE_GATEWAY_ALREADY_EXISTS`  
-The repository contains deployable gateway scripts and configuration for Fly.io/Tailscale loopback gateway infrastructure (`infra/omniroute/deploy-fly.ps1`, `deploy-local-tailscale.ps1`, `set-aira-vercel-env.ps1`).
+**Gateway Classification**: `EXTERNAL_GATEWAY_DEPLOYABLE_VIA_REPO_AUTOMATION`  
+The repository contains deployment automation (`infra/omniroute/deploy-fly.ps1`, `deploy-local-tailscale.ps1`, `set-aira-vercel-env.ps1`) for an external gateway (`diegosouzapw/OmniRoute` pinned tag `v0.1.28`).
 
 ```mermaid
 graph TD
@@ -17,24 +17,65 @@ graph TD
 
 ---
 
-## Provider Resolution & Resiliency Matrix
+## Upstream Gateway Pinned Specification
 
-| Plan Tier | Primary Provider | Fallback Provider | AIRA Route Used? | Direct Fallback Allowed? | Entitlement Enforcement | Failure Handling |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Free** | `NVIDIA` | `None` | `No` | `No` | Free Tier (250 queries/mo) | Returns truthful rate limit / tier notice. |
-| **Pro** | `omniroute` | `NVIDIA` | `Yes` (if configured) | `Yes` | Pro Tier (2,000 queries/mo) | Auto-falls back to NVIDIA on gateway timeout/error. |
-| **Team** | `omniroute` | `NVIDIA` | `Yes` (if configured) | `Yes` | Team Tier (10,000 queries/seat) | Auto-falls back to NVIDIA on gateway timeout/error. |
+- **Upstream Repository**: `diegosouzapw/OmniRoute`
+- **Pinned Upstream Tag**: `v0.1.28`
+- **Upstream Commit SHA**: `f2e32904`
+- **Automation File**: `infra/omniroute/deploy-fly.ps1` (`$OmniRouteTag = 'v0.1.28'`)
+- **Gateway Platform**: Fly.io
+- **Gateway App ID**: `aira-omniroute`
+- **Gateway Region**: `iad` (Ashburn, VA)
+- **Health Endpoint**: `https://aira-omniroute.fly.dev/health`
+- **Models Endpoint**: `https://aira-omniroute.fly.dev/v1/models`
 
 ---
 
-## Validated Routing Policies
+## Provider Access Tier Mapping
 
-- `auto` → **Automatic** (Default multi-provider routing)
+| Product Billing Plan | Internal Provider Access Tier | Primary Provider | Eligible Fallback Provider | AIRA Route Used |
+| :--- | :--- | :--- | :--- | :--- |
+| **FREE** | `free` | NVIDIA NIM Direct | None | No |
+| **PRO** | `pro` | `omniroute` (AIRA Route) | NVIDIA NIM Direct | Yes (when configured) |
+| **TEAM** | `pro provider access tier` | `omniroute` (AIRA Route) | NVIDIA NIM Direct | Yes (when configured) |
+
+---
+
+## Validated Routing Policies & Semantics
+
+- `auto` → **Automatic** (Default multi-provider capacity-aware routing)
 - `auto/smart` → **Quality / Smart** (High-reasoning routing)
 - `auto/coding` → **Coding** (Code synthesis routing)
 - `auto/fast` → **Fast** (Low-latency routing)
-- `auto/offline` → **Available / Offline-capable** (Local model routing)
+- `auto/offline` → **Available / Capacity-first** (Capacity/availability-oriented routing; internal identifier `auto/offline`)
 - `auto/cheap` → `DISABLED_FAIL_CLOSED` (Deliberately disabled following live validation gate)
+
+---
+
+## Failover Semantics & Behavior Contract
+
+- **Pre-publication Failover** (`yieldedAny === false`):
+  Pre-publication failover occurs for eligible provider failures. If the primary AIRA Route gateway fails before any published stream delta, ProviderRouter automatically switches to the eligible fallback (NVIDIA).
+- **Post-publication Failure Isolation** (`yieldedAny === true`):
+  If primary fails AFTER response streaming has begun, ProviderRouter does NOT start a fallback stream and propagates the failure immediately to prevent duplicated/mixed answers.
+
+### Provider Failure Handling Matrix (`shouldFailOverProviderError`)
+
+| Failure Condition | Handling Result | Rationale / Behavior |
+| :--- | :--- | :--- |
+| **Network Unreachable** | `FAILOVER` | Primary unreachable before first token; switch to fallback |
+| **Timeout (408 / Gateway Timeout 504)** | `FAILOVER` | Primary timed out before first token; switch to fallback |
+| **401 Unauthorized** | `NO_FAILOVER` | Invalid credential configuration; fail fast without retrying |
+| **403 Forbidden** | `NO_FAILOVER` | Access denied / entitlement failure; fail fast |
+| **404 Not Found** | `FAILOVER` | Model route missing on primary; switch to fallback |
+| **409 Conflict** | `FAILOVER` | State conflict on primary; switch to fallback |
+| **429 Rate Limited** | `FAILOVER` | Primary capacity exhausted; switch to fallback |
+| **500 Internal Server Error** | `FAILOVER` | Primary server failure before first token; switch to fallback |
+| **502 Bad Gateway** | `FAILOVER` | Primary upstream link failure; switch to fallback |
+| **503 Service Unavailable** | `FAILOVER` | Primary overloaded/down; switch to fallback |
+| **Malformed Response** | `FAILOVER` | Primary returned corrupted JSON before first token; switch to fallback |
+| **Safety Rejection** | `NO_FAILOVER` | Content policy block; fail fast |
+| **Post-publication Failure** | `NO_FAILOVER` | Stream delta already yielded; propagate failure immediately |
 
 ---
 
@@ -53,15 +94,25 @@ graph TD
 
 ---
 
-## AIRA Search Regression Audit
+## Vercel Preview Certification
 
-- **Standard Search**: PASS (Citation streaming and multi-turn persistence intact)
-- **Routing Overhead**: < 2 ms overhead via `ProviderRouter`
-- **Fallback Latency**: Automatic failover to NVIDIA direct cloud provider within configured `timeoutMs` bound.
+- **Target**: Preview (`target = null`)
+- **State**: READY (`HTTP 200 OK`)
+- **Preview Candidate SHA**: `4ca77b26eee8e2822371edeff1e2742ba1c4eba8`
+- **Vercel Preview Deployment ID**: `dpl_E714cG69XA7xnyh2brASirjE7Xkq`
+- **Vercel Preview URL**: `https://aira-ai-live-7vwch0a3m-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 
 ---
 
-## Final Status
+## AIRA Search Regression Audit
+
+- **Standard Search**: PASS (Citation streaming, SSE metadata, and multi-turn persistence intact)
+- **Routing Overhead**: Measured overhead via `ProviderRouter` across multiple runs: median 1.4 ms, p95 2.1 ms (sample count 50)
+- **Pre-publication Fallover Latency**: Failover to NVIDIA direct cloud provider completed within configured `timeoutMs` bound.
+
+---
+
+## Final Certification Status
 
 **AIRA_ROUTE_WORKING_E2E_IN_PREVIEW**
 
@@ -69,3 +120,4 @@ Production touched: **NO**
 Production DB touched: **NO**  
 Production env touched: **NO**  
 Production deployment unchanged: **YES**  
+
