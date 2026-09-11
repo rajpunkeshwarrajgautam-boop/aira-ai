@@ -218,16 +218,20 @@ async function runTarget(
 
 export async function GET(): Promise<Response> {
 	const session = await auth();
-	if (!session?.user?.id) {
-		return Response.json(
-			{ error: { code: "UNAUTHENTICATED", message: "Sign in required." } },
-			{ status: 401 },
-		);
+	const isAuthenticated = Boolean(session?.user?.id);
+	let isEntitled = false;
+
+	if (isAuthenticated && session?.user?.id) {
+		const accessError = await requireCompareAccess(session.user.id);
+		isEntitled = accessError === null;
 	}
-	const accessError = await requireCompareAccess(session.user.id);
-	if (accessError) return accessError;
+
 	return Response.json(
-		{ providers: descriptors() },
+		{
+			authenticated: isAuthenticated,
+			entitled: isEntitled,
+			providers: descriptors(),
+		},
 		{ headers: { "Cache-Control": "no-store" } },
 	);
 }

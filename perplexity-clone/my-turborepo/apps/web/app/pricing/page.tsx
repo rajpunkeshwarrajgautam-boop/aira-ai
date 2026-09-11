@@ -36,7 +36,7 @@ const PLANS: readonly PricingPlan[] = [
 		price: "$20",
 		eyebrow: "Go deeper",
 		description: "For people who use Aira as a serious research and execution partner.",
-		features: ["2,000 searches per month", "Deep Research", "50 autonomous agent tasks", "Advanced citation ranking", "Priority support"],
+		features: ["2,000 searches per month", "Deep Research", "Priority AI provider routing", "Advanced citation ranking", "Priority support"],
 		icon: Crown,
 		highlight: true,
 	},
@@ -46,7 +46,7 @@ const PLANS: readonly PricingPlan[] = [
 		priceNote: "per user / month",
 		eyebrow: "Build together",
 		description: "Shared intelligence, higher limits, and cleaner operations for teams.",
-		features: ["10,000 searches per seat", "250 agent tasks per seat", "Centralized billing", "Team-wide research history", "Admin controls"],
+		features: ["10,000 searches per seat", "Team-wide research history", "Centralized admin controls", "Custom provider routing", "Priority support"],
 		icon: Shield,
 	},
 ];
@@ -58,20 +58,17 @@ function planKey(name: PricingPlan["name"]): BillingPlan {
 export default function PricingPage() {
 	const { status: sessionStatus } = useSession();
 	const [activePlan, setActivePlan] = useState<BillingPlan | null>(null);
-	const [checkingPlan, setCheckingPlan] = useState(false);
+	const [checkingPlan, setCheckingPlan] = useState(true);
 
 	useEffect(() => {
+		let cancelled = false;
 		if (sessionStatus !== "authenticated") {
-			setActivePlan(null);
 			setCheckingPlan(false);
 			return;
 		}
-		let cancelled = false;
-		setCheckingPlan(true);
-		void fetch("/api/billing/status", { credentials: "include", cache: "no-store" })
-			.then(async (response) => {
-				if (!response.ok) throw new Error("Could not load billing status.");
-				const body = (await response.json()) as { billingPlan?: string };
+		fetch("/api/billing/status", { cache: "no-store" })
+			.then(async (res) => (res.ok ? ((await res.json()) as { billingPlan?: string }) : {}))
+			.then((body) => {
 				if (!cancelled && ["FREE", "PRO", "TEAM"].includes(body.billingPlan ?? "")) {
 					setActivePlan(body.billingPlan as BillingPlan);
 				}
@@ -95,9 +92,9 @@ export default function PricingPage() {
 				<div className="aira-enter relative mx-auto max-w-3xl text-center">
 					<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border-subtle bg-white/75 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-content-secondary shadow-sm backdrop-blur"><Sparkles className="size-3.5 text-accent" aria-hidden /> Simple pricing</div>
 					<h1 className="aira-display mt-5 text-4xl sm:text-5xl md:text-6xl">Choose how far <span className="aira-gradient-text">Aira can go.</span></h1>
-					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-content-tertiary sm:text-base">Start free. Move up when deeper research, more usage, or autonomous work starts saving you real time.</p>
+					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-content-tertiary sm:text-base">Start free. Move up when deeper research, more usage, or higher limits start saving you real time.</p>
 					<div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-100" role="status">
-						Paid checkout is currently disabled while AIRA completes commercial activation and live payment certification. No payment can be started from this release candidate.
+						Paid checkout is currently disabled while AIRA completes commercial activation. No payment can be started from this release candidate. Explore Free tier capabilities or configure workspace access.
 					</div>
 				</div>
 
