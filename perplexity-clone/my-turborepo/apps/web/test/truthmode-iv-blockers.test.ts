@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { prisma } from "../lib/prisma";
 import { globalAutomationEngine } from "../lib/automation/engine";
 import { globalAutomationApprovalStore, computeParametersHash } from "../lib/automation/approvals";
 import { globalUserAgentStore } from "../lib/agents/user-agents-store";
@@ -7,6 +8,34 @@ import { globalBlobStorage, DelegatingBlobStorageProvider } from "../lib/artifac
 import { globalArtifactEngine } from "../lib/artifacts/engine";
 import { ConnectorCredentialStore, redactSecrets } from "../lib/connectors/credential-store";
 import { assertServerStorageSafety } from "../lib/storage/storage-mode";
+
+const TEST_USER_IDS = [
+	"user_fail_closed_test",
+	"user_approval_rigor",
+	"user_agent_connectors_test",
+	"user_artifact_sha_test",
+];
+
+test.before(async () => {
+	if (process.env.DATABASE_URL) {
+		for (const id of TEST_USER_IDS) {
+			await prisma.user.upsert({
+				where: { id },
+				update: {},
+				create: { id, email: `${id}@test.local` },
+			}).catch(() => undefined);
+		}
+	}
+});
+
+test.after(async () => {
+	if (process.env.DATABASE_URL) {
+		for (const id of TEST_USER_IDS) {
+			await prisma.user.delete({ where: { id } }).catch(() => undefined);
+		}
+		await prisma.$disconnect().catch(() => undefined);
+	}
+});
 
 const mutableEnv = process.env as Record<string, string | undefined>;
 

@@ -1,15 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { prisma } from "../lib/prisma";
 import { globalUserAgentStore, UserAgentStore } from "../lib/agents/user-agents-store";
 import { globalSkillsStore, InstallableSkillsStore } from "../lib/agents/installable-skills-store";
 import { globalArtifactEngine, ArtifactEngine } from "../lib/artifacts/engine";
 import { globalAutomationEngine, AutomationEngine } from "../lib/automation/engine";
 import { globalEnterpriseOrgManager, EnterpriseOrganizationManager } from "../lib/enterprise/organization-manager";
 
-test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async () => {
+test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) => {
 	const testId = Date.now();
 	const userId = `user_truthmode_${testId}`;
+
+	if (process.env.DATABASE_URL) {
+		await prisma.user.upsert({
+			where: { id: userId },
+			update: {},
+			create: { id: userId, email: `${userId}@test.local` },
+		}).catch(() => undefined);
+	}
+
+	t.after(async () => {
+		if (process.env.DATABASE_URL) {
+			await prisma.user.delete({ where: { id: userId } }).catch(() => undefined);
+			await prisma.$disconnect().catch(() => undefined);
+		}
+	});
 
 	// 1. Create and Persist User Agent
 	const agent = globalUserAgentStore.createAgent(userId, {

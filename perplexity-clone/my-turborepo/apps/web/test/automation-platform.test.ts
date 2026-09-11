@@ -1,8 +1,37 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { prisma } from "../lib/prisma";
 import { globalAutomationEngine } from "../lib/automation/engine";
 import { globalAutomationApprovalStore } from "../lib/automation/approvals";
+
+const TEST_USER_IDS = [
+	"user_auto_1",
+	"user_auto_2",
+	"user_approval_test",
+	"user_routine_restart",
+];
+
+test.before(async () => {
+	if (process.env.DATABASE_URL) {
+		for (const id of TEST_USER_IDS) {
+			await prisma.user.upsert({
+				where: { id },
+				update: {},
+				create: { id, email: `${id}@test.local` },
+			}).catch(() => undefined);
+		}
+	}
+});
+
+test.after(async () => {
+	if (process.env.DATABASE_URL) {
+		for (const id of TEST_USER_IDS) {
+			await prisma.user.delete({ where: { id } }).catch(() => undefined);
+		}
+		await prisma.$disconnect().catch(() => undefined);
+	}
+});
 
 test("Scheduled Routines & Visual DAG Workflow Validation (Gates 49, 116)", () => {
 	const userId = "user_auto_1";
