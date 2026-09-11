@@ -10,7 +10,10 @@ param(
     [ValidateRange(1, 50)]
     [int]$VolumeSizeGb = 1,
 
-    [string]$WorkDir = (Join-Path $env:TEMP 'aira-omniroute-fly')
+    [string]$WorkDir = (Join-Path $env:TEMP 'aira-omniroute-fly'),
+
+    [ValidatePattern('^v?\d+\.\d+\.\d+$')]
+    [string]$OmniRouteTag = 'v0.1.28'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -92,13 +95,11 @@ if (Test-Path $WorkDir) {
 }
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 
-Write-Host 'Resolving the latest published OmniRoute release...'
-$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/diegosouzapw/OmniRoute/releases/latest' -Headers @{ 'User-Agent' = 'AIRA-OmniRoute-Deploy' }
-$tag = [string]$release.tag_name
+$tag = $OmniRouteTag
 if ([string]::IsNullOrWhiteSpace($tag) -or $tag -notmatch '^v?\d+\.\d+\.\d+$') {
-    throw 'GitHub did not return a valid immutable OmniRoute release tag. Refusing to deploy a moving branch.'
+    throw 'Invalid pinned OmniRoute release tag provided. Refusing to deploy.'
 }
-Write-Host "Using OmniRoute release $tag"
+Write-Host "Using pinned OmniRoute release tag $tag"
 
 $sourceDir = Join-Path $WorkDir 'OmniRoute'
 & git clone --depth 1 --branch $tag --single-branch 'https://github.com/diegosouzapw/OmniRoute.git' $sourceDir

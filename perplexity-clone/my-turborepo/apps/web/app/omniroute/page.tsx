@@ -170,8 +170,8 @@ export default function OmniRoutePage() {
 						<div className="mb-7 flex flex-wrap items-end justify-between gap-4">
 							<div>
 								<p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">Universal inference gateway</p>
-								<h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">OmniRoute</h1>
-								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#8b9098]">Discover models exposed by your OmniRoute server, inspect routing profiles, and verify live inference without exposing gateway credentials to the browser.</p>
+								<h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">AIRA Route</h1>
+								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#8b9098]">Discover models exposed by your AIRA Route (OmniRoute) server, inspect routing profiles, and verify live inference without exposing gateway credentials to the browser.</p>
 							</div>
 							<button type="button" onClick={() => void loadGateway()} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#111419] px-3 py-2 text-xs font-medium text-[#abb0b7] transition hover:bg-[#171a1f] disabled:opacity-50"><RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />Refresh gateway</button>
 						</div>

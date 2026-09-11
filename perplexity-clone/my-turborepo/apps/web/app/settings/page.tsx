@@ -43,7 +43,7 @@ type McpServerStatus = {
 type McpPayload = { enabled: boolean; servers: McpServerStatus[] };
 
 const INTEGRATION_DESTINATIONS: Readonly<Record<string, { href: string; label: string }>> = {
-  omniroute: { href: "/omniroute", label: "Open OmniRoute" },
+  omniroute: { href: "/omniroute", label: "Open AIRA Route" },
   openai: { href: "/compare", label: "Open Compare" },
   nvidia: { href: "/compare", label: "Open Compare" },
   exa: { href: "/", label: "Open Research" },

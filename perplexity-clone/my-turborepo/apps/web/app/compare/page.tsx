@@ -149,7 +149,7 @@ export default function ComparePage() {
 						key: `omniroute:${mode}`,
 						provider: "omniroute",
 						model: mode,
-						label: `OmniRoute — ${ROUTING_LABELS[mode] ?? mode}`,
+						label: `AIRA Route — ${ROUTING_LABELS[mode] ?? mode}`,
 						detail: mode,
 					});
 				}
@@ -158,7 +158,7 @@ export default function ComparePage() {
 						key: `omniroute:${model.id}`,
 						provider: "omniroute",
 						model: model.id,
-						label: `OmniRoute — ${model.id}`,
+						label: `AIRA Route — ${model.id}`,
 						detail: model.ownedBy ?? "discovered model",
 					});
 				}
