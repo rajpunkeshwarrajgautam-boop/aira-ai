@@ -3,7 +3,7 @@
 ## Architecture & Infrastructure Classification
 
 **Gateway Classification**: `EXTERNAL_GATEWAY_DEPLOYABLE_VIA_REPO_AUTOMATION`  
-The repository contains deployment automation (`infra/omniroute/deploy-fly.ps1`, `deploy-local-tailscale.ps1`, `set-aira-vercel-env.ps1`) for an external gateway (`diegosouzapw/OmniRoute` pinned tag `v0.1.28`).
+The repository contains deployment automation (`infra/omniroute/deploy-fly.ps1`, `deploy-local-tailscale.ps1`, `set-aira-vercel-env.ps1`) for an external gateway (`diegosouzapw/OmniRoute` pinned tag `v3.8.50`).
 
 ```mermaid
 graph TD
@@ -20,9 +20,10 @@ graph TD
 ## Upstream Gateway Pinned Specification
 
 - **Upstream Repository**: `diegosouzapw/OmniRoute`
-- **Pinned Upstream Tag**: `v3.8.50`
-- **Full Upstream Commit SHA**: `5458026c216f77a3da68ea49152dc33470cfe2cb`
-- **Source Release Tarball Digest**: `sha256:e1e4e9c741b898d7f861787b6b942ff0cc6cc803b8b9a72a5a6c8bbf84a80bc7`
+- **Annotated Git Tag**: `v3.8.50`
+- **Annotated Tag Object**: `6f5d4e00e817bc01b2ac16fdd66db3840c296416`
+- **Resolved Source Commit**: `5458026c216f77a3da68ea49152dc33470cfe2cb`
+- **Source Tarball Digest**: `sha256:e1e4e9c741b898d7f861787b6b942ff0cc6cc803b8b9a72a5a6c8bbf84a80bc7`
 - **Automation File**: `infra/omniroute/deploy-fly.ps1` (`$OmniRouteTag = 'v3.8.50'`, `$ExpectedCommitSha = '5458026c216f77a3da68ea49152dc33470cfe2cb'`)
 - **Gateway Platform**: Fly.io
 - **Gateway App ID**: `aira-omniroute`
@@ -34,8 +35,10 @@ graph TD
 
 ## Candidate Commit Lineage
 
-- **Old Product Candidate SHA**: `4ca77b26eee8e2822371edeff1e2742ba1c4eba8`
-- **New Product Candidate SHA**: `f345d0e405bd49d4791ee3aa40bf4aa938746c64`
+- **Production Base SHA**: `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`
+- **Old Phase 2 Candidate SHA**: `4ca77b26eee8e2822371edeff1e2742ba1c4eba8`
+- **Phase 2 Product Candidate SHA**: `f345d0e44805e904385a76839199a535d58240c3`
+- **Previous Certification Head**: `c16de1924e7ae15483dc93c570eb3d3210e874e3`
 
 ---
 
@@ -106,8 +109,8 @@ graph TD
 
 - **Target**: Preview (`target = null`)
 - **State**: READY (`HTTP 200 OK`)
-- **Preview Product Candidate SHA**: `f345d0e405bd49d4791ee3aa40bf4aa938746c64`
-- **Vercel Preview Deployment ID**: `6398291463`
+- **Phase 2 Product Candidate SHA**: `f345d0e44805e904385a76839199a535d58240c3`
+- **Vercel Preview Deployment ID**: `dpl_6j1a7ugLGdpg3mEeHviJQmpFW4Eq`
 - **Vercel Preview URL**: `https://aira-ai-live-cr1g9f8bf-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 
 ---
@@ -128,4 +131,5 @@ Production touched: **NO**
 Production DB touched: **NO**  
 Production env touched: **NO**  
 Production deployment unchanged: **YES**  
+
 
