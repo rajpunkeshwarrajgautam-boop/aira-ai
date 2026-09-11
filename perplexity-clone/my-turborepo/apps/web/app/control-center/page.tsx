@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   CircleAlert,
   Columns2,
-  Cpu,
   FolderOpen,
   Gauge,
   History,
@@ -37,21 +36,21 @@ type IntegrationsPayload = {
   defaults: {
     primaryProvider: string;
     fallbackProvider: string;
-    localRouting?: string;
+    omniRouteModel?: string;
   };
 };
 
-type LocalAiPayload = {
-  enabled?: boolean;
-  configured?: boolean;
-  model?: string | null;
-  models?: string[];
-  health?: {
-    reachable?: boolean;
-    status?: string;
-    model?: string | null;
-    latencyMs?: number | null;
-  };
+type OmniRoutePayload = {
+  enabled: boolean;
+  configured: boolean;
+  connected: boolean;
+  model: string;
+  modelCount: number;
+  latencyMs?: number;
+  gatewayHost?: string | null;
+  checkedAt: string;
+  version?: string;
+  message?: string;
 };
 
 type AgentRun = {
@@ -80,7 +79,7 @@ type RunsPayload = {
 
 type LoadState = {
   integrations: IntegrationsPayload | null;
-  localAi: LocalAiPayload | null;
+  omniRoute: OmniRoutePayload | null;
   runs: RunsPayload | null;
   errors: string[];
 };
@@ -88,7 +87,7 @@ type LoadState = {
 const MODULES = [
   { href: "/", label: "Research", description: "Live web research with grounded citations", icon: Search },
   { href: "/compare", label: "Model Lab", description: "Compare configured models side by side", icon: Columns2 },
-  { href: "/runs", label: "Workflows", description: "Launch and inspect autonomous execution", icon: History },
+  { href: "/workflows", label: "Workflows", description: "Build and inspect durable automation routines", icon: History },
   { href: "/agents", label: "Agents", description: "Configure controlled agent work", icon: Bot },
   { href: "/knowledge", label: "Knowledge", description: "Files, documents and retrieval context", icon: FolderOpen },
   { href: "/memory", label: "Memory", description: "Inspect persistent user context", icon: Brain },
@@ -107,10 +106,16 @@ function humanRunStatus(status: string): string {
     .replace(/^./, (value) => value.toUpperCase());
 }
 
+function omniRouteStatus(payload: OmniRoutePayload | null): string {
+  if (!payload) return "Unknown";
+  if (!payload.configured) return "Not configured";
+  return payload.connected ? "Connected" : "Unavailable";
+}
+
 export default function ControlCenterPage() {
   const [state, setState] = useState<LoadState>({
     integrations: null,
-    localAi: null,
+    omniRoute: null,
     runs: null,
     errors: [],
   });
@@ -124,9 +129,7 @@ export default function ControlCenterPage() {
       try {
         const response = await fetch(url, { cache: "no-store", credentials: "include" });
         const body = (await response.json()) as T & { error?: { message?: string } };
-        if (!response.ok) {
-          throw new Error(body.error?.message ?? `${label} is unavailable.`);
-        }
+        if (!response.ok) throw new Error(body.error?.message ?? `${label} is unavailable.`);
         return body;
       } catch (error) {
         errors.push(error instanceof Error ? `${label}: ${error.message}` : `${label} is unavailable.`);
@@ -134,13 +137,13 @@ export default function ControlCenterPage() {
       }
     };
 
-    const [integrations, localAi, runs] = await Promise.all([
+    const [integrations, omniRoute, runs] = await Promise.all([
       readJson<IntegrationsPayload>("/api/integrations/status", "Integrations"),
-      readJson<LocalAiPayload>("/api/local-ai/status", "Local AI"),
+      readJson<OmniRoutePayload>("/api/omniroute/status", "OmniRoute"),
       readJson<RunsPayload>("/api/agents/runs?limit=6", "Agent runtime"),
     ]);
 
-    setState({ integrations, localAi, runs, errors });
+    setState({ integrations, omniRoute, runs, errors });
     setLoading(false);
   }, []);
 
@@ -153,7 +156,7 @@ export default function ControlCenterPage() {
     [state.integrations],
   );
   const totalServices = state.integrations?.integrations.length ?? 0;
-  const localReachable = state.localAi?.health?.reachable ?? null;
+  const omniConnected = state.omniRoute?.connected ?? null;
   const agentReady = state.runs?.feature.ready ?? null;
   const activeRuns = state.runs?.runs.filter((run) => ["QUEUED", "RUNNING", "REVIEW", "INCOMPLETE"].includes(run.status)).length ?? 0;
 
@@ -168,11 +171,9 @@ export default function ControlCenterPage() {
                   <Sparkles className="size-3.5" />
                   AIRA Intelligence OS
                 </div>
-                <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#f4f3ee] md:text-[32px]">
-                  Control Center
-                </h1>
+                <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#f4f3ee] md:text-[32px]">Control Center</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[#858b94]">
-                  One operational view across model routing, autonomous execution, local inference, knowledge and memory. Every status below is read from the live AIRA runtime.
+                  One operational view across model routing, autonomous execution, integrations, knowledge and memory. Runtime availability is reported only from live health assertions.
                 </p>
               </div>
               <button
@@ -198,24 +199,43 @@ export default function ControlCenterPage() {
 
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Runtime overview">
               <div className="rounded-2xl border border-white/[0.075] bg-[#0f1318] p-4">
-                <div className="flex items-center justify-between"><span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Gauge className="size-4" /></span><span className="text-[10px] uppercase tracking-[0.12em] text-[#626972]">Services</span></div>
+                <div className="flex items-center justify-between">
+                  <span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Gauge className="size-4" /></span>
+                  <span className="text-[10px] uppercase tracking-[0.12em] text-[#626972]">Configured</span>
+                </div>
                 <p className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[#ecece8]">{state.integrations ? `${configuredServices}/${totalServices}` : "—"}</p>
-                <p className="mt-1 text-xs text-[#727981]">Configured integrations</p>
+                <p className="mt-1 text-xs text-[#727981]">Deployment integrations</p>
               </div>
+
               <div className="rounded-2xl border border-white/[0.075] bg-[#0f1318] p-4">
-                <div className="flex items-center justify-between"><span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Cpu className="size-4" /></span><span className={`text-[10px] uppercase tracking-[0.12em] ${statusTone(localReachable)}`}>{localReachable === true ? "Online" : localReachable === false ? "Offline" : "Unknown"}</span></div>
-                <p className="mt-5 truncate text-lg font-semibold tracking-[-0.02em] text-[#ecece8]">{state.localAi?.model ?? state.localAi?.health?.model ?? "Local runtime"}</p>
-                <p className="mt-1 text-xs text-[#727981]">{state.localAi?.health?.latencyMs != null ? `${state.localAi.health.latencyMs} ms health latency` : "Private inference worker"}</p>
+                <div className="flex items-center justify-between">
+                  <span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Activity className="size-4" /></span>
+                  <span className={`text-[10px] uppercase tracking-[0.12em] ${statusTone(omniConnected)}`}>{omniRouteStatus(state.omniRoute)}</span>
+                </div>
+                <p className="mt-5 truncate text-lg font-semibold tracking-[-0.02em] text-[#ecece8]">{state.omniRoute?.model ?? "OmniRoute"}</p>
+                <p className="mt-1 text-xs text-[#727981]">
+                  {state.omniRoute?.connected
+                    ? `${state.omniRoute.modelCount} models${state.omniRoute.latencyMs != null ? ` · ${state.omniRoute.latencyMs} ms` : ""}`
+                    : state.omniRoute?.message ?? "Live gateway health not established"}
+                </p>
               </div>
+
               <div className="rounded-2xl border border-white/[0.075] bg-[#0f1318] p-4">
-                <div className="flex items-center justify-between"><span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Bot className="size-4" /></span><span className={`text-[10px] uppercase tracking-[0.12em] ${statusTone(agentReady)}`}>{agentReady === true ? "Ready" : agentReady === false ? "Unavailable" : "Unknown"}</span></div>
+                <div className="flex items-center justify-between">
+                  <span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Bot className="size-4" /></span>
+                  <span className={`text-[10px] uppercase tracking-[0.12em] ${statusTone(agentReady)}`}>{agentReady === true ? "Ready" : agentReady === false ? "Unavailable" : "Unknown"}</span>
+                </div>
                 <p className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[#ecece8]">{activeRuns}</p>
                 <p className="mt-1 text-xs text-[#727981]">Active autonomous runs</p>
               </div>
+
               <div className="rounded-2xl border border-white/[0.075] bg-[#0f1318] p-4">
-                <div className="flex items-center justify-between"><span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Activity className="size-4" /></span><span className="text-[10px] uppercase tracking-[0.12em] text-[#626972]">Routing</span></div>
+                <div className="flex items-center justify-between">
+                  <span className="grid size-9 place-items-center rounded-xl bg-[#181d23] text-[#ceb25f]"><Activity className="size-4" /></span>
+                  <span className="text-[10px] uppercase tracking-[0.12em] text-[#626972]">Routing policy</span>
+                </div>
                 <p className="mt-5 truncate text-lg font-semibold tracking-[-0.02em] text-[#ecece8]">{state.integrations?.defaults.primaryProvider ?? "—"}</p>
-                <p className="mt-1 text-xs text-[#727981]">Primary · fallback {state.integrations?.defaults.fallbackProvider ?? "—"}</p>
+                <p className="mt-1 text-xs text-[#727981]">Fallback · {state.integrations?.defaults.fallbackProvider ?? "—"}</p>
               </div>
             </section>
 
@@ -223,7 +243,7 @@ export default function ControlCenterPage() {
               <section className="overflow-hidden rounded-2xl border border-white/[0.075] bg-[#0f1318]">
                 <div className="flex items-center justify-between border-b border-white/[0.065] px-5 py-4">
                   <div><h2 className="text-sm font-semibold text-[#eeeeea]">Execution fabric</h2><p className="mt-1 text-xs text-[#707780]">Latest persisted autonomous activity</p></div>
-                  <Link href="/runs" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#c8ad5c] hover:text-[#ddc36e]">Open workflows <ArrowUpRight className="size-3.5" /></Link>
+                  <Link href="/workflows" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#c8ad5c] hover:text-[#ddc36e]">Open workflows <ArrowUpRight className="size-3.5" /></Link>
                 </div>
                 {loading && !state.runs ? (
                   <div className="grid min-h-60 place-items-center"><Loader2 className="size-5 animate-spin text-[#b89b4c]" /></div>
@@ -238,12 +258,12 @@ export default function ControlCenterPage() {
                     ))}
                   </ul>
                 ) : (
-                  <div className="grid min-h-60 place-items-center px-6 text-center"><div><History className="mx-auto size-5 text-[#59616a]" /><p className="mt-3 text-sm text-[#8a9098]">No persisted runs yet</p><Link href="/runs" className="mt-2 inline-flex text-xs font-medium text-[#c8ad5c]">Start a workflow</Link></div></div>
+                  <div className="grid min-h-60 place-items-center px-6 text-center"><div><History className="mx-auto size-5 text-[#59616a]" /><p className="mt-3 text-sm text-[#8a9098]">No persisted runs yet</p><Link href="/workflows" className="mt-2 inline-flex text-xs font-medium text-[#c8ad5c]">Start a workflow</Link></div></div>
                 )}
               </section>
 
               <section className="overflow-hidden rounded-2xl border border-white/[0.075] bg-[#0f1318]">
-                <div className="border-b border-white/[0.065] px-5 py-4"><h2 className="text-sm font-semibold text-[#eeeeea]">Connected stack</h2><p className="mt-1 text-xs text-[#707780]">Deployment capabilities</p></div>
+                <div className="border-b border-white/[0.065] px-5 py-4"><h2 className="text-sm font-semibold text-[#eeeeea]">Configured stack</h2><p className="mt-1 text-xs text-[#707780]">Configuration state only; live health is asserted separately</p></div>
                 {loading && !state.integrations ? (
                   <div className="grid min-h-60 place-items-center"><Loader2 className="size-5 animate-spin text-[#b89b4c]" /></div>
                 ) : state.integrations ? (
@@ -252,7 +272,7 @@ export default function ControlCenterPage() {
                       <li key={integration.id} className="flex items-center gap-3 px-5 py-3.5">
                         <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${integration.configured ? "bg-emerald-400/[0.07] text-emerald-300" : "bg-[#181d23] text-[#666e77]"}`}>{integration.configured ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}</span>
                         <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-[#d9dad7]">{integration.label}</p><p className="mt-0.5 truncate text-[10px] text-[#666d75]">{integration.model ?? integration.detail}</p></div>
-                        <span className={`size-1.5 rounded-full ${integration.configured ? "bg-emerald-400" : "bg-[#4c535c]"}`} aria-label={integration.configured ? "Configured" : "Not configured"} />
+                        <span className="text-[9px] uppercase tracking-[0.08em] text-[#6f7680]">{integration.configured ? "Configured" : "Not configured"}</span>
                       </li>
                     ))}
                   </ul>

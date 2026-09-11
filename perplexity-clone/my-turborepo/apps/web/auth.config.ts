@@ -2,6 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 
+import { safeAuthRedirect } from "./lib/auth-origin";
 import {
 	githubClientId,
 	githubClientSecret,
@@ -18,7 +19,7 @@ const googleEnabled = !!resolvedGoogleClientId && !!resolvedGoogleClientSecret;
 const githubEnabled = !!resolvedGitHubClientId && !!resolvedGitHubClientSecret;
 
 /**
- * Edge-safe auth configuration (no Prisma). Used by middleware JWT validation.
+ * Edge-safe auth configuration (no Prisma). Used by proxy JWT validation.
  * Database-backed OAuth accounts are wired in `auth.ts` via PrismaAdapter.
  */
 export const authConfig = {
@@ -53,6 +54,9 @@ export const authConfig = {
 	},
 	trustHost: true,
 	callbacks: {
+		redirect({ url, baseUrl }) {
+			return safeAuthRedirect(url, baseUrl);
+		},
 		jwt({ token, user }) {
 			if (user?.id) {
 				token.sub = user.id;

@@ -12,12 +12,18 @@ on:
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/store.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/usage.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/agent-runtime/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/automation/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/artifacts/**"
+      - "perplexity-clone/my-turborepo/apps/web/lib/anonymous-search-quota.ts"
       - "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/store.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-cancellation-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idor-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-idempotency-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/agent-swarm-runtime.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/anonymous-search-quota-real-db.test.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/tool-gateway-completion-real-db.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/truthmode-cold-start-db.test.ts"
+      - "perplexity-clone/my-turborepo/apps/web/test/truthmode-cold-start-child.ts"
       - "perplexity-clone/my-turborepo/apps/web/test/user-data-idor-real-db.test.ts"
   workflow_dispatch:
 
@@ -109,7 +115,7 @@ jobs:
       - name: Apply complete schema
         run: pnpm exec prisma migrate deploy
 
-      - name: Prove duplicate, cancellation, and current-object IDOR fences on real PostgreSQL
+      - name: Prove duplicate, cancellation, IDOR, quota races, and TruthMode cold-start durability on real PostgreSQL
         run: |
           pnpm --filter web run precheck-types
           pnpm --filter web exec node --import ./test/resolver.mjs --test \
@@ -117,4 +123,6 @@ jobs:
             ./test/agent-platform-cancellation-real-db.test.ts \
             ./test/agent-platform-idor-real-db.test.ts \
             ./test/user-data-idor-real-db.test.ts \
-            ./test/tool-gateway-completion-real-db.test.ts
+            ./test/anonymous-search-quota-real-db.test.ts \
+            ./test/tool-gateway-completion-real-db.test.ts \
+            ./test/truthmode-cold-start-db.test.ts

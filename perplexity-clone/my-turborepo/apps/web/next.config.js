@@ -1,5 +1,9 @@
+/* global process */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    AIRA_BUILD_PHASE: "1",
+  },
   experimental: {
     externalDir: true,
   },

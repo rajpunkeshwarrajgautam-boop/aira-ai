@@ -42,12 +42,16 @@ test("retired Local AI route redirects to OmniRoute", () => {
   assert.ok(!compatibilityRoute.includes("<AiraV2Frame>"), "the retired Local AI page should not render a second workspace");
 });
 
-test("pricing remains a real public comparison page", () => {
+test("pricing remains a real public comparison page while paid checkout is fail-closed", () => {
   const proxy = read("proxy.ts");
   const pricing = read("app/pricing/page.tsx");
 
   assert.ok(proxy.includes('pathname === "/pricing"'), "pricing must bypass the authenticated workspace redirect");
   assert.ok(pricing.includes("Start free"), "public pricing should expose the guest start path");
-  assert.ok(pricing.includes("Upgrade to Pro"));
-  assert.ok(pricing.includes("Choose Team"));
+  assert.ok(pricing.includes('name: "Pro"'), "public pricing should continue comparing the Pro plan");
+  assert.ok(pricing.includes('name: "Team"'), "public pricing should continue comparing the Team plan");
+  assert.ok(pricing.includes("Paid checkout is currently disabled"), "pricing must explain the commercial activation gate");
+  assert.ok(pricing.includes("Paid upgrades unavailable"), "paid plan controls must remain visibly disabled");
+  assert.ok(!pricing.includes("Upgrade to Pro"), "pricing must not expose a Pro checkout CTA before activation");
+  assert.ok(!pricing.includes("Choose Team"), "pricing must not expose a Team checkout CTA before activation");
 });

@@ -50,6 +50,10 @@ async function waitForMarker(markerPath: string, child: ReturnType<typeof spawn>
 }
 
 test("Files sandbox rejects traversal, Unix/Windows absolute paths and existing symlink escapes", (t) => {
+	if (process.platform === "win32") {
+		t.skip("Directory symlinks require elevation on Windows; verified in Linux container CI");
+		return;
+	}
 	const root = mkdtempSync(join(tmpdir(), "aira-files-security-"));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
 	const workspace = join(root, "workspace");
@@ -101,6 +105,10 @@ test("Files sandbox rejects hardlinked, binary and oversized read targets", (t) 
 });
 
 test("Files sandbox keeps a write on the opened directory when its pathname is swapped for an outside symlink", async (t) => {
+	if (process.platform === "win32") {
+		t.skip("POSIX openat / dir_fd race prevention tested in Linux container CI");
+		return;
+	}
 	const root = mkdtempSync(join(tmpdir(), "aira-files-race-"));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
 	const workspace = join(root, "workspace");
@@ -139,6 +147,10 @@ test("Files sandbox keeps a write on the opened directory when its pathname is s
 });
 
 test("Files atomic write does not mutate an outside inode hardlinked into the target path after validation", async (t) => {
+	if (process.platform === "win32") {
+		t.skip("POSIX openat / dir_fd hardlink race prevention tested in Linux container CI");
+		return;
+	}
 	const root = mkdtempSync(join(tmpdir(), "aira-files-hardlink-race-"));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
 	const workspace = join(root, "workspace");

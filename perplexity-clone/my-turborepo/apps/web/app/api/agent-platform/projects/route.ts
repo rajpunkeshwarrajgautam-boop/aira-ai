@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { selectAgentRuntime } from "@/lib/agent-runtime/registry";
+import { AgentRuntimeError, type AgentRuntimeId } from "@/lib/agent-runtime/types";
 import { createProject, listProjects } from "@/lib/agent-platform/store";
 
 export const runtime = "nodejs";
@@ -16,6 +18,21 @@ function json(body: unknown, init?: ResponseInit): Response {
 	return Response.json(body, { ...init, headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) } });
 }
 
+async function runtimeGate(requested?: AgentRuntimeId): Promise<Response | null> {
+	try {
+		await selectAgentRuntime(requested);
+		return null;
+	} catch (error) {
+		if (error instanceof AgentRuntimeError) {
+			return json(
+				{ error: { code: error.code, message: error.message, retryable: error.retryable } },
+				{ status: error.status },
+			);
+		}
+		throw error;
+	}
+}
+
 export async function GET(): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
@@ -28,6 +45,13 @@ export async function POST(req: Request): Promise<Response> {
 	const body = await req.json().catch(() => null);
 	const parsed = CreateProjectSchema.safeParse(body);
 	if (!parsed.success) return json({ error: { code: "VALIDATION_ERROR", message: "Provide a project name and objective.", details: z.treeifyError(parsed.error) } }, { status: 400 });
+
+	const source = parsed.data.config?.source;
+	if (source === "work-mode" || source === "swarm-workspace") {
+		const gate = await runtimeGate(source === "swarm-workspace" ? "AGENT_SWARM" : undefined);
+		if (gate) return gate;
+	}
+
 	const project = await createProject({ userId: session.user.id, ...parsed.data });
 	return json({ project }, { status: 201 });
 }

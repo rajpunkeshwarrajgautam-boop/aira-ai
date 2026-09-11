@@ -8,9 +8,11 @@ import { gmailToolAdapter, googleDriveToolAdapter, slackToolAdapter } from "./co
 import { filesToolAdapter, memoryToolAdapter, webToolAdapter } from "./native-adapters";
 import {
 	classifyToolRisk,
+	evaluateToolPermission,
 	isAlwaysDeniedToolAction,
 	requiresApproval,
 } from "./policy";
+import { globalCostControlEnforcer } from "../contracts/cost-controls";
 import {
 	assertToolContextOwnership,
 	claimToolCallForExecution,
@@ -253,8 +255,20 @@ export async function executeTool(
 		return { status: "DENIED", toolCallId: stored.id, risk, reason: "This action is never executed autonomously by AIRA." };
 	}
 
+	const permissionDecision = evaluateToolPermission(context.userId, request.tool, request.action);
+	if (permissionDecision === "DENY") {
+		await failToolCall(stored.id, "PERMISSION_DENIED", "DENIED");
+		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.denied", payload: { tool: request.tool, action: request.action, risk, reason: "Denied by tool permission rule." } });
+		return { status: "DENIED", toolCallId: stored.id, risk, reason: "Denied by tool permission rule." };
+	}
+
+	const budgetState = globalCostControlEnforcer.getState(context.runId);
+	if (budgetState?.isExhausted) {
+		throw new ToolGatewayError({ code: "TOOL_BUDGET_EXHAUSTED", message: `Run budget exhausted: ${budgetState.exhaustionReason}`, status: 429 });
+	}
+
 	let approvalSatisfied = false;
-	if (requiresApproval(risk)) {
+	if (requiresApproval(risk) || permissionDecision === "ASK") {
 		if (stored.approvalId && request.approvalId === stored.approvalId) {
 			approvalSatisfied = await isToolApprovalApproved(context.userId, stored.id, stored.approvalId, inputHash);
 		}
@@ -301,6 +315,15 @@ export async function executeTool(
 			throw new Error("Tool completion did not claim the executing request.");
 		}
 		completionCommitted = true;
+		globalCostControlEnforcer.track(context.runId, context.userId, {
+			costUsd: usage.costUsd,
+			tokens: (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0),
+			toolCalls: 1,
+		}, {
+			maxCostUsd: 100,
+			maxTokens: 1_000_000,
+			maxToolCalls: 500,
+		});
 		await dependencies.afterCompletionPersist?.();
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.completed", payload: { toolCallId: stored.id, tool: request.tool, action: request.action } }).catch(() => undefined);
 		return { status: "COMPLETED", toolCallId: stored.id, result: safeResult, usage, resultFidelity: "FULL" };

@@ -1,5 +1,6 @@
 import type { RiskClass } from "@/lib/agent-platform/types";
 
+import { globalToolPermissionManager } from "../contracts/tool-permissions";
 import type { AiraToolId } from "./types";
 
 const RISK_ORDER: Record<RiskClass, number> = {
@@ -175,4 +176,12 @@ export function requiresApproval(risk: RiskClass): boolean {
 
 export function isProtected(risk: RiskClass): boolean {
 	return risk === "PROTECTED";
+}
+
+export function evaluateToolPermission(userId: string, tool: AiraToolId, action: string): "ALLOW" | "ASK" | "DENY" {
+	if (isAlwaysDeniedToolAction(tool, action)) {
+		return "DENY";
+	}
+	const risk = classifyToolRisk(tool, action);
+	return globalToolPermissionManager.evaluate(userId, tool, action, risk);
 }

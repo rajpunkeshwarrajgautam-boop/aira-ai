@@ -1,7 +1,13 @@
 import NextAuth from "next-auth";
-import { NextResponse, type NextFetchEvent, type NextMiddleware, type NextRequest } from "next/server";
+import { NextRequest, NextResponse, type NextFetchEvent, type NextMiddleware } from "next/server";
 
 import { authConfig } from "./auth.config";
+import {
+	suppressFixedAuthUrlOnPreview,
+	trustedAuthRequestHeaders,
+} from "./lib/auth-origin";
+
+suppressFixedAuthUrlOnPreview();
 
 /**
  * Edge-safe Auth.js instance (no Prisma). Validates JWT session cookie only.
@@ -35,10 +41,8 @@ const authenticatedProxy = auth((req) => {
 	const canonicalOrigin = canonicalProductionOrigin();
 	const acceptsHtml = req.headers.get("accept")?.includes("text/html") ?? false;
 
-	// OAuth transient cookies are host-scoped. If a user opens a Vercel
-	// deployment alias but GitHub returns to AUTH_URL, the PKCE verifier is not
-	// available on the callback host and Auth.js rejects the login. Canonicalize
-	// browser navigations before rendering a page that can start OAuth.
+	// Production retains its canonical host. Preview deliberately does not enter
+	// this branch: Auth.js uses the validated Preview request host instead.
 	if (
 		canonicalOrigin &&
 		acceptsHtml &&
@@ -125,7 +129,16 @@ const authenticatedProxy = auth((req) => {
 });
 
 export default function proxy(req: NextRequest, event: NextFetchEvent) {
-	return (authenticatedProxy as unknown as NextMiddleware)(req, event);
+	const normalizedHeaders = trustedAuthRequestHeaders(req.url, req.headers);
+	if (!normalizedHeaders) {
+		return NextResponse.json(
+			{ error: { code: "INVALID_HOST", message: "Request host is not trusted." } },
+			{ status: 400, headers: { "Cache-Control": "no-store" } },
+		);
+	}
+
+	const normalizedRequest = new NextRequest(req, { headers: normalizedHeaders });
+	return (authenticatedProxy as unknown as NextMiddleware)(normalizedRequest, event);
 }
 
 export const config = {

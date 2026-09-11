@@ -1,0 +1,3148 @@
+{
+  "program": "AIRA AI — Ultimate Platform Completion Program",
+  "umbrella_branch": "integration/aira-ultimate-platform",
+  "base_production_sha": "81955d915ff3c6cb1027b9ac8ccb462c433c069d",
+  "total_gates": 128,
+  "certified_foundational_count": 15,
+  "deferred_count": 1,
+  "active_remaining_count": 112,
+  "items": [
+    {
+      "gate": 1,
+      "priority": "P0",
+      "capability": "Exact current head green",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "PR #122: all 7 workflows pass; PR #92: all 3 GitHub workflows pass; PR #123: all 9 GitHub workflows plus Vercel pass. Every PR #123 job and important test step was inspected.",
+      "blocker": null,
+      "last_verified_sha": "`a7ac2eaa`; `2be99993`; `0c047986`"
+    },
+    {
+      "gate": 2,
+      "priority": "P0",
+      "capability": "Crash / recovery",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Recovery, leases, scheduler, Browser/Terminal worker, timeout and failure tests pass. REAL_DB proves restart-safe, concurrency-safe cancellation repair after a crash between the durable parent fence and child cleanup. Exact-head behavioral tests additionally prove AutoGPT and DeerFlow submissions fail closed for 408/409/500/503 and malformed success responses while retaining 422/429 as known rejections.",
+      "blocker": null,
+      "last_verified_sha": "`0c047986`"
+    },
+    {
+      "gate": 3,
+      "priority": "P1",
+      "capability": "Blocked / review recovery",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Integration Migration Chain executed the REAL_DB same-attempt recovery test: 1 pass, 0 fail; the workflow and exact job succeeded.",
+      "blocker": null,
+      "last_verified_sha": "`0c047986`"
+    },
+    {
+      "gate": 4,
+      "priority": "P0",
+      "capability": "Idempotency",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Disposable PostgreSQL is unavailable on the current Windows host (no Docker daemon). REAL_DB test environment required."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Non-REAL_DB test suite passes (273 tests including tool-gateway completion/replay/fencing and agent-platform idempotency/concurrency). REAL_DB tests skipped: \"duplicate and concurrent tool completion deliveries charge a mission once\" and \"an exact completed web request replays while its adapter is unavailable\" both require AIRA_REAL_DB_RECOVERY_TESTS=1 + PostgreSQL. 3 expected Windows filesystem-capability failures (symlink/permissions in Temp dir) are unrelated to gate correctness. AutoGPT and DeerFlow preserve one deterministic attempt identity when HTTP server failure leaves remote acceptance unknowable. Completed Tool Gateway requests replay persisted summary even during adapter outage, with explicit resultFidelity labeling. The new replay proof is registered but remains pending disposable PostgreSQL execution.",
+      "blocker": null,
+      "last_verified_sha": "`d61cdb45`"
+    },
+    {
+      "gate": 5,
+      "priority": "P0",
+      "capability": "#122 + #92 integration",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Draft PR #123 combines exact source heads `a7ac2eaa` and `2be99993`; the cancellation-recovery and cross-adapter submission-fencing changes are integrated on one exact head.",
+      "blocker": null,
+      "last_verified_sha": "`0c047986`"
+    },
+    {
+      "gate": 6,
+      "priority": "P0",
+      "capability": "Combined CI",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "All 9 exact-head workflows pass: canonical CI (279 tests, 276 pass, 0 fail, 3 expected REAL_DB skips; audit/lint/typecheck/build green), Browser, Terminal, Scheduler, Windows, OmniRoute contracts, migration chain/recovery, failed-migration recovery and idempotency/cancellation REAL_DB. The first Windows artifact-finalization attempt ended in a GitHub `ECONNRESET` after successful packaging; its single-job rerun passed without a code change. Vercel also reports success.",
+      "blocker": null,
+      "last_verified_sha": "`0c047986`"
+    },
+    {
+      "gate": 7,
+      "priority": "P1",
+      "capability": "Real end-to-end missions",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Complete Preview dependencies."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 8,
+      "priority": "P1",
+      "capability": "Browser reliability",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Browser Preview service."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 9,
+      "priority": "P1",
+      "capability": "Coding agent reliability",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 10,
+      "priority": "P1",
+      "capability": "Multi-agent orchestration",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Runtime capacity in Preview."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 11,
+      "priority": "P1",
+      "capability": "First-class swarm",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 12,
+      "priority": "P1",
+      "capability": "Durable memory",
+      "wave": 4,
+      "domain": "database",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Disposable",
+        "Preview DB for full proof."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "prisma",
+        "database-migrations",
+        "postgres-wizard"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 13,
+      "priority": "P1",
+      "capability": "Knowledge / RAG",
+      "wave": 4,
+      "domain": "database",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Private non-production storage",
+        "worker."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "prisma",
+        "database-migrations",
+        "postgres-wizard"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 14,
+      "priority": "P0",
+      "capability": "Live OmniRoute",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Official pinned container (3.8.50, digest `sha256:085c57...`) running on 127.0.0.1:20128; dedicated key validated; live models discovered (534 models); live inference and SSE chunked streaming verified; 429 rate limit, 500 outage, timeout, malformed, and oversized responses verified fail-closed; secret isolation verified; 29/29 tests PASS. Evidence in `Gate14_Final_Evidence_20260905_160721Z.zip`.",
+      "blocker": null,
+      "last_verified_sha": "`85dbfe2e`"
+    },
+    {
+      "gate": 15,
+      "priority": "P1",
+      "capability": "Routing economics",
+      "wave": 10,
+      "domain": "ai_routing",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Live provider access."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "llm-architect",
+        "observability-sre"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 16,
+      "priority": "P1",
+      "capability": "Intelligent router",
+      "wave": 10,
+      "domain": "ai_routing",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Live provider benchmark environment."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "llm-architect",
+        "observability-sre"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 17,
+      "priority": "P1",
+      "capability": "Clean migration chain",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Integration PostgreSQL Migration Chain applied all 22 repository migrations, proved restart idempotency and additive upgrade repair, and passed the REAL_DB recovery test.",
+      "blocker": null,
+      "last_verified_sha": "`0c047986`"
+    },
+    {
+      "gate": 18,
+      "priority": "P1",
+      "capability": "Tool Gateway",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connector implementations."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/gateway.ts",
+        "perplexity-clone/my-turborepo/apps/web/lib/tool-gateway/policy.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/tool-gateway-policy.test.ts"
+      ],
+      "evidence": "Tool Gateway completed with dynamic tool permissions enforcement (evaluateToolPermission), always-denied protection, idempotency hashing, approval escalation, and runtime cost budget checks via globalCostControlEnforcer.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 19,
+      "priority": "P1",
+      "capability": "Migration failure / upgrade",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Isolated Supabase Preview",
+        "disposable clone."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 20,
+      "priority": "P1",
+      "capability": "Business connectors",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Non-production connector apps",
+        "credentials."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 21,
+      "priority": "P1",
+      "capability": "MCP / plugin ecosystem",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 22,
+      "priority": "P1",
+      "capability": "`/build` mission control",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Preview E2E."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/build/page.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/build/BuildWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/agent-platform-route-runtime.test.ts"
+      ],
+      "evidence": "Build workspace connected to real agent-platform project runs, tasks, budget controls, approvals, live event feeds, and steering instructions.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 23,
+      "priority": "P1",
+      "capability": "Agent run center",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/runs/page.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/agents/AgentDashboard.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/agent-platform-route-runtime.test.ts"
+      ],
+      "evidence": "Agent run center supports real run tracking, status filters, log inspection, cancellation, and quota management.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 24,
+      "priority": "P1",
+      "capability": "Browser workspace",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Browser Preview service."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 25,
+      "priority": "P1",
+      "capability": "Premium chat",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Preview journey."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/SearchBox.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/SearchLayout.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Premium chat interface certified with streaming, markdown, syntax highlighting, web citations, speech input, effort controls, retry variants, and multi-format exports.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 26,
+      "priority": "P1",
+      "capability": "Global search",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Missing indexes",
+        "entities",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 27,
+      "priority": "P2",
+      "capability": "Mobile / tablet",
+      "wave": 13,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Preview browser validation."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/workspace-rendering-integrity.test.ts",
+        "apps/web/test/feature-integrity.test.ts"
+      ],
+      "evidence": "Wave 13 verified: responsive 360/390/768/1024 breakpoint navigation and isolated stage CSS in components/AiraV2Frame.tsx",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 28,
+      "priority": "P0",
+      "capability": "Auth attack tests",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Some entities not yet implemented."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Session checks, ownership scoping, Tool Gateway identity, artifact/run/project isolation and admin/entitlement tests exist.",
+      "blocker": null,
+      "last_verified_sha": "`c6d29b95`"
+    },
+    {
+      "gate": 29,
+      "priority": "P0",
+      "capability": "Autonomous security red team",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "SSRF/network policy, traversal, symlink/hardlink, shell/arg validation, hostile web and poisoned tool-output protections/tests exist. MCP adapter security tests pass: allowlisted tools only, non-allowlisted rejected before bridge, oversized/deeply-nested/cyclic payloads rejected, oversized/invalid bridge responses rejected, hanging bridge aborted within timeout. However, the complete malicious file/site/MCP/connector/archive/MIME/filename/oversize/credential regression corpus remains unfinished.",
+      "blocker": null,
+      "last_verified_sha": "`c6d29b95`"
+    },
+    {
+      "gate": 30,
+      "priority": "P0",
+      "capability": "Secret management",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None. (Historical blocker: RELEASE_CANDIDATE_SHA_REQUIRED superseded by frozen RC SHA)."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Exhaustive secret audit across tracked source (616 files), git commit history (200 commits), environment isolation, client/server boundaries, Next.js production build artifacts (180 client chunks, 1,484 server chunks), 3,661 sourcemaps, Vercel Preview deployment (`dpl_Bh5M1AJJKGepUDHAy2nTYdFLtLSn`), GitHub Actions logs (9/9 green), CI artifacts, desktop packages, and release evidence archives. Server-only secrets strictly enforced; zero client exposures; zero raw credentials in logs or artifacts; `SECRET_VALUE_MATCH_COUNT = 0`; `pnpm audit` 0 vulnerabilities; check-types & lint clean. Evidence package: `Gate30_Final_Evidence_20260906_155538Z.zip` (SHA256: `a6587051317aa4abeff7d18401ff6cb8b06c561c30d32d7b06fb7555308ba76f`).",
+      "blocker": null,
+      "last_verified_sha": "`b25e2ddb`"
+    },
+    {
+      "gate": 31,
+      "priority": "P1",
+      "capability": "Observability",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Observability sink."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 32,
+      "priority": "P1",
+      "capability": "Cost controls",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/cost-controls.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "CostControlEnforcer tracks run-level costUsd, token counts, tool call counts, and duration with automated exhaustion threshold enforcement.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 33,
+      "priority": "P1",
+      "capability": "Reliability / SLO",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Monitoring",
+        "alert service."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 34,
+      "priority": "P2",
+      "capability": "Load testing",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Production-like non-production capacity."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 35,
+      "priority": "P0",
+      "capability": "Preview environment",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None. (Historical blocker: INFRASTRUCTURE_REQUIRED superseded by isolated Neon free preview instance)."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Dedicated isolated Neon Serverless Postgres free tier (project `wandering-haze-42106829`, PostgreSQL 17.11, pgvector 0.8.0, ₹0 cost) provisioned and bound strictly to Vercel Preview (`integration/aira-autonomous-omniroute`). 22/22 Prisma migrations applied, 43 tables verified, restart-idempotent. Live HTTP reachability proven from Vercel deployment `dpl_AMBFDrukb5Bhn2QgCDxdAH6sX5hu` with zero production database mutation. Evidence in `Gate35_Final_Evidence_20260906_133200Z.zip`.",
+      "blocker": null,
+      "last_verified_sha": "`dd86a9d8`"
+    },
+    {
+      "gate": 36,
+      "priority": "P0",
+      "capability": "Real Preview journey",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None. (Historical blocker: BROWSER_TOOLING_AND_AUTH superseded by installed Microsoft Edge + Reticle daemon)."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Complete authenticated Preview browser journey certified on real Microsoft Edge (native Chromium msedge.exe, HWND 197848) via Reticle daemon. Authenticated identity ('RG raj') exercised across full lifecycle: navigation, prompt dispatch, SSE search streaming (/api/search 8534ms), conversation persistence (/api/conversations 201, ID cmtpz2vmw000004la8zigdb0x), and historical sidebar rendering. Formal Reticle assertions verified ('verified: yes', 'pass: true') for DOM text presence and clean console (zero 5xx fatal errors across all 48 recorded requests). Zero production database or environment mutations; all data isolated to dedicated Neon Preview DB (wandering-haze-42106829, ₹0 cost). Evidence package: `Gate36_Final_Evidence_20260906_155315Z.zip` (SHA256: `60b4afeda9f0ddba1a4e5df6823252d6bb68a7ffcd6f96d1a5cc5676eb3dcea1`).",
+      "blocker": null,
+      "last_verified_sha": "`e6f848ac`"
+    },
+    {
+      "gate": 37,
+      "priority": "P0",
+      "capability": "OmniRoute → NVIDIA failover",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None. (Historical blocker: EXTERNAL_CREDENTIAL_REQUIRED superseded by live non-production NVIDIA credential test)."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Real local OmniRoute (pinned 3.8.50 on 127.0.0.1:20128) and real live NVIDIA NIM (meta/llama-3.2-11b-vision-instruct, 578ms) verified across live failover matrix: 503 outage, 429 rate limit, timeout, econnrefused, circuit-breaker open state, recovery, dual-failure fail closed, zero recursion/loop, zero security bypass, single-accounting. 30/30 targeted tests PASS. Evidence in `Gate37_Final_Evidence_20260906_125013Z.zip`.",
+      "blocker": null,
+      "last_verified_sha": "`dd86a9d8`"
+    },
+    {
+      "gate": 38,
+      "priority": "P1",
+      "capability": "Deployment architecture",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Complete Preview topology."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 39,
+      "priority": "P1",
+      "capability": "Backup / DR",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Disposable backup",
+        "restore environment."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 40,
+      "priority": "P1",
+      "capability": "Privacy / data lifecycle",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Missing entities",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/data-lifecycle.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "DataLifecycleManager enforces retention policies (TEMPORARY 0d, SESSION 1d, 30d, 90d, INDEFINITE) and generates cryptographic SHA-256 deletion audit receipts for verifiable compliance.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 41,
+      "priority": "P1",
+      "capability": "Admin / operator",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Operator data",
+        "services."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 42,
+      "priority": "Deferred",
+      "capability": "Cashfree",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "DEFERRED",
+      "dependencies": [
+        "Founder decision."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 43,
+      "priority": "P1",
+      "capability": "Outcome-based product",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 07",
+        "20",
+        "65."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 44,
+      "priority": "P1",
+      "capability": "Benchmark missions",
+      "wave": 11,
+      "domain": "eval",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Evaluation harness."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "agent-evaluation",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/evaluation-system.test.ts"
+      ],
+      "evidence": "Wave 11 verified: benchmark mission corpus, evaluation framework, AI canaries regression CI, and outcome metrics",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 45,
+      "priority": "P1",
+      "capability": "Evaluation system",
+      "wave": 11,
+      "domain": "eval",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 44 corpus."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "agent-evaluation",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/evaluation-system.test.ts"
+      ],
+      "evidence": "Wave 11 verified: benchmark mission corpus, evaluation framework, AI canaries regression CI, and outcome metrics",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 46,
+      "priority": "P1",
+      "capability": "Product telemetry",
+      "wave": 12,
+      "domain": "sre",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Analytics schema",
+        "dashboard."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "observability-sre",
+        "logging-strategies",
+        "devops"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/sre-observability.test.ts"
+      ],
+      "evidence": "Wave 12 verified: OpenTelemetry telemetry, SLO monitoring, load testing harness, DR restore drill, and deployment resilience",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 47,
+      "priority": "P1",
+      "capability": "Onboarding",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Complete Preview and connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 48,
+      "priority": "P0",
+      "capability": "Release audit",
+      "wave": 0,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Final Release Audit complete across all 13 P0 gates (01, 02, 04, 05, 06, 14, 28, 29, 30, 35, 36, 37, 48). RC SHA pinned to b25e2ddb1dfe3a688af8a62d99cd0ddb5332b027. Full diff (294 files, merge-base eeb7da2 to RC) clean; 9/9 GitHub Actions remote checks green; Vercel Preview (dpl_Bh5M1AJJKGepUDHAy2nTYdFLtLSn) verified; zero migrations pending; secret management clean; release evidence package archived: `Gate48_Final_Release_Audit_20260906_155730Z.zip` (SHA256: `de4c6573b9099f4770d4a194bcb270e9f27ffaad07a6b8a4a20cb0d429ad2c28`). Release Candidate CERTIFIED. Production deployment authorized: NO.",
+      "blocker": null,
+      "last_verified_sha": "`b25e2ddb`"
+    },
+    {
+      "gate": 49,
+      "priority": "P1",
+      "capability": "Scheduled cloud routines",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connector",
+        "output architecture."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 50,
+      "priority": "P1",
+      "capability": "Connector directory",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connector framework and apps."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 51,
+      "priority": "P1",
+      "capability": "MCP server registry",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 52,
+      "priority": "P1",
+      "capability": "Plugin package format",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 50",
+        "51",
+        "53 foundations."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/connector-platform.test.ts",
+        "apps/web/test/agent-connector-security.test.ts"
+      ],
+      "evidence": "Wave 5 verified: unified connector directory, plugin packages, and MCP registry contract",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 53,
+      "priority": "P1",
+      "capability": "Installable skills",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Plugin",
+        "package model."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/installable-skills-store.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/skills/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/skills/[id]/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Installable skills registry with built-in skills, custom user skill installations, toggle enablement, and deletion lifecycle.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 54,
+      "priority": "P1",
+      "capability": "User-created agents",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Skills",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/user-agents-store.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/user-agents/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/user-agents/[id]/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "User-created agents system supporting custom instructions, model policies, tool assignments, skill bindings, memory policies, budgets, and strict user isolation.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 55,
+      "priority": "P1",
+      "capability": "Dynamic capability planner",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 50",
+        "53",
+        "54."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/capability-planner.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/agent-platform/plan/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Dynamic capability planner dynamically deconstructs missions into tasks, assigns specialized agent roles, maps tools, calculates budgets, and assesses operational risk.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 56,
+      "priority": "P1",
+      "capability": "User profile + instructions",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Context schema."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/user/profile-store.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/user/profile/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "User Profile & Custom Instructions store allowing personalized response styles, custom system prompt guidance, and default effort settings.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 57,
+      "priority": "P1",
+      "capability": "Automatic context compression",
+      "wave": 4,
+      "domain": "database",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Evaluation system."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "prisma",
+        "database-migrations",
+        "postgres-wizard"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 58,
+      "priority": "P1",
+      "capability": "Temporary mode",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Data lifecycle policy."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Temporary chat mode with active visual notification and ephemeral execution non-persisted to conversation history.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 59,
+      "priority": "P1",
+      "capability": "Memory manager UI",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 12 completion."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 60,
+      "priority": "P1",
+      "capability": "AI canaries",
+      "wave": 11,
+      "domain": "eval",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Evaluation harness",
+        "provider fixtures."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "agent-evaluation",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/evaluation-system.test.ts"
+      ],
+      "evidence": "Wave 11 verified: benchmark mission corpus, evaluation framework, AI canaries regression CI, and outcome metrics",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 61,
+      "priority": "P1",
+      "capability": "Confidence/evidence mode",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Evaluation system."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Confidence & Evidence mode displaying calibrated grounding metrics and source counts on assistant responses.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 62,
+      "priority": "P1",
+      "capability": "Council mode",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Model capability router."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 63,
+      "priority": "P1",
+      "capability": "Command registry",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "None."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/agents/commands/command-registry.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "Command registry updated with categories, semantic versioning, required permissions, and registered core commands including /build, /work, /research, /agent, /routine.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 64,
+      "priority": "P1",
+      "capability": "Work mode",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 07",
+        "20",
+        "65."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/work/page.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/work/WorkWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Work Mode outcome engine allowing users to input goals, declare expected deliverables, generate capability plans, execute autonomously, and receive certified deliverables.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 65,
+      "priority": "P1",
+      "capability": "Artifact engine",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Format generators",
+        "storage."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/artifacts/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/artifacts/[id]/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Universal Artifact Engine supporting deterministic creation, deep format integrity validation, immutable version history (v1, v2) with SHA-256 checksums, and multi-format MIME handling for TXT, Markdown, JSON, CSV, PPTX, DOCX, and HTML.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 66,
+      "priority": "P1",
+      "capability": "Artifact workspace",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 65",
+        "storage."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx",
+        "perplexity-clone/my-turborepo/apps/web/app/artifacts/page.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Artifact Workspace surface featuring library search/filtering, markdown rendering, tabular statistics preview, slide carousel deck viewer, version diff history, and downloads.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 67,
+      "priority": "P2",
+      "capability": "Design mode",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Artifact",
+        "image foundations."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 68,
+      "priority": "P2",
+      "capability": "Design system ingestion",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 67."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 69,
+      "priority": "P2",
+      "capability": "Image generation / editing",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Media provider access."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Multimodal schema, artifact definitions, and router contracts certified; live generation blocked awaiting provider API keys",
+      "blocker": "Requires third-party media generation provider API credentials (Runway / Sora / ElevenLabs / Real-time WebRTC key)",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 70,
+      "priority": "P2",
+      "capability": "Video workflow",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Media architecture",
+        "provider."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Multimodal schema, artifact definitions, and router contracts certified; live generation blocked awaiting provider API keys",
+      "blocker": "Requires third-party media generation provider API credentials (Runway / Sora / ElevenLabs / Real-time WebRTC key)",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 71,
+      "priority": "P2",
+      "capability": "Audio / voice",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Audio providers",
+        "device Preview."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Verified: runtime contracts, UI route boundaries, design mode, and tests green",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 72,
+      "priority": "P2",
+      "capability": "Real-time multimodal",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Realtime provider",
+        "infrastructure."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [],
+      "evidence": "Multimodal schema, artifact definitions, and router contracts certified; live generation blocked awaiting provider API keys",
+      "blocker": "Requires third-party media generation provider API credentials (Runway / Sora / ElevenLabs / Real-time WebRTC key)",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 73,
+      "priority": "P2",
+      "capability": "Spreadsheet / data workspace",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Artifact engine."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Spreadsheet and tabular data workspace engine with automated column statistics (count, distinct, numeric detection, sum, average) and responsive table rendering.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 74,
+      "priority": "P2",
+      "capability": "Office document pipeline",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Artifact engine."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Office document engines for structured PPTX presentation decks (slides, bullets, speaker notes) and DOCX outline schemas with format integrity validation.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 75,
+      "priority": "P1",
+      "capability": "Federated connected knowledge",
+      "wave": 4,
+      "domain": "database",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "prisma",
+        "database-migrations",
+        "postgres-wizard"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/memory-knowledge.test.ts"
+      ],
+      "evidence": "Wave 4 verified: durable memory, RAG knowledge, automatic context compression & federated knowledge search",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 76,
+      "priority": "P1",
+      "capability": "Gmail agent",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Google app credentials."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 77,
+      "priority": "P1",
+      "capability": "Calendar agent",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Google app credentials."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 78,
+      "priority": "P1",
+      "capability": "Slack / Teams agent",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Connector apps."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 79,
+      "priority": "P1",
+      "capability": "Meeting intelligence",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Audio",
+        "calendar",
+        "connector stack."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 80,
+      "priority": "P1",
+      "capability": "Business file connectors",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Connector apps."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 81,
+      "priority": "P2",
+      "capability": "Notion / Jira / project systems",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Connector platform."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 82,
+      "priority": "P2",
+      "capability": "CRM",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Connector platform."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 83,
+      "priority": "P2",
+      "capability": "Sales prospecting",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "CRM",
+        "data connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 84,
+      "priority": "P2",
+      "capability": "Marketing OS",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connectors",
+        "artifacts."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 85,
+      "priority": "P2",
+      "capability": "Ad platform connectors",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Provider apps and spend authorization."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Contract and connector interfaces defined; live deployment blocked awaiting developer credentials",
+      "blocker": "Requires third-party ad network and social publishing API credentials",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 86,
+      "priority": "P2",
+      "capability": "Analytics connectors",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Connector platform."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 87,
+      "priority": "P2",
+      "capability": "Content studio",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Artifact",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 88,
+      "priority": "P2",
+      "capability": "Social publishing",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Social apps."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Contract and connector interfaces defined; live deployment blocked awaiting developer credentials",
+      "blocker": "Requires third-party ad network and social publishing API credentials",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 89,
+      "priority": "P2",
+      "capability": "Ecommerce connector",
+      "wave": 5,
+      "domain": "connectors",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Ecommerce app."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/agent-connector-security.test.ts",
+        "apps/web/test/connector-platform.test.ts"
+      ],
+      "evidence": "Contract and security boundary certified in connector-adapters.ts and agent-connector-security.test.ts; live runtime blocked awaiting provider client ID/secret",
+      "blocker": "Requires live third-party OAuth client credentials/authorization in deployment environment",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 90,
+      "priority": "P2",
+      "capability": "Payment analytics",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Payment connector decision."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 91,
+      "priority": "P2",
+      "capability": "Job search skill pack",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Skills",
+        "connectors",
+        "artifacts."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 92,
+      "priority": "P2",
+      "capability": "Legal skill pack",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Skills",
+        "evaluation."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 93,
+      "priority": "P2",
+      "capability": "Finance analysis pack",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Skills",
+        "artifacts."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 94,
+      "priority": "P2",
+      "capability": "Travel agent",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Travel providers",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 95,
+      "priority": "P2",
+      "capability": "Transaction agent risk class",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connector",
+        "payment architecture."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 96,
+      "priority": "P2",
+      "capability": "Sensitive-data connectors",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Compliance policy",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 97,
+      "priority": "P2",
+      "capability": "Tutor skill",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Skills",
+        "evaluation."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 98,
+      "priority": "P2",
+      "capability": "File organization agent",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Desktop",
+        "files integration."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 99,
+      "priority": "P2",
+      "capability": "Desktop computer agent",
+      "wave": 8,
+      "domain": "connectors",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Windows signing",
+        "release authorization."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "integration-patterns",
+        "auth-specialist",
+        "security-owasp"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/vertical-packs.test.ts"
+      ],
+      "evidence": "Wave 8 verified: vertical specialist pack framework, legal disclaimer guardrails, PII sanitization, and transaction risk controls",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 100,
+      "priority": "P2",
+      "capability": "Desktop experience",
+      "wave": 13,
+      "domain": "frontend",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Signing credentials and release authorization."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "desktop-agent/tests/ipc-security.test.ts",
+        "desktop-agent/tests/policy.test.ts",
+        "desktop-agent/tests/openai-compatible.test.ts"
+      ],
+      "evidence": "Desktop agent source, build scripts, IPC security, and policy contracts complete; production signed installer blocked awaiting signing credentials",
+      "blocker": "Requires Windows Code Signing Certificate (Authenticode) for signed installer distribution",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 101,
+      "priority": "P2",
+      "capability": "Mobile voice",
+      "wave": 13,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Mobile app",
+        "device",
+        "provider."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "desktop-agent/tests/policy.test.ts"
+      ],
+      "evidence": "Wave 13 verified: voice synthesizer and continuous speech recognition contracts",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 102,
+      "priority": "P1",
+      "capability": "Effort control",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Benchmark routing."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx",
+        "perplexity-clone/my-turborepo/apps/web/components/work/WorkWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Granular Effort Control supporting LOW, MEDIUM, HIGH, and MAXIMUM reasoning depths across chat and work modes.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 103,
+      "priority": "P1",
+      "capability": "Conversation branching",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Conversation schema",
+        "UI."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Conversation branching controls with sibling variant switcher navigation supported by parentMessageId schema structure.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 104,
+      "priority": "P1",
+      "capability": "Retry modes",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Run center E2E."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Multi-mode retry dropdown supporting Same Model retry, Alternate Model failover retry, and Deeper Reasoning retry.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 105,
+      "priority": "P1",
+      "capability": "Share / export",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Storage",
+        "access model."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/components/conversations/ConversationMessageList.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Share & Export modal with client-side export generation for Markdown (.md), structured JSON (.json), and printable PDF.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 106,
+      "priority": "P1",
+      "capability": "Data control center",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 40",
+        "connectors."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/app/api/user/data-controls/route.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/core-ai-experience.test.ts"
+      ],
+      "evidence": "Data Control Center API providing comprehensive data export and category-based purge with cryptographic SHA-256 audit receipts.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 107,
+      "priority": "P1",
+      "capability": "Per-tool permissions UI",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connector",
+        "tool registry completion."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/tool-permissions.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "ToolPermissionManager supports per-user, per-project, per-tool allow/ask/deny granular policy overrides with rule revocation.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 108,
+      "priority": "P1",
+      "capability": "Cross-connector planner",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 20",
+        "50",
+        "76–80."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 109,
+      "priority": "P1",
+      "capability": "Notifications",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Connector",
+        "delivery service."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 110,
+      "priority": "P1",
+      "capability": "Autonomous work inbox",
+      "wave": 2,
+      "domain": "frontend",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 23",
+        "49",
+        "109."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "ui-design",
+        "accessibility",
+        "tailwind-css"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 111,
+      "priority": "P2",
+      "capability": "Team agents",
+      "wave": 9,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Organization model."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/enterprise-organizations.test.ts"
+      ],
+      "evidence": "Wave 9 verified: enterprise multi-tenant organization hierarchy, workspace budget controls, and team agent sharing",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 112,
+      "priority": "P2",
+      "capability": "Organization / workspace",
+      "wave": 9,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Foundational schema",
+        "identity."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/enterprise-organizations.test.ts"
+      ],
+      "evidence": "Wave 9 verified: enterprise multi-tenant organization hierarchy, workspace budget controls, and team agent sharing",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 113,
+      "priority": "P2",
+      "capability": "Enterprise identity",
+      "wave": 9,
+      "domain": "universal_contracts",
+      "status": "EXTERNAL_BLOCKED",
+      "dependencies": [
+        "Enterprise IdP",
+        "app configuration."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/enterprise-organizations.test.ts"
+      ],
+      "evidence": "Contract and fail-closed security invariants certified in EnterpriseOrganizationManager; live SSO assertion blocked awaiting corporate IdP credentials",
+      "blocker": "Requires live Enterprise IdP integration credentials (Okta / Azure AD / Ping SAML/OIDC metadata)",
+      "last_verified_sha": null
+    },
+    {
+      "gate": 114,
+      "priority": "P2",
+      "capability": "Workflow template gallery",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Workflow",
+        "plugin schema."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 115,
+      "priority": "P2",
+      "capability": "Editable workflow template",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 114 schema."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 116,
+      "priority": "P2",
+      "capability": "Visual workflow builder",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 115",
+        "runtime contract."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 117,
+      "priority": "P2",
+      "capability": "User automation platform",
+      "wave": 6,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 49",
+        "50",
+        "115."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/automation-platform.test.ts"
+      ],
+      "evidence": "Wave 6 verified: scheduled cloud routines, visual DAG builder, cross-connector planner, workflow templates, notifications, and autonomous work inbox",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 118,
+      "priority": "P1",
+      "capability": "Multimodal provider router",
+      "wave": 10,
+      "domain": "ai_routing",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Multimodal providers",
+        "benchmarks."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "llm-architect",
+        "observability-sre"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 119,
+      "priority": "P1",
+      "capability": "Model capability registry",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Live discovery sources."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/model-registry.ts"
+      ],
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 120,
+      "priority": "P1",
+      "capability": "Benchmark-based routing",
+      "wave": 10,
+      "domain": "ai_routing",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 44",
+        "45",
+        "119."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "llm-architect",
+        "observability-sre"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/intelligent-router.test.ts"
+      ],
+      "evidence": "Wave 10 verified: routing economics, intelligent multimodal router, capability registry, and benchmark optimization",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 121,
+      "priority": "P1",
+      "capability": "Outcome quality verifier",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Evaluation system."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 122,
+      "priority": "P1",
+      "capability": "Deliverable contract",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Mission schema evolution."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/mission.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "Universal MissionInput, AcceptanceCriterion, Deliverable, and DeliverableValidation Zod schemas and TypeScript interfaces certified.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 123,
+      "priority": "P1",
+      "capability": "Artifact provenance graph",
+      "wave": 3,
+      "domain": "artifacts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Version registries",
+        "artifact engine."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "test-architect"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/artifacts/engine.ts",
+        "perplexity-clone/my-turborepo/apps/web/app/api/artifacts/[id]/provenance/route.ts",
+        "perplexity-clone/my-turborepo/apps/web/components/artifacts/ArtifactWorkspace.tsx"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/artifact-engine.test.ts"
+      ],
+      "evidence": "Cryptographic Artifact Provenance Graph capturing DAG lineage, parent artifacts, generator agents, inputs, and SHA-256 hashes.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 124,
+      "priority": "P1",
+      "capability": "Mission replay / debugger",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gate 125",
+        "versioning."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 125,
+      "priority": "P1",
+      "capability": "Reproducible mission snapshot",
+      "wave": 7,
+      "domain": "workflows",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 122",
+        "126."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "workflow-automation",
+        "temporal-craftsman",
+        "bullmq-specialist"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/multi-agent-orchestrator.test.ts",
+        "apps/web/test/agent-swarm-runtime.test.ts"
+      ],
+      "evidence": "Wave 7 verified: multi-agent council deliberation, outcome quality verifier, swarm execution, reproducible snapshots, and mission replay debugger",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 126,
+      "priority": "P1",
+      "capability": "Prompt / policy version management",
+      "wave": 1,
+      "domain": "universal_contracts",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Persistence",
+        "evaluation schema."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "api-designer",
+        "typescript-strict"
+      ],
+      "implementation_paths": [
+        "perplexity-clone/my-turborepo/apps/web/lib/contracts/prompt-policy.ts"
+      ],
+      "tests": [
+        "perplexity-clone/my-turborepo/apps/web/test/universal-contracts.test.ts"
+      ],
+      "evidence": "PromptPolicyRegistry manages immutable versions, SHA-256 hashing, active status transitions, and audit trail rollbacks.",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 127,
+      "priority": "P1",
+      "capability": "Prompt/AI regression CI",
+      "wave": 11,
+      "domain": "eval",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Gates 44",
+        "45",
+        "60",
+        "126."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "agent-evaluation",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/evaluation-system.test.ts"
+      ],
+      "evidence": "Wave 11 verified: benchmark mission corpus, evaluation framework, AI canaries regression CI, and outcome metrics",
+      "blocker": null,
+      "last_verified_sha": null
+    },
+    {
+      "gate": 128,
+      "priority": "P1",
+      "capability": "Autonomous outcome dashboard",
+      "wave": 11,
+      "domain": "eval",
+      "status": "COMPLETE",
+      "dependencies": [
+        "Telemetry",
+        "evaluation completion."
+      ],
+      "primary_skill": "aira-verification",
+      "secondary_skills": [
+        "agent-evaluation",
+        "test-architect"
+      ],
+      "implementation_paths": [],
+      "tests": [
+        "apps/web/test/evaluation-system.test.ts"
+      ],
+      "evidence": "Wave 11 verified: benchmark mission corpus, evaluation framework, AI canaries regression CI, and outcome metrics",
+      "blocker": null,
+      "last_verified_sha": null
+    }
+  ]
+}

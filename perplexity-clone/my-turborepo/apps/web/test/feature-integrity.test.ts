@@ -131,14 +131,21 @@ test("integrations shortcut lands on an actual settings anchor", () => {
 	assert.ok(settings.includes("INTEGRATION_DESTINATIONS"));
 });
 
-test("pricing preserves Pro and Team checkout selections", () => {
+test("paid checkout stays fail-closed until commercial activation is explicitly enabled", () => {
 	const pricing = read("app/pricing/page.tsx");
 	const upgrade = read("app/upgrade/page.tsx");
-	assert.ok(pricing.includes('"/upgrade?plan=pro"'));
-	assert.ok(pricing.includes('"/upgrade?plan=team"'));
-	assert.ok(pricing.includes('fetch("/api/billing/status"'));
-	assert.ok(upgrade.includes('new URLSearchParams(window.location.search).get("plan")'));
-	assert.ok(upgrade.includes("callbackUrl = requested ? `/upgrade?plan=${requested}` : \"/upgrade\""));
+	const checkout = read("app/api/billing/checkout/route.ts");
+	assert.ok(pricing.includes("Paid upgrades unavailable"));
+	assert.ok(pricing.includes("No payment can be started from this release candidate"));
+	assert.ok(!pricing.includes('"/upgrade?plan=pro"'));
+	assert.ok(!pricing.includes('"/upgrade?plan=team"'));
+	assert.ok(upgrade.includes("Paid upgrades are not available yet"));
+	assert.ok(upgrade.includes("will not start a payment or create a subscription"));
+	assert.ok(!upgrade.includes('fetch("/api/billing/checkout"'));
+	assert.ok(!upgrade.includes("subscriptionsCheckout"));
+	assert.ok(checkout.includes("CASHFREE_CHECKOUT_ENABLED"));
+	assert.ok(checkout.includes('code: "CHECKOUT_DISABLED"'));
+	assert.ok(checkout.includes('status: 503'));
 });
 
 test("admin analytics navigation is capability-aware", () => {
@@ -151,23 +158,21 @@ test("admin analytics navigation is capability-aware", () => {
 	assert.ok(accessRoute.includes("analyticsAdmin: false"));
 });
 
-test("Automation navigation resolves to truthful capability-aware routes", () => {
+test("Automation navigation resolves to real repaired product surfaces", () => {
 	const frame = read("components/AiraV2Frame.tsx");
 	const browserAgent = read("app/browser-agent/page.tsx");
 	const swarms = read("app/swarms/page.tsx");
 	const projects = read("app/projects/page.tsx");
 	const governance = read("app/governance/page.tsx");
 
-	for (const destination of ["/browser-agent", "/swarms", "/projects", "/governance"]) {
+	for (const destination of ["/browser-agent", "/swarms", "/projects", "/governance", "/workflows"]) {
 		assert.ok(frame.includes(`href: "${destination}"`), `expected ${destination} in the unified shell`);
 	}
 	assert.ok(frame.includes('label="Automation"'));
-	assert.ok(browserAgent.includes('fetch("/api/local-ai/status"'));
-	assert.ok(browserAgent.includes("does not yet expose a durable browser-session control contract"));
-	assert.ok(swarms.includes('fetch("/api/agents/runs?limit=12"'));
-	assert.ok(swarms.includes("does not fabricate a control-room graph"));
-	assert.ok(projects.includes('state="unsupported"'));
-	assert.ok(projects.includes("durable Project entity"));
-	assert.ok(governance.includes('fetch("/api/admin/access"'));
-	assert.ok(governance.includes("do not yet have a complete server-side policy contract"));
+	assert.ok(browserAgent.includes("BrowserWorkspace"));
+	assert.ok(!browserAgent.includes("does not yet expose a durable browser-session control contract"));
+	assert.ok(swarms.includes("SwarmWorkspace"));
+	assert.ok(projects.includes("ProjectsWorkspace"));
+	assert.ok(governance.includes('fetch("/api/enterprise/organizations"'));
+	assert.ok(governance.includes("Memberships and workspace creation are server-authorized"));
 });

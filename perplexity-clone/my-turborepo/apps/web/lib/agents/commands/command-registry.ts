@@ -16,6 +16,10 @@ export interface AgentCommand {
 	name: string;
 	description: string;
 	aliases?: string[];
+	category?: "navigation" | "action" | "mission" | "utility";
+	version?: number;
+	permissions?: readonly string[];
+	tags?: readonly string[];
 	execute: (
 		args: string[],
 		context?: CommandContext,
@@ -41,6 +45,10 @@ export class CommandRegistry {
 	getAllCommands(): AgentCommand[] {
 		const uniqueCommands = new Set(this.commands.values());
 		return Array.from(uniqueCommands);
+	}
+
+	getCommandsByCategory(category: "navigation" | "action" | "mission" | "utility"): AgentCommand[] {
+		return this.getAllCommands().filter((c) => c.category === category);
 	}
 
 	isCommand(input: string): boolean {
@@ -87,6 +95,8 @@ export const globalCommandRegistry = new CommandRegistry();
 globalCommandRegistry.registerCommand({
 	name: "/new",
 	description: "Start a new conversation",
+	category: "navigation",
+	version: 1,
 	execute: () => {
 		return { type: "redirect", payload: "/", message: "Starting new conversation..." };
 	},
@@ -96,6 +106,8 @@ globalCommandRegistry.registerCommand({
 	name: "/history",
 	description: "Open searchable conversation and memory history",
 	aliases: ["/h"],
+	category: "navigation",
+	version: 1,
 	execute: () => {
 		return {
 			type: "redirect",
@@ -108,6 +120,8 @@ globalCommandRegistry.registerCommand({
 globalCommandRegistry.registerCommand({
 	name: "/deep",
 	description: "Force Deep Research mode for the current query",
+	category: "action",
+	version: 1,
 	execute: (args) => {
 		const query = args.join(" ");
 		if (!query) {
@@ -124,6 +138,8 @@ globalCommandRegistry.registerCommand({
 globalCommandRegistry.registerCommand({
 	name: "/share",
 	description: "Share the current conversation",
+	category: "action",
+	version: 1,
 	execute: (_args, context) => {
 		if (!context?.conversationId) {
 			return { type: "error", payload: null, message: "No active conversation to share." };
@@ -135,3 +151,33 @@ globalCommandRegistry.registerCommand({
 		};
 	},
 });
+
+globalCommandRegistry.registerCommand({
+	name: "/build",
+	description: "Open autonomous mission control & builder",
+	category: "mission",
+	version: 1,
+	execute: () => {
+		return {
+			type: "redirect",
+			payload: "/build",
+			message: "Opening mission control...",
+		};
+	},
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/work",
+	description: "Initiate an autonomous deliverable mission",
+	category: "mission",
+	version: 1,
+	execute: (args) => {
+		const objective = args.join(" ");
+		return {
+			type: "redirect",
+			payload: objective ? `/build?objective=${encodeURIComponent(objective)}` : "/build",
+			message: "Launching work mode...",
+		};
+	},
+});
+

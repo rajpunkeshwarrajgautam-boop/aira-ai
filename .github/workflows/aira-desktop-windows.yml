@@ -28,13 +28,13 @@ jobs:
       run:
         working-directory: desktop-agent
 
-    env:
-      CSC_LINK: ${{ secrets.AIRA_WINDOWS_CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.AIRA_WINDOWS_CSC_PASSWORD }}
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          # PR/application code must never inherit a persisted write-capable
+          # repository credential through git configuration.
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -59,6 +59,9 @@ jobs:
       - name: Require signing credentials for tagged release
         if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.AIRA_WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.AIRA_WINDOWS_CSC_PASSWORD }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) {
             throw "AIRA_WINDOWS_CSC_LINK is required for a tagged Windows release."
@@ -75,6 +78,9 @@ jobs:
 
       - name: Package signed tagged release
         if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        env:
+          CSC_LINK: ${{ secrets.AIRA_WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.AIRA_WINDOWS_CSC_PASSWORD }}
         run: npx electron-builder --win nsis --publish never
 
       - name: Verify tagged installer Authenticode signature
