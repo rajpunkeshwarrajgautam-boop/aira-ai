@@ -35,7 +35,7 @@ const CallbackSchema = z.discriminatedUnion("status", [
 	}),
 ]);
 
-function validWorkerToken(req: Request): boolean {
+export function validWorkerToken(req: Request): boolean {
 	const expected = process.env.AIRA_KNOWLEDGE_WORKER_TOKEN?.trim();
 	const supplied = req.headers.get("x-aira-worker-token")?.trim();
 	if (!expected || !supplied) return false;

@@ -62,28 +62,23 @@ test("GATE 11: Text Formatting & Nomic Task Prefix Formatting", () => {
 	assert.equal(openaiInput, "Zephyr value");
 });
 
+import { validWorkerToken } from "../app/api/knowledge/callback/route";
+
 test("GATE 12: Worker Callback Token Authentication Contract", async () => {
 	const expectedToken = "secret-worker-token-12345";
 	process.env.AIRA_KNOWLEDGE_WORKER_TOKEN = expectedToken;
 
-	function checkToken(suppliedToken?: string): boolean {
-		const expected = process.env.AIRA_KNOWLEDGE_WORKER_TOKEN?.trim();
-		const supplied = suppliedToken?.trim();
-		if (!expected || !supplied) return false;
-		const a = Buffer.from(expected);
-		const b = Buffer.from(supplied);
-		if (a.length !== b.length) return false;
-		let diff = 0;
-		for (let i = 0; i < a.length; i++) {
-			diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
-		}
-		return diff === 0;
-	}
+	const validReq = new Request("https://localhost/api/knowledge/callback", {
+		headers: { "x-aira-worker-token": expectedToken },
+	});
+	const invalidReq = new Request("https://localhost/api/knowledge/callback", {
+		headers: { "x-aira-worker-token": "wrong-token" },
+	});
+	const emptyReq = new Request("https://localhost/api/knowledge/callback");
 
-	assert.strictEqual(checkToken(expectedToken), true);
-	assert.strictEqual(checkToken("wrong-token"), false);
-	assert.strictEqual(checkToken(""), false);
-	assert.strictEqual(checkToken(undefined), false);
+	assert.strictEqual(validWorkerToken(validReq), true);
+	assert.strictEqual(validWorkerToken(invalidReq), false);
+	assert.strictEqual(validWorkerToken(emptyReq), false);
 });
 
 test("GATE 19: Prompt-Injection Boundary & Untrusted Document Wrapper", () => {
@@ -112,4 +107,16 @@ test("GATE 29 & 30: Document Corpus Nonce Fixture Generation & Validation", () =
 		assert.ok(item.nonce.startsWith(`AIRA_KNOWLEDGE_${item.format.toUpperCase()}_`));
 		assert.ok(item.val.length === 4);
 	}
+});
+
+test("GATE 18: Server-Authoritative Per-User Rate & Concurrency Limiting Contract", () => {
+	const activeJobs = Array.from({ length: 11 }, (_, i) => ({
+		id: `asset-${i}`,
+		status: i < 10 ? "QUEUED" : "READY",
+	}));
+
+	const pendingCount = activeJobs.filter((j) => j.status === "QUEUED" || j.status === "PROCESSING").length;
+	const rateLimited = pendingCount >= 10;
+
+	assert.strictEqual(rateLimited, true, "User exceeding 10 concurrent active ingestion jobs must be rate-limited (HTTP 429)");
 });

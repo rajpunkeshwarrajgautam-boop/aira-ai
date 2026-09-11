@@ -114,6 +114,20 @@ export async function POST(req: Request): Promise<Response> {
 		);
 	}
 
+	const userAssets = await listKnowledgeAssets(session.user.id, 50);
+	const activeIngestions = userAssets.filter((a) => a.status === "QUEUED" || a.status === "PROCESSING");
+	if (activeIngestions.length >= 10) {
+		return Response.json(
+			{
+				error: {
+					code: "RATE_LIMIT_EXCEEDED",
+					message: "Too many concurrent ingestion jobs. Please wait for pending uploads to complete.",
+				},
+			},
+			{ status: 429, headers: { "Retry-After": "60" } },
+		);
+	}
+
 	let form: FormData;
 	try {
 		form = await req.formData();
