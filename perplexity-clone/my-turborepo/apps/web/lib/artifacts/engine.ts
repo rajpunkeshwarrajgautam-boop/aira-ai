@@ -22,6 +22,46 @@ import type {
 	StoredArtifact,
 } from "./types";
 
+export function isBinaryExecutable(buf: Buffer): boolean {
+	if (buf.length >= 2 && buf[0] === 0x4d && buf[1] === 0x5a) return true; // MZ (Windows PE/EXE)
+	if (buf.length >= 4 && buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46) return true; // ELF
+	if (
+		buf.length >= 4 &&
+		((buf[0] === 0xfe && buf[1] === 0xed && buf[2] === 0xfa && (buf[3] === 0xce || buf[3] === 0xcf)) ||
+			(buf[0] === 0xcf && buf[1] === 0xfa && buf[2] === 0xed && buf[3] === 0xfe))
+	) {
+		return true; // Mach-O
+	}
+	return false;
+}
+
+export function assertSafeArtifactName(name: string): void {
+	if (!name || typeof name !== "string" || name.trim().length === 0) {
+		throw new Error("Artifact name must be a non-empty string");
+	}
+	if (name.includes("\0")) {
+		throw new Error("Artifact name contains forbidden null byte");
+	}
+	if (name.includes("..") || name.startsWith("/") || name.startsWith("\\") || /^[a-zA-Z]:/.test(name)) {
+		throw new Error("Artifact name contains path traversal or absolute path indicators");
+	}
+	if (name.length > 255) {
+		throw new Error("Artifact name exceeds maximum length of 255 characters");
+	}
+	const base = name.split(".")[0]?.toUpperCase().trim() ?? "";
+	const RESERVED_DEVICE_NAMES = new Set([
+		"CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+	]);
+	if (RESERVED_DEVICE_NAMES.has(base)) {
+		throw new Error(`Artifact name uses reserved system device name: ${base}`);
+	}
+	if (/[\u202A-\u202E\u2066-\u2069]/.test(name)) {
+		throw new Error("Artifact name contains forbidden bidirectional override characters");
+	}
+}
+
 export class ArtifactValidator {
 	validate(format: ArtifactFormat, content: string | Buffer): ArtifactValidationResult {
 		const rawBuffer = Buffer.isBuffer(content)
@@ -43,6 +83,10 @@ export class ArtifactValidator {
 				warnings: [],
 				metrics,
 			};
+		}
+
+		if (isBinaryExecutable(rawBuffer) && !["PDF", "ZIP", "DOCX", "XLSX", "PPTX"].includes(format)) {
+			errors.push("Forbidden executable binary signature detected in non-binary artifact");
 		}
 
 		switch (format) {
@@ -211,6 +255,14 @@ export class ArtifactValidator {
 			case "DESIGN_SVG": {
 				if (!textContent.includes("<svg") || !textContent.includes("</svg>")) {
 					errors.push("DESIGN_SVG must contain valid root <svg> tags");
+				}
+				if (
+					/<script\b/i.test(textContent) ||
+					/\bon[a-z]+\s*=/i.test(textContent) ||
+					/javascript:/i.test(textContent) ||
+					/<foreignObject\b/i.test(textContent)
+				) {
+					errors.push("DESIGN_SVG contains dangerous active content (<script>, event handler, or javascript: URI)");
 				}
 				break;
 			}
@@ -389,6 +441,7 @@ export class ArtifactEngine {
 		tags?: string[];
 		isPublic?: boolean;
 	}): Promise<StoredArtifact> {
+		assertSafeArtifactName(params.name);
 		const id = `art_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 		const now = new Date().toISOString();
 
@@ -742,6 +795,7 @@ export class ArtifactEngine {
 		provenance: Omit<ArtifactProvenance, "generatedAt">;
 		tags?: string[];
 	}): StoredArtifact {
+		assertSafeArtifactName(params.name);
 		const id = `art_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 		const now = new Date().toISOString();
 

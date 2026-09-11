@@ -107,30 +107,77 @@ export function buildZip(entries: readonly ZipFileEntry[]): Buffer {
 }
 
 /**
- * Pure TypeScript PKZIP unpacker.
+ * Maximum allowed size per uncompressed file (50MB) and per archive (100MB).
+ * Enforced to defend against zip bombs and decompression attacks.
+ */
+export const MAX_UNCOMPRESSED_FILE_SIZE = 50 * 1024 * 1024;
+export const MAX_TOTAL_UNCOMPRESSED_SIZE = 100 * 1024 * 1024;
+export const MAX_ZIP_ENTRIES = 10_000;
+
+/**
+ * Pure TypeScript PKZIP unpacker with Zip-Slip, decompression bomb, and corruption defenses.
  */
 export function unpackZip(buffer: Buffer): UnzippedFile[] {
 	const files: UnzippedFile[] = [];
 	let offset = 0;
+	let totalUncompressed = 0;
 
 	while (offset < buffer.length - 30) {
 		const sig = buffer.readUInt32LE(offset);
 		if (sig !== 0x04034b50) break; // Not local header
 
+		if (files.length >= MAX_ZIP_ENTRIES) {
+			throw new Error("Zip archive exceeds maximum allowed entry count (10,000)");
+		}
+
 		const method = buffer.readUInt16LE(offset + 8);
 		const compressedSize = buffer.readUInt32LE(offset + 18);
+		const uncompressedSizeHeader = buffer.readUInt32LE(offset + 22);
 		const nameLength = buffer.readUInt16LE(offset + 26);
 		const extraLength = buffer.readUInt16LE(offset + 28);
 
+		if (offset + 30 + nameLength + extraLength + compressedSize > buffer.length) {
+			throw new Error("Malformed zip archive: entry data extends beyond buffer boundary");
+		}
+
 		const name = buffer.toString("utf8", offset + 30, offset + 30 + nameLength);
+
+		// Security: Zip Slip and path traversal prevention
+		if (
+			name.includes("..") ||
+			name.startsWith("/") ||
+			name.startsWith("\\") ||
+			/^[a-zA-Z]:/.test(name) ||
+			name.includes("\0")
+		) {
+			throw new Error(`Malicious zip entry path detected (Zip Slip): ${name}`);
+		}
+
+		// Security: Pre-check uncompressed size header if set
+		if (uncompressedSizeHeader > MAX_UNCOMPRESSED_FILE_SIZE) {
+			throw new Error(`Zip entry exceeds maximum allowed file size of ${MAX_UNCOMPRESSED_FILE_SIZE} bytes`);
+		}
+
 		const dataStart = offset + 30 + nameLength + extraLength;
 		const compressedData = buffer.subarray(dataStart, dataStart + compressedSize);
 
 		let decompressed: Buffer;
 		if (method === 8) {
-			decompressed = inflateRawSync(compressedData);
+			try {
+				decompressed = inflateRawSync(compressedData, { maxOutputLength: MAX_UNCOMPRESSED_FILE_SIZE });
+			} catch (err) {
+				throw new Error(`Zip decompression failed or exceeded size limit: ${err instanceof Error ? err.message : String(err)}`);
+			}
 		} else {
+			if (compressedSize > MAX_UNCOMPRESSED_FILE_SIZE) {
+				throw new Error(`Stored zip entry exceeds maximum size: ${compressedSize}`);
+			}
 			decompressed = Buffer.from(compressedData);
+		}
+
+		totalUncompressed += decompressed.length;
+		if (totalUncompressed > MAX_TOTAL_UNCOMPRESSED_SIZE) {
+			throw new Error(`Total uncompressed size exceeds limit of ${MAX_TOTAL_UNCOMPRESSED_SIZE} bytes (decompression bomb defense)`);
 		}
 
 		files.push({ path: name, data: decompressed });
