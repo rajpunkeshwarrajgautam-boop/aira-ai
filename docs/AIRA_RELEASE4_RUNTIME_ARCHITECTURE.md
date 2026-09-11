@@ -17,7 +17,7 @@ graph TD
     
     Route -->|Direct Fallback| OpenAI[OpenAI API]
     Route -->|Direct Fallback| NVIDIA[NVIDIA NIM]
-    Route -->|Gateway Automation| OmniRoute[AIRA Route External Gateway v0.1.28]
+    Route -->|Gateway Automation| OmniRoute[AIRA Route External Gateway v3.8.50]
     
     Knowledge --> Vector[Supabase PGVector & Chunk Store]
     Agents --> ToolGW[Tool Gateway & Permission Policy]
@@ -29,7 +29,7 @@ graph TD
 
 | Subsystem | Frontend Surface | API Route / Endpoint | Storage / Persistence | Current Status | Release 4 Requirement |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **AIRA Route** | `/omniroute` | `/api/compare`, `/api/route` | Gateway Automation Config (`v0.1.28`) | `AIRA_ROUTE_WORKING_E2E_IN_PREVIEW` | Resilient fallback to direct providers; pinned gateway discovery. |
+| **AIRA Route** | `/omniroute` | `/api/compare`, `/api/route` | Gateway Automation Config (`v3.8.50` / `5458026c`) | `AIRA_ROUTE_WORKING_E2E_IN_PREVIEW` | Resilient fallback to direct providers; pinned gateway discovery. |
 | **AIRA Knowledge** | `/knowledge` | `/api/knowledge/*` | Supabase PGVector, Storage | `IMPLEMENTED_NOT_CONFIGURED` | Full E2E chunking, embedding, vector retrieval & citation. |
 | **AIRA Agents** | `/agents` | `/api/agent-platform/*` | PostgreSQL Agent & Run Tables | `IMPLEMENTED_NOT_CONFIGURED` | Single-agent execution, tool gateway, step event timeline. |
 | **AIRA Browser** | `/browser` | `/api/browser/*` | Browser Session Registry | `MISSING_RUNTIME` | Isolated Chromium session driver, SSRF protection, screenshot. |

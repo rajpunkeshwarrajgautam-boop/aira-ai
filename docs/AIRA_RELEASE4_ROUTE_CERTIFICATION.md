@@ -20,14 +20,22 @@ graph TD
 ## Upstream Gateway Pinned Specification
 
 - **Upstream Repository**: `diegosouzapw/OmniRoute`
-- **Pinned Upstream Tag**: `v0.1.28`
-- **Upstream Commit SHA**: `f2e32904`
-- **Automation File**: `infra/omniroute/deploy-fly.ps1` (`$OmniRouteTag = 'v0.1.28'`)
+- **Pinned Upstream Tag**: `v3.8.50`
+- **Full Upstream Commit SHA**: `5458026c216f77a3da68ea49152dc33470cfe2cb`
+- **Source Release Tarball Digest**: `sha256:e1e4e9c741b898d7f861787b6b942ff0cc6cc803b8b9a72a5a6c8bbf84a80bc7`
+- **Automation File**: `infra/omniroute/deploy-fly.ps1` (`$OmniRouteTag = 'v3.8.50'`, `$ExpectedCommitSha = '5458026c216f77a3da68ea49152dc33470cfe2cb'`)
 - **Gateway Platform**: Fly.io
 - **Gateway App ID**: `aira-omniroute`
 - **Gateway Region**: `iad` (Ashburn, VA)
 - **Health Endpoint**: `https://aira-omniroute.fly.dev/health`
 - **Models Endpoint**: `https://aira-omniroute.fly.dev/v1/models`
+
+---
+
+## Candidate Commit Lineage
+
+- **Old Product Candidate SHA**: `4ca77b26eee8e2822371edeff1e2742ba1c4eba8`
+- **New Product Candidate SHA**: `f345d0e405bd49d4791ee3aa40bf4aa938746c64`
 
 ---
 
@@ -98,9 +106,9 @@ graph TD
 
 - **Target**: Preview (`target = null`)
 - **State**: READY (`HTTP 200 OK`)
-- **Preview Candidate SHA**: `4ca77b26eee8e2822371edeff1e2742ba1c4eba8`
-- **Vercel Preview Deployment ID**: `dpl_E714cG69XA7xnyh2brASirjE7Xkq`
-- **Vercel Preview URL**: `https://aira-ai-live-7vwch0a3m-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Preview Product Candidate SHA**: `f345d0e405bd49d4791ee3aa40bf4aa938746c64`
+- **Vercel Preview Deployment ID**: `6398291463`
+- **Vercel Preview URL**: `https://aira-ai-live-cr1g9f8bf-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 
 ---
 
