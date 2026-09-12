@@ -22,17 +22,18 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 
 ## 2. Browser Runtime Architecture & Provenance
 
-- **Runtime Architecture**: Dedicated self-hosted containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
-- **Platform / Host**: Docker Container (`infra/browser-worker/compose.yml`)
+- **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
+- **Platform / Host**: Local Container Verification (`infra/browser-worker/compose.yml`).
+- **Remote Preview Container Host**: `NOT_PROVISIONED` (Awaiting explicit authorization per Gate 2).
 - **Service**: `aira-browser-worker`
 - **Image**: `aira-browser-worker:latest`
-- **Digest**: `NOT_RECORDED` (Built from repository source)
+- **Digest**: `NOT_RECORDED` (Local source build; no public container registry digest).
 - **Source SHA**: `80f37ba4ace0ced7323482e12f76232a1ed9df2e`
-- **Region**: Preview Container Host
+- **Region**: Local Workstation / Docker Host
 - **Replica Count**: `1` (`PREVIEW_REPLICA_COUNT = 1`)
-- **Health Endpoint**: `/healthz` returning `{ "ok": true }`
+- **Health Endpoint**: `http://localhost:8088/healthz` (Local developer verification only; inaccessible from Vercel Preview).
 - **Session Model**: One isolated `BrowserContext` per session with ephemeral incognito isolation.
-- **Session Affinity Model**: `SINGLE_HARDENED_REPLICA` ensuring memory-bound session state is 100% consistent with zero cross-instance routing anomalies.
+- **Session Affinity Model**: `SINGLE_HARDENED_REPLICA` ensuring memory-bound session state is 100% consistent.
 - **Timeout Hierarchy**: Client HTTP timeout (35,000 ms) explicitly dominates remote operation timeouts (navigation: 25,000 ms, action: 10,000 ms, inspect: 5,000 ms), preventing zombie background tasks.
 
 ---
@@ -50,7 +51,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Prompt Injection Defense** | Tool Gateway Result Adapter | Output wrapped in `<aira_untrusted_browser_content>` instruction barrier | `ENFORCED` |
 | **Diagnostic Redaction** | Worker Logging & API | `_sanitize_url_for_logs` strips credentials, query tokens, and sensitive headers | `ENFORCED` |
 | **Tenant Isolation (IDOR)** | Next.js API Routes | User session verified against project ownership; cross-user attempts return 404 | `ENFORCED` |
-| **Resource Abuse Protection** | Sliding Window Limiter | Max 3 active sessions, 5 creations/min, 30 actions/min, 30 screenshots/min | `ENFORCED` |
+| **Resource Abuse Protection** | Sliding Window Limiter | In-process sliding window (3 active, 5 creates/min, 30 actions/min, 30 screenshots/min) | `PARTIAL` |
 
 ---
 
@@ -98,7 +99,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Tools Gateway** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway with `AgentDefinition` allowlist enforcement |
 | **Knowledge Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 PGVector search context injected into agent execution |
 | **Memory Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory context injected into agent execution |
-| **AIRA Browser** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Dedicated Playwright Chromium runtime with dual-layer SSRF and lease arbitration |
+| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation and local container verified; awaiting external Preview container host |
 | **Browser Sessions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Authoritative session binding, per-user limits, and truthful lifecycle states |
 | **Browser Actions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Safe actions (navigate, inspect, scroll, hover, back, forward, wait) and approval-gated mutations |
 | **Browser Screenshots** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Ephemeral, authenticated viewport screenshots with rate limits and no-store headers |
@@ -107,10 +108,11 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Browser Security** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Network & app dual-layer SSRF defense, redirect re-validation, sanitized diagnostics |
 | **Browser Cancellation** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Remote window.stop() task abort, lease release, and truthful BROWSER_CANCELLED status |
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
+| **Browser Rate Limiting** | Phase 5 | `PARTIAL` | Local in-process sliding window; distributed Redis limiter requires infrastructure provisioning |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |
 
 ---
 
 ## 7. Certification Status
 
-**`AIRA_BROWSER_WORKING_E2E_IN_PREVIEW`**
+**`AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE`**

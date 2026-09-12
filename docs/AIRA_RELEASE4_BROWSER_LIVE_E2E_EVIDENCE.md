@@ -2,7 +2,10 @@
 
 ## Executive Summary
 
-This document records the exact test execution evidence and verification artifacts for Phase 5 Secure Autonomous Browser Runtime Activation across Preview-safe integration fixtures and live runtime simulations.
+This document records the exact test execution evidence and verification artifacts for Phase 5 Secure Autonomous Browser Runtime Activation across local container integration tests, unit suites, and security benchmarks. 
+
+> [!NOTE]
+> Local container execution (`http://localhost:8088/healthz`) validates the complete Playwright Chromium runtime, SSRF defense, action cancellation, lease arbitration, and prompt injection barriers. However, end-to-end execution from the Vercel Preview deployment (`https://aira-ai-live-o3f0so9uo-rajpunkeshwarrajgautam-boops-projects.vercel.app`) requires an authorized public container host deployment for the browser worker.
 
 ---
 
