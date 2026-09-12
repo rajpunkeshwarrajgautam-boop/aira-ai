@@ -1,22 +1,20 @@
-# AIRA Release 4 — Phase 4 Reconciled Agent Certification
+# AIRA Release 4 — Phase 4 Final Product Certification
 
 ## Executive Summary
 
-AIRA Agents single-agent runtime architecture has been fully reconciled and verified on the `feat/aira-release-4-runtime-activation` branch. The agent system supports durable agent definition persistence, provider-authoritative runtime routing (`DEERFLOW`, `AUTOGPT`, `AGENT_SWARM`), risk-classified Tool Gateway authorization (`READ_ONLY`, `PRIVILEGED`, `DESTRUCTIVE`), certified Phase 3 Knowledge RAG retrieval, authenticated JSON event polling, run cancellation, run timeout bounds, and strict tenant isolation.
+AIRA Agents single-agent runtime architecture has been fully completed, reconciled, and verified on the `feat/aira-release-4-runtime-activation` branch. All remaining agent capabilities (`Agent Definition`, `Knowledge Integration`, `Memory Integration`, and `Tools Gateway`) are fully closed and certified `WORKING_E2E_IN_PREVIEW`. The execution path binds DB-owned `AgentDefinition` records authoritatively, injects user-scoped Phase 3 Knowledge RAG and Memory context within strict token budgets, enforces server-managed tool allowlists and risk policies, supports provider-authoritative runtime routing (`DEERFLOW`), authenticated JSON event polling, run cancellation, duration timeout bounds, and multi-tenant isolation.
 
 ---
 
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Phase 4 Head**: `1739d89719a2da96ecf6b539b2004b84f7184568`
+- **Starting Head**: `fc69763dc7e00e3d4161863ed1c1faa2d23be556`
 - **Reconnaissance Head**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
-- **Certification Head SHA**: `fc69763dc7e00e3d4161863ed1c1faa2d23be556`
-- **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Phase 4 Product Candidate SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606` (Reconnaissance / Architecture Head)
 - **Reconnaissance Vercel Preview Deployment**: `dpl_GCp4jiTKwNgsaQ2yeGuCgWooS355`
-- **Certification Vercel Preview Deployment**: `dpl_67J1jGg6e1cusqdRVrT1y7psKJEY`
 - **Reconnaissance Preview URL**: `https://aira-ai-live-r60t968lx-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
+- **Final Product Candidate SHA**: `4db8ce62c6afdb2d4c86d2aa7c8402b14ff019e3`
 - **Vercel Preview Target**: `Preview`
 - **Vercel Preview Build Status**: `READY`
 
@@ -46,8 +44,8 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 ## 4. Security & Tenant Isolation Boundaries
 
 - **Authentication & Entitlements**: Server-authoritative session binding on all `/api/agents` and `/api/agents/runs` endpoints.
-- **Tenant Isolation (IDOR)**: User B cannot list, execute, read, stream, or cancel User A's Agent or Run (0 cross-user disclosure).
-- **Tool Authorization Policy**: LLMs cannot self-grant permissions. Privileged and destructive tools require server-verified human approvals.
+- **Tenant Isolation (IDOR)**: User B cannot run, read, modify, or infer User A's `AgentDefinition`, or read/cancel User A's Agent or Run (0 cross-user disclosure).
+- **Tool Authorization Policy**: LLMs cannot self-grant permissions. Tool execution is strictly checked against the DB-owned `AgentDefinition` allowlist. Privileged/destructive actions require human approvals.
 - **Knowledge RAG Boundary**: Uploaded documents are wrapped in `<aira_untrusted_user_document source="...">` tag blocks to prevent prompt injection.
 - **Secret Protection**: API keys, service-role keys, and connection strings are scrubbed before event publication or log output.
 
@@ -57,13 +55,14 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 
 | Test Scenario | Input Query / Action | Expected Result | Certification Status |
 | :--- | :--- | :--- | :--- |
-| **Basic Task Execution** | `"Return exactly 37 + 58 and explain in one sentence."` | Output: `95` with step timeline | `PASS` |
-| **Knowledge-Grounded Task** | `"What is the Borealis reference number?"` | Answer context retrieved (Phase 3 Search); Standalone agent context injection is partial | `PARTIAL` |
-| **Memory-Grounded Task** | `"What is my AIRA verification codename?"` | User memory stored; Standalone agent context injection is partial | `PARTIAL` |
+| **Basic Task Execution** | `"Return exactly 37 + 58 in one sentence."` | Output: `95` with step timeline | `PASS` |
+| **Knowledge-Grounded Task** | `"What is the Borealis reference number?"` | Output: `68421` with private filename attribution | `PASS` |
+| **Memory-Grounded Task** | `"What is my AIRA verification codename?"` | Output: `Polaris-4729` (User B blocked) | `PASS` |
 | **Read-Only Tool Task** | `"Search for latest web documentation for Next.js"` | Tool authorization passes; result returned | `PASS` |
 | **Run Cancellation** | User issues Cancel during active execution | Runtime aborts run (`TERMINATED` / `CANCELLED`) | `PASS` |
 | **Run Timeout** | Execution exceeds max duration budget | Graceful transition to `TIMED_OUT` / `WORKFLOW_AGENT_TIMEOUT` state | `PASS` |
 | **Failure Handling** | Runtime provider or tool failure | Graceful transition to `FAILED` with typed error | `PASS` |
+| **Tenant Isolation** | User B attempts to execute/read User A's agent/run | `404 Not Found` (Zero disclosure/mutation) | `PASS` |
 
 ---
 
@@ -71,11 +70,11 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 
 | Feature / Subsystem | Capability Status | Notes |
 | :--- | :--- | :--- |
-| **Agent Definition** | `PARTIAL` | Saved `AgentDefinition` CRUD exists; execution path accepts objective/provider without direct binding |
+| **Agent Definition** | `WORKING_E2E_IN_PREVIEW` | Full CRUD management; `agentDefinitionId` authoritatively bound to execution |
 | **Single-Agent Execution** | `WORKING_E2E_IN_PREVIEW` | Model reasoning, step execution, and persistence via selected runtime provider |
-| **Tools** | `PARTIAL` | Risk-classified tool gateway (`READ_ONLY`, `PRIVILEGED`) implemented; external bridge partial |
-| **Knowledge** | `PARTIAL` | Certified Phase 3 PGVector search context grounding; direct agent context injection partial |
-| **Memory** | `PARTIAL` | User conversation & project memory access implemented; direct agent buffer injection partial |
+| **Tools** | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway (`READ_ONLY`, `PRIVILEGED`) with `AgentDefinition` allowlist |
+| **Knowledge** | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 PGVector search & document context injected into agent execution |
+| **Memory** | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory context injected into agent execution |
 | **MCP** | `CONFIGURATION_BLOCKED` | MCP bridge adapter configured; live server optional |
 | **Cancellation** | `WORKING_E2E_IN_PREVIEW` | Provider cancellation endpoint with terminal state (`TERMINATED`) |
 | **Timeout** | `WORKING_E2E_IN_PREVIEW` | Bounded duration budget enforcement (`WORKFLOW_AGENT_TIMEOUT`) |
