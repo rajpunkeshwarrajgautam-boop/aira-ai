@@ -21,6 +21,20 @@ const LIMITS: Record<BrowserRateLimitType, RateLimitConfig> = {
 
 export const MAX_ACTIVE_SESSIONS_PER_USER = 3;
 
+export type RateLimitDbClient = {
+	$transaction: typeof prisma.$transaction;
+};
+
+let customDbClient: RateLimitDbClient | null = null;
+
+/**
+ * Deterministic test failure injection hook.
+ * Injects a mock or failing DB client for verifying fail-closed rate limit behaviors.
+ */
+export function setRateLimitDbClientForTesting(client: RateLimitDbClient | null): void {
+	customDbClient = client;
+}
+
 // In-memory fallback buckets strictly for isolated test suites
 interface RateLimitBucket {
 	count: number;
@@ -47,8 +61,9 @@ export async function checkBrowserRateLimit(
 		const windowStart = new Date(now - windowMs);
 		const cleanupThreshold = new Date(now - 300_000); // 5 minutes retention
 		const eventId = crypto.randomUUID();
+		const db = customDbClient ?? prisma;
 
-		const result = await prisma.$transaction(async (tx) => {
+		const result = await db.$transaction(async (tx) => {
 			// 1. Obtain transaction-scoped advisory lock for the (userId + type) hash
 			await tx.$executeRaw`
 				SELECT pg_advisory_xact_lock(hashtext(${lockKey}))
@@ -93,7 +108,8 @@ export async function checkBrowserRateLimit(
 		const isExplicitDevOrTest =
 			(process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development") &&
 			!process.env.VERCEL &&
-			process.env.VERCEL_ENV !== "preview";
+			process.env.VERCEL_ENV !== "preview" &&
+			!customDbClient;
 
 		if (isExplicitDevOrTest) {
 			return checkBrowserRateLimitMemory(userId, type);

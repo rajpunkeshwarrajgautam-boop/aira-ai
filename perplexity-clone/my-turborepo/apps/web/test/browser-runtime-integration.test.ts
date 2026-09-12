@@ -6,7 +6,9 @@ import {
 	checkBrowserRateLimit,
 	MAX_ACTIVE_SESSIONS_PER_USER,
 	resetBrowserRateLimitsForTesting,
+	setRateLimitDbClientForTesting,
 } from "../lib/browser-runtime/rate-limiter";
+import type { RateLimitDbClient } from "../lib/browser-runtime/rate-limiter";
 import { classifyToolRisk } from "../lib/tool-gateway/policy";
 import { publicWebUrl } from "../lib/tool-gateway/web-security";
 
@@ -170,22 +172,23 @@ test("Rate limiter concurrency: 40 concurrent requests strictly cap at 30 allowe
 	await resetBrowserRateLimitsForTesting();
 });
 
-test("Fail-closed behavior: rate limiter fails closed with BROWSER_RATE_LIMIT_UNAVAILABLE in non-test mode", async () => {
-	const prevEnv = process.env.NODE_ENV;
-	const prevVercelEnv = process.env.VERCEL_ENV;
+test("Fail-closed behavior: deterministic DB failure injection triggers BROWSER_RATE_LIMIT_UNAVAILABLE", async () => {
+	// Deterministic failure injection: mock/stub DB transaction to unconditionally throw
+	setRateLimitDbClientForTesting({
+		$transaction: (() =>
+			Promise.reject(
+				new Error("Simulated PostgreSQL connection failure"),
+			)) as unknown as RateLimitDbClient["$transaction"],
+	});
+
 	try {
-		// Simulate production/preview mode where DB is unreachable
-		(process.env as Record<string, string | undefined>).NODE_ENV = "production";
-		(process.env as Record<string, string | undefined>).VERCEL_ENV = "preview";
-		// Force PostgreSQL limiter path to execute without test in-memory fallback
 		const res = await checkBrowserRateLimit("usr_fail_closed_test", "action");
-		// Unconditional assertion: MUST fail closed with BROWSER_RATE_LIMIT_UNAVAILABLE
+		// Unconditional assertion: MUST fail closed with BROWSER_RATE_LIMIT_UNAVAILABLE regardless of live DB status
 		assert.strictEqual(res.allowed, false, "Expected rate limit check to fail closed");
 		assert.strictEqual(res.error, "BROWSER_RATE_LIMIT_UNAVAILABLE", "Expected explicit BROWSER_RATE_LIMIT_UNAVAILABLE error");
 		assert.strictEqual(res.retryAfter, 5, "Expected retryAfter to be 5");
 	} finally {
-		(process.env as Record<string, string | undefined>).NODE_ENV = prevEnv;
-		(process.env as Record<string, string | undefined>).VERCEL_ENV = prevVercelEnv;
+		setRateLimitDbClientForTesting(null);
 	}
 });
 
