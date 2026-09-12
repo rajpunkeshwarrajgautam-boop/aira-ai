@@ -9,11 +9,11 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `45ecd0dea7bf3ebd7abadf9b037fe3ff45b4ae17`
+- **Starting Head**: `34b0e89a26865c88b4dbe405b7551a3a459c28f5`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Product Candidate SHA**: `c9a124ad4dfe5ba03063371878a358c66c04f741`
-- **Vercel Preview Deployment ID**: `dpl_5R71kSNCHhLoPqHq8DF5qux3YKJK`
-- **Vercel Preview URL**: `https://aira-ai-live-e4gg8ixro-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Product Candidate SHA**: `64ca1920bb3c4ed09c19e1709fcd872deb7797f7`
+- **Vercel Preview Deployment ID**: `dpl_HMwx1pHBW1Jxy9itygg3C2u2u9nk`
+- **Vercel Preview URL**: `https://aira-ai-live-7cfh2dtf8-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Branch Alias**: `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Preview Build Status**: `READY`
 - **Production Status**: `UNTOUCHED` (Production remains completely isolated at `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`)
@@ -23,14 +23,14 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 2. Browser Runtime Architecture & Provenance
 
 - **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
-- **Platform / Target**: Railway (`aira-browser-worker-preview`) / Local Container Verification (`infra/browser-worker/compose.yml`).
-- **Remote Preview Container Host Status**: `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` (Railway requires mandatory credit/debit card on file for account verification and outbound networking; zero-card deployment blocked per user rules).
+- **Platform / Target**: Render Free Web Service (`aira-browser-worker-preview`) / Local Container Verification (`infra/browser-worker/compose.yml`).
+- **Remote Preview Container Host Status**: `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` (Render anti-abuse and container provisioning requires payment verification; zero-card deployment blocked per user rules).
 - **Service**: `aira-browser-worker-preview`
 - **Image**: `aira-browser-worker:latest`
 - **Digest**: `NOT_RECORDED` (Local source build; no public container registry digest).
-- **Source SHA**: `c9a124ad4dfe5ba03063371878a358c66c04f741`
-- **Port Compatibility**: Dynamic `${PORT:-8080}` override implemented for seamless hosting on Railway, Cloud Run, or Fly.io.
-- **Provider Abstraction**: Zero Railway SDK or vendor lock-in (`RAILWAY_PROVIDER_LOCK_IN = NONE`).
+- **Source SHA**: `64ca1920bb3c4ed09c19e1709fcd872deb7797f7`
+- **Port Compatibility**: Dynamic `${PORT:-8080}` override implemented for seamless hosting on Render, Railway, Cloud Run, or Fly.io.
+- **Provider Abstraction**: Zero Render/Railway SDK or vendor lock-in (`HOSTING_PROVIDER_LOCK_IN = NONE`).
 - **Replica Count**: `1` (`PREVIEW_REPLICA_COUNT = 1`)
 - **Health Endpoint**: `/healthz` returning `{"ok": true}`.
 - **Session Model**: One isolated `BrowserContext` per session with ephemeral incognito isolation.
@@ -100,7 +100,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Tools Gateway** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway with `AgentDefinition` allowlist enforcement |
 | **Knowledge Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 PGVector search context injected into agent execution |
 | **Memory Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory context injected into agent execution |
-| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation verified; remote worker deployment on Railway blocked by mandatory card requirement |
+| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation verified; remote worker deployment blocked by platform card/billing requirements |
 | **Browser Sessions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Authoritative session binding, per-user limits, and truthful lifecycle states |
 | **Browser Actions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Safe actions (navigate, inspect, scroll, hover, back, forward, wait) and approval-gated mutations |
 | **Browser Screenshots** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Ephemeral, authenticated viewport screenshots with rate limits and no-store headers |
@@ -111,11 +111,13 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
 | **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
 | **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Railway container deployment requires credit card / paid billing; zero-card deployment blocked |
+| **Render Preview Runtime** | Phase 5 | `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Render container deployment requires credit card / paid billing; zero-card deployment blocked |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |
 
 ---
 
 ## 7. Certification Status
 
-**`RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED`**
+**`RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED`**
+
 

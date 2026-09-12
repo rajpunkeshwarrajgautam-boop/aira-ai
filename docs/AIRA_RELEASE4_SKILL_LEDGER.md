@@ -107,4 +107,41 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 - **Evidence**: Vercel deployment status `● Ready` at `https://aira-ai-live-e4gg8ixro-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
 - **Result**: `PASS`
 
+---
+
+## PHASE 5 — RENDER FREE BROWSER RUNTIME
+
+### Skill: using-superpowers / executing-plans
+- **Purpose**: Structure Render Free Web Service evaluation, verify zero-credit-card constraints, and strengthen rate-limiter test evidence.
+- **Files inspected**: Prompt requirements, Render documentation (`https://render.com/docs/free.md`)
+- **Files modified**: None
+- **Commands/actions**: Aligned gates, verified Render Free specs (0.1 CPU, 512 MB RAM), and planned deterministic test assertion hardening.
+- **Evidence**: Stepwise execution trace and documentation.
+- **Result**: `PASS`
+
+### Skill: infra-architect / docker-specialist / devops
+- **Purpose**: Inspect Render Docker Web Service requirements, evaluate dynamic port binding, and audit account entitlement.
+- **Files inspected**: `infra/browser-worker/Dockerfile`, Render Docker documentation (`https://render.com/docs/docker.md`)
+- **Files modified**: None (Dockerfile already has `${PORT:-8080}` dynamic binding)
+- **Commands/actions**: Audited Render Free tier compute plan (0.1 CPU, 512MB RAM); verified no Render API key in environment; evaluated anti-abuse requirements.
+- **Evidence**: Render docs review (`free: 0.1 CPU / 512 MB RAM`); absence of Render credentials; credit card required for Docker/container abuse prevention.
+- **Result**: `PASS` (Render zero-card deployment blocked by account verification policy).
+
+### Skill: test-architect / test-driven-development / qa-engineering / systematic-debugging
+- **Purpose**: Strengthen distributed rate-limit tests by adding deterministic unconditional DB failure assertions (Gate 2).
+- **Files inspected**: `test/browser-runtime-integration.test.ts`
+- **Files modified**: `perplexity-clone/my-turborepo/apps/web/test/browser-runtime-integration.test.ts`
+- **Commands/actions**: Replaced conditional assertions with strict unconditional checks (`assert.strictEqual(res.allowed, false)`, `assert.strictEqual(res.error, "BROWSER_RATE_LIMIT_UNAVAILABLE")`); ran 12/12 integration tests.
+- **Evidence**: Unconditional assertions passing; 12/12 tests passing; distinguished `SAME_PROCESS_REAL_DB_CONCURRENCY` from `MULTI_INSTANCE_LIVE_PREVIEW_PROOF`.
+- **Result**: `PASS`
+
+### Skill: aira-verification / verification-before-completion / vercel-deployment / finishing-a-development-branch
+- **Purpose**: Verify build, typecheck, lint, commit new Product Candidate `64ca1920bb3c4ed09c19e1709fcd872deb7797f7`, and verify exact Vercel Preview `dpl_HMwx1pHBW1Jxy9itygg3C2u2u9nk`.
+- **Files inspected**: Workspace code, Vercel deployments
+- **Files modified**: `docs/AIRA_RELEASE4_SKILL_LEDGER.md`, `docs/AIRA_RELEASE4_BROWSER_CERTIFICATION.md`, `docs/AIRA_RELEASE4_CAPABILITY_MATRIX.md`, `docs/AIRA_RELEASE4_RENDER_BROWSER_DEPLOYMENT.md`
+- **Commands/actions**: Pushed Product Candidate `64ca1920bb3c4ed09c19e1709fcd872deb7797f7`; tracked Vercel Preview `dpl_HMwx1pHBW1Jxy9itygg3C2u2u9nk` to `READY` status; confirmed HTTP 200 via `fetch()`.
+- **Evidence**: Vercel deployment status `● Ready` at `https://aira-ai-live-7cfh2dtf8-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
+- **Result**: `PASS`
+
+
 
