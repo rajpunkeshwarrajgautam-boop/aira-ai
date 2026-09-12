@@ -172,18 +172,20 @@ test("Rate limiter concurrency: 40 concurrent requests strictly cap at 30 allowe
 
 test("Fail-closed behavior: rate limiter fails closed with BROWSER_RATE_LIMIT_UNAVAILABLE in non-test mode", async () => {
 	const prevEnv = process.env.NODE_ENV;
+	const prevVercelEnv = process.env.VERCEL_ENV;
 	try {
-		// Simulate production mode where DB is unreachable
+		// Simulate production/preview mode where DB is unreachable
 		(process.env as Record<string, string | undefined>).NODE_ENV = "production";
-		// Intentionally test checkBrowserRateLimit error path with non-existent DB
-		// In production, when DB fails, it must return error: BROWSER_RATE_LIMIT_UNAVAILABLE
+		(process.env as Record<string, string | undefined>).VERCEL_ENV = "preview";
+		// Force PostgreSQL limiter path to execute without test in-memory fallback
 		const res = await checkBrowserRateLimit("usr_fail_closed_test", "action");
-		// If DB is offline or table does not exist, it must fail closed
-		if (!res.allowed) {
-			assert.ok(res.error === "BROWSER_RATE_LIMIT_UNAVAILABLE" || (res.retryAfter ?? 0) > 0);
-		}
+		// Unconditional assertion: MUST fail closed with BROWSER_RATE_LIMIT_UNAVAILABLE
+		assert.strictEqual(res.allowed, false, "Expected rate limit check to fail closed");
+		assert.strictEqual(res.error, "BROWSER_RATE_LIMIT_UNAVAILABLE", "Expected explicit BROWSER_RATE_LIMIT_UNAVAILABLE error");
+		assert.strictEqual(res.retryAfter, 5, "Expected retryAfter to be 5");
 	} finally {
 		(process.env as Record<string, string | undefined>).NODE_ENV = prevEnv;
+		(process.env as Record<string, string | undefined>).VERCEL_ENV = prevVercelEnv;
 	}
 });
 
