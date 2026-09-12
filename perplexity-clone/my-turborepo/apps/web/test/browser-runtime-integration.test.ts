@@ -118,30 +118,30 @@ test("Client timeout policy: default timeout is 35s to prevent premature client 
 	assert.match(clientSource, /DEFAULT_TIMEOUT_MS\s*=\s*35_000/);
 });
 
-test("Per-user rate limiter enforces bounds on sessions, actions, and screenshots", () => {
-	resetBrowserRateLimitsForTesting();
+test("Per-user rate limiter enforces bounds on sessions, actions, and screenshots", async () => {
+	await resetBrowserRateLimitsForTesting();
 	const testUser = `usr_test_${Date.now()}`;
 
 	// Session create limit (5 / min)
 	for (let i = 0; i < 5; i++) {
-		const res = checkBrowserRateLimit(testUser, "session_create");
+		const res = await checkBrowserRateLimit(testUser, "session_create");
 		assert.equal(res.allowed, true, `Expected session_create ${i + 1} to be allowed`);
 	}
-	const sessionBlocked = checkBrowserRateLimit(testUser, "session_create");
+	const sessionBlocked = await checkBrowserRateLimit(testUser, "session_create");
 	assert.equal(sessionBlocked.allowed, false);
 	assert.ok(sessionBlocked.retryAfter && sessionBlocked.retryAfter > 0);
 
 	// Action limit (30 / min)
 	for (let i = 0; i < 30; i++) {
-		const res = checkBrowserRateLimit(testUser, "action");
+		const res = await checkBrowserRateLimit(testUser, "action");
 		assert.equal(res.allowed, true);
 	}
-	const actionBlocked = checkBrowserRateLimit(testUser, "action");
+	const actionBlocked = await checkBrowserRateLimit(testUser, "action");
 	assert.equal(actionBlocked.allowed, false);
 
 	// Max active sessions constant is strictly bounded
 	assert.equal(MAX_ACTIVE_SESSIONS_PER_USER, 3);
-	resetBrowserRateLimitsForTesting();
+	await resetBrowserRateLimitsForTesting();
 });
 
 test("Browser UI components provide Back, Forward, Cancel, and Go navigation controls", () => {

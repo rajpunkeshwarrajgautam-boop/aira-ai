@@ -71,7 +71,7 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 		return json({ error: { code: "BROWSER_AGENT_CONTROL", message: "Take control of the browser before sending human input." } }, { status: 409 });
 	}
 
-	const rate = checkBrowserRateLimit(session.user.id, "action");
+	const rate = await checkBrowserRateLimit(session.user.id, "action");
 	if (!rate.allowed) {
 		return json(
 			{ error: { code: "BROWSER_RATE_LIMITED", message: "Browser action rate limit exceeded." } },

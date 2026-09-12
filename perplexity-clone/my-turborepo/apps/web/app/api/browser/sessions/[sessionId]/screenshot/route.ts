@@ -11,7 +11,7 @@ type Params = { params: Promise<{ sessionId: string }> };
 export async function GET(_: Request, { params }: Params): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
-	const rate = checkBrowserRateLimit(session.user.id, "screenshot");
+	const rate = await checkBrowserRateLimit(session.user.id, "screenshot");
 	if (!rate.allowed) {
 		return Response.json(
 			{ error: { code: "BROWSER_RATE_LIMITED", message: "Browser screenshot rate limit exceeded." } },

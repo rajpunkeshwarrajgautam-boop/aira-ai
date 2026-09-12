@@ -92,7 +92,7 @@ export async function POST(req: Request): Promise<Response> {
 		);
 	}
 
-	const rate = checkBrowserRateLimit(session.user.id, "session_create");
+	const rate = await checkBrowserRateLimit(session.user.id, "session_create");
 	if (!rate.allowed) {
 		return json(
 			{ error: { code: "BROWSER_RATE_LIMITED", message: "Too many browser sessions created. Please slow down." } },
