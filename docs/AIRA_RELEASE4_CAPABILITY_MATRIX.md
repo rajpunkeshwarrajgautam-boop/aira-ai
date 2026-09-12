@@ -26,4 +26,5 @@
 | **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
 | **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Container deployment requires credit card / paid billing; zero-card deployment blocked by Railway policy |
 | **Render Preview Runtime** | Phase 5 | `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Render container deployment requires credit card / paid billing; zero-card deployment blocked by Render policy |
+| **Modal Preview Runtime** | Phase 5 | `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Modal container deployment requires credit card / paid billing; always-warm min_containers=1 exceeds free credit ($39.71/mo vs $30.00) |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |

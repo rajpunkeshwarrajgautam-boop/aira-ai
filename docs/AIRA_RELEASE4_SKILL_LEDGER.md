@@ -143,5 +143,38 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 - **Evidence**: Vercel deployment status `● Ready` at `https://aira-ai-live-7cfh2dtf8-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
 - **Result**: `PASS`
 
+---
 
+## PHASE 5 — MODAL STARTER BROWSER RUNTIME EXPERIMENT
 
+### Skill: using-superpowers / executing-plans / writing-plans
+- **Purpose**: Structure Modal Starter deployment experiment, evaluate zero-credit-card constraints, and design deterministic DB-failure injection.
+- **Files inspected**: Prompt requirements, Modal CLI commands, Modal pricing and billing documentation.
+- **Files modified**: `infra/browser-worker/modal/app.py`, `docs/AIRA_RELEASE4_MODAL_BROWSER_DEPLOYMENT.md`.
+- **Commands/actions**: Aligned gates, verified Modal Starter specifications, and modeled always-warm container pricing ($39.71/mo vs $30.00 credit).
+- **Evidence**: Stepwise execution trace and documentation.
+- **Result**: `PASS`
+
+### Skill: infra-architect / docker-specialist / devops
+- **Purpose**: Inspect Modal container integration (`modal.Image.from_dockerfile`), configure conceptual ASGI wrapper (`app.py`), and audit account entitlement.
+- **Files inspected**: `infra/browser-worker/Dockerfile`, `infra/browser-worker/modal/app.py`.
+- **Files modified**: `infra/browser-worker/modal/app.py`.
+- **Commands/actions**: Installed and ran official Modal CLI v1.5.5; ran `modal --version`, `modal profile list`, `modal config show`; audited Modal Starter anti-abuse policies.
+- **Evidence**: Modal CLI output; verification that Modal mandates a credit card on file before provisioning cloud containers; always-warm `min_containers=1` exceeds $30 free compute allotment.
+- **Result**: `PASS` (Modal zero-card deployment blocked by account verification policy: `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED`).
+
+### Skill: test-architect / test-driven-development / qa-engineering / systematic-debugging
+- **Purpose**: Implement deterministic mock DB failure injection hook (`setRateLimitDbClientForTesting`) and assert fail-closed rate limit behavior (Gate 7).
+- **Files inspected**: `apps/web/lib/browser-runtime/rate-limiter.ts`, `apps/web/test/browser-runtime-integration.test.ts`.
+- **Files modified**: `apps/web/lib/browser-runtime/rate-limiter.ts`, `apps/web/test/browser-runtime-integration.test.ts`.
+- **Commands/actions**: Added `RateLimitDbClient` interface and `setRateLimitDbClientForTesting` hook; updated test with mock `$transaction` rejecting with `Simulated PostgreSQL connection failure`; verified `allowed === false`, `error === "BROWSER_RATE_LIMIT_UNAVAILABLE"`, and `retryAfter === 5`.
+- **Evidence**: 12/12 integration tests passing; 548/548 full test suite passing; deterministic fail-closed behavior verified regardless of DB availability.
+- **Result**: `PASS`
+
+### Skill: aira-verification / verification-before-completion / vercel-deployment / finishing-a-development-branch
+- **Purpose**: Verify typecheck, lint, Next.js production build, commit new Product Candidate `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`, and verify exact Vercel Preview `dpl_A8JFY8xKokYuqWMR4HH87YAKUmRs`.
+- **Files inspected**: Workspace code, Vercel deployments.
+- **Files modified**: `docs/AIRA_RELEASE4_SKILL_LEDGER.md`, `docs/AIRA_RELEASE4_BROWSER_CERTIFICATION.md`, `docs/AIRA_RELEASE4_CAPABILITY_MATRIX.md`, `docs/AIRA_RELEASE4_MODAL_BROWSER_DEPLOYMENT.md`.
+- **Commands/actions**: Pushed Product Candidate `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`; tracked Vercel Preview `dpl_A8JFY8xKokYuqWMR4HH87YAKUmRs` to `READY` status; confirmed HTTP 302 SSO redirect via `curl.exe`.
+- **Evidence**: Vercel deployment status `● Ready` at `https://aira-ai-live-fk76850th-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
+- **Result**: `PASS`

@@ -9,11 +9,11 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `34b0e89a26865c88b4dbe405b7551a3a459c28f5`
+- **Starting Head**: `6d6730677e7572ddbaf68bf95737d301447147b4`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Product Candidate SHA**: `64ca1920bb3c4ed09c19e1709fcd872deb7797f7`
-- **Vercel Preview Deployment ID**: `dpl_HMwx1pHBW1Jxy9itygg3C2u2u9nk`
-- **Vercel Preview URL**: `https://aira-ai-live-7cfh2dtf8-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Product Candidate SHA**: `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`
+- **Vercel Preview Deployment ID**: `dpl_A8JFY8xKokYuqWMR4HH87YAKUmRs`
+- **Vercel Preview URL**: `https://aira-ai-live-fk76850th-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Branch Alias**: `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Preview Build Status**: `READY`
 - **Production Status**: `UNTOUCHED` (Production remains completely isolated at `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`)
@@ -23,14 +23,14 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 2. Browser Runtime Architecture & Provenance
 
 - **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
-- **Platform / Target**: Render Free Web Service (`aira-browser-worker-preview`) / Local Container Verification (`infra/browser-worker/compose.yml`).
-- **Remote Preview Container Host Status**: `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` (Render anti-abuse and container provisioning requires payment verification; zero-card deployment blocked per user rules).
-- **Service**: `aira-browser-worker-preview`
+- **Platform / Target**: Modal Serverless Container (`infra/browser-worker/modal/app.py`) / Local Container Verification (`infra/browser-worker/compose.yml`).
+- **Remote Preview Container Host Status**: `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED` & `MODAL_FREE_CREDIT_INSUFFICIENT` (Modal workspace activation mandates a credit card on file to prevent botnet/scraper abuse; furthermore, continuous 24/7 always-warm `min_containers=1` consumes ~$39.71/month exceeding the $30 free compute allotment).
+- **Service**: `aira-browser-worker`
 - **Image**: `aira-browser-worker:latest`
 - **Digest**: `NOT_RECORDED` (Local source build; no public container registry digest).
-- **Source SHA**: `64ca1920bb3c4ed09c19e1709fcd872deb7797f7`
-- **Port Compatibility**: Dynamic `${PORT:-8080}` override implemented for seamless hosting on Render, Railway, Cloud Run, or Fly.io.
-- **Provider Abstraction**: Zero Render/Railway SDK or vendor lock-in (`HOSTING_PROVIDER_LOCK_IN = NONE`).
+- **Source SHA**: `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`
+- **Port Compatibility**: Dynamic `${PORT:-8080}` override implemented for seamless hosting on Modal, Render, Railway, Cloud Run, or Fly.io.
+- **Provider Abstraction**: Zero Modal SDK or vendor lock-in (`HOSTING_PROVIDER_LOCK_IN = NONE`).
 - **Replica Count**: `1` (`PREVIEW_REPLICA_COUNT = 1`)
 - **Health Endpoint**: `/healthz` returning `{"ok": true}`.
 - **Session Model**: One isolated `BrowserContext` per session with ephemeral incognito isolation.
