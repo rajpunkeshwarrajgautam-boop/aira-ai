@@ -9,12 +9,10 @@ AIRA Agents single-agent runtime architecture has been fully completed, reconcil
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `5801fb4a311547b2fbd4f3db4c279c6baaaba6f0`
-- **Reconnaissance Head**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
-- **Reconnaissance Vercel Preview Deployment**: `dpl_GCp4jiTKwNgsaQ2yeGuCgWooS355`
-- **Reconnaissance Preview URL**: `https://aira-ai-live-r60t968lx-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Starting Head**: `10d45f4d4eea198a5d005684f79f2d2a07cb32c3`
+- **Previous Product Candidate**: `165636990996832ab3678b321d8b448ea7dac668`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Final Product Candidate SHA**: `165636990996832ab3678b321d8b448ea7dac668`
+- **Final Product Candidate SHA**: `3276959c83c607f0d098ef0d5db6ad4a1d79535d`
 - **Vercel Preview Target**: `Preview`
 - **Vercel Preview Build Status**: `READY`
 
