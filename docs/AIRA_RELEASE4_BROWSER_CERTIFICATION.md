@@ -9,11 +9,11 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `dc2374616beac86640c257bcf4512fa771c7b1e4`
+- **Starting Head**: `c27576fac41663746b2b27f1bcc66d4b905b2304`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Product Candidate SHA**: `80f37ba4ace0ced7323482e12f76232a1ed9df2e`
-- **Vercel Preview Deployment ID**: `dpl_EMDCNAeTnVzmEh6icMrPG9oGKgCJ`
-- **Vercel Preview URL**: `https://aira-ai-live-o3f0so9uo-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Product Candidate SHA**: `eaaec93c49b1fa34028e5d780f9d1aef8aed3719`
+- **Vercel Preview Deployment ID**: `dpl_9CMf2PiAEJ1ZzTsYjwVSvLBAsh3a`
+- **Vercel Preview URL**: `https://aira-ai-live-dphrsaef4-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Branch Alias**: `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Preview Build Status**: `READY`
 - **Production Status**: `UNTOUCHED` (Production remains completely isolated at `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`)
@@ -24,12 +24,12 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 
 - **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
 - **Platform / Host**: Local Container Verification (`infra/browser-worker/compose.yml`).
-- **Remote Preview Container Host**: `NOT_PROVISIONED` (Awaiting explicit authorization per Gate 2).
+- **Remote Preview Container Host**: Fly.io (`aira-browser-worker-preview`) â€” Blocked pending payment method attachment on Fly.io dashboard (`https://fly.io/dashboard/raj-gautam/billing`).
 - **Service**: `aira-browser-worker`
 - **Image**: `aira-browser-worker:latest`
 - **Digest**: `NOT_RECORDED` (Local source build; no public container registry digest).
-- **Source SHA**: `80f37ba4ace0ced7323482e12f76232a1ed9df2e`
-- **Region**: Local Workstation / Docker Host
+- **Source SHA**: `eaaec93c49b1fa34028e5d780f9d1aef8aed3719`
+- **Region**: Local Workstation / Docker Host (Planned Fly region: `iad`)
 - **Replica Count**: `1` (`PREVIEW_REPLICA_COUNT = 1`)
 - **Health Endpoint**: `http://localhost:8088/healthz` (Local developer verification only; inaccessible from Vercel Preview).
 - **Session Model**: One isolated `BrowserContext` per session with ephemeral incognito isolation.
@@ -51,7 +51,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Prompt Injection Defense** | Tool Gateway Result Adapter | Output wrapped in `<aira_untrusted_browser_content>` instruction barrier | `ENFORCED` |
 | **Diagnostic Redaction** | Worker Logging & API | `_sanitize_url_for_logs` strips credentials, query tokens, and sensitive headers | `ENFORCED` |
 | **Tenant Isolation (IDOR)** | Next.js API Routes | User session verified against project ownership; cross-user attempts return 404 | `ENFORCED` |
-| **Resource Abuse Protection** | Sliding Window Limiter | In-process sliding window (3 active, 5 creates/min, 30 actions/min, 30 screenshots/min) | `PARTIAL` |
+| **Distributed Rate Limiting** | PostgreSQL Sliding Window | Atomic multi-instance DB rate limiter (5 creates/min, 30 actions/min, 30 screenshots/min) | `ENFORCED` |
 
 ---
 
@@ -108,7 +108,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Browser Security** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Network & app dual-layer SSRF defense, redirect re-validation, sanitized diagnostics |
 | **Browser Cancellation** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Remote window.stop() task abort, lease release, and truthful BROWSER_CANCELLED status |
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
-| **Browser Rate Limiting** | Phase 5 | `PARTIAL` | Local in-process sliding window; distributed Redis limiter requires infrastructure provisioning |
+| **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |
 
 ---
