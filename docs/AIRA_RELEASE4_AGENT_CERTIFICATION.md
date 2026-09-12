@@ -11,10 +11,9 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
 - **Starting Phase 4 Head**: `1739d89719a2da96ecf6b539b2004b84f7184568`
 - **Reconnaissance Head**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
-- **Previous Docs Head**: `03a6d435075093525823348d1687471eb9e1f321`
+- **Certification Head SHA**: `fc69763dc7e00e3d4161863ed1c1faa2d23be556`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
 - **Phase 4 Product Candidate SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606` (Reconnaissance / Architecture Head)
-- **Certification Head SHA**: `03a6d435075093525823348d1687471eb9e1f321`
 - **Reconnaissance Vercel Preview Deployment**: `dpl_GCp4jiTKwNgsaQ2yeGuCgWooS355`
 - **Certification Vercel Preview Deployment**: `dpl_67J1jGg6e1cusqdRVrT1y7psKJEY`
 - **Reconnaissance Preview URL**: `https://aira-ai-live-r60t968lx-rajpunkeshwarrajgautam-boops-projects.vercel.app`
@@ -27,22 +26,20 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 
 - **Standalone AIRA Agents**: Serves `/api/agents/*` and `/api/agents/runs/*` via the `AgentRuntime` registry (`DEERFLOW`, `AUTOGPT`, `AGENT_SWARM`).
 - **Managed Agent Platform**: Coordinates multi-role tasks (`AgentPlatformRun`, `AgentTask`, `AgentInstance`) via `lib/agent-platform/orchestrator.ts`.
-- **Knowledge Ingestion Pipeline**: Dedicated document ingestion worker (`infra/foundation/knowledge-worker`) via Redis Stream (`aira:jobs:knowledge.ingest`).
+- **Knowledge Ingestion Pipeline**: Dedicated document ingestion worker (`infra/foundation/knowledge-worker`) via Redis Stream (`aira:jobs:knowledge.ingest`). Belongs exclusively to Phase 3 Knowledge RAG.
 - **LangGraph / CrewAI**: `NOT_ACTUALLY_INVOKED` (Frameworks evaluated; existing provider-neutral architecture maintained).
 - **Event Transport**: Authenticated JSON polling with `Cache-Control: no-store` header via `/api/agents/runs/[runId]/events`.
 
 ---
 
-## 3. Worker Provenance
+## 3. Worker / External Runtime Provenance
 
-- **Platform**: Python 3.11 Container Runtime (`infra/foundation/knowledge-worker`)
-- **Service**: `aira-foundation-knowledge-worker-preview`
-- **Deployment**: `dpl_GCp4jiTKwNgsaQ2yeGuCgWooS355`
-- **Source SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
-- **Image**: `aira-knowledge-worker:preview`
-- **Image Digest**: `NOT_RECORDED`
-- **Region**: `us-east-1`
-- **Health**: `OPERATIONAL`
+- **Knowledge Worker**: `infra/foundation/knowledge-worker` (`aira:jobs:knowledge.ingest`) — Phase 3 Knowledge RAG document ingestion worker. **NOT AN AGENT EXECUTION RUNTIME.**
+- **Agent Worker / External Runtime Provenance**:
+  - **DEERFLOW**: `DEERFLOW_API_BASE_URL` (Certified active single-agent runtime provider)
+  - **AUTOGPT**: `NOT_CONFIGURED`
+  - **AGENT_SWARM**: `NOT_CONFIGURED`
+- **Execution Model**: `Agent Worker: NOT_APPLICABLE — execution delegated to selected AgentRuntime provider`
 
 ---
 
@@ -61,7 +58,8 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 | Test Scenario | Input Query / Action | Expected Result | Certification Status |
 | :--- | :--- | :--- | :--- |
 | **Basic Task Execution** | `"Return exactly 37 + 58 and explain in one sentence."` | Output: `95` with step timeline | `PASS` |
-| **Knowledge-Grounded Task** | `"What is the Borealis reference number?"` | Output: `68421` with private filename attribution | `PASS` |
+| **Knowledge-Grounded Task** | `"What is the Borealis reference number?"` | Answer context retrieved (Phase 3 Search); Standalone agent context injection is partial | `PARTIAL` |
+| **Memory-Grounded Task** | `"What is my AIRA verification codename?"` | User memory stored; Standalone agent context injection is partial | `PARTIAL` |
 | **Read-Only Tool Task** | `"Search for latest web documentation for Next.js"` | Tool authorization passes; result returned | `PASS` |
 | **Run Cancellation** | User issues Cancel during active execution | Runtime aborts run (`TERMINATED` / `CANCELLED`) | `PASS` |
 | **Run Timeout** | Execution exceeds max duration budget | Graceful transition to `TIMED_OUT` / `WORKFLOW_AGENT_TIMEOUT` state | `PASS` |
@@ -73,16 +71,16 @@ AIRA Agents single-agent runtime architecture has been fully reconciled and veri
 
 | Feature / Subsystem | Capability Status | Notes |
 | :--- | :--- | :--- |
-| **Agent Definition** | `WORKING_E2E_IN_PREVIEW` | Full CRUD operations with user ownership |
-| **Single-Agent Execution** | `WORKING_E2E_IN_PREVIEW` | Model reasoning, step execution, and persistence |
-| **Tools** | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway (`READ_ONLY`, `PRIVILEGED`) |
-| **Knowledge** | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 768-dim PGVector search grounding |
-| **Memory** | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory access |
+| **Agent Definition** | `PARTIAL` | Saved `AgentDefinition` CRUD exists; execution path accepts objective/provider without direct binding |
+| **Single-Agent Execution** | `WORKING_E2E_IN_PREVIEW` | Model reasoning, step execution, and persistence via selected runtime provider |
+| **Tools** | `PARTIAL` | Risk-classified tool gateway (`READ_ONLY`, `PRIVILEGED`) implemented; external bridge partial |
+| **Knowledge** | `PARTIAL` | Certified Phase 3 PGVector search context grounding; direct agent context injection partial |
+| **Memory** | `PARTIAL` | User conversation & project memory access implemented; direct agent buffer injection partial |
 | **MCP** | `CONFIGURATION_BLOCKED` | MCP bridge adapter configured; live server optional |
-| **Cancellation** | `WORKING_E2E_IN_PREVIEW` | Provider cancellation endpoint with terminal state |
-| **Timeout** | `WORKING_E2E_IN_PREVIEW` | Bounded duration budget enforcement |
+| **Cancellation** | `WORKING_E2E_IN_PREVIEW` | Provider cancellation endpoint with terminal state (`TERMINATED`) |
+| **Timeout** | `WORKING_E2E_IN_PREVIEW` | Bounded duration budget enforcement (`WORKFLOW_AGENT_TIMEOUT`) |
 | **Outputs** | `WORKING_E2E_IN_PREVIEW` | Persisted step results and artifact references |
-| **Events** | `WORKING_E2E_IN_PREVIEW` | Authenticated JSON event polling timeline |
+| **Events** | `WORKING_E2E_IN_PREVIEW` | Authenticated JSON event polling timeline (`AUTHENTICATED_JSON_POLLING`) |
 | **Teams / Swarms** | `HIDDEN` | Multi-agent swarms intentionally gated for Phase 9 |
 
 ---
