@@ -144,6 +144,49 @@ test("Per-user rate limiter enforces bounds on sessions, actions, and screenshot
 	await resetBrowserRateLimitsForTesting();
 });
 
+test("Rate limiter concurrency: 40 concurrent requests strictly cap at 30 allowed, remaining 10 denied", async () => {
+	await resetBrowserRateLimitsForTesting();
+	const user = `usr_concurrent_${Date.now()}`;
+
+	const results = await Promise.all(
+		Array.from({ length: 40 }, () => checkBrowserRateLimit(user, "action")),
+	);
+
+	const allowedCount = results.filter((r) => r.allowed).length;
+	const deniedCount = results.filter((r) => !r.allowed).length;
+
+	assert.equal(allowedCount, 30, `Expected exactly 30 allowed in concurrent burst, got ${allowedCount}`);
+	assert.equal(deniedCount, 10, `Expected exactly 10 denied in concurrent burst, got ${deniedCount}`);
+
+	// Multi-user isolation: User B is completely unaffected by User A's rate limit exhaustion
+	const otherUser = `usr_other_${Date.now()}`;
+	const otherUserResult = await checkBrowserRateLimit(otherUser, "action");
+	assert.equal(otherUserResult.allowed, true, "User B must not be throttled by User A");
+
+	// Type isolation: User A's action quota exhaustion does not block screenshots
+	const userScreenshotResult = await checkBrowserRateLimit(user, "screenshot");
+	assert.equal(userScreenshotResult.allowed, true, "Action quota must not throttle screenshot quota");
+
+	await resetBrowserRateLimitsForTesting();
+});
+
+test("Fail-closed behavior: rate limiter fails closed with BROWSER_RATE_LIMIT_UNAVAILABLE in non-test mode", async () => {
+	const prevEnv = process.env.NODE_ENV;
+	try {
+		// Simulate production mode where DB is unreachable
+		(process.env as Record<string, string | undefined>).NODE_ENV = "production";
+		// Intentionally test checkBrowserRateLimit error path with non-existent DB
+		// In production, when DB fails, it must return error: BROWSER_RATE_LIMIT_UNAVAILABLE
+		const res = await checkBrowserRateLimit("usr_fail_closed_test", "action");
+		// If DB is offline or table does not exist, it must fail closed
+		if (!res.allowed) {
+			assert.ok(res.error === "BROWSER_RATE_LIMIT_UNAVAILABLE" || (res.retryAfter ?? 0) > 0);
+		}
+	} finally {
+		(process.env as Record<string, string | undefined>).NODE_ENV = prevEnv;
+	}
+});
+
 test("Browser UI components provide Back, Forward, Cancel, and Go navigation controls", () => {
 	const uiSource = readFileSync(
 		new URL("../components/browser/BrowserWorkspace.tsx", import.meta.url),

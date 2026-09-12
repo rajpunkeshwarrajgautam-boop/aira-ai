@@ -73,6 +73,12 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 
 	const rate = await checkBrowserRateLimit(session.user.id, "action");
 	if (!rate.allowed) {
+		if (rate.error === "BROWSER_RATE_LIMIT_UNAVAILABLE") {
+			return json(
+				{ error: { code: "BROWSER_RATE_LIMIT_UNAVAILABLE", message: "Browser rate limiting service is currently unavailable. Please retry shortly." } },
+				{ status: 503, headers: { "Retry-After": "5" } },
+			);
+		}
 		return json(
 			{ error: { code: "BROWSER_RATE_LIMITED", message: "Browser action rate limit exceeded." } },
 			{ status: 429, headers: { "Retry-After": String(rate.retryAfter ?? 60) } },

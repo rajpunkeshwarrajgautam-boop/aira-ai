@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 
 export type BrowserRateLimitType = "session_create" | "action" | "screenshot";
 
+export interface RateLimitResult {
+	allowed: boolean;
+	retryAfter?: number;
+	error?: "BROWSER_RATE_LIMIT_UNAVAILABLE";
+}
+
 interface RateLimitConfig {
 	max: number;
 	windowSeconds: number;
@@ -15,61 +21,46 @@ const LIMITS: Record<BrowserRateLimitType, RateLimitConfig> = {
 
 export const MAX_ACTIVE_SESSIONS_PER_USER = 3;
 
-// In-memory fallback buckets for testing or when database is temporarily unavailable
+// In-memory fallback buckets strictly for isolated test suites
 interface RateLimitBucket {
 	count: number;
 	resetAt: number;
 }
 const inMemoryBuckets = new Map<string, RateLimitBucket>();
 
-let tableInitialized = false;
-
-async function ensureRateLimitTable(): Promise<void> {
-	if (tableInitialized) return;
-	try {
-		await prisma.$executeRawUnsafe(`
-			CREATE TABLE IF NOT EXISTS "BrowserRateLimitEvent" (
-				"id" text primary key,
-				"userId" text not null,
-				"type" text not null,
-				"createdAt" timestamp(3) not null default current_timestamp
-			);
-			CREATE INDEX IF NOT EXISTS "BrowserRateLimitEvent_lookup_idx"
-				ON "BrowserRateLimitEvent" ("userId", "type", "createdAt" desc);
-		`);
-		tableInitialized = true;
-	} catch {
-		// Suppress table initialization failure in non-postgres test environments
-	}
-}
-
 /**
  * Server-authoritative distributed rate limiter backed by PostgreSQL.
- * Multi-instance safe across Vercel Preview serverless functions.
- * Atomic sliding-window evaluation with automatic bounded history pruning.
+ * Uses pg_advisory_xact_lock to ensure atomic serializable rate limiting
+ * across concurrent Vercel serverless functions without overselling limits.
+ * Fails closed in Preview/Production with BROWSER_RATE_LIMIT_UNAVAILABLE if DB is down.
  */
 export async function checkBrowserRateLimit(
 	userId: string,
 	type: BrowserRateLimitType,
-): Promise<{ allowed: boolean; retryAfter?: number }> {
+): Promise<RateLimitResult> {
 	const config = LIMITS[type];
 	const now = Date.now();
 	const windowMs = config.windowSeconds * 1000;
+	const lockKey = `browser_rate_limit:${userId}:${type}`;
 
 	try {
-		await ensureRateLimitTable();
 		const windowStart = new Date(now - windowMs);
 		const cleanupThreshold = new Date(now - 300_000); // 5 minutes retention
 		const eventId = crypto.randomUUID();
 
 		const result = await prisma.$transaction(async (tx) => {
-			// 1. Prune expired entries to maintain bounded table size
+			// 1. Obtain transaction-scoped advisory lock for the (userId + type) hash
+			await tx.$executeRaw`
+				SELECT pg_advisory_xact_lock(hashtext(${lockKey}))
+			`;
+
+			// 2. Prune expired entries to maintain bounded table size
 			await tx.$executeRaw`
 				DELETE FROM "BrowserRateLimitEvent"
 				WHERE "createdAt" < ${cleanupThreshold}
 			`;
 
-			// 2. Count events in active sliding window
+			// 3. Count events in active sliding window under the advisory lock
 			const rows = await tx.$queryRaw<Array<{ count: bigint | number; oldest: Date | null }>>`
 				SELECT count(*)::int as count, min("createdAt") as oldest
 				FROM "BrowserRateLimitEvent"
@@ -85,7 +76,7 @@ export async function checkBrowserRateLimit(
 				return { allowed: false, retryAfter };
 			}
 
-			// 3. Atomically record this request event
+			// 4. Atomically record this request event within the locked transaction
 			await tx.$executeRaw`
 				INSERT INTO "BrowserRateLimitEvent" ("id", "userId", "type", "createdAt")
 				VALUES (${eventId}, ${userId}, ${type}, current_timestamp)
@@ -95,19 +86,35 @@ export async function checkBrowserRateLimit(
 		});
 
 		return result;
-	} catch {
-		// Fall back safely to in-memory sliding window when database is not configured/accessible
-		return checkBrowserRateLimitMemory(userId, type);
+	} catch (error) {
+		// In Preview and Production: FAIL CLOSED
+		// In-memory fallback is strictly restricted to explicit local test or development environments
+		// and is NEVER allowed in Preview (Vercel) or Production.
+		const isExplicitDevOrTest =
+			(process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development") &&
+			!process.env.VERCEL &&
+			process.env.VERCEL_ENV !== "preview";
+
+		if (isExplicitDevOrTest) {
+			return checkBrowserRateLimitMemory(userId, type);
+		}
+
+		console.error("Distributed browser rate limiter error:", error);
+		return {
+			allowed: false,
+			error: "BROWSER_RATE_LIMIT_UNAVAILABLE",
+			retryAfter: 5,
+		};
 	}
 }
 
 /**
- * Synchronous in-memory rate limit checker for offline or test environments.
+ * Synchronous in-memory rate limit checker for isolated unit tests.
  */
 export function checkBrowserRateLimitMemory(
 	userId: string,
 	type: BrowserRateLimitType,
-): { allowed: boolean; retryAfter?: number } {
+): RateLimitResult {
 	const key = `${userId}:${type}`;
 	const now = Date.now();
 	const config = LIMITS[type];

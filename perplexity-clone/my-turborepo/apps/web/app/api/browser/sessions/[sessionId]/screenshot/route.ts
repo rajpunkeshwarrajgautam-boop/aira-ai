@@ -13,6 +13,12 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 	if (!session?.user?.id) return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	const rate = await checkBrowserRateLimit(session.user.id, "screenshot");
 	if (!rate.allowed) {
+		if (rate.error === "BROWSER_RATE_LIMIT_UNAVAILABLE") {
+			return Response.json(
+				{ error: { code: "BROWSER_RATE_LIMIT_UNAVAILABLE", message: "Browser rate limiting service is currently unavailable. Please retry shortly." } },
+				{ status: 503, headers: { "Retry-After": "5" } },
+			);
+		}
 		return Response.json(
 			{ error: { code: "BROWSER_RATE_LIMITED", message: "Browser screenshot rate limit exceeded." } },
 			{ status: 429, headers: { "Retry-After": String(rate.retryAfter ?? 60) } },

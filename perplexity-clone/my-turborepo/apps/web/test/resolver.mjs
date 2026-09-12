@@ -14,6 +14,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import process from "node:process";
 
+if (!process.env.NODE_ENV) {
+	process.env.NODE_ENV = "test";
+}
+
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EXTENSIONS = [".ts", ".tsx", ".mts", ".js", ".mjs"];
 
