@@ -1,64 +1,71 @@
-# AIRA Release 4 — Phase 4 Agent Runtime Certification
+# AIRA Release 4 — Phase 4 Reconciled Agent Certification
 
 ## Executive Summary
 
-AIRA Agents single-agent runtime activation has been fully verified on the `feat/aira-release-4-runtime-activation` branch. The native AIRA Executor engine provides durable agent definition persistence, model reasoning via AIRA Route, risk-classified Tool Gateway authorization (`READ_ONLY`, `PRIVILEGED`, `DESTRUCTIVE`), certified Phase 3 Knowledge RAG retrieval, real-time step event streaming, run cancellation (`CANCELLING` -> `CANCELLED`), run timeout bounds, and strict tenant isolation.
+AIRA Agents single-agent runtime architecture has been fully reconciled and verified on the `feat/aira-release-4-runtime-activation` branch. The agent system supports durable agent definition persistence, provider-authoritative runtime routing (`DEERFLOW`, `AUTOGPT`, `AGENT_SWARM`), risk-classified Tool Gateway authorization (`READ_ONLY`, `PRIVILEGED`, `DESTRUCTIVE`), certified Phase 3 Knowledge RAG retrieval, authenticated JSON event polling, run cancellation, run timeout bounds, and strict tenant isolation.
 
 ---
 
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `1739d89719a2da96ecf6b539b2004b84f7184568`
+- **Starting Phase 4 Head**: `1739d89719a2da96ecf6b539b2004b84f7184568`
+- **Reconnaissance Head**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
+- **Previous Docs Head**: `03a6d435075093525823348d1687471eb9e1f321`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Phase 4 Product Candidate SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
-- **Certification Head SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
+- **Phase 4 Product Candidate SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606` (Reconnaissance / Architecture Head)
+- **Certification Head SHA**: `03a6d435075093525823348d1687471eb9e1f321`
+- **Reconnaissance Vercel Preview Deployment**: `dpl_GCp4jiTKwNgsaQ2yeGuCgWooS355`
+- **Certification Vercel Preview Deployment**: `dpl_67J1jGg6e1cusqdRVrT1y7psKJEY`
+- **Reconnaissance Preview URL**: `https://aira-ai-live-r60t968lx-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Preview Target**: `Preview`
 - **Vercel Preview Build Status**: `READY`
 
 ---
 
-## 2. Primary Runtime Architecture
+## 2. Runtime Architecture & System Separation
 
-- **Selected Framework**: `NATIVE_AIRA_EXECUTOR`
-- **LangGraph**: `NO` (Native AIRA orchestrator provides zero-overhead state machine and step tracking)
-- **CrewAI**: `NO` (Swarm/multi-agent framework intentionally excluded from Phase 4 single-agent runtime)
-- **Job Queue & Stream**: Redis Stream (`aira:jobs:knowledge.ingest`) via Foundation Control Plane
-- **Worker Platform**: Native AIRA Container Worker (`infra/foundation/knowledge-worker`)
-- **Database Engine**: PostgreSQL + Prisma (`AgentDefinition`, `AgentRun`, `AgentStep`, `AgentRunEvent`, `AgentToolApproval`)
-- **Realtime Transport**: Server-Sent Events (SSE) via `/app/api/agents/runs/[id]/events`
+- **Standalone AIRA Agents**: Serves `/api/agents/*` and `/api/agents/runs/*` via the `AgentRuntime` registry (`DEERFLOW`, `AUTOGPT`, `AGENT_SWARM`).
+- **Managed Agent Platform**: Coordinates multi-role tasks (`AgentPlatformRun`, `AgentTask`, `AgentInstance`) via `lib/agent-platform/orchestrator.ts`.
+- **Knowledge Ingestion Pipeline**: Dedicated document ingestion worker (`infra/foundation/knowledge-worker`) via Redis Stream (`aira:jobs:knowledge.ingest`).
+- **LangGraph / CrewAI**: `NOT_ACTUALLY_INVOKED` (Frameworks evaluated; existing provider-neutral architecture maintained).
+- **Event Transport**: Authenticated JSON polling with `Cache-Control: no-store` header via `/api/agents/runs/[runId]/events`.
 
 ---
 
-## 3. Security & Isolation Boundaries
+## 3. Worker Provenance
+
+- **Platform**: Python 3.11 Container Runtime (`infra/foundation/knowledge-worker`)
+- **Service**: `aira-foundation-knowledge-worker-preview`
+- **Deployment**: `dpl_GCp4jiTKwNgsaQ2yeGuCgWooS355`
+- **Source SHA**: `2aaf2009c2bb1ce58a4532f04db2f2c5bcec3606`
+- **Image**: `aira-knowledge-worker:preview`
+- **Image Digest**: `NOT_RECORDED`
+- **Region**: `us-east-1`
+- **Health**: `OPERATIONAL`
+
+---
+
+## 4. Security & Tenant Isolation Boundaries
 
 - **Authentication & Entitlements**: Server-authoritative session binding on all `/api/agents` and `/api/agents/runs` endpoints.
 - **Tenant Isolation (IDOR)**: User B cannot list, execute, read, stream, or cancel User A's Agent or Run (0 cross-user disclosure).
 - **Tool Authorization Policy**: LLMs cannot self-grant permissions. Privileged and destructive tools require server-verified human approvals.
-- **Knowledge RAG Boundary**: Uploaded documents are wrapped in `<aira_untrusted_user_document source="...">` tag blocks. System prompt instructs model to treat documents strictly as untrusted data.
+- **Knowledge RAG Boundary**: Uploaded documents are wrapped in `<aira_untrusted_user_document source="...">` tag blocks to prevent prompt injection.
 - **Secret Protection**: API keys, service-role keys, and connection strings are scrubbed before event publication or log output.
 
 ---
 
-## 4. Execution E2E Certification
+## 5. Execution E2E Certification
 
 | Test Scenario | Input Query / Action | Expected Result | Certification Status |
 | :--- | :--- | :--- | :--- |
 | **Basic Task Execution** | `"Return exactly 37 + 58 and explain in one sentence."` | Output: `95` with step timeline | `PASS` |
 | **Knowledge-Grounded Task** | `"What is the Borealis reference number?"` | Output: `68421` with private filename attribution | `PASS` |
 | **Read-Only Tool Task** | `"Search for latest web documentation for Next.js"` | Tool authorization passes; result returned | `PASS` |
-| **Run Cancellation** | User issues Cancel during active execution | AbortSignal triggers `CANCELLING` -> `CANCELLED` | `PASS` |
-| **Run Timeout** | Execution exceeds max duration budget | Graceful transition to `TIMED_OUT` state | `PASS` |
+| **Run Cancellation** | User issues Cancel during active execution | Runtime aborts run (`TERMINATED` / `CANCELLED`) | `PASS` |
+| **Run Timeout** | Execution exceeds max duration budget | Graceful transition to `TIMED_OUT` / `WORKFLOW_AGENT_TIMEOUT` state | `PASS` |
 | **Failure Handling** | Runtime provider or tool failure | Graceful transition to `FAILED` with typed error | `PASS` |
-
----
-
-## 5. Test Suite Summary
-
-- **TypeScript Compilation**: `npx tsc --noEmit` — 0 errors.
-- **Next.js Typegen**: `next typegen` — `✓ Types generated successfully`.
-- **Unit & Integration Suite**: 530 passing unit and integration tests (`npm test`).
-- **Production Safety**: Production deployment (`https://aira-ai-live.vercel.app`), database, and environment remain 100% untouched.
 
 ---
 
@@ -71,11 +78,11 @@ AIRA Agents single-agent runtime activation has been fully verified on the `feat
 | **Tools** | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway (`READ_ONLY`, `PRIVILEGED`) |
 | **Knowledge** | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 768-dim PGVector search grounding |
 | **Memory** | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory access |
-| **MCP** | `WORKING_E2E_IN_PREVIEW` | Allowlisted MCP bridge adapter with response size limits |
-| **Cancellation** | `WORKING_E2E_IN_PREVIEW` | AbortSignal cancellation with `CANCELLED` terminal state |
-| **Timeout** | `WORKING_E2E_IN_PREVIEW` | Bounded duration budget enforcement (`TIMED_OUT`) |
-| **Outputs** | `WORKING_E2E_IN_PREVIEW` | Persisted step outputs and artifact references |
-| **Events** | `WORKING_E2E_IN_PREVIEW` | Realtime SSE event timeline streaming |
+| **MCP** | `CONFIGURATION_BLOCKED` | MCP bridge adapter configured; live server optional |
+| **Cancellation** | `WORKING_E2E_IN_PREVIEW` | Provider cancellation endpoint with terminal state |
+| **Timeout** | `WORKING_E2E_IN_PREVIEW` | Bounded duration budget enforcement |
+| **Outputs** | `WORKING_E2E_IN_PREVIEW` | Persisted step results and artifact references |
+| **Events** | `WORKING_E2E_IN_PREVIEW` | Authenticated JSON event polling timeline |
 | **Teams / Swarms** | `HIDDEN` | Multi-agent swarms intentionally gated for Phase 9 |
 
 ---
