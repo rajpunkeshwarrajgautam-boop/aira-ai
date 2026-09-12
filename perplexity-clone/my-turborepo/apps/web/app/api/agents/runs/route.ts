@@ -35,8 +35,13 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { globalUserAgentStore } from "@/lib/agents/user-agents-store";
+import { getFollowUpContext } from "@/lib/conversation-memory";
+import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
+
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
+	agentDefinitionId: z.string().optional(),
 	objective: z.string().trim().min(3).max(4_000),
 	provider: z.enum(["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
 });
@@ -146,9 +151,49 @@ export async function POST(req: Request): Promise<Response> {
 		throw error;
 	}
 
+	let agentDef = null;
+	if (parsed.data.agentDefinitionId) {
+		agentDef = await globalUserAgentStore.getAgentAsync(session.user.id, parsed.data.agentDefinitionId);
+		if (!agentDef) {
+			return noStoreJson(
+				{ error: { code: "NOT_FOUND", message: "Agent definition not found." } },
+				{ status: 404 },
+			);
+		}
+	}
+
+	let knowledgeContext: string[] = [];
+	let memoryContext: string[] = [];
+
+	if (agentDef) {
+		const knowledgeEnabled = agentDef.connectors?.includes("knowledge") || agentDef.tools?.includes("knowledge") || true;
+		if (knowledgeEnabled) {
+			try {
+				const kDocs = await getRelevantKnowledgeContext(session.user.id, parsed.data.objective, 6);
+				knowledgeContext = [...kDocs];
+			} catch (err) {
+				console.warn("[agents:runs] Knowledge retrieval failed:", err);
+			}
+		}
+
+		const memoryEnabled = agentDef.memoryPolicy?.enabled !== false;
+		if (memoryEnabled) {
+			try {
+				const memResult = await getFollowUpContext({
+					userId: session.user.id,
+					query: parsed.data.objective,
+				});
+				memoryContext = [...memResult.contextualMemory];
+			} catch (err) {
+				console.warn("[agents:runs] Memory retrieval failed:", err);
+			}
+		}
+	}
+
 	let leaseId: string | undefined;
 	try {
-		const selectedRuntime = await selectAgentRuntime(parsed.data.provider as AgentRuntimeId | undefined);
+		const requestedProvider = parsed.data.provider ?? (agentDef?.modelPolicy?.provider === "DEERFLOW" ? "DEERFLOW" : undefined);
+		const selectedRuntime = await selectAgentRuntime(requestedProvider as AgentRuntimeId | undefined);
 		const lease = await admitFoundationRequest({
 			requestId: parsed.data.clientRequestId,
 			kind: "agent",
@@ -169,10 +214,20 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		leaseId = lease.leaseId;
 
+		const agentExecutionOptions = agentDef ? {
+			agentDefinitionId: agentDef.id,
+			name: agentDef.name,
+			instructions: agentDef.instructions,
+			allowedTools: agentDef.tools.length > 0 ? agentDef.tools : ["web"],
+			knowledgeContext,
+			memoryContext,
+		} : undefined;
+
 		const submitted = await selectedRuntime.createRun({
 			userId: session.user.id,
 			clientRequestId: parsed.data.clientRequestId,
 			objective: parsed.data.objective,
+			agentExecutionOptions,
 		});
 
 		await Promise.all([

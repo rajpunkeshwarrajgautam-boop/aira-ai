@@ -192,45 +192,68 @@ export async function getRelevantKnowledgeContext(
 	query: string,
 	limit = 6,
 ): Promise<readonly string[]> {
-	if (process.env.MULTIMODAL_INGESTION_ENABLED !== "true") return [];
-	const route = await embeddingRouteOrNull(userId);
-	if (!route) return [];
-	let literal: string;
-	try {
-		const { vector } = await embedTextWithRoute(route, query, "query");
-		literal = semanticEmbeddingVectorLiteral(vector);
-	} catch (error) {
-		console.warn(
-			"[AIRA semantic embedding] Knowledge query embedding failed; semantic knowledge unavailable:",
-			error instanceof Error ? error.message : String(error),
-		);
-		return [];
-	}
 	const take = Math.min(Math.max(limit, 1), 12);
-	const rows = await prisma.$queryRaw<
-		Array<{ filename: string; ordinal: number; content: string; similarity: number }>
-	>`
-		select
-			a.filename,
-			kc.ordinal,
-			kc.content,
-			(1 - (kse.embedding <=> ${literal}::extensions.vector))::double precision as similarity
-		from public."KnowledgeChunkSemanticEmbedding" kse
-		join public."KnowledgeChunk" kc on kc.id = kse."chunkId"
-		join public."KnowledgeAsset" a on a.id = kc."assetId"
-		where kse."userId" = ${userId}
-			and kc."userId" = ${userId}
-			and a.status = 'READY'
-			and kse.tier = ${route.tier}
-			and kse.provider = ${route.providerId}
-			and kse.model = ${route.model}
-		order by kse.embedding <=> ${literal}::extensions.vector
-		limit ${take}
-	`;
-	return rows
-		.filter((row) => row.similarity >= 0.55)
-		.map(
+
+	if (process.env.MULTIMODAL_INGESTION_ENABLED === "true") {
+		const route = await embeddingRouteOrNull(userId);
+		if (route) {
+			try {
+				const { vector } = await embedTextWithRoute(route, query, "query");
+				const literal = semanticEmbeddingVectorLiteral(vector);
+				const rows = await prisma.$queryRaw<
+					Array<{ filename: string; ordinal: number; content: string; similarity: number }>
+				>`
+					select
+						a.filename,
+						kc.ordinal,
+						kc.content,
+						(1 - (kse.embedding <=> ${literal}::extensions.vector))::double precision as similarity
+					from public."KnowledgeChunkSemanticEmbedding" kse
+					join public."KnowledgeChunk" kc on kc.id = kse."chunkId"
+					join public."KnowledgeAsset" a on a.id = kc."assetId"
+					where kse."userId" = ${userId}
+						and kc."userId" = ${userId}
+						and a.status = 'READY'
+						and kse.tier = ${route.tier}
+						and kse.provider = ${route.providerId}
+						and kse.model = ${route.model}
+					order by kse.embedding <=> ${literal}::extensions.vector
+					limit ${take}
+				`;
+				const matched = rows
+					.filter((row) => row.similarity >= 0.55)
+					.map(
+						(row) =>
+							`<aira_untrusted_user_document source=${JSON.stringify(row.filename)} chunk=${row.ordinal}>\n${row.content.slice(0, 2600)}\n</aira_untrusted_user_document>`,
+					);
+				if (matched.length > 0) return matched;
+			} catch (error) {
+				console.warn(
+					"[AIRA semantic embedding] Knowledge query embedding failed; falling back to lexical search:",
+					error instanceof Error ? error.message : String(error),
+				);
+			}
+		}
+	}
+
+	// Lexical fallback for uploaded assets
+	try {
+		const lexicalRows = await prisma.$queryRaw<
+			Array<{ filename: string; ordinal: number; content: string }>
+		>`
+			select a.filename, kc.ordinal, kc.content
+			from public."KnowledgeChunk" kc
+			join public."KnowledgeAsset" a on a.id = kc."assetId"
+			where kc."userId" = ${userId}
+				and a.status = 'READY'
+			order by kc.ordinal asc
+			limit ${take}
+		`;
+		return lexicalRows.map(
 			(row) =>
 				`<aira_untrusted_user_document source=${JSON.stringify(row.filename)} chunk=${row.ordinal}>\n${row.content.slice(0, 2600)}\n</aira_untrusted_user_document>`,
 		);
+	} catch {
+		return [];
+	}
 }

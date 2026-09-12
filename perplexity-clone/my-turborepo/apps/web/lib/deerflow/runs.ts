@@ -98,11 +98,14 @@ function decodeRemoteExecution(value: string): { readonly threadId: string; read
 	return { threadId: value.slice(0, separator), runId: value.slice(separator + 1) };
 }
 
+import type { AgentExecutionOptions } from "@/lib/agent-runtime/types";
+
 export async function submitDeerFlowAgentRun(options: {
 	readonly userId: string;
 	readonly clientRequestId: string;
 	readonly objective: string;
 	readonly billingMode?: "BILLABLE" | "DELEGATED";
+	readonly agentExecutionOptions?: AgentExecutionOptions;
 }): Promise<{ readonly run: AgentRunDto; readonly agentRunsRemaining: number }> {
 	const config = getDeerFlowConfig();
 	const billable = options.billingMode !== "DELEGATED";
@@ -169,6 +172,7 @@ export async function submitDeerFlowAgentRun(options: {
 			threadId,
 			options.objective,
 			pendingRun.id,
+			options.agentExecutionOptions,
 		);
 	} catch (error) {
 		const outcomeUnknown =

@@ -30,6 +30,15 @@ export interface AgentRuntimeHealth {
 	readonly capabilities: AgentRuntimeCapabilities;
 }
 
+export interface AgentExecutionOptions {
+	readonly agentDefinitionId?: string;
+	readonly name?: string;
+	readonly instructions?: string;
+	readonly allowedTools?: readonly string[];
+	readonly knowledgeContext?: readonly string[];
+	readonly memoryContext?: readonly string[];
+}
+
 export interface CreateAgentRunInput {
 	readonly userId: string;
 	readonly clientRequestId: string;
@@ -39,6 +48,7 @@ export interface CreateAgentRunInput {
 	 * reserved for child executions inside an already-billed managed mission.
 	 */
 	readonly billingMode?: AgentRunBillingMode;
+	readonly agentExecutionOptions?: AgentExecutionOptions;
 }
 
 export interface AgentRunSubmission {
