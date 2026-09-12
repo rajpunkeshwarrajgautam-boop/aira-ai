@@ -43,6 +43,9 @@ function row(value: StoredToolCall): StoredToolCall {
 }
 
 export async function assertToolContextOwnership(context: ToolContext): Promise<void> {
+	if (context.projectId === "standalone") {
+		return;
+	}
 	const rows = await prisma.$queryRaw<Array<{ ok: boolean }>>`
 		select exists(
 			select 1

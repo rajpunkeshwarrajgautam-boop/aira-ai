@@ -258,17 +258,13 @@ export async function executeTool(
 	}
 
 	// Standalone AgentDefinition tool allowlist & ownership enforcement
-	if (context.runId) {
+	if (context.projectId === "standalone" && context.runId) {
 		try {
 			const runRow = await prisma.agentRun.findFirst({
 				where: { id: context.runId, userId: context.userId },
 				select: { graphId: true, userId: true },
 			});
-			if (!runRow) {
-				await failToolCall(stored.id, "RUN_NOT_FOUND", "DENIED");
-				return { status: "DENIED", toolCallId: stored.id, risk, reason: "AgentRun not found for this user." };
-			}
-			if (runRow.graphId.startsWith("agent-def:")) {
+			if (runRow && runRow.graphId && runRow.graphId.startsWith("agent-def:")) {
 				const agentDefId = runRow.graphId.slice("agent-def:".length);
 				const agentDef = await globalUserAgentStore.getAgentAsync(context.userId, agentDefId);
 				if (!agentDef || agentDef.userId !== context.userId) {
@@ -283,7 +279,22 @@ export async function executeTool(
 				}
 			}
 		} catch (err) {
-			console.warn("[tool-gateway] Standalone agent tool allowlist check failed:", err);
+			console.error("[tool-gateway] Standalone agent tool authorization resolution failed:", err);
+			await failToolCall(stored.id, "AGENT_TOOL_AUTHORIZATION_UNAVAILABLE", "DENIED");
+			await appendEvent({
+				projectId: context.projectId,
+				runId: context.runId,
+				taskId: context.taskId,
+				agentId: context.agentId,
+				type: "tool.denied",
+				payload: { tool: request.tool, action: request.action, risk, reason: "Agent tool authorization resolution unavailable." },
+			});
+			return {
+				status: "DENIED",
+				toolCallId: stored.id,
+				risk,
+				reason: "Agent tool authorization resolution unavailable.",
+			};
 		}
 	}
 
