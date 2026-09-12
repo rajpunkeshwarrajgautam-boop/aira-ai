@@ -236,8 +236,19 @@ export async function getRelevantKnowledgeContext(
 		}
 	}
 
-	// Lexical fallback for uploaded assets
+	// Bounded query-sensitive lexical fallback for uploaded assets
 	try {
+		const terms = query
+			.trim()
+			.split(/\s+/)
+			.map((t) => t.replaceAll(/[^a-zA-Z0-9]/g, ""))
+			.filter((t) => t.length >= 2);
+
+		if (terms.length === 0) return [];
+
+		const pattern = `%${terms.join("%")}%`;
+		const firstTermPattern = `%${terms[0]}%`;
+
 		const lexicalRows = await prisma.$queryRaw<
 			Array<{ filename: string; ordinal: number; content: string }>
 		>`
@@ -246,6 +257,7 @@ export async function getRelevantKnowledgeContext(
 			join public."KnowledgeAsset" a on a.id = kc."assetId"
 			where kc."userId" = ${userId}
 				and a.status = 'READY'
+				and (kc.content ilike ${pattern} or kc.content ilike ${firstTermPattern} or a.filename ilike ${firstTermPattern})
 			order by kc.ordinal asc
 			limit ${take}
 		`;

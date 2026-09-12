@@ -123,6 +123,10 @@ export async function submitDeerFlowAgentRun(options: {
 		return { run: toDto(existing), agentRunsRemaining: entitlements.agentRunsRemaining };
 	}
 
+	const effectiveGraphId = options.agentExecutionOptions?.agentDefinitionId
+		? `agent-def:${options.agentExecutionOptions.agentDefinitionId}`
+		: GRAPH_ID;
+
 	let pendingRun: SelectedRun;
 	try {
 		pendingRun = await prisma.agentRun.create({
@@ -130,7 +134,7 @@ export async function submitDeerFlowAgentRun(options: {
 				userId: options.userId,
 				clientRequestId: options.clientRequestId,
 				provider: PROVIDER,
-				graphId: GRAPH_ID,
+				graphId: effectiveGraphId,
 				graphVersion: GRAPH_VERSION,
 				objective: options.objective,
 			},

@@ -166,7 +166,7 @@ export async function POST(req: Request): Promise<Response> {
 	let memoryContext: string[] = [];
 
 	if (agentDef) {
-		const knowledgeEnabled = agentDef.connectors?.includes("knowledge") || agentDef.tools?.includes("knowledge") || true;
+		const knowledgeEnabled = Boolean(agentDef.connectors?.includes("knowledge"));
 		if (knowledgeEnabled) {
 			try {
 				const kDocs = await getRelevantKnowledgeContext(session.user.id, parsed.data.objective, 6);
@@ -182,6 +182,7 @@ export async function POST(req: Request): Promise<Response> {
 				const memResult = await getFollowUpContext({
 					userId: session.user.id,
 					query: parsed.data.objective,
+					includeKnowledge: false,
 				});
 				memoryContext = [...memResult.contextualMemory];
 			} catch (err) {
@@ -192,8 +193,20 @@ export async function POST(req: Request): Promise<Response> {
 
 	let leaseId: string | undefined;
 	try {
-		const requestedProvider = parsed.data.provider ?? (agentDef?.modelPolicy?.provider === "DEERFLOW" ? "DEERFLOW" : undefined);
-		const selectedRuntime = await selectAgentRuntime(requestedProvider as AgentRuntimeId | undefined);
+		const rawProvider = parsed.data.provider ?? agentDef?.modelPolicy?.provider;
+		let providerToRequest: AgentRuntimeId | undefined = undefined;
+		if (rawProvider && rawProvider !== "AUTO") {
+			if (rawProvider === "DEERFLOW" || rawProvider === "AUTOGPT" || rawProvider === "AGENT_SWARM") {
+				providerToRequest = rawProvider as AgentRuntimeId;
+			} else {
+				return noStoreJson(
+					{ error: { code: "UNSUPPORTED_PROVIDER_POLICY", message: `Provider policy ${rawProvider} is not supported for standalone agent execution.` } },
+					{ status: 503 },
+				);
+			}
+		}
+
+		const selectedRuntime = await selectAgentRuntime(providerToRequest);
 		const lease = await admitFoundationRequest({
 			requestId: parsed.data.clientRequestId,
 			kind: "agent",
@@ -218,7 +231,7 @@ export async function POST(req: Request): Promise<Response> {
 			agentDefinitionId: agentDef.id,
 			name: agentDef.name,
 			instructions: agentDef.instructions,
-			allowedTools: agentDef.tools.length > 0 ? agentDef.tools : ["web"],
+			allowedTools: agentDef.tools,
 			knowledgeContext,
 			memoryContext,
 		} : undefined;

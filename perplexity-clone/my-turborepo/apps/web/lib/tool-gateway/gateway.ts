@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 
 import { appendEvent } from "@/lib/agent-platform/store";
+import { globalUserAgentStore } from "@/lib/agents/user-agents-store";
+import { prisma } from "@/lib/prisma";
 
 import { browserToolAdapter, gitToolAdapter, terminalToolAdapter } from "./adapters";
 import { githubToolAdapter, mcpToolAdapter, supabaseToolAdapter, vercelToolAdapter } from "./external-adapters";
@@ -253,6 +255,36 @@ export async function executeTool(
 		await failToolCall(stored.id, "ACTION_ALWAYS_DENIED", "DENIED");
 		await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.denied", payload: { tool: request.tool, action: request.action, risk } });
 		return { status: "DENIED", toolCallId: stored.id, risk, reason: "This action is never executed autonomously by AIRA." };
+	}
+
+	// Standalone AgentDefinition tool allowlist & ownership enforcement
+	if (context.runId) {
+		try {
+			const runRow = await prisma.agentRun.findFirst({
+				where: { id: context.runId, userId: context.userId },
+				select: { graphId: true, userId: true },
+			});
+			if (!runRow) {
+				await failToolCall(stored.id, "RUN_NOT_FOUND", "DENIED");
+				return { status: "DENIED", toolCallId: stored.id, risk, reason: "AgentRun not found for this user." };
+			}
+			if (runRow.graphId.startsWith("agent-def:")) {
+				const agentDefId = runRow.graphId.slice("agent-def:".length);
+				const agentDef = await globalUserAgentStore.getAgentAsync(context.userId, agentDefId);
+				if (!agentDef || agentDef.userId !== context.userId) {
+					await failToolCall(stored.id, "AGENT_DEFINITION_DENIED", "DENIED");
+					return { status: "DENIED", toolCallId: stored.id, risk, reason: "AgentDefinition ownership check failed." };
+				}
+				const allowedTools = agentDef.tools ?? [];
+				if (!allowedTools.includes(request.tool)) {
+					await failToolCall(stored.id, "TOOL_NOT_IN_AGENT_ALLOWLIST", "DENIED");
+					await appendEvent({ projectId: context.projectId, runId: context.runId, taskId: context.taskId, agentId: context.agentId, type: "tool.denied", payload: { tool: request.tool, action: request.action, risk, reason: `Tool ${request.tool} is not in AgentDefinition allowlist [${allowedTools.join(", ")}].` } });
+					return { status: "DENIED", toolCallId: stored.id, risk, reason: `Tool ${request.tool} is not in AgentDefinition allowlist.` };
+				}
+			}
+		} catch (err) {
+			console.warn("[tool-gateway] Standalone agent tool allowlist check failed:", err);
+		}
 	}
 
 	const permissionDecision = evaluateToolPermission(context.userId, request.tool, request.action);
