@@ -9,33 +9,36 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `6d6730677e7572ddbaf68bf95737d301447147b4`
+- **Starting Head**: `baab90eee3f23811b8a6dcba09a312b4e0e0e3f9`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
 - **Product Candidate SHA**: `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`
-- **Vercel Preview Deployment ID**: `dpl_A8JFY8xKokYuqWMR4HH87YAKUmRs`
-- **Vercel Preview URL**: `https://aira-ai-live-fk76850th-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Vercel Preview Deployment ID**: `dpl_FWiZuJP95WuEfoYpWqg273guBFoE`
+- **Vercel Preview URL**: `https://aira-ai-live-cvmvj70we-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Branch Alias**: `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Preview Build Status**: `READY`
-- **Production Status**: `UNTOUCHED` (Production remains completely isolated at `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`)
+- **Production Status**: `UNTOUCHED` (Production remains completely isolated at `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`, `dpl_8XH4S9CpGmEg781J4htovF1w863S`, `https://aira-ai-live.vercel.app`)
 
 ---
 
 ## 2. Browser Runtime Architecture & Provenance
 
-- **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
-- **Platform / Target**: Modal Serverless Container (`infra/browser-worker/modal/app.py`) / Local Container Verification (`infra/browser-worker/compose.yml`).
-- **Remote Preview Container Host Status**: `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED` & `MODAL_FREE_CREDIT_INSUFFICIENT` (Modal workspace activation mandates a credit card on file to prevent botnet/scraper abuse; furthermore, continuous 24/7 always-warm `min_containers=1` consumes ~$39.71/month exceeding the $30 free compute allotment).
+- **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`) running in local Docker on WSL2.
+- **Platform / Target**: `LOCAL_DOCKER_VIA_CLOUDFLARE_TUNNEL` (Cloudflare Quick Tunnel transport connecting Vercel Preview directly to workstation loopback container).
+- **Tunnel Host**: `https://cross-vessel-uniform-wind.trycloudflare.com` -> `http://127.0.0.1:8092`
+- **cloudflared Version**: `2026.9.1`
 - **Service**: `aira-browser-worker`
+- **Container**: `aira-browser-worker-browser-worker-1` (`f8d37f21d7f3`)
 - **Image**: `aira-browser-worker:latest`
 - **Digest**: `NOT_RECORDED` (Local source build; no public container registry digest).
 - **Source SHA**: `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`
-- **Port Compatibility**: Dynamic `${PORT:-8080}` override implemented for seamless hosting on Modal, Render, Railway, Cloud Run, or Fly.io.
-- **Provider Abstraction**: Zero Modal SDK or vendor lock-in (`HOSTING_PROVIDER_LOCK_IN = NONE`).
+- **Host Binding**: Strictly `127.0.0.1:8092` (Loopback only; zero public IP or LAN exposure).
+- **Provider Abstraction**: Zero Cloudflare SDK or vendor lock-in (`HOSTING_PROVIDER_LOCK_IN = NONE`). Transport layer is purely HTTP/HTTPS.
 - **Replica Count**: `1` (`PREVIEW_REPLICA_COUNT = 1`)
 - **Health Endpoint**: `/healthz` returning `{"ok": true}`.
 - **Session Model**: One isolated `BrowserContext` per session with ephemeral incognito isolation.
 - **Session Affinity Model**: `SINGLE_REPLICA_IN_MEMORY` ensuring memory-bound session state is 100% consistent.
 - **Timeout Hierarchy**: Client HTTP timeout (35,000 ms) explicitly dominates remote operation timeouts (navigation: 25,000 ms, action: 10,000 ms, inspect: 5,000 ms), preventing zombie background tasks.
+- **Workstation Availability Constraint**: Certification environment requires workstation powered on with Docker Desktop and cloudflared active (`WORKSTATION_REQUIRED`). Non-permanent preview certification setup.
 
 ---
 
@@ -100,7 +103,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Tools Gateway** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway with `AgentDefinition` allowlist enforcement |
 | **Knowledge Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 PGVector search context injected into agent execution |
 | **Memory Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory context injected into agent execution |
-| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation verified; remote worker deployment blocked by platform card/billing requirements |
+| **AIRA Browser** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Local Docker worker via Cloudflare Quick Tunnel certified E2E in Preview (workstation-dependent) |
 | **Browser Sessions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Authoritative session binding, per-user limits, and truthful lifecycle states |
 | **Browser Actions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Safe actions (navigate, inspect, scroll, hover, back, forward, wait) and approval-gated mutations |
 | **Browser Screenshots** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Ephemeral, authenticated viewport screenshots with rate limits and no-store headers |
@@ -110,14 +113,18 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Browser Cancellation** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Remote window.stop() task abort, lease release, and truthful BROWSER_CANCELLED status |
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
 | **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
+| **Local Docker Preview Runtime** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Local Docker + Cloudflare Quick Tunnel transport; zero cost, zero card, zero vendor lock-in |
+| **Preview Runtime Availability** | Phase 5 | `PARTIAL` | Dependent on workstation being powered on with Docker & cloudflared running |
 | **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Railway container deployment requires credit card / paid billing; zero-card deployment blocked |
 | **Render Preview Runtime** | Phase 5 | `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Render container deployment requires credit card / paid billing; zero-card deployment blocked |
+| **Modal Preview Runtime** | Phase 5 | `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Modal container deployment requires credit card / paid billing; always-warm min_containers=1 exceeds free credit ($39.71/mo vs $30.00) |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |
 
 ---
 
 ## 7. Certification Status
 
-**`RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED`**
+**`AIRA_BROWSER_WORKING_E2E_IN_PREVIEW`**
+
 
 

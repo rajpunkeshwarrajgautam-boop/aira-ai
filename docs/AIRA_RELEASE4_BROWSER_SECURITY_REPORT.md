@@ -194,3 +194,17 @@ To prevent resource exhaustion and browser worker starvation:
   - `BROWSER_CANCELLED`
   - `BROWSER_RATE_LIMITED`
   - `BROWSER_CONTROL_RACE`
+
+---
+
+## 9. Local Docker Tunnel Security & Network-Layer Claim Discipline (Gate 16)
+
+In the Phase 5 certification architecture:
+- **Loopback Binding**: Docker container port 8080 is mapped exclusively to `127.0.0.1:8092`. No listening socket is opened on `0.0.0.0`, LAN interfaces, or external IPs.
+- **Cloudflare Quick Tunnel**: The outbound `cloudflared` tunnel process establishes an encrypted HTTP/2 tunnel to Cloudflare Edge. It connects locally *only* to `http://127.0.0.1:8092`. No inbound NAT/router port forwarding is created.
+- **Zero Provider Lock-in**: Authorization is strictly enforced by the AIRA bearer token (`Authorization: Bearer <token>`). Cloudflare serves solely as an encrypted reverse proxy.
+- **Truthful Network-Layer Egress Claim Discipline**:
+  - `APPLICATION_SSRF_ENFORCED`: Verified via Next.js `publicWebUrl` hostname & IP parsing.
+  - `WORKER_SSRF_ENFORCED`: Verified via Python worker `_safe_route` route interception and DNS re-resolution.
+  - `NETWORK_LAYER_PRIVATE_EGRESS_NOT_FULLY_PROVEN`: In accordance with Gate 16, Docker capability drops (`cap_drop: ALL`) and metadata sinkholes are active, but because no kernel-level firewall filter (e.g. iptables/eBPF) actively drops outbound private CIDRs at the OS layer, full network-layer isolation is not claimed. Security rests on the verified dual-layer application + worker defenses.
+

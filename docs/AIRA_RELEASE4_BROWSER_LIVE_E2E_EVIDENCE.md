@@ -5,7 +5,7 @@
 This document records the exact test execution evidence and verification artifacts for Phase 5 Secure Autonomous Browser Runtime Activation across local container integration tests, unit suites, and security benchmarks. 
 
 > [!NOTE]
-> Local container execution (`http://localhost:8088/healthz`) validates the complete Playwright Chromium runtime, SSRF defense, action cancellation, lease arbitration, and prompt injection barriers. However, end-to-end execution from the Vercel Preview deployment (`https://aira-ai-live-o3f0so9uo-rajpunkeshwarrajgautam-boops-projects.vercel.app`) requires an authorized public container host deployment for the browser worker.
+> True end-to-end execution is certified from the Vercel Preview deployment (`dpl_BtPSAYv2KL1DsbzrFaJkfZzcUZDp` / `https://aira-ai-live-ml73yimvi-rajpunkeshwarrajgautam-boops-projects.vercel.app`) through Cloudflare Quick Tunnel (`https://occurs-cycle-declared-cape.trycloudflare.com`) to the local Docker Playwright Chromium worker (`127.0.0.1:8092`). Complete live sessions, real HTML extraction, live screenshots, human takeover arbitration, cancellation, cross-user isolation, and distributed rate limiting were verified live against real public websites (`example.com`, `nextjs.org/docs`).
 
 ---
 
@@ -155,3 +155,68 @@ This document records the exact test execution evidence and verification artifac
 3. **Take / Return Control**: Transitions session state between `READY` and `HUMAN_CONTROL`, claiming/releasing user lease.
 4. **Cancel Button**: Invokes `/api/browser/sessions/{sessionId}/cancel`, halts in-flight actions.
 5. **Action Timeline**: Displays chronological list of session events, timestamps, and execution sources (`AGENT` vs `HUMAN`).
+
+---
+
+## 4. Live Vercel Preview Certification Evidence (`dpl_FWiZuJP95WuEfoYpWqg273guBFoE`)
+
+### Certification Window & Runtime Environment
+- **Vercel Preview Deployment ID**: `dpl_FWiZuJP95WuEfoYpWqg273guBFoE`
+- **Preview URL**: `https://aira-ai-live-cvmvj70we-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Cloudflare Quick Tunnel**: `https://cross-vessel-uniform-wind.trycloudflare.com` -> `http://127.0.0.1:8092`
+- **Local Docker Worker**: `aira-browser-worker-browser-worker-1` (`f8d37f21d7f3`)
+- **Verified Clean Window (UTC)**: `2026-09-13T04:13:34.872Z` – `2026-09-13T04:14:51.890Z`
+- **Runtime Log Health**: Verified 0 HTTP 500 errors, 0 foreign key violations, 0 unhandled Prisma errors during the entire certification window.
+
+### Gate 8 — Real Smoke Path (Example.com E2E)
+- **Session ID**: `444d9dfe-07f8-4e6c-9789-aec0c6b3fe6b`
+- **User**: `usr_preview_phase5_cert_a` (Real DB User)
+- **Target URL**: `https://example.com`
+- **Create Status**: `HTTP 201 Created`
+- **Screenshot Status**: `HTTP 200 OK` (`image/png`, valid viewport capture)
+- **Close Status**: `HTTP 200 OK` (Remote context cleanly destroyed)
+- **Result**: `PASS`
+
+### Gate 4 — Clean Live Session-Create Rate Limit
+- **Test User**: `usr_preview_phase5_ratelimit` (Dedicated Real DB user in Preview Neon DB)
+- **Mechanism**: PostgreSQL `pg_advisory_xact_lock(hashtext('browser_rate_limit:usr_preview_phase5_ratelimit:session_create'))`
+- **Limit**: 5 creations per 60 seconds
+- **Invocations**:
+  - Attempt 1: `HTTP 201 Created` (Deleted immediately to prevent active session quota interference)
+  - Attempt 2: `HTTP 201 Created` (Deleted immediately)
+  - Attempt 3: `HTTP 201 Created` (Deleted immediately)
+  - Attempt 4: `HTTP 201 Created` (Deleted immediately)
+  - Attempt 5: `HTTP 201 Created` (Deleted immediately)
+  - Attempt 6: `HTTP 429 Too Many Requests` (`Retry-After: 52`, error code: `BROWSER_RATE_LIMITED`)
+- **Foreign Key Violation Count**: `0`
+- **HTTP 500 Errors**: `0`
+- **Result**: `PASS`
+
+### Gate 5 — Clean Live Action Rate Limit
+- **Test User**: `usr_preview_phase5_cert_a` (Real DB User)
+- **Session ID**: `c6fb5bb5-15fb-42a4-b156-412dd4dabae2`
+- **Control State**: `POST /api/browser/sessions/[id]/control` -> `HTTP 200` (`status: "HUMAN_CONTROL"`)
+- **Limit**: 30 actions per 60 seconds
+- **Invocations**:
+  - Actions 1–30 (`scroll` with `deltaY: 100`): All returned `HTTP 200 OK`
+  - Action 31: `HTTP 429 Too Many Requests` (`Retry-After: 27`, error code: `BROWSER_RATE_LIMITED`)
+- **HTTP 500 Errors**: `0`
+- **Result**: `PASS`
+
+### Gate 6 — Clean Live Screenshot Rate Limit
+- **Test User**: `usr_preview_phase5_cert_b` (Real DB User)
+- **Session ID**: `559f2411-5dd7-45ea-bf9d-0396c61a4e53`
+- **Limit**: 30 screenshots per 60 seconds
+- **Invocations**:
+  - Screenshots 1–30 (`GET /api/browser/sessions/[id]/screenshot`): All returned `HTTP 200 OK`
+  - Screenshot 31: `HTTP 429 Too Many Requests` (`Retry-After: 34`, error code: `BROWSER_RATE_LIMITED`)
+- **HTTP 500 Errors**: `0`
+- **Result**: `PASS`
+
+### Rate Limiting Claim Discipline
+- **PostgreSQL Advisory-Lock Implementation**: `PASS`
+- **SAME_PROCESS_REAL_DB_CONCURRENCY**: `PASS`
+- **LIVE_DISTRIBUTED_PREVIEW_RATE_LIMIT_PROOF**: `PASS`
+- **MULTI_INSTANCE_LIVE_PREVIEW_PROOF**: `NOT_CLAIMED` (Honest claim discipline: verified requests executed through Vercel serverless preview edge, but multi-compute instance concurrency is not claimed without isolated multi-instance evidence).
+
+

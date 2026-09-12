@@ -14,7 +14,7 @@
 | **Agent Run Timeout** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Bounded duration budget enforcement (`WORKFLOW_AGENT_TIMEOUT`) |
 | **Agent Run Outputs** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Persisted step outputs and artifact references |
 | **Agent Event Timeline** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Authenticated JSON polling timeline (`AUTHENTICATED_JSON_POLLING`) |
-| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation verified; awaiting authorized Preview container host deployment |
+| **AIRA Browser** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Local Docker worker via Cloudflare Quick Tunnel certified E2E in Preview (workstation-dependent) |
 | **Browser Sessions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Authoritative session binding, per-user limits, and truthful lifecycle states |
 | **Browser Actions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Safe actions (navigate, inspect, scroll, hover, back, forward, wait) and approval-gated mutations |
 | **Browser Screenshots** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Ephemeral, authenticated viewport screenshots with rate limits and no-store headers |
@@ -24,6 +24,8 @@
 | **Browser Cancellation** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Remote window.stop() task abort, lease release, and truthful BROWSER_CANCELLED status |
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
 | **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
+| **Local Docker Preview Runtime** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Local Docker + Cloudflare Quick Tunnel transport; zero cost, zero card, zero vendor lock-in |
+| **Preview Runtime Availability** | Phase 5 | `PARTIAL` | Dependent on workstation being powered on with Docker & cloudflared running |
 | **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Container deployment requires credit card / paid billing; zero-card deployment blocked by Railway policy |
 | **Render Preview Runtime** | Phase 5 | `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Render container deployment requires credit card / paid billing; zero-card deployment blocked by Render policy |
 | **Modal Preview Runtime** | Phase 5 | `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Modal container deployment requires credit card / paid billing; always-warm min_containers=1 exceeds free credit ($39.71/mo vs $30.00) |

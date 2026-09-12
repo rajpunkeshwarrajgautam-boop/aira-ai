@@ -32,7 +32,7 @@ graph TD
 | **AIRA Route** | `/omniroute` | `/api/compare`, `/api/route` | Gateway Automation Config (`v3.8.50` / `5458026c`) | `AIRA_ROUTE_WORKING_E2E_IN_PREVIEW` | Resilient fallback to direct providers; pinned gateway discovery. |
 | **AIRA Knowledge** | `/knowledge` | `/api/knowledge/*` | Supabase PGVector, Storage | `AIRA_KNOWLEDGE_WORKING_E2E_IN_PREVIEW` | Full E2E chunking, embedding, vector retrieval & citation. |
 | **AIRA Agents** | `/agents` | `/api/agent-platform/*` | PostgreSQL Agent & Run Tables | `AIRA_AGENTS_WORKING_E2E_IN_PREVIEW` | Single-agent execution, tool gateway, step event timeline. |
-| **AIRA Browser** | `/browser` | `/api/browser/*` | Browser Session Registry | `AIRA_BROWSER_WORKING_E2E_IN_PREVIEW` | Isolated Chromium session driver, SSRF protection, lease arbitration, screenshot. |
+| **AIRA Browser** | `/browser` | `/api/browser/*` | Browser Session Registry | `AIRA_BROWSER_WORKING_E2E_IN_PREVIEW` | Local Docker + Cloudflare Quick Tunnel transport; full autonomous session driver, dual SSRF protection, lease arbitration, distributed rate limiting. |
 | **AIRA Work** | `/work` | `/api/work/*` | Mission & Managed Run Tables | `PARTIALLY_WORKING` | Connected to certified agent execution fabric. |
 | **AIRA Builder** | `/build` | `/api/build/*` | Builder Project Filesystem | `PARTIALLY_WORKING` | Containerized sandbox execution & web app preview. |
 | **AIRA Automations**| `/workflows` | `/api/workflows/*` | Workflow DAG & Run History | `PARTIALLY_WORKING` | Scheduled trigger, retry & execution queue. |

@@ -178,3 +178,88 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 - **Commands/actions**: Pushed Product Candidate `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`; tracked Vercel Preview `dpl_A8JFY8xKokYuqWMR4HH87YAKUmRs` to `READY` status; confirmed HTTP 302 SSO redirect via `curl.exe`.
 - **Evidence**: Vercel deployment status `● Ready` at `https://aira-ai-live-fk76850th-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
 - **Result**: `PASS`
+
+---
+
+## PHASE 5 — LOCAL DOCKER + CLOUDFLARE TUNNEL CERTIFICATION
+
+### Skill: using-superpowers / executing-plans
+- **Purpose**: Meta-skill for skill discovery and executing the 46-gate Phase 5 Local Docker + Cloudflare Tunnel certification plan.
+- **Files inspected**: Customizations and skill manifests, `docs/AIRA_RELEASE4_SKILL_LEDGER.md`.
+- **Files modified**: `docs/AIRA_RELEASE4_SKILL_LEDGER.md`.
+- **Commands/actions**: Aligned mandatory skills, verified execution gates, and maintained step-by-step progress tracking.
+- **Evidence**: Execution transcript and verified gate completions.
+- **Result**: `PASS`
+
+### Skill: aira-verification / verification-before-completion
+- **Purpose**: Lineage verification, tree cleanliness, candidate equality proof, and production baseline preservation.
+- **Files inspected**: Git log, working tree, and commit trees for `baab90eee3f23811b8a6dcba09a312b4e0e0e3f9` and `9bfbd13cfbf8c687403573f38ead7eb630d3eac6`.
+- **Files modified**: None.
+- **Commands/actions**: Ran `git rev-parse`, `git status --short`, `git diff baab90eee3f23811b8a6dcba09a312b4e0e0e3f9..9bfbd13cfbf8c687403573f38ead7eb630d3eac6`; verified application tree equality.
+- **Evidence**: Git tree SHA equality confirmed; working tree clean; production SHA `0c0b7bcc8f032490d8efd1d527bcd1e67562acab` untouched.
+- **Result**: `PASS`
+
+### Skill: infra-architect / docker-specialist
+- **Purpose**: Inspect local Docker Compose setup, verify non-root user, security capabilities, bounded tmpfs/shm, and start worker on loopback interface.
+- **Files inspected**: `infra/browser-worker/compose.yml`, `infra/browser-worker/Dockerfile`.
+- **Files modified**: `docs/AIRA_RELEASE4_LOCAL_TUNNEL_BROWSER_DEPLOYMENT.md`.
+- **Commands/actions**: Started container `aira-browser-worker-browser-worker-1` (`f8d37f21d7f3`); bound host port strictly to `127.0.0.1:8092`; verified `cap_drop: ALL`, `no-new-privileges: true`, non-root execution (`pwuser: 1000:1000`).
+- **Evidence**: `docker ps` status healthy; `curl -fsS http://127.0.0.1:8092/healthz` returned `{"ok":true}`; `docker inspect` confirmed memory limits, read-only root, and no public IP exposure.
+- **Result**: `PASS`
+
+### Skill: browser-automation
+- **Purpose**: Verify local Playwright Chromium execution, live navigation, DOM inspection, screenshot capture, back/forward history, and clean session termination.
+- **Files inspected**: `infra/browser-worker/server.py`.
+- **Files modified**: None.
+- **Commands/actions**: Executed local smoke test against `example.com` and `nextjs.org/docs`; verified real Chromium browser process spawn, real page titles, 131KB PNG viewport screenshot capture, and clean context closure.
+- **Evidence**: Local smoke test logs and HTTP responses confirming real Chromium rendering.
+- **Result**: `PASS`
+
+### Skill: backend / python-backend / api-designer / typescript-strict / nextjs-app-router
+- **Purpose**: Verify generic runtime provider abstraction (`AIRA_BROWSER_RUNTIME_URL`, `AIRA_BROWSER_RUNTIME_TOKEN`), Next.js browser API routes, and tool gateway contracts.
+- **Files inspected**: `apps/web/lib/browser-runtime/client.ts`, `apps/web/lib/tool-gateway/adapters.ts`, `apps/web/app/api/browser/*`.
+- **Files modified**: None (`HOSTING_PROVIDER_LOCK_IN = NONE`).
+- **Commands/actions**: Verified zero Cloudflare vendor coupling in application source; validated bearer token transmission via `Authorization: Bearer <token>` in all HTTP requests to remote worker.
+- **Evidence**: `npx tsc --noEmit` clean; API route contracts intact.
+- **Result**: `PASS`
+
+### Skill: auth-specialist / postgres-wizard / supabase-backend / rate-limiting
+- **Purpose**: Configure Preview database rate limit schema, test deterministic DB failure injection, and execute distributed rate limit tests.
+- **Files inspected**: `apps/web/lib/browser-runtime/rate-limiter.ts`, `apps/web/test/browser-runtime-integration.test.ts`, `prisma/migrations/20260912_browser_rate_limit_events/migration.sql`.
+- **Files modified**: None.
+- **Commands/actions**: Applied `BrowserRateLimitEvent` table migration to Preview Neon DB; executed unit tests for deterministic fail-closed DB behavior (`setRateLimitDbClientForTesting`); ran live distributed rate-limit requests against Vercel Preview using real database test users (`usr_preview_phase5_ratelimit`, `usr_preview_phase5_cert_a`, `usr_preview_phase5_cert_b`).
+- **Evidence**: 15/15 unit/integration tests passing; live Vercel Preview returned HTTP 429 (`Retry-After: 52` on 6th session create, `Retry-After: 27` on 31st action, `Retry-After: 34` on 31st screenshot) with zero foreign-key errors and zero HTTP 500s; advisory locking active in Neon PostgreSQL.
+- **Result**: `PASS`
+
+### Skill: cybersecurity / privacy-guardian
+- **Purpose**: SSRF defense validation, redirect re-validation, bearer token isolation, tenant IDOR isolation, and untrusted observation prompt injection containment.
+- **Files inspected**: `infra/browser-worker/server.py`, `infra/browser-worker/test_security.py`.
+- **Files modified**: None.
+- **Commands/actions**: Tested blocked private IPs (`127.0.0.1`, `10.0.0.1`, `169.254.169.254`, `[::1]`) and schemes (`file://`, `ftp://`, `javascript:`); ran cross-user isolation test where User B attempted to access/mutate User A's session.
+- **Evidence**: 14/14 Python security tests passing; cross-user IDOR attempts returned HTTP 404 with zero information leakage; observations wrapped in `<aira_untrusted_browser_content>`.
+- **Result**: `PASS`
+
+### Skill: observability / logging-strategies
+- **Purpose**: Correlate logs across Vercel Preview, cloudflared, and Docker Browser worker; verify token and credential redaction; audit certification window for zero 500s.
+- **Files inspected**: Cloudflared background logs, Docker container logs (`f8d37f21d7f3`), Vercel runtime logs (`dpl_FWiZuJP95WuEfoYpWqg273guBFoE`).
+- **Files modified**: None.
+- **Commands/actions**: Matched request timestamps and session IDs across all three layers; verified zero `AIRA_BROWSER_RUNTIME_TOKEN` or credential leakage in logs; verified 0 HTTP 500s during certification window (`2026-09-13T04:13:34.872Z` – `2026-09-13T04:14:51.890Z`).
+- **Evidence**: Correlated log traces with sanitized query parameters and redacted Authorization headers.
+- **Result**: `PASS`
+
+### Skill: systematic-debugging / debugging-master / agentic-tdd / test-driven-development / test-architect / qa-engineering
+- **Purpose**: Develop and run live end-to-end certification script against exact Vercel Preview deployment using authenticated JWT tokens, real database users, and Vercel protection bypass.
+- **Files inspected**: `scratch/run_perfect_live_gates.js`, `scratch/perfect_live_gates_results.json`.
+- **Files modified**: None.
+- **Commands/actions**: Authored automated test harness using real DB users and direct HTTP requests with protection bypass header; executed live Gates 8, 4, 5, and 6 against deployment `dpl_FWiZuJP95WuEfoYpWqg273guBFoE`.
+- **Evidence**: Complete pass across all live gates recorded in `scratch/perfect_live_gates_results.json` (0 HTTP 500s, 100% clean rate-limit triggers).
+- **Result**: `PASS`
+
+### Skill: vercel-deployment / finishing-a-development-branch
+- **Purpose**: Configure Preview environment variables, redeploy exact Vercel Preview, verify READY status, and seal final certification commit on origin branch.
+- **Files inspected**: Vercel project configuration, environment variables, deployment status.
+- **Files modified**: `docs/AIRA_RELEASE4_*`.
+- **Commands/actions**: Updated `AIRA_BROWSER_RUNTIME_URL` for Quick Tunnel; redeployed exact candidate to `dpl_FWiZuJP95WuEfoYpWqg273guBFoE` (`READY`); pushed certification head to remote branch `origin/feat/aira-release-4-runtime-activation`.
+- **Evidence**: Vercel CLI status `● Ready` at `https://aira-ai-live-cvmvj70we-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
+- **Result**: `PASS`
+
