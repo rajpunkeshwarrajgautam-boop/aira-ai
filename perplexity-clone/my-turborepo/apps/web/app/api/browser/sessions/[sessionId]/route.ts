@@ -29,12 +29,22 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 	let record = await getBrowserSession(session.user.id, sessionId);
 	if (!record) return json({ error: { code: "NOT_FOUND", message: "Browser session not found." } }, { status: 404 });
 	let syncWarning: string | undefined;
-	if (["ACTIVE", "HUMAN_CONTROL", "PAUSED"].includes(record.status) && record.expiresAt.getTime() > Date.now()) {
+	if (record.expiresAt.getTime() <= Date.now() && !["ENDED", "EXPIRED", "FAILED"].includes(record.status)) {
+		await updateBrowserSession({ sessionId: record.id, status: "EXPIRED" });
+		record = (await getBrowserSession(session.user.id, sessionId)) ?? record;
+	} else if (["ACTIVE", "HUMAN_CONTROL", "PAUSED"].includes(record.status)) {
 		try {
 			const remote = await getRemoteBrowserSession(record.id);
 			await updateBrowserSession({ sessionId: record.id, currentUrl: remote.currentUrl ?? null });
 			record = (await getBrowserSession(session.user.id, sessionId)) ?? record;
 		} catch (error) {
+			if (error instanceof BrowserRuntimeError && (error.status === 410 || error.code === "BROWSER_SESSION_EXPIRED")) {
+				await updateBrowserSession({ sessionId: record.id, status: "EXPIRED" });
+				record = (await getBrowserSession(session.user.id, sessionId)) ?? record;
+			} else if (error instanceof BrowserRuntimeError && (error.status === 404 || error.code === "BROWSER_SESSION_NOT_FOUND")) {
+				await updateBrowserSession({ sessionId: record.id, status: "FAILED" });
+				record = (await getBrowserSession(session.user.id, sessionId)) ?? record;
+			}
 			syncWarning = error instanceof BrowserRuntimeError ? error.message : "Live browser status is temporarily unavailable.";
 		}
 	}

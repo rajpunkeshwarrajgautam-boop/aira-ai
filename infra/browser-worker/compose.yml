@@ -19,6 +19,13 @@ services:
     shm_size: "1gb"
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=1g
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    extra_hosts:
+      - "metadata.google.internal:0.0.0.0"
+      - "metadata:0.0.0.0"
+      - "instance-data:0.0.0.0"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"]
       interval: 30s

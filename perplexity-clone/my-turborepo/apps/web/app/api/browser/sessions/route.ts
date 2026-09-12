@@ -17,6 +17,12 @@ import {
 	isBrowserRuntimeEnabled,
 } from "@/lib/browser-runtime/client";
 
+import {
+	checkBrowserRateLimit,
+	MAX_ACTIVE_SESSIONS_PER_USER,
+} from "@/lib/browser-runtime/rate-limiter";
+import { publicWebUrl } from "@/lib/tool-gateway/web-security";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -74,11 +80,34 @@ export async function POST(req: Request): Promise<Response> {
 	if (!isBrowserRuntimeEnabled() || !isBrowserRuntimeConfigured()) {
 		return json({ error: { code: "BROWSER_RUNTIME_NOT_READY", message: "Browser runtime is not enabled and configured." } }, { status: 503 });
 	}
+
+	const existingSessions = await listBrowserSessions(session.user.id);
+	const activeCount = existingSessions.filter(
+		(s) => (s.status === "ACTIVE" || s.status === "HUMAN_CONTROL") && s.expiresAt.getTime() > Date.now(),
+	).length;
+	if (activeCount >= MAX_ACTIVE_SESSIONS_PER_USER) {
+		return json(
+			{ error: { code: "BROWSER_RATE_LIMITED", message: `Maximum active browser sessions (${MAX_ACTIVE_SESSIONS_PER_USER}) reached. Close an active session first.` } },
+			{ status: 429, headers: { "Retry-After": "60" } },
+		);
+	}
+
+	const rate = checkBrowserRateLimit(session.user.id, "session_create");
+	if (!rate.allowed) {
+		return json(
+			{ error: { code: "BROWSER_RATE_LIMITED", message: "Too many browser sessions created. Please slow down." } },
+			{ status: 429, headers: { "Retry-After": String(rate.retryAfter ?? 60) } },
+		);
+	}
+
 	const parsed = CreateSchema.safeParse(await req.json().catch(() => null));
 	if (!parsed.success) {
 		return json({ error: { code: "VALIDATION_ERROR", message: "Browser session configuration is invalid.", details: z.treeifyError(parsed.error) } }, { status: 400 });
 	}
 	const input = parsed.data;
+	if (input.startUrl && !publicWebUrl(input.startUrl)) {
+		return json({ error: { code: "BROWSER_URL_BLOCKED", message: "startUrl is not a permitted public HTTP(S) URL." } }, { status: 400 });
+	}
 	if (input.projectId && !(await getProjectForUser(session.user.id, input.projectId))) {
 		return json({ error: { code: "NOT_FOUND", message: "Project not found." } }, { status: 404 });
 	}
@@ -103,8 +132,8 @@ export async function POST(req: Request): Promise<Response> {
 		mode: input.mode,
 		allowedDomains: domains,
 		permissions: input.mode === "OBSERVE"
-			? ["navigate", "inspect", "scroll", "screenshot"]
-			: ["navigate", "inspect", "scroll", "screenshot", "click", "double_click", "click_at", "fill", "press", "select", "hover"],
+			? ["navigate", "inspect", "scroll", "screenshot", "wait", "back", "forward"]
+			: ["navigate", "inspect", "scroll", "screenshot", "wait", "back", "forward", "click", "double_click", "click_at", "fill", "press", "select", "hover"],
 		ttlMinutes: input.ttlMinutes,
 	});
 	try {

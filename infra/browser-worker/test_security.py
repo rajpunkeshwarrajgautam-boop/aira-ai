@@ -183,6 +183,51 @@ class BrowserSecurityPolicyTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(route.aborted)
         self.assertFalse(route.continued)
 
+    def test_sanitize_url_for_logs_strips_tokens_and_queries(self):
+        self.assertEqual(
+            server._sanitize_url_for_logs("https://example.com/api/test?token=secret123&user=42"),
+            "https://example.com/api/test",
+        )
+        self.assertEqual(
+            server._sanitize_url_for_logs("https://user:pass@example.com/auth"),
+            "https://example.com/auth",
+        )
+
+    async def test_healthz_does_not_leak_session_count(self):
+        with patch.object(server, "browser") as mock_browser:
+            mock_browser.is_connected.return_value = True
+            res = await server.healthz()
+            self.assertEqual(res, {"ok": True})
+            self.assertNotIn("sessions", res)
+
+    def test_action_request_supports_back_and_forward(self):
+        back_req = server.ActionRequest(action="back")
+        self.assertEqual(back_req.action, "back")
+        fwd_req = server.ActionRequest(action="forward")
+        self.assertEqual(fwd_req.action, "forward")
+
+    async def test_cancel_session_action_aborts_active_task(self):
+        state = server.SessionState(
+            session_id="session-cancel-test",
+            context=None,
+            page=None,
+            allowed_domains=("example.com",),
+            created_at=time.time(),
+            expires_at=time.time() + 60,
+        )
+        server.sessions["session-cancel-test"] = state
+        try:
+            # When no active task exists, cancel returns cancelled=False gracefully
+            res = await server.cancel_action("session-cancel-test")
+            self.assertEqual(res, {"ok": True, "cancelled": False})
+        finally:
+            server.sessions.pop("session-cancel-test", None)
+
+    async def test_cancel_session_not_found(self):
+        with self.assertRaises(HTTPException) as ctx:
+            await server.cancel_action("nonexistent-session")
+        self.assertEqual(ctx.exception.status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()

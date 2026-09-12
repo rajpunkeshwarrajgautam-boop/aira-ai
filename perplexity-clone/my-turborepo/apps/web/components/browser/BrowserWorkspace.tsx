@@ -1,7 +1,10 @@
 "use client";
 
 import {
+	ArrowLeft,
 	ArrowLeftRight,
+	ArrowRight,
+	Ban,
 	Camera,
 	ExternalLink,
 	Keyboard,
@@ -168,6 +171,17 @@ export function BrowserWorkspace() {
 		finally { setBusy(null); }
 	}
 
+	async function cancelAction() {
+		if (!selected) return;
+		setBusy("cancel");
+		try {
+			const response = await fetch(`/api/browser/sessions/${encodeURIComponent(selected.id)}/cancel`, { method: "POST" });
+			if (!response.ok) throw await readError(response);
+			await loadDetail(selected.id);
+		} catch (e) { setError(e instanceof Error ? e.message : "Cancellation failed."); }
+		finally { setBusy(null); }
+	}
+
 	async function endSession() {
 		if (!selected) return;
 		setBusy("end");
@@ -204,7 +218,14 @@ export function BrowserWorkspace() {
 					</aside>
 
 					<section className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0f1216]">
-						<div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] p-3"><input value={navigationUrl} onChange={(e) => setNavigationUrl(e.target.value)} placeholder={selected?.currentUrl ?? "https://…"} className="min-w-[220px] flex-1 rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/><button type="button" onClick={() => void action({ action: "navigate", url: navigationUrl })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs">Go</button><button type="button" onClick={() => setShotRevision((value) => value + 1)} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0]" aria-label="Refresh screenshot"><Camera className="size-4"/></button></div>
+						<div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] p-3">
+							<button type="button" onClick={() => void action({ action: "back" })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0] hover:text-white disabled:opacity-30" aria-label="Go back"><ArrowLeft className="size-4"/></button>
+							<button type="button" onClick={() => void action({ action: "forward" })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0] hover:text-white disabled:opacity-30" aria-label="Go forward"><ArrowRight className="size-4"/></button>
+							<input value={navigationUrl} onChange={(e) => setNavigationUrl(e.target.value)} placeholder={selected?.currentUrl ?? "https://…"} className="min-w-[200px] flex-1 rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/>
+							<button type="button" onClick={() => void action({ action: "navigate", url: navigationUrl })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs">Go</button>
+							{busy ? <button type="button" onClick={() => void cancelAction()} className="inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/[0.1] px-2.5 py-2 text-xs text-amber-200"><Ban className="size-3.5"/>Cancel</button> : null}
+							<button type="button" onClick={() => setShotRevision((value) => value + 1)} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0]" aria-label="Refresh screenshot"><Camera className="size-4"/></button>
+						</div>
 						<div className="relative aspect-[16/10] w-full bg-black">{screenshotUrl ? <Image key={screenshotUrl} src={screenshotUrl} alt="Live AIRA browser session" fill unoptimized sizes="(max-width: 1280px) 100vw, 900px" onClick={clickScreenshot} className={cn("object-contain", humanControl && "cursor-crosshair")}/> : <div className="grid h-full place-items-center text-sm text-[#666c75]">Create or select a browser session.</div>}{humanControl ? <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-emerald-300/20 bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-emerald-200">YOU HAVE CONTROL · click the screenshot</div> : null}</div>
 						<div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] p-3">{selected && selected.status !== "HUMAN_CONTROL" ? <button type="button" onClick={() => void control("human")} className="inline-flex items-center gap-2 rounded-lg bg-[#d0ae55] px-3 py-2 text-xs font-semibold text-[#111214]"><MousePointer2 className="size-3.5"/>Take control</button> : selected ? <button type="button" onClick={() => void control("agent")} className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-2 text-xs text-emerald-100"><ArrowLeftRight className="size-3.5"/>Return to AIRA</button> : null}{selected?.status === "PAUSED" ? <button type="button" onClick={() => void control("resume")} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><Play className="size-3.5"/>Resume</button> : selected ? <button type="button" onClick={() => void control("pause")} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><Pause className="size-3.5"/>Pause</button> : null}{selected ? <button type="button" onClick={() => void endSession()} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-red-300/15 px-3 py-2 text-xs text-red-200"><Square className="size-3.5"/>End</button> : null}</div>
 					</section>

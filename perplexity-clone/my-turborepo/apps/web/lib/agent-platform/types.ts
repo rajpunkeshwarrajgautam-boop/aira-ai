@@ -138,6 +138,8 @@ export interface BrowserSessionRecord {
 	readonly remoteSessionId: string | null;
 	readonly currentUrl: string | null;
 	readonly lastScreenshotUri: string | null;
+	readonly actionLeaseOwner?: string | null;
+	readonly actionLeaseExpiresAt?: Date | null;
 	readonly createdAt: Date;
 	readonly updatedAt: Date;
 	readonly expiresAt: Date;

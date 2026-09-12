@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
-from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
+from playwright.async_api import Browser, BrowserContext, Page, Playwright, TimeoutError as PlaywrightTimeoutError, async_playwright
 
 TOKEN = os.environ.get("AIRA_BROWSER_RUNTIME_TOKEN", "")
 DEFAULT_TTL_SECONDS = max(60, min(4 * 60 * 60, int(os.environ.get("AIRA_BROWSER_SESSION_TTL_SECONDS", "3600"))))
@@ -27,6 +27,7 @@ class SessionState:
     allowed_domains: tuple[str, ...]
     created_at: float
     expires_at: float
+    active_task: asyncio.Task | None = None
     console: list[dict[str, Any]] = field(default_factory=list)
     page_errors: list[str] = field(default_factory=list)
     network_failures: list[dict[str, str]] = field(default_factory=list)
@@ -138,6 +139,8 @@ class ActionRequest(BaseModel):
         "hover",
         "wait",
         "inspect",
+        "back",
+        "forward",
     ]
     selector: str | None = Field(default=None, max_length=2048)
     text: str | None = Field(default=None, max_length=20000)
@@ -148,6 +151,17 @@ class ActionRequest(BaseModel):
     y: float | None = None
     deltaY: float | None = Field(default=None, ge=-10000, le=10000)
     milliseconds: int | None = Field(default=None, ge=0, le=10000)
+
+
+def _sanitize_url_for_logs(raw: str) -> str:
+    try:
+        parsed = urlparse(raw)
+        host = parsed.hostname or ""
+        if parsed.port:
+            host = f"{host}:{parsed.port}"
+        return f"{parsed.scheme}://{host}{parsed.path}"
+    except Exception:
+        return ""
 
 
 async def _session(session_id: str) -> SessionState:
@@ -165,6 +179,8 @@ async def _close_session(session_id: str) -> None:
     async with session_lock:
         state = sessions.pop(session_id, None)
     if state:
+        if state.active_task and not state.active_task.done():
+            state.active_task.cancel()
         await state.context.close()
 
 
@@ -250,7 +266,7 @@ app = FastAPI(title="AIRA Browser Worker", version="1.0.0", lifespan=lifespan)
 
 @app.get("/healthz")
 async def healthz() -> dict[str, Any]:
-    return {"ok": browser is not None and browser.is_connected(), "sessions": len(sessions)}
+    return {"ok": browser is not None and browser.is_connected()}
 
 
 @app.post("/v1/sessions", dependencies=[Depends(require_token)])
@@ -287,15 +303,15 @@ async def create_session(body: CreateSessionRequest) -> dict[str, Any]:
         "console",
         lambda message: _append_bounded(
             state.console,
-            {"type": message.type, "text": message.text[:4000]},
+            {"type": message.type, "text": message.text[:500]},
         ),
     )
-    page.on("pageerror", lambda error: _append_bounded(state.page_errors, str(error)[:4000]))
+    page.on("pageerror", lambda error: _append_bounded(state.page_errors, str(error)[:500]))
     page.on(
         "requestfailed",
         lambda request: _append_bounded(
             state.network_failures,
-            {"url": request.url[:4096], "error": (request.failure or "request failed")[:1000]},
+            {"url": _sanitize_url_for_logs(request.url), "error": (request.failure or "request failed")[:500]},
         ),
     )
     async with session_lock:
@@ -305,7 +321,7 @@ async def create_session(body: CreateSessionRequest) -> dict[str, Any]:
         sessions[body.sessionId] = state
     if body.startUrl:
         try:
-            await page.goto(body.startUrl, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(body.startUrl, wait_until="domcontentloaded", timeout=25000)
         except Exception as exc:
             await _close_session(body.sessionId)
             raise HTTPException(status_code=502, detail="Initial browser navigation failed.") from exc
@@ -324,12 +340,17 @@ async def session_status(session_id: str) -> dict[str, Any]:
 async def browser_action(session_id: str, body: ActionRequest) -> dict[str, Any]:
     state = await _session(session_id)
     page = state.page
+    state.active_task = asyncio.current_task()
     try:
         if body.action == "navigate":
             if not body.url:
                 raise HTTPException(status_code=400, detail="navigate requires url")
             await _validate_url(body.url, state.allowed_domains, require_allowed=True)
-            await page.goto(body.url, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(body.url, wait_until="domcontentloaded", timeout=25000)
+        elif body.action == "back":
+            await page.go_back(wait_until="domcontentloaded", timeout=25000)
+        elif body.action == "forward":
+            await page.go_forward(wait_until="domcontentloaded", timeout=25000)
         elif body.action == "click":
             if not body.selector:
                 raise HTTPException(status_code=400, detail="click requires selector")
@@ -368,14 +389,29 @@ async def browser_action(session_id: str, body: ActionRequest) -> dict[str, Any]
         elif body.action == "inspect":
             pass
         await page.wait_for_timeout(150)
+    except asyncio.CancelledError:
+        try:
+            await page.evaluate("() => window.stop()")
+        except Exception:
+            pass
+        raise HTTPException(status_code=499, detail="Browser action cancelled.")
+    except (PlaywrightTimeoutError, asyncio.TimeoutError) as exc:
+        raise HTTPException(status_code=504, detail="Browser operation timed out.") from exc
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Browser action failed: {body.action}") from exc
+    finally:
+        state.active_task = None
 
     parsed = urlparse(page.url)
-    if parsed.hostname and not _domain_allowed(parsed.hostname, state.allowed_domains):
-        raise HTTPException(status_code=403, detail="Browser navigation left the allowed domain scope.")
+    if parsed.hostname:
+        try:
+            await _assert_public_host(parsed.hostname)
+        except HTTPException:
+            raise HTTPException(status_code=400, detail="Browser target resolved to a private address.")
+        if not _domain_allowed(parsed.hostname, state.allowed_domains):
+            raise HTTPException(status_code=403, detail="Browser navigation left the allowed domain scope.")
     text = (await page.locator("body").inner_text(timeout=5000))[:20000] if body.action == "inspect" else None
     return {
         "ok": True,
@@ -383,10 +419,27 @@ async def browser_action(session_id: str, body: ActionRequest) -> dict[str, Any]
         "currentUrl": page.url,
         "title": await page.title(),
         "text": text,
-        "console": state.console[-50:],
-        "pageErrors": state.page_errors[-50:],
-        "networkFailures": state.network_failures[-50:],
+        "console": [
+            {"type": str(c.get("type", "log")), "text": str(c.get("text", ""))[:200]}
+            for c in state.console[-10:]
+        ],
+        "pageErrors": [str(e)[:200] for e in state.page_errors[-10:]],
+        "networkFailures": state.network_failures[-10:],
     }
+
+
+@app.post("/v1/sessions/{session_id}/cancel", dependencies=[Depends(require_token)])
+async def cancel_action(session_id: str) -> dict[str, Any]:
+    state = await _session(session_id)
+    cancelled = False
+    if state.active_task and not state.active_task.done():
+        state.active_task.cancel()
+        cancelled = True
+    try:
+        await state.page.evaluate("() => window.stop()")
+    except Exception:
+        pass
+    return {"ok": True, "cancelled": cancelled}
 
 
 @app.get("/v1/sessions/{session_id}/screenshot", dependencies=[Depends(require_token)])

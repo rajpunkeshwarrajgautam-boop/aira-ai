@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const DEFAULT_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 35_000;
 
 const BrowserRuntimeStateSchema = z.object({
 	sessionId: z.string(),
@@ -129,9 +129,26 @@ async function runtimeFetch(path: string, init: RequestInit = {}): Promise<Respo
 			cache: "no-store",
 		});
 		if (!response.ok) {
+			let detail = "";
+			try {
+				const errBody = (await response.json()) as { detail?: string };
+				if (typeof errBody?.detail === "string") detail = errBody.detail;
+			} catch {
+				// ignore body parse failure
+			}
+			let code = "BROWSER_RUNTIME_REQUEST_FAILED";
+			if (response.status === 400) code = "BROWSER_URL_BLOCKED";
+			else if (response.status === 403) code = "BROWSER_DOMAIN_DENIED";
+			else if (response.status === 404) code = "BROWSER_SESSION_NOT_FOUND";
+			else if (response.status === 410) code = "BROWSER_SESSION_EXPIRED";
+			else if (response.status === 429) code = "BROWSER_RATE_LIMITED";
+			else if (response.status === 499) code = "BROWSER_CANCELLED";
+			else if (response.status === 504 || response.status === 408) code = "BROWSER_TIMEOUT";
+			else if (response.status === 503) code = "BROWSER_RUNTIME_UNAVAILABLE";
+
 			throw new BrowserRuntimeError({
-				code: "BROWSER_RUNTIME_REQUEST_FAILED",
-				message: `Browser runtime returned HTTP ${response.status}.`,
+				code,
+				message: detail || `Browser runtime returned HTTP ${response.status}.`,
 				status: response.status >= 400 && response.status < 600 ? response.status : 502,
 				retryable: response.status === 408 || response.status === 429 || response.status >= 500,
 			});
@@ -139,6 +156,14 @@ async function runtimeFetch(path: string, init: RequestInit = {}): Promise<Respo
 		return response;
 	} catch (error) {
 		if (error instanceof BrowserRuntimeError) throw error;
+		if (controller.signal.aborted) {
+			throw new BrowserRuntimeError({
+				code: "BROWSER_TIMEOUT",
+				message: "Browser runtime request timed out.",
+				status: 504,
+				retryable: true,
+			});
+		}
 		throw new BrowserRuntimeError({
 			code: "BROWSER_RUNTIME_UNREACHABLE",
 			message: "Browser runtime is temporarily unreachable.",
@@ -216,4 +241,9 @@ export async function getRemoteBrowserScreenshot(sessionId: string): Promise<Arr
 
 export async function closeRemoteBrowserSession(sessionId: string): Promise<void> {
 	await runtimeFetch(`/v1/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+}
+
+export async function cancelRemoteBrowserAction(sessionId: string): Promise<{ ok: boolean; cancelled: boolean }> {
+	const response = await runtimeFetch(`/v1/sessions/${encodeURIComponent(sessionId)}/cancel`, { method: "POST" });
+	return (await response.json()) as { ok: boolean; cancelled: boolean };
 }

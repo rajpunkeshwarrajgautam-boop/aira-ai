@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getBrowserSession } from "@/lib/agent-platform/store";
 import { BrowserRuntimeError, getRemoteBrowserScreenshot } from "@/lib/browser-runtime/client";
+import { checkBrowserRateLimit } from "@/lib/browser-runtime/rate-limiter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,13 @@ type Params = { params: Promise<{ sessionId: string }> };
 export async function GET(_: Request, { params }: Params): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) return Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+	const rate = checkBrowserRateLimit(session.user.id, "screenshot");
+	if (!rate.allowed) {
+		return Response.json(
+			{ error: { code: "BROWSER_RATE_LIMITED", message: "Browser screenshot rate limit exceeded." } },
+			{ status: 429, headers: { "Retry-After": String(rate.retryAfter ?? 60) } },
+		);
+	}
 	const { sessionId } = await params;
 	const record = await getBrowserSession(session.user.id, sessionId);
 	if (!record) return Response.json({ error: { code: "NOT_FOUND", message: "Browser session not found." } }, { status: 404 });
