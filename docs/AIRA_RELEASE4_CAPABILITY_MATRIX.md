@@ -24,4 +24,5 @@
 | **Browser Cancellation** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Remote window.stop() task abort, lease release, and truthful BROWSER_CANCELLED status |
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
 | **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
+| **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Container deployment requires credit card / paid billing; zero-card deployment blocked by Railway policy |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |

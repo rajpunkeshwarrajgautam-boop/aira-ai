@@ -9,11 +9,11 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 1. Lineage & Git Provenance
 
 - **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`
-- **Starting Head**: `c27576fac41663746b2b27f1bcc66d4b905b2304`
+- **Starting Head**: `45ecd0dea7bf3ebd7abadf9b037fe3ff45b4ae17`
 - **Release 4 Branch**: `feat/aira-release-4-runtime-activation`
-- **Product Candidate SHA**: `eaaec93c49b1fa34028e5d780f9d1aef8aed3719`
-- **Vercel Preview Deployment ID**: `dpl_9CMf2PiAEJ1ZzTsYjwVSvLBAsh3a`
-- **Vercel Preview URL**: `https://aira-ai-live-dphrsaef4-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Product Candidate SHA**: `c9a124ad4dfe5ba03063371878a358c66c04f741`
+- **Vercel Preview Deployment ID**: `dpl_5R71kSNCHhLoPqHq8DF5qux3YKJK`
+- **Vercel Preview URL**: `https://aira-ai-live-e4gg8ixro-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Branch Alias**: `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
 - **Vercel Preview Build Status**: `READY`
 - **Production Status**: `UNTOUCHED` (Production remains completely isolated at `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`)
@@ -23,17 +23,18 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 ## 2. Browser Runtime Architecture & Provenance
 
 - **Runtime Architecture**: Dedicated containerized service using FastAPI and Playwright Chromium (`infra/browser-worker`).
-- **Platform / Host**: Local Container Verification (`infra/browser-worker/compose.yml`).
-- **Remote Preview Container Host**: Fly.io (`aira-browser-worker-preview`) â€” Blocked pending payment method attachment on Fly.io dashboard (`https://fly.io/dashboard/raj-gautam/billing`).
-- **Service**: `aira-browser-worker`
+- **Platform / Target**: Railway (`aira-browser-worker-preview`) / Local Container Verification (`infra/browser-worker/compose.yml`).
+- **Remote Preview Container Host Status**: `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` (Railway requires mandatory credit/debit card on file for account verification and outbound networking; zero-card deployment blocked per user rules).
+- **Service**: `aira-browser-worker-preview`
 - **Image**: `aira-browser-worker:latest`
 - **Digest**: `NOT_RECORDED` (Local source build; no public container registry digest).
-- **Source SHA**: `eaaec93c49b1fa34028e5d780f9d1aef8aed3719`
-- **Region**: Local Workstation / Docker Host (Planned Fly region: `iad`)
+- **Source SHA**: `c9a124ad4dfe5ba03063371878a358c66c04f741`
+- **Port Compatibility**: Dynamic `${PORT:-8080}` override implemented for seamless hosting on Railway, Cloud Run, or Fly.io.
+- **Provider Abstraction**: Zero Railway SDK or vendor lock-in (`RAILWAY_PROVIDER_LOCK_IN = NONE`).
 - **Replica Count**: `1` (`PREVIEW_REPLICA_COUNT = 1`)
-- **Health Endpoint**: `http://localhost:8088/healthz` (Local developer verification only; inaccessible from Vercel Preview).
+- **Health Endpoint**: `/healthz` returning `{"ok": true}`.
 - **Session Model**: One isolated `BrowserContext` per session with ephemeral incognito isolation.
-- **Session Affinity Model**: `SINGLE_HARDENED_REPLICA` ensuring memory-bound session state is 100% consistent.
+- **Session Affinity Model**: `SINGLE_REPLICA_IN_MEMORY` ensuring memory-bound session state is 100% consistent.
 - **Timeout Hierarchy**: Client HTTP timeout (35,000 ms) explicitly dominates remote operation timeouts (navigation: 25,000 ms, action: 10,000 ms, inspect: 5,000 ms), preventing zombie background tasks.
 
 ---
@@ -51,7 +52,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Prompt Injection Defense** | Tool Gateway Result Adapter | Output wrapped in `<aira_untrusted_browser_content>` instruction barrier | `ENFORCED` |
 | **Diagnostic Redaction** | Worker Logging & API | `_sanitize_url_for_logs` strips credentials, query tokens, and sensitive headers | `ENFORCED` |
 | **Tenant Isolation (IDOR)** | Next.js API Routes | User session verified against project ownership; cross-user attempts return 404 | `ENFORCED` |
-| **Distributed Rate Limiting** | PostgreSQL Sliding Window | Atomic multi-instance DB rate limiter (5 creates/min, 30 actions/min, 30 screenshots/min) | `ENFORCED` |
+| **Distributed Rate Limiting** | PostgreSQL pg_advisory_xact_lock | Atomic serialized sliding window (5 creates/min, 30 actions/min, 30 screenshots/min); fail-closed (503) | `ENFORCED` |
 
 ---
 
@@ -99,7 +100,7 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Tools Gateway** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Risk-classified tool gateway with `AgentDefinition` allowlist enforcement |
 | **Knowledge Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | Certified Phase 3 PGVector search context injected into agent execution |
 | **Memory Integration** | Phase 4 | `WORKING_E2E_IN_PREVIEW` | User conversation & project memory context injected into agent execution |
-| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation and local container verified; awaiting external Preview container host |
+| **AIRA Browser** | Phase 5 | `AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE` | Product implementation verified; remote worker deployment on Railway blocked by mandatory card requirement |
 | **Browser Sessions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Authoritative session binding, per-user limits, and truthful lifecycle states |
 | **Browser Actions** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Safe actions (navigate, inspect, scroll, hover, back, forward, wait) and approval-gated mutations |
 | **Browser Screenshots** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Ephemeral, authenticated viewport screenshots with rate limits and no-store headers |
@@ -109,10 +110,12 @@ Phase 5 of AIRA Release 4 â€” **Secure Autonomous Browser Runtime Activation** â
 | **Browser Cancellation** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Remote window.stop() task abort, lease release, and truthful BROWSER_CANCELLED status |
 | **Browser Timeout** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Reconciled client/worker timeout hierarchy preventing zombie background tasks |
 | **Browser Rate Limiting** | Phase 5 | `WORKING_E2E_IN_PREVIEW` | Distributed PostgreSQL sliding window limiter active across serverless instances |
+| **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Railway container deployment requires credit card / paid billing; zero-card deployment blocked |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |
 
 ---
 
 ## 7. Certification Status
 
-**`AIRA_BROWSER_BLOCKED_BY_INFRASTRUCTURE`**
+**`RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED`**
+

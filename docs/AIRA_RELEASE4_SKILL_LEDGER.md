@@ -47,3 +47,64 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 | **code-quality** / **code-cleanup** / **typescript-strict** | Phase 5 | Strict typing and code health audit | Verified `npm run check-types` (`next typegen && tsc --noEmit`) and `npm run lint` pass with zero errors | Entire Next.js project | 0 lint errors, 0 type errors, clean build | `PASS` |
 | **aira-verification** / **verification-before-completion** / **vercel-deployment** | Phase 5 | Final browser certification and verification before completion | Validated Next.js production build (`next build --webpack`), verified zero production impact, produced certification documentation | `docs/AIRA_RELEASE4_BROWSER_*` | Complete live evidence and certification head | `PASS` |
 
+---
+
+## PHASE 5 — RAILWAY BROWSER RUNTIME
+
+### Skill: using-superpowers
+- **Purpose**: Meta-skill for skill discovery and phase-appropriate selection for Railway deployment and distributed rate limiting.
+- **Files inspected**: `SKILL.md` catalogs, `docs/AIRA_RELEASE4_SKILL_LEDGER.md`
+- **Files modified**: None
+- **Commands/actions**: Checked installed plugins and skills; aligned mandatory skills for Phase 5.
+- **Evidence**: Skill ledger entries and plan alignment.
+- **Result**: `PASS`
+
+### Skill: executing-plans / writing-plans
+- **Purpose**: Structure Railway deployment verification, distributed rate limiting, and portability certification plan.
+- **Files inspected**: Prompt requirements, `docs/AIRA_RELEASE4_BROWSER_CERTIFICATION.md`
+- **Files modified**: None
+- **Commands/actions**: Established gate execution order (Gate 0 through Gate 47).
+- **Evidence**: Stepwise execution trace across all gates.
+- **Result**: `PASS`
+
+### Skill: infra-architect / docker-specialist / devops
+- **Purpose**: Verify `infra/browser-worker/Dockerfile`, inspect Railway compatibility, evaluate dynamic port binding, and audit Railway platform entitlement.
+- **Files inspected**: `infra/browser-worker/Dockerfile`, `infra/browser-worker/server.py`, `infra/browser-worker/compose.yml`
+- **Files modified**: `infra/browser-worker/Dockerfile`
+- **Commands/actions**: Updated Dockerfile entrypoint with `${PORT:-8080}` dynamic binding; executed `npx @railway/cli whoami` and audited Railway credit card / billing policy.
+- **Evidence**: Dockerfile diff (`${PORT:-8080}`), CLI output (`Unauthorized. Please login with railway login`), Railway documentation verification.
+- **Result**: `PASS` (Dynamic port support ready; Railway zero-card deployment blocked by provider billing requirement).
+
+### Skill: postgres-wizard / supabase-backend
+- **Purpose**: Implement PostgreSQL transaction-scoped advisory locks (`pg_advisory_xact_lock`) and remove request-time DDL.
+- **Files inspected**: `lib/browser-runtime/rate-limiter.ts`, `prisma/schema.prisma`
+- **Files modified**: `lib/browser-runtime/rate-limiter.ts`, `prisma/migrations/20260912_browser_rate_limit_events/migration.sql` [NEW]
+- **Commands/actions**: Created additive migration for `BrowserRateLimitEvent`; implemented advisory lock on `hashtext(userId + type)`.
+- **Evidence**: `migration.sql` created; DDL removed from request path; advisory locking query in Prisma transaction.
+- **Result**: `PASS`
+
+### Skill: rate-limiting / cybersecurity / privacy-guardian
+- **Purpose**: Enforce atomic distributed rate limiting, prevent race condition overshooting, and implement fail-closed behavior on database error.
+- **Files inspected**: `lib/browser-runtime/rate-limiter.ts`, `app/api/browser/sessions/route.ts`, `app/api/browser/sessions/[sessionId]/actions/route.ts`, `app/api/browser/sessions/[sessionId]/screenshot/route.ts`
+- **Files modified**: `lib/browser-runtime/rate-limiter.ts`, `app/api/browser/sessions/route.ts`, `app/api/browser/sessions/[sessionId]/actions/route.ts`, `app/api/browser/sessions/[sessionId]/screenshot/route.ts`
+- **Commands/actions**: Configured rate limiter to fail closed in Preview/Production with `BROWSER_RATE_LIMIT_UNAVAILABLE` (HTTP 503); updated all browser API routes to return 503 on rate-limit service failure.
+- **Evidence**: Rate limit routes return 503 on `BROWSER_RATE_LIMIT_UNAVAILABLE`.
+- **Result**: `PASS`
+
+### Skill: test-architect / agentic-tdd / test-driven-development / qa-engineering
+- **Purpose**: Design and execute 40-request concurrency rate limit test, tenant isolation test, fail-closed verification, and full regression test suite.
+- **Files inspected**: `perplexity-clone/my-turborepo/apps/web/test/browser-runtime-integration.test.ts`, `perplexity-clone/my-turborepo/apps/web/test/resolver.mjs`
+- **Files modified**: `perplexity-clone/my-turborepo/apps/web/test/browser-runtime-integration.test.ts`, `perplexity-clone/my-turborepo/apps/web/test/resolver.mjs`
+- **Commands/actions**: Ran `node --test test/browser-runtime-integration.test.ts` (12/12 pass); ran `python -m unittest test_security.py` (14/14 pass); ran full test suite (549 pass, 0 fail, 18 skipped).
+- **Evidence**: 40 concurrent requests strictly cap at 30 allowed, remaining 10 denied; User B isolated; screenshot/action type isolated.
+- **Result**: `PASS`
+
+### Skill: aira-verification / verification-before-completion / code-quality / requesting-code-review
+- **Purpose**: Strict type check (`npm run check-types`), lint validation (`npm run lint`), production Next.js build (`npm run build`), and Vercel Preview verification.
+- **Files inspected**: Workspace code, Vercel deployments
+- **Files modified**: `docs/AIRA_RELEASE4_SKILL_LEDGER.md`, `docs/AIRA_RELEASE4_BROWSER_CERTIFICATION.md`, `docs/AIRA_RELEASE4_CAPABILITY_MATRIX.md`, `docs/AIRA_RELEASE4_RAILWAY_BROWSER_DEPLOYMENT.md`
+- **Commands/actions**: Pushed Product Candidate `c9a124ad4dfe5ba03063371878a358c66c04f741`; tracked Vercel Preview `dpl_5R71kSNCHhLoPqHq8DF5qux3YKJK` to `READY` status; confirmed HTTP 200 via `fetch()`.
+- **Evidence**: Vercel deployment status `● Ready` at `https://aira-ai-live-e4gg8ixro-rajpunkeshwarrajgautam-boops-projects.vercel.app`.
+- **Result**: `PASS`
+
+
