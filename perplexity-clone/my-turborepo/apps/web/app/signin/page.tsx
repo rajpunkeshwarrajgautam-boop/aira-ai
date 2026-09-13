@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Suspense } from "react";
 
 import { AiraLogo } from "../../components/AiraLogo";
@@ -27,23 +28,32 @@ export default function SignInPage() {
 	const { google: showGoogle, github: showGitHub } = oauthFlags();
 
 	return (
-		<main className="aira-auth-stage">
-			<section className="aira-auth-frame" aria-label="Aira AI authentication">
-				<div className="aira-auth-visual">
-					<div className="aira-auth-visual-noise" aria-hidden />
-					<div className="aira-auth-orb" aria-hidden>
-						<span className="aira-auth-orb-core" />
-						<span className="aira-auth-orb-ring aira-auth-orb-ring-one" />
-						<span className="aira-auth-orb-ring aira-auth-orb-ring-two" />
-						<span className="aira-auth-orb-glow aira-auth-orb-glow-one" />
-						<span className="aira-auth-orb-glow aira-auth-orb-glow-two" />
-					</div>
+		<main className="aira-auth-stage aira-auth-stage-visme">
+			<Script
+				src="https://static-bundles.visme.co/forms/vismeforms-embed.js"
+				strategy="afterInteractive"
+			/>
 
-					<div className="aira-auth-brand">
+			<section className="aira-auth-frame aira-auth-frame-visme" aria-label="Aira AI authentication">
+				<div className="aira-auth-visual aira-auth-visme-column">
+					<div className="aira-auth-visme-shell" aria-hidden="true">
+						<div
+							className="visme_d aira-auth-visme-embed"
+							data-title="Webinar Registration Form"
+							data-url="x9m86gyq-webinar-registration-form?fullPage=true"
+							data-domain="forms"
+							data-full-page="true"
+							data-min-height="100vh"
+							data-form-id="161717"
+						/>
+					</div>
+					<div className="aira-auth-visme-shade" aria-hidden />
+
+					<div className="aira-auth-brand aira-auth-visme-brand">
 						<AiraLogo />
 					</div>
 
-					<div className="aira-auth-visual-copy">
+					<div className="aira-auth-visual-copy aira-auth-visme-copy">
 						<p className="aira-auth-eyebrow">Aira intelligence workspace</p>
 						<h2>
 							One workspace.
@@ -53,21 +63,12 @@ export default function SignInPage() {
 						<p>
 							Research, create, automate, compare models, and run agents from one continuous workspace.
 						</p>
-						<div className="aira-auth-capabilities" aria-label="Aira capabilities">
-							<span>Chat</span>
-							<span>Agents</span>
-							<span>Research</span>
-							<span>Files</span>
-							<span>Models</span>
-							<span>Workflows</span>
-						</div>
 					</div>
 				</div>
 
-				<div className="aira-auth-form-side">
+				<div className="aira-auth-form-side aira-auth-form-side-visme">
 					<div className="aira-auth-mobile-brand">
 						<AiraLogo />
-						<span className="aira-auth-mobile-orb" aria-hidden />
 					</div>
 					<Suspense
 						fallback={
