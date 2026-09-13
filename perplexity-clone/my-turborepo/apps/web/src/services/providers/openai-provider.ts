@@ -7,14 +7,16 @@ import type { AIProvider, ProviderOptions } from "./provider-router";
 
 export class OpenAIProvider implements AIProvider {
 	readonly providerId = "openai";
+	readonly defaultModel: string;
 	private readonly client: OpenAI;
 
 	constructor(
 		apiKey: string,
-		readonly defaultModel: string = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini",
+		defaultModel: string = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini",
 		baseURL?: string,
 		organization?: string,
 	) {
+		this.defaultModel = defaultModel;
 		this.client = new OpenAI({ apiKey, baseURL, organization });
 	}
 

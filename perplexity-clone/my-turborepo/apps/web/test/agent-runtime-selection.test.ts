@@ -41,7 +41,7 @@ function state(
 }
 
 test("preserves DeerFlow then AutoGPT as the default selection order", () => {
-	assert.deepEqual(DEFAULT_RUNTIME_PRIORITY, ["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]);
+	assert.deepEqual(DEFAULT_RUNTIME_PRIORITY, ["DEERFLOW", "AUTOGPT", "AGENT_SWARM", "AIRA_AGENT"]);
 	assert.equal(
 		selectRuntimeId({
 			states: [
@@ -129,5 +129,6 @@ test("custom priority is sanitized and always retains safe fallbacks", () => {
 		"AGENT_SWARM",
 		"DEERFLOW",
 		"AUTOGPT",
+		"AIRA_AGENT",
 	]);
 });

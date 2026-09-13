@@ -163,7 +163,7 @@ export const MissionInputSchema = z.object({
 	id: z.string().min(1),
 	userId: z.string().min(1),
 	projectId: z.string().optional(),
-	objective: z.string().min(1),
+	objective: z.string().trim().min(3).max(8_000),
 	context: z.record(z.string(), z.unknown()).optional(),
 	constraints: z.array(z.string()).default([]),
 	expectedDeliverables: z.array(

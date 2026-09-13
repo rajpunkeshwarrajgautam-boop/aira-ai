@@ -29,4 +29,18 @@
 | **Railway Preview Runtime** | Phase 5 | `RAILWAY_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Container deployment requires credit card / paid billing; zero-card deployment blocked by Railway policy |
 | **Render Preview Runtime** | Phase 5 | `RENDER_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Render container deployment requires credit card / paid billing; zero-card deployment blocked by Render policy |
 | **Modal Preview Runtime** | Phase 5 | `MODAL_FREE_NO_CARD_DEPLOYMENT_BLOCKED` | Modal container deployment requires credit card / paid billing; always-warm min_containers=1 exceeds free credit ($39.71/mo vs $30.00) |
+| **AIRA Work** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Managed autonomous execution layer with server-authoritative planning, budgets, and native mission control |
+| **Work Planning** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Capability planner with effort depth, risk classification, and server-side sliding-window rate limits |
+| **Work Projects** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | User-scoped durable project store with configuration and objective binding |
+| **Work Runs** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Durable run state machine (QUEUED, PLANNING, RUNNING, APPROVAL_REQUIRED, COMPLETED, FAILED, CANCELLED, BLOCKED) |
+| **Work Task Graph** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | 4-step managed DAG (Scoping, Investigation, Synthesis, Verification) without worktree dependencies |
+| **Work Runtime** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Native `AIRA_AGENT` provider with dedicated `/api/agent-platform/runtime/status` health and capability probe |
+| **Work Approvals** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Tenant-scoped, single-use, expiring approval records binding user, run, task, action, and risk class |
+| **Work Cancellation** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Immediate cancellation fencing stopping active dispatch, cancelling runtime runs, and preventing late completion |
+| **Work Recovery** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Atomic execution leases (`leaseOwner`, `leaseExpiresAt`) with automatic stale claim recovery |
+| **Work Outputs** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Persisted `AgentArtifact` deliverable store linked to run, task, project, and user ownership |
+| **Work Knowledge Integration** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Explicit project/task Knowledge binding consuming certified Phase 3 PGVector context without leakage |
+| **Work Browser Integration** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Browser-assisted investigation via certified Phase 5 Tool Gateway with graceful offline degradation |
+| **Work Cost Controls** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Strict server-side budget clamping (`resolveEffectiveWorkBudgets`) enforcing plan tier ceilings |
+| **Work Security** | Phase 6 | `WORKING_E2E_IN_PREVIEW` | Strict tenant boundaries (404 on cross-user access), secret redaction, and killswitch support |
 | **AIRA Teams / Swarms** | Phase 9 | `HIDDEN` | Swarm/multi-agent UI intentionally gated for Phase 9 |

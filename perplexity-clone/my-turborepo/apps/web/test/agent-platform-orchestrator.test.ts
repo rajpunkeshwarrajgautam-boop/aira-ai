@@ -4,8 +4,10 @@ import test from "node:test";
 
 import {
 	buildManagerDag,
+	buildWorkDag,
 	runtimeAttemptRequestId,
 	runtimeSubmissionOutcomeUnknown,
+	wantsSoftwareBuild,
 } from "../lib/agent-platform/orchestrator";
 import { DEFAULT_RUN_BUDGETS } from "../lib/agent-platform/types";
 import {
@@ -180,3 +182,27 @@ test("browser runtime rejects credential-bearing URLs", () => {
 		else process.env.AIRA_BROWSER_RUNTIME_TOKEN = previousToken;
 	}
 });
+
+test("wantsSoftwareBuild correctly distinguishes code building from managed work", () => {
+	assert.equal(wantsSoftwareBuild("Build a production-ready CRM application"), true);
+	assert.equal(wantsSoftwareBuild("scaffold repo for new microservice"), true);
+	assert.equal(wantsSoftwareBuild("Research official Next.js documentation and write a report"), false);
+	assert.equal(wantsSoftwareBuild("Open example.com and extract verified summary"), false);
+	assert.equal(wantsSoftwareBuild("Analyze quarterly revenue document and produce synthesis"), false);
+});
+
+test("buildWorkDag generates concise, valid managed execution DAG", () => {
+	const workTasks = buildWorkDag("Research Next.js 15 route handlers and produce report");
+	assert.equal(workTasks.length, 4);
+	assertDag(workTasks);
+	assert.equal(workTasks[0]!.key, "scoping");
+	assert.equal(workTasks[1]!.key, "investigation");
+	assert.equal(workTasks[1]!.agentRole, "RESEARCH");
+	assert.equal(workTasks[2]!.key, "synthesis");
+	assert.equal(workTasks[3]!.key, "verification");
+
+	const browserTasks = buildWorkDag("Open https://example.com in browser and extract title");
+	assert.equal(browserTasks.length, 4);
+	assertDag(browserTasks);
+	assert.equal(browserTasks[1]!.agentRole, "BROWSER");
+});

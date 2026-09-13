@@ -12,6 +12,8 @@ import {
 	SafetyGatewayError,
 } from "@services/safety/safety-gateway";
 
+import { resolveEffectiveWorkBudgets } from "@/lib/agent-platform/budgets";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -20,15 +22,15 @@ type Params = { params: Promise<{ projectId: string }> };
 const StartRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	objective: z.string().trim().min(3).max(8_000).optional(),
-	provider: z.enum(["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
+	provider: z.enum(["AIRA_AGENT", "DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
 	budgets: z
 		.object({
-			maxAgents: z.number().int().min(13).max(24).optional(),
+			maxAgents: z.number().int().min(1).max(24).optional(),
 			maxParallelAgents: z.number().int().min(1).max(6).optional(),
-			maxToolCalls: z.number().int().min(10).max(500).optional(),
-			maxTokens: z.number().int().min(10_000).max(2_000_000).optional(),
+			maxToolCalls: z.number().int().min(5).max(500).optional(),
+			maxTokens: z.number().int().min(5_000).max(2_000_000).optional(),
 			maxCostUsd: z.number().min(0).max(250).optional(),
-			maxDurationMinutes: z.number().int().min(10).max(1_440).optional(),
+			maxDurationMinutes: z.number().int().min(5).max(1_440).optional(),
 			maxRetries: z.number().int().min(0).max(5).optional(),
 		})
 		.optional(),
@@ -78,16 +80,24 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 			{ status: 400 },
 		);
 	}
+	if (process.env.AIRA_WORK_RUNTIME_ENABLED === "false") {
+		return json(
+			{ error: { code: "WORK_RUNTIME_UNAVAILABLE", message: "Managed execution is currently disabled by administrator configuration." } },
+			{ status: 503 },
+		);
+	}
+
 	const objective = parsed.data.objective?.trim() || project.objective;
 	try {
 		await assertSafetyAllowed("agent-objective", objective);
+		const { effectiveBudgets } = await resolveEffectiveWorkBudgets(session.user.id, parsed.data.budgets);
 		const result = await startManagedRun({
 			userId: session.user.id,
 			projectId: project.id,
 			clientRequestId: parsed.data.clientRequestId,
 			objective,
 			requestedRuntime: parsed.data.provider as AgentRuntimeId | undefined,
-			budgets: parsed.data.budgets,
+			budgets: effectiveBudgets,
 		});
 		return json(result, { status: 202 });
 	} catch (error) {

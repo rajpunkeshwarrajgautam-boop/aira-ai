@@ -5,6 +5,7 @@ export const DEFAULT_RUNTIME_PRIORITY: readonly AgentRuntimeId[] = [
 	"DEERFLOW",
 	"AUTOGPT",
 	"AGENT_SWARM",
+	"AIRA_AGENT",
 ];
 
 export function parseRuntimePriority(value: string | undefined): readonly AgentRuntimeId[] {

@@ -1,3 +1,4 @@
+import { airaAgentRuntime } from "./aira-agent-runtime";
 import { agentSwarmRuntime } from "./agent-swarm-runtime";
 import { autoGptRuntime, deerFlowRuntime } from "./legacy-runtimes";
 import { parseRuntimePriority, selectRuntimeId } from "./selection";
@@ -114,6 +115,7 @@ function workflowAwareRuntime(runtime: AgentRuntime): AgentRuntime {
 }
 
 const RUNTIMES = new Map<AgentRuntimeId, AgentRuntime>([
+	["AIRA_AGENT", workflowAwareRuntime(airaAgentRuntime)],
 	["DEERFLOW", workflowAwareRuntime(deerFlowRuntime)],
 	["AUTOGPT", workflowAwareRuntime(autoGptRuntime)],
 	["AGENT_SWARM", workflowAwareRuntime(agentSwarmRuntime)],

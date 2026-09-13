@@ -1,8 +1,10 @@
 import { auth } from "@/auth";
 import {
+	getProjectForUser,
 	getRunForUser,
 	listEvents,
 	listPendingApprovals,
+	listRunArtifacts,
 	listTasks,
 } from "@/lib/agent-platform/store";
 
@@ -28,10 +30,13 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 	if (!run) {
 		return json({ error: { code: "NOT_FOUND", message: "Managed run not found." } }, { status: 404 });
 	}
-	const [tasks, events, approvals] = await Promise.all([
+	const [project, tasks, events, approvals, artifacts] = await Promise.all([
+		getProjectForUser(session.user.id, run.projectId),
 		listTasks(run.id),
 		listEvents(run.id),
 		listPendingApprovals(session.user.id, run.id),
+		listRunArtifacts(session.user.id, run.id),
 	]);
-	return json({ run, tasks, events, approvals });
+	return json({ run, project, tasks, events, approvals, artifacts });
 }
+

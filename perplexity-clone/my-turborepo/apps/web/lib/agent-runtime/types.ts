@@ -1,6 +1,6 @@
 import type { AgentRunDto } from "@/lib/autogpt/runs";
 
-export type AgentRuntimeId = "DEERFLOW" | "AUTOGPT" | "AGENT_SWARM";
+export type AgentRuntimeId = "AIRA_AGENT" | "DEERFLOW" | "AUTOGPT" | "AGENT_SWARM";
 export type AgentRunBillingMode = "BILLABLE" | "DELEGATED";
 
 export interface AgentRuntimeCapabilities {

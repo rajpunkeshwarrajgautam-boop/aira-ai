@@ -20,12 +20,12 @@ type LaunchResult = { projectId: string; runId: string; status: string };
 type ApiError = { error?: { message?: string } };
 
 type RuntimeStatus = {
-  feature?: {
-    enabled?: boolean;
-    configured?: boolean;
-    ready?: boolean;
-    preferredProvider?: string | null;
-  };
+  enabled: boolean;
+  configured: boolean;
+  ready: boolean;
+  provider?: string | null;
+  degradedCapabilities?: readonly string[];
+  reason?: string | null;
 };
 
 type RuntimeState = "checking" | "ready" | "unavailable";
@@ -64,7 +64,7 @@ export function WorkExecutionWorkspace() {
     const controller = new AbortController();
     void (async () => {
       try {
-        const response = await fetch("/api/agents/runs?limit=1", {
+        const response = await fetch("/api/agent-platform/runtime/status", {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -73,7 +73,7 @@ export function WorkExecutionWorkspace() {
           return;
         }
         const body = (await response.json()) as RuntimeStatus;
-        setRuntimeState(body.feature?.ready === true ? "ready" : "unavailable");
+        setRuntimeState(body.ready === true && body.enabled === true ? "ready" : "unavailable");
       } catch (cause) {
         if ((cause as { name?: string })?.name !== "AbortError") {
           setRuntimeState("unavailable");
@@ -232,10 +232,11 @@ export function WorkExecutionWorkspace() {
           <aside className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
             <h2 className="text-sm font-semibold">Execution evidence</h2>
             {!plan ? <p className="mt-4 text-sm leading-6 text-[#777d85]">Generate a plan to inspect the real task graph before execution.</p> : <div className="mt-4 space-y-3"><div className="rounded-xl bg-white/[0.03] p-3 text-xs text-[#9ba0a8]"><div>Risk: <span className="text-[#deded9]">{plan.overallRisk}</span></div><div className="mt-1">Estimated cost: <span className="text-[#deded9]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div><div className="mt-1">Tasks: <span className="text-[#deded9]">{plan.tasks.length}</span></div></div>{plan.tasks.slice(0, 6).map((task) => <div key={task.id} className="rounded-xl border border-white/[0.06] px-3 py-2"><p className="text-xs font-medium text-[#e4e4df]">{task.title}</p><p className="mt-1 text-[11px] text-[#747a82]">{task.agentRole} · {task.risk}</p></div>)}</div>}
-            {launch ? <div className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3"><p className="text-xs font-semibold text-emerald-200">Managed run created · {launch.status}</p><p className="mt-1 break-all text-[10px] text-[#778079]">{launch.runId}</p><Link href={`/build?project=${encodeURIComponent(launch.projectId)}&run=${encodeURIComponent(launch.runId)}`} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#d0ae55]">Open mission control <ExternalLink className="size-3" /></Link></div> : null}
+            {launch ? <div className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3"><p className="text-xs font-semibold text-emerald-200">Managed run created · {launch.status}</p><p className="mt-1 break-all text-[10px] text-[#778079]">{launch.runId}</p><Link href={`/work/runs/${encodeURIComponent(launch.runId)}`} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#d0ae55]">Open Work Mission Control <ExternalLink className="size-3" /></Link></div> : null}
           </aside>
         </section>
       </div>
     </main>
   );
 }
+

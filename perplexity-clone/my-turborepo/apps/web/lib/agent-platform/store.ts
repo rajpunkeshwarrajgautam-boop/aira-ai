@@ -219,6 +219,17 @@ export async function listEvents(runId: string, after?: Date): Promise<PlatformE
 	return rows.map((row) => ({ ...row, payload: jsonObject(row.payload) }));
 }
 
+export async function listRunArtifacts(userId: string, runId: string): Promise<Array<{ id: string; name: string; kind: string; uri: string; createdAt: Date }>> {
+	return prisma.$queryRaw<Array<{ id: string; name: string; kind: string; uri: string; createdAt: Date }>>`
+		select a."id", a."name", a."kind", a."uri", a."createdAt"
+		from "AgentArtifact" a
+		join "AgentPlatformRun" r on r."id" = a."runId"
+		where a."runId" = ${runId} and r."userId" = ${userId}
+		order by a."createdAt" asc
+	`;
+}
+
+
 export async function recoverExpiredClaims(runId: string): Promise<number> {
 	const expired = await prisma.$transaction(async (tx) => {
 		const rows = await tx.$queryRaw<Array<{ id: string }>>`

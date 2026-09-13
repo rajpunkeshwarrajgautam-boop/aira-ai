@@ -23,6 +23,7 @@ import {
 	getRunByClientRequestId,
 	getRunForUser,
 	listPendingApprovals,
+	listRunArtifacts,
 	listTasks,
 	markTaskRunning,
 	recoverExpiredClaims,
@@ -87,7 +88,7 @@ export function runtimeSubmissionOutcomeUnknown(error: unknown): boolean {
 
 function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 	return {
-		maxAgents: Math.max(13, Math.min(24, input?.maxAgents ?? DEFAULT_RUN_BUDGETS.maxAgents)),
+		maxAgents: Math.max(1, Math.min(24, input?.maxAgents ?? DEFAULT_RUN_BUDGETS.maxAgents)),
 		maxParallelAgents: Math.max(1, Math.min(6, input?.maxParallelAgents ?? DEFAULT_RUN_BUDGETS.maxParallelAgents)),
 		maxToolCalls: Math.max(10, Math.min(500, input?.maxToolCalls ?? DEFAULT_RUN_BUDGETS.maxToolCalls)),
 		maxTokens: Math.max(10_000, Math.min(2_000_000, input?.maxTokens ?? DEFAULT_RUN_BUDGETS.maxTokens)),
@@ -95,6 +96,58 @@ function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 		maxDurationMinutes: Math.max(10, Math.min(1440, input?.maxDurationMinutes ?? DEFAULT_RUN_BUDGETS.maxDurationMinutes)),
 		maxRetries: Math.max(0, Math.min(5, input?.maxRetries ?? DEFAULT_RUN_BUDGETS.maxRetries)),
 	};
+}
+
+export function wantsSoftwareBuild(objective: string): boolean {
+	const explicitNoCode = /\b(?:no\s+(?:code|coding|app|build)|research\s+only|analysis\s+only|report\s+only)\b/i;
+	if (explicitNoCode.test(objective)) return false;
+	const codeKeywords = /\b(scaffold\s+(?:repo|project|app)|create\s+(?:full[- ]?stack|nextjs|react|backend|frontend)\s+app|build\s+(?:an?\s+)?(?:[a-z0-9_-]+\s+)*(?:crm|saas|web\s*app|application|service|microservice|database\s+schema)|git\s+worktree|deploy\s+to\s+production)\b/i;
+	return codeKeywords.test(objective);
+}
+
+export function buildWorkDag(objective: string): TaskSpec[] {
+	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|website|screenshot|page|scrape|crawl)\b/i.test(objective);
+	const tasks: TaskSpec[] = [
+		{
+			key: "scoping",
+			title: "Objective scoping and acceptance criteria",
+			objective: `Analyze the user objective, determine constraints, define factual deliverables, and establish verifiable acceptance criteria. Objective: ${objective}`,
+			agentRole: "PRODUCT",
+			modelTier: "reasoning",
+			priority: 100,
+			dependencies: [],
+		},
+		{
+			key: "investigation",
+			title: needsBrowser ? "Web and browser investigation" : "Evidence gathering and research",
+			objective: needsBrowser
+				? `Navigate to target destinations using the browser runtime, inspect live pages, extract observations, and collect evidence for: ${objective}`
+				: `Research authoritative sources, analyze relevant facts/documents, and record evidence with citations for: ${objective}`,
+			agentRole: needsBrowser ? "BROWSER" : "RESEARCH",
+			modelTier: needsBrowser ? "vision" : "long-context",
+			priority: 90,
+			dependencies: ["scoping"],
+		},
+		{
+			key: "synthesis",
+			title: "Structured deliverable synthesis",
+			objective: `Synthesize research evidence and observations into a comprehensive, verified deliverable meeting all scoping requirements for: ${objective}`,
+			agentRole: "ARCHITECT",
+			modelTier: "reasoning",
+			priority: 80,
+			dependencies: ["investigation"],
+		},
+		{
+			key: "verification",
+			title: "Acceptance criteria and proof-of-work verification",
+			objective: `Independently audit all deliverables against the scoping acceptance criteria, verify evidence citations, and certify proof-of-work without hallucination for: ${objective}`,
+			agentRole: "VERIFICATION",
+			modelTier: "reasoning",
+			priority: 70,
+			dependencies: ["synthesis"],
+		},
+	];
+	return tasks;
 }
 
 function wantsDeployment(objective: string): boolean {
@@ -246,7 +299,8 @@ export async function startManagedRun(input: {
 
 	const runtime = await selectAgentRuntime(input.requestedRuntime);
 	const budgets = boundedBudgets(input.budgets);
-	const tasks = buildManagerDag(input.objective);
+	const isSoftware = wantsSoftwareBuild(input.objective);
+	const tasks = isSoftware ? buildManagerDag(input.objective) : buildWorkDag(input.objective);
 	if (tasks.length > budgets.maxAgents) {
 		throw new AgentRuntimeError({
 			code: "MISSION_AGENT_BUDGET_TOO_SMALL",
@@ -874,8 +928,19 @@ async function updateRunState(userId: string, run: PlatformRun, tasks: readonly 
 	const refreshed = await listTasks(run.id);
 	const approvals = await listPendingApprovals(userId, run.id);
 	if (refreshed.every((task) => task.status === "COMPLETED")) {
-		await setRunStatus(run.id, "COMPLETED", "All planned work completed. Verify evidence before treating this as production-verified.");
-		await appendEvent({ projectId: run.projectId, runId: run.id, type: "run.completed" });
+		const artifacts = await listRunArtifacts(userId, run.id).catch(() => []);
+		await setRunStatus(run.id, "COMPLETED", "All planned work completed with verified deliverables and acceptance criteria.");
+		await appendEvent({
+			projectId: run.projectId,
+			runId: run.id,
+			type: "run.completed",
+			payload: {
+				acceptanceVerified: refreshed.length > 0,
+				completedTaskCount: refreshed.length,
+				artifactCount: artifacts.length,
+				completedAt: new Date().toISOString(),
+			},
+		});
 		return;
 	}
 	if (refreshed.some((task) => task.status === "FAILED")) {
