@@ -296,7 +296,10 @@ export async function startManagedRun(input: {
 	readonly budgets?: Partial<RunBudgets>;
 }): Promise<RuntimeTickResult> {
 	const existing = await getRunByClientRequestId(input.userId, input.clientRequestId);
-	if (existing) return tickManagedRun(input.userId, existing.id);
+	if (existing) {
+		const tasksList = await listTasks(existing.id);
+		return { run: existing, tasks: tasksList, dispatched: 0, reconciled: 0 };
+	}
 
 	const runtime = await selectAgentRuntime(input.requestedRuntime);
 	const budgets = boundedBudgets(input.budgets);
@@ -346,7 +349,13 @@ export async function startManagedRun(input: {
 			confidence: 1,
 		}).catch(() => undefined),
 	]);
-	return tickManagedRun(input.userId, run.id);
+	const tasksList = await listTasks(run.id);
+	return {
+		run,
+		tasks: tasksList,
+		dispatched: 0,
+		reconciled: 0,
+	};
 }
 
 function depsCompleted(task: PlatformTask, byId: Map<string, PlatformTask>): boolean {

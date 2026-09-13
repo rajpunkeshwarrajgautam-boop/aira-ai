@@ -102,6 +102,12 @@ mock.module("@/lib/agent-platform/store", {
 			}
 			return null;
 		}),
+		getProjectForUser: mock.fn(async () => null),
+		updateBrowserSession: mock.fn(async () => null),
+		appendEvent: mock.fn(async () => ({ id: "ev_mock" })),
+		createRunArtifact: mock.fn(async () => ({ id: "art_1", name: "final_deliverable.md", kind: "DELIVERABLE" })),
+		listRunArtifacts: mock.fn(async () => []),
+		getRunArtifact: mock.fn(async () => null),
 		getBrowserSession: mock.fn(async (userId: string, sessionId: string) => {
 			if (userId === OWNER_A && sessionId === OWNER_BROWSER_SESSION_ID) {
 				return { id: OWNER_BROWSER_SESSION_ID, userId: OWNER_A, status: "ACTIVE" };
@@ -177,6 +183,8 @@ mock.module("@/lib/agent-platform/browser-arbitration", {
 			}
 			return null;
 		}),
+		claimBrowserActionLease: mock.fn(async () => true),
+		releaseBrowserActionLease: mock.fn(async () => true),
 	},
 });
 

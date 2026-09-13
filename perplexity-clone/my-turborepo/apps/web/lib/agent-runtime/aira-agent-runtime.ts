@@ -206,6 +206,10 @@ export async function submitAiraAgentRun(
 			maxSteps = 1;
 		} else if (taskRole === "ARCHITECT" || taskKey === "synthesis") {
 			maxSteps = Math.min(2, maxSteps);
+		} else if (taskRole === "PRODUCT" || taskKey === "scoping") {
+			maxSteps = 1;
+		} else if (taskRole === "RESEARCH" || taskKey === "investigation") {
+			maxSteps = Math.min(2, maxSteps);
 		}
 		let finalOutput = "";
 		let verificationObj: VerificationResult | null = null;
@@ -240,6 +244,10 @@ export async function submitAiraAgentRun(
 						role: "user",
 						content: `WORK_TOOL_DENIED: Tool "${tool}" is not permitted for this task. Permitted tools are: [${allowedTools.join(", ")}]. Proceed with permitted tools or summarize the final answer.`,
 					});
+					if (step >= maxSteps) {
+						finalOutput = responseText;
+						break;
+					}
 					continue;
 				}
 

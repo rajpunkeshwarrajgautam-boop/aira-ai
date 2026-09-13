@@ -13,8 +13,8 @@ import type { AIProvider, ProviderOptions } from "./provider-router";
 export const DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
 const DEFAULT_NVIDIA_FALLBACK_MODELS = [
 	"meta/llama-3.2-11b-vision-instruct",
-	"minimaxai/minimax-m3",
-	"meta/llama-3.3-70b-instruct",
+	"deepseek-ai/deepseek-v4-flash-0731",
+	"meta/llama-3.2-90b-vision-instruct",
 ] as const;
 
 function getErrorStatus(error: unknown): number | undefined {
