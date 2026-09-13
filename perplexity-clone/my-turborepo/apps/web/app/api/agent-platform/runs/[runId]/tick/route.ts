@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
-import { getRunForUser, listTasks } from "@/lib/agent-platform/store";
+import { tickManagedRun } from "@/lib/agent-platform/orchestrator";
+import { getRunForUser } from "@/lib/agent-platform/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,36 +12,28 @@ function json(body: unknown, init?: ResponseInit): Response {
 		...init,
 		headers: {
 			"Cache-Control": "no-store",
-			"Deprecation": "true",
-			"Sunset": "browser mission advancement is handled by the persistent scheduler",
 			...(init?.headers ?? {}),
 		},
 	});
 }
 
-/**
- * Compatibility endpoint for older /build clients.
- *
- * It deliberately does NOT advance orchestration. Autonomous progress is owned
- * exclusively by the persistent server-to-server scheduler. Keeping this route
- * observation-only prevents an open browser tab (or many tabs) from becoming a
- * second scheduler while allowing already-deployed clients to refresh state.
- */
 export async function POST(_: Request, { params }: Params): Promise<Response> {
 	const session = await auth();
 	if (!session?.user?.id) {
 		return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	}
 	const { runId } = await params;
-	const run = await getRunForUser(session.user.id, runId);
-	if (!run) {
-		return json({ error: { code: "NOT_FOUND", message: "Managed run not found." } }, { status: 404 });
+	try {
+		const result = await tickManagedRun(session.user.id, runId);
+		return json(result);
+	} catch (error) {
+		if (error instanceof Error && error.message === "Managed run not found.") {
+			return json({ error: { code: "NOT_FOUND", message: error.message } }, { status: 404 });
+		}
+		console.error("[agent-platform:tick]", error);
+		return json(
+			{ error: { code: "MANAGED_RUN_TICK_FAILED", message: "AIRA could not advance this managed run." } },
+			{ status: 500 },
+		);
 	}
-	return json({
-		run,
-		tasks: await listTasks(run.id),
-		dispatched: 0,
-		reconciled: 0,
-		schedulerOwned: true,
-	});
 }
