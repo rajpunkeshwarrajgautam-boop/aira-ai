@@ -331,4 +331,49 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 - **Evidence**: `npx tsc --noEmit` exits with code 0.
 - **Result**: `PASS`
 
+---
+
+## PHASE 6 — FINAL MANAGED-EXECUTION CORRECTION
+
+### Skill: using-superpowers / executing-plans / writing-plans
+- **Purpose**: Meta-skill discovery and plan formulation for Phase 6 Final Managed-Execution Correction.
+- **Files inspected**: `lib/agent-runtime/aira-agent-runtime.ts`, `lib/agent-platform/orchestrator.ts`, `lib/agent-platform/store.ts`.
+- **Files modified**: `docs/AIRA_RELEASE4_SKILL_LEDGER.md`.
+- **Commands/actions**: Structured systematic correction addressing real tool execution, artifact materialization, structured verification, acceptance gating, and cancel race fencing.
+- **Evidence**: Approved plan artifact and skill ledger.
+- **Result**: `PASS`
+
+### Skill: llm-architect / backend / api-designer / typescript-strict / nextjs-app-router
+- **Purpose**: Bounded tool execution loop, Tool Gateway integration, context passing, and deliverable materialization.
+- **Files inspected**: `lib/agent-runtime/aira-agent-runtime.ts`, `lib/agent-runtime/types.ts`, `lib/agent-platform/orchestrator.ts`.
+- **Files modified**: `lib/agent-runtime/aira-agent-runtime.ts`, `lib/agent-runtime/types.ts`, `lib/agent-platform/orchestrator.ts`.
+- **Commands/actions**: Implemented bounded 5-step model-tool loop with `executeTool` from canonical Tool Gateway; passed explicit task and project context; materialized real `final_deliverable.md` and `verification_report.json` artifacts; enforced atomic completion CAS update (`WHERE status = 'RUNNING'`); added `AbortController` cancellation propagation.
+- **Evidence**: `npx tsc --noEmit` exits 0; unit and integration tests pass.
+- **Result**: `PASS`
+
+### Skill: auth-specialist / nextjs-supabase-auth / postgres-wizard / supabase-backend / privacy-guardian
+- **Purpose**: Real artifact storage, content hashing, provenance, and tenant isolation (IDOR defense).
+- **Files inspected**: `lib/agent-platform/store.ts`, `app/api/agent-platform/runs/[runId]/artifacts/[artifactId]/route.ts`.
+- **Files modified**: `lib/agent-platform/store.ts`, `app/api/agent-platform/runs/[runId]/artifacts/[artifactId]/route.ts`.
+- **Commands/actions**: Implemented `createRunArtifact`, `getRunArtifact`, and `listRunArtifacts` with tenant-scoped SQL queries; created authenticated artifact retrieval endpoint returning 404 on cross-user access; persisted content and SHA-256 content hashes.
+- **Evidence**: `test/work-artifacts-idor.test.ts` passes cleanly.
+- **Result**: `PASS`
+
+### Skill: agentic-tdd / test-driven-development / test-architect / qa-engineering / systematic-debugging
+- **Purpose**: Acceptance-gated completion verification, structured verification schema validation, and cancel race tests.
+- **Files inspected**: `lib/agent-platform/orchestrator.ts`, `test/work-acceptance-gating.test.ts`, `test/aira-agent-runtime.test.ts`.
+- **Files modified**: `test/work-acceptance-gating.test.ts`, `test/aira-agent-runtime.test.ts`, `test/work-runtime-status.test.ts`.
+- **Commands/actions**: Built and executed comprehensive tests for `evaluateRunAcceptance` (rejecting empty deliverables, missing reports, or failed criteria; certifying acceptance only when all criteria pass); tested tool allowlist and cancel terminal state protection.
+- **Evidence**: 29/29 tests passing; 0 failing.
+- **Result**: `PASS`
+
+### Skill: code-quality / code-cleanup / vercel-deployment / aira-verification / verification-before-completion / finishing-a-development-branch
+- **Purpose**: Candidate build validation, linter verification, and Preview readiness certification.
+- **Files inspected**: Entire Next.js project.
+- **Files modified**: None.
+- **Commands/actions**: Executed `npm run lint` (0 errors, 0 warnings); executed `npm run build` (compiled all routes cleanly in 6.4s); prepared commit for remote certification.
+- **Evidence**: Build output exited with code 0.
+- **Result**: `PASS`
+
+
 

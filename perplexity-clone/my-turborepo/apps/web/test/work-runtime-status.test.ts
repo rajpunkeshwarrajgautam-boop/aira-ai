@@ -20,26 +20,32 @@ test("GET /api/agent-platform/runtime/status returns 401 when unauthenticated", 
 
 test("GET /api/agent-platform/runtime/status returns status structure when authenticated", async () => {
 	sessionUser = { id: "usr_test_status_1" };
-	const { GET } = await import("../app/api/agent-platform/runtime/status/route");
-	const res = await GET();
-	assert.equal(res.status, 200);
-	const data = (await res.json()) as {
-		enabled: boolean;
-		configured: boolean;
-		ready: boolean;
-		provider: string | null;
-		subsystems: {
-			planner: { ready: boolean };
-			agentExecution: { ready: boolean };
-			browser: { ready: boolean; status: string };
-			knowledge: { ready: boolean; status: string };
-			route: { ready: boolean; status: string };
+	const prevKey = process.env.OPENAI_API_KEY;
+	process.env.OPENAI_API_KEY = "sk-test-status-key";
+	try {
+		const { GET } = await import("../app/api/agent-platform/runtime/status/route");
+		const res = await GET();
+		assert.equal(res.status, 200);
+		const data = (await res.json()) as {
+			enabled: boolean;
+			configured: boolean;
+			ready: boolean;
+			provider: string | null;
+			subsystems: {
+				planner: { ready: boolean };
+				agentExecution: { ready: boolean };
+				browser: { ready: boolean; status: string };
+				knowledge: { ready: boolean; status: string };
+				route: { ready: boolean; status: string };
+			};
+			checkedAt: string;
 		};
-		checkedAt: string;
-	};
-	assert.equal(typeof data.enabled, "boolean");
-	assert.equal(typeof data.configured, "boolean");
-	assert.equal(typeof data.ready, "boolean");
-	assert.ok(data.subsystems.planner.ready);
-	assert.ok(data.checkedAt);
+		assert.equal(typeof data.enabled, "boolean");
+		assert.equal(typeof data.configured, "boolean");
+		assert.equal(typeof data.ready, "boolean");
+		assert.ok(data.subsystems.planner.ready);
+		assert.ok(data.checkedAt);
+	} finally {
+		process.env.OPENAI_API_KEY = prevKey;
+	}
 });

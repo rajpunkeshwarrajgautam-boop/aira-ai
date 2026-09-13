@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { AgentRunStatus } from "@/generated/prisma/enums";
 import { buildRuntimeContext } from "@/lib/aira-runtime/context";
 import { getAgentRuntime, selectAgentRuntime } from "@/lib/agent-runtime/registry";
@@ -765,8 +766,20 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 			const submission = await runtime.createRun({
 				userId,
 				clientRequestId: runtimeRequestId,
-				objective: runtimeContext.systemPrompt,
+				objective: task.objective,
 				billingMode: "DELEGATED",
+				agentExecutionOptions: {
+					name: task.title,
+					instructions: runtimeContext.systemPrompt,
+					allowedTools,
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					agentId,
+					taskRole: task.agentRole,
+					taskKey: task.agentRole === "VERIFICATION" ? "verification" : task.agentRole === "ARCHITECT" ? "synthesis" : task.agentRole === "PRODUCT" ? "scoping" : "investigation",
+					budgets: run.budgets as unknown as Record<string, unknown>,
+				},
 			});
 
 			const afterSubmission = await getRunForUser(userId, run.id);
@@ -918,6 +931,140 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 	return dispatched;
 }
 
+export const VerificationCriterionSchema = z.object({
+	criterionId: z.string().min(1),
+	passed: z.boolean(),
+	evidence: z.array(z.string()).min(1),
+});
+
+export const VerificationResultSchema = z.object({
+	criteria: z.array(VerificationCriterionSchema).min(1),
+	requiredEvidencePresent: z.boolean(),
+	overallPassed: z.boolean(),
+	summary: z.string().min(1),
+});
+
+export interface AcceptanceEvaluation {
+	readonly passed: boolean;
+	readonly summary: string;
+	readonly artifacts: readonly { id: string; name: string; kind: string }[];
+	readonly failedCriteria?: readonly string[];
+}
+
+export async function evaluateRunAcceptance(
+	userId: string,
+	run: PlatformRun,
+	tasks: readonly PlatformTask[],
+): Promise<AcceptanceEvaluation> {
+	if (!tasks.every((t) => t.status === "COMPLETED")) {
+		return {
+			passed: false,
+			summary: "Not all tasks have reached COMPLETED status.",
+			artifacts: [],
+		};
+	}
+
+	const artifacts = await listRunArtifacts(userId, run.id).catch(() => []);
+	const deliverableArtifact = artifacts.find(
+		(a) => a.kind === "DELIVERABLE" || a.kind === "ANALYSIS_REPORT" || a.name.endsWith(".md"),
+	);
+
+	if (!deliverableArtifact) {
+		return {
+			passed: false,
+			summary: "Required final deliverable artifact does not exist in persisted store.",
+			artifacts,
+		};
+	}
+
+	const deliverableContent = deliverableArtifact.metadata?.content;
+	if (typeof deliverableContent !== "string" || deliverableContent.trim().length < 20) {
+		return {
+			passed: false,
+			summary: "Final deliverable artifact is empty or lacks substantive content.",
+			artifacts,
+		};
+	}
+
+	const verificationTask = tasks.find(
+		(t) => t.agentRole === "VERIFICATION" || t.title.toLowerCase().includes("verification"),
+	);
+
+	if (!verificationTask) {
+		return {
+			passed: false,
+			summary: "No verification task was defined in the execution graph.",
+			artifacts,
+		};
+	}
+
+	const verificationArtifact = artifacts.find(
+		(a) => a.kind === "VERIFICATION_REPORT" || a.name === "verification_report.json",
+	);
+
+	let parsedResult: z.infer<typeof VerificationResultSchema> | null = null;
+	if (verificationArtifact?.metadata) {
+		const candidate = {
+			criteria: verificationArtifact.metadata.criteria,
+			requiredEvidencePresent: verificationArtifact.metadata.requiredEvidencePresent,
+			overallPassed: verificationArtifact.metadata.overallPassed,
+			summary: verificationArtifact.metadata.summary ?? "Verification report evaluated.",
+		};
+		const validated = VerificationResultSchema.safeParse(candidate);
+		if (validated.success) parsedResult = validated.data;
+	}
+
+	if (!parsedResult && verificationTask.runtimeRunId && process.env.DATABASE_URL) {
+		try {
+			const childRun = await prisma.agentRun.findUnique({
+				where: { id: verificationTask.runtimeRunId },
+				select: { result: true },
+			});
+			const resultObj = childRun?.result && typeof childRun.result === "object" ? (childRun.result as Record<string, unknown>) : null;
+			if (resultObj?.verification) {
+				const validated = VerificationResultSchema.safeParse(resultObj.verification);
+				if (validated.success) parsedResult = validated.data;
+			}
+		} catch {
+			// Non-blocking if DB is not reachable
+		}
+	}
+
+	if (!parsedResult) {
+		return {
+			passed: false,
+			summary: "Verification task did not produce a valid structured verification report.",
+			artifacts,
+		};
+	}
+
+	if (!parsedResult.overallPassed || !parsedResult.requiredEvidencePresent) {
+		const failedIds = parsedResult.criteria.filter((c) => !c.passed).map((c) => c.criterionId);
+		return {
+			passed: false,
+			summary: `Acceptance verification failed: ${parsedResult.summary}`,
+			artifacts,
+			failedCriteria: failedIds,
+		};
+	}
+
+	const failedCriteria = parsedResult.criteria.filter((c) => !c.passed);
+	if (failedCriteria.length > 0) {
+		return {
+			passed: false,
+			summary: `Acceptance criteria not met: ${failedCriteria.map((c) => c.criterionId).join(", ")} failed.`,
+			artifacts,
+			failedCriteria: failedCriteria.map((c) => c.criterionId),
+		};
+	}
+
+	return {
+		passed: true,
+		summary: parsedResult.summary || "All planned work completed with verified deliverables and acceptance criteria.",
+		artifacts,
+	};
+}
+
 async function updateRunState(userId: string, run: PlatformRun, tasks: readonly PlatformTask[]): Promise<void> {
 	const byId = new Map(tasks.map((task) => [task.id, task]));
 	for (const task of tasks) {
@@ -928,19 +1075,34 @@ async function updateRunState(userId: string, run: PlatformRun, tasks: readonly 
 	const refreshed = await listTasks(run.id);
 	const approvals = await listPendingApprovals(userId, run.id);
 	if (refreshed.every((task) => task.status === "COMPLETED")) {
-		const artifacts = await listRunArtifacts(userId, run.id).catch(() => []);
-		await setRunStatus(run.id, "COMPLETED", "All planned work completed with verified deliverables and acceptance criteria.");
-		await appendEvent({
-			projectId: run.projectId,
-			runId: run.id,
-			type: "run.completed",
-			payload: {
-				acceptanceVerified: refreshed.length > 0,
-				completedTaskCount: refreshed.length,
-				artifactCount: artifacts.length,
-				completedAt: new Date().toISOString(),
-			},
-		});
+		const acceptance = await evaluateRunAcceptance(userId, run, refreshed);
+		if (acceptance.passed) {
+			await setRunStatus(run.id, "COMPLETED", acceptance.summary);
+			await appendEvent({
+				projectId: run.projectId,
+				runId: run.id,
+				type: "run.completed",
+				payload: {
+					acceptanceVerified: true,
+					completedTaskCount: refreshed.length,
+					artifactCount: acceptance.artifacts.length,
+					summary: acceptance.summary,
+					completedAt: new Date().toISOString(),
+				},
+			});
+		} else {
+			await setRunStatus(run.id, "FAILED", `Acceptance verification failed: ${acceptance.summary}`);
+			await appendEvent({
+				projectId: run.projectId,
+				runId: run.id,
+				type: "run.failed",
+				payload: {
+					acceptanceVerified: false,
+					reason: acceptance.summary,
+					failedCriteria: acceptance.failedCriteria ?? [],
+				},
+			});
+		}
 		return;
 	}
 	if (refreshed.some((task) => task.status === "FAILED")) {

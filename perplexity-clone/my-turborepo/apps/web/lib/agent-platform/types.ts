@@ -155,3 +155,17 @@ export interface RuntimeTickResult {
 	readonly dispatched: number;
 	readonly reconciled: number;
 }
+
+export interface VerificationCriterion {
+	readonly criterionId: string;
+	readonly passed: boolean;
+	readonly evidence: readonly string[];
+}
+
+export interface VerificationResult {
+	readonly criteria: readonly VerificationCriterion[];
+	readonly requiredEvidencePresent: boolean;
+	readonly overallPassed: boolean;
+	readonly summary: string;
+}
+

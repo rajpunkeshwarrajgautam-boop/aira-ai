@@ -37,6 +37,13 @@ export interface AgentExecutionOptions {
 	readonly allowedTools?: readonly string[];
 	readonly knowledgeContext?: readonly string[];
 	readonly memoryContext?: readonly string[];
+	readonly projectId?: string;
+	readonly runId?: string;
+	readonly taskId?: string;
+	readonly agentId?: string;
+	readonly taskRole?: string;
+	readonly taskKey?: string;
+	readonly budgets?: Record<string, unknown>;
 }
 
 export interface CreateAgentRunInput {

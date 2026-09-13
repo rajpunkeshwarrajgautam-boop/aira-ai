@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { PostgresBlobStorageProvider } from "@/lib/artifacts/blob-storage";
 
 import type {
 	AgentProject,
@@ -226,14 +228,152 @@ export async function listEvents(runId: string, after?: Date): Promise<PlatformE
 	return rows.map((row) => ({ ...row, payload: jsonObject(row.payload) }));
 }
 
-export async function listRunArtifacts(userId: string, runId: string): Promise<Array<{ id: string; name: string; kind: string; uri: string; createdAt: Date }>> {
-	return prisma.$queryRaw<Array<{ id: string; name: string; kind: string; uri: string; createdAt: Date }>>`
-		select a."id", a."name", a."kind", a."uri", a."createdAt"
+export interface RunArtifactRecord {
+	readonly id: string;
+	readonly projectId: string;
+	readonly runId: string;
+	readonly taskId: string | null;
+	readonly kind: string;
+	readonly name: string;
+	readonly uri: string;
+	readonly metadata: Record<string, unknown>;
+	readonly createdAt: Date;
+}
+
+const inMemoryArtifacts = new Map<string, RunArtifactRecord>();
+
+export async function listRunArtifacts(
+	userId: string,
+	runId: string,
+): Promise<Array<{ id: string; name: string; kind: string; uri: string; metadata?: Record<string, unknown>; createdAt: Date }>> {
+	if (!process.env.DATABASE_URL) {
+		return Array.from(inMemoryArtifacts.values())
+			.filter((a) => a.runId === runId)
+			.map((a) => ({
+				id: a.id,
+				name: a.name,
+				kind: a.kind,
+				uri: a.uri,
+				metadata: a.metadata,
+				createdAt: a.createdAt,
+			}));
+	}
+	const rows = await prisma.$queryRaw<Array<{ id: string; name: string; kind: string; uri: string; metadata: unknown; createdAt: Date }>>`
+		select a."id", a."name", a."kind", a."uri", a."metadata", a."createdAt"
 		from "AgentArtifact" a
 		join "AgentPlatformRun" r on r."id" = a."runId"
 		where a."runId" = ${runId} and r."userId" = ${userId}
 		order by a."createdAt" asc
 	`;
+	return rows.map((r) => ({
+		id: r.id,
+		name: r.name,
+		kind: r.kind,
+		uri: r.uri,
+		metadata: jsonObject(r.metadata),
+		createdAt: r.createdAt,
+	}));
+}
+
+export async function createRunArtifact(input: {
+	readonly projectId: string;
+	readonly runId: string;
+	readonly taskId?: string | null;
+	readonly kind: string;
+	readonly name: string;
+	readonly uri?: string;
+	readonly content?: string;
+	readonly metadata?: Record<string, unknown>;
+}): Promise<RunArtifactRecord> {
+	const id = `art_${crypto.randomUUID()}`;
+	const safeName = input.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+	const uri = input.uri ?? `artifact://${input.runId}/${safeName}`;
+	const content = input.content ?? "";
+	const contentHash = createHash("sha256").update(content, "utf8").digest("hex");
+	const meta: Record<string, unknown> = {
+		...(input.metadata ?? {}),
+		content,
+		contentHash,
+		sizeBytes: Buffer.byteLength(content, "utf8"),
+	};
+
+	if (!process.env.DATABASE_URL) {
+		const rec: RunArtifactRecord = {
+			id,
+			projectId: input.projectId,
+			runId: input.runId,
+			taskId: input.taskId ?? null,
+			kind: input.kind,
+			name: safeName,
+			uri,
+			metadata: meta,
+			createdAt: new Date(),
+		};
+		inMemoryArtifacts.set(id, rec);
+		return rec;
+	}
+
+	await prisma.$executeRaw`
+		INSERT INTO "AgentArtifact" ("id", "projectId", "runId", "taskId", "kind", "name", "uri", "metadata", "createdAt")
+		VALUES (${id}, ${input.projectId}, ${input.runId}, ${input.taskId ?? null}, ${input.kind}, ${safeName}, ${uri}, ${JSON.stringify(meta)}::jsonb, current_timestamp)
+	`;
+
+	if (content) {
+		try {
+			const blobKey = `artifacts/${input.runId}/${safeName}`;
+			const blobStorage = new PostgresBlobStorageProvider();
+			await blobStorage.putBlob(blobKey, Buffer.from(content, "utf8"), "text/markdown");
+		} catch {
+			// Non-blocking secondary blob mirror
+		}
+	}
+
+	return {
+		id,
+		projectId: input.projectId,
+		runId: input.runId,
+		taskId: input.taskId ?? null,
+		kind: input.kind,
+		name: safeName,
+		uri,
+		metadata: meta,
+		createdAt: new Date(),
+	};
+}
+
+export async function getRunArtifact(
+	userId: string,
+	runId: string,
+	artifactId: string,
+): Promise<RunArtifactRecord | null> {
+	if (!process.env.DATABASE_URL) {
+		const item = inMemoryArtifacts.get(artifactId);
+		if (!item || item.runId !== runId) return null;
+		return item;
+	}
+	const rows = await prisma.$queryRaw<Array<{
+		id: string;
+		projectId: string;
+		runId: string;
+		taskId: string | null;
+		kind: string;
+		name: string;
+		uri: string;
+		metadata: unknown;
+		createdAt: Date;
+	}>>`
+		select a."id", a."projectId", a."runId", a."taskId", a."kind", a."name", a."uri", a."metadata", a."createdAt"
+		from "AgentArtifact" a
+		join "AgentPlatformRun" r on r."id" = a."runId"
+		where a."id" = ${artifactId} and a."runId" = ${runId} and r."userId" = ${userId}
+		limit 1
+	`;
+	const row = rows[0];
+	if (!row) return null;
+	return {
+		...row,
+		metadata: jsonObject(row.metadata),
+	};
 }
 
 

@@ -42,9 +42,24 @@ export async function GET(): Promise<Response> {
 
 	const browserReady = Boolean(tools.browser);
 	const knowledgeReady = Boolean(tools.files && tools.memory);
+	const plannerConfigured = Boolean(
+		process.env.OPENAI_API_KEY?.trim() ||
+			process.env.NVIDIA_API_KEY?.trim() ||
+			process.env.OMNIROUTE_API_KEY?.trim(),
+	);
+	const plannerReady = workEnabled && plannerConfigured;
+
+	const routeConfigured = Boolean(
+		process.env.OPENAI_API_KEY?.trim() ||
+			process.env.NVIDIA_API_KEY?.trim() ||
+			process.env.OMNIROUTE_API_KEY?.trim(),
+	);
+	const routeReady = routeConfigured;
+
 	const degradedCapabilities: string[] = [];
 	if (!browserReady) degradedCapabilities.push("BROWSER_OFFLINE");
 	if (!tools.web) degradedCapabilities.push("WEB_SEARCH_OFFLINE");
+	if (!knowledgeReady) degradedCapabilities.push("KNOWLEDGE_STORAGE_OFFLINE");
 
 	const ready = workEnabled && executionReady;
 	let reason: string | null = null;
@@ -62,22 +77,36 @@ export async function GET(): Promise<Response> {
 		reason,
 		degradedCapabilities,
 		subsystems: {
-			planner: { ready: true },
+			planner: {
+				configured: plannerConfigured,
+				ready: plannerReady,
+				status: plannerReady ? "WORKING_E2E_IN_PREVIEW" : "CONFIGURATION_BLOCKED",
+				reason: plannerReady ? null : "No LLM provider configured for planning.",
+			},
 			agentExecution: {
+				configured: runtimeStates.some((s) => s.configured),
 				ready: executionReady,
 				provider: preferredProvider,
+				status: executionReady ? "WORKING_E2E_IN_PREVIEW" : "CONFIGURATION_BLOCKED",
+				reason: executionReady ? null : "No execution runtime available.",
 			},
 			browser: {
+				configured: Boolean(process.env.AIRA_BROWSER_RUNTIME_URL),
 				ready: browserReady,
 				status: browserReady ? "WORKING_E2E_IN_PREVIEW" : "INFRASTRUCTURE_BLOCKED",
+				reason: browserReady ? null : "Browser worker offline or unreachable.",
 			},
 			knowledge: {
+				configured: Boolean(process.env.SUPABASE_URL || process.env.DATABASE_URL),
 				ready: knowledgeReady,
-				status: "WORKING_E2E_IN_PREVIEW",
+				status: knowledgeReady ? "WORKING_E2E_IN_PREVIEW" : "INFRASTRUCTURE_BLOCKED",
+				reason: knowledgeReady ? null : "Knowledge storage or memory adapter offline.",
 			},
 			route: {
-				ready: true,
-				status: "WORKING_E2E_IN_PREVIEW",
+				configured: routeConfigured,
+				ready: routeReady,
+				status: routeReady ? "WORKING_E2E_IN_PREVIEW" : "CONFIGURATION_BLOCKED",
+				reason: routeReady ? null : "No LLM routing providers configured.",
 			},
 		},
 		checkedAt: new Date().toISOString(),
