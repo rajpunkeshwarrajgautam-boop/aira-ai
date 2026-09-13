@@ -18,40 +18,68 @@ function oauthFlags() {
 }
 
 export const metadata: Metadata = {
-	title: "Sign in — AiraAI",
-	description: "Sign in to AiraAI with Google or GitHub",
+	title: "Sign in — Aira AI",
+	description: "Enter Aira AI — one workspace for every intelligence.",
+	robots: { index: false, follow: false },
 };
 
 export default function SignInPage() {
 	const { google: showGoogle, github: showGitHub } = oauthFlags();
 
 	return (
-		<div className="aira-shell relative flex min-h-dvh flex-col items-center justify-center px-4 py-12 sm:py-16">
-			<div className="relative z-10 w-full max-w-md">
-				<div className="mb-7 flex justify-center"><AiraLogo /></div>
-				<div className="aira-gradient-frame rounded-[30px]">
-					<div className="aira-glass rounded-[29px] p-6 sm:p-7">
-						<div className="text-center">
-							<span className="inline-flex items-center gap-2 rounded-full bg-accent/[0.07] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-accent ring-1 ring-accent/10">
-								<span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" aria-hidden />
-								Your Aira workspace
-							</span>
-							<h1 className="aira-display mt-4 text-3xl text-content-primary sm:text-4xl">Welcome back.</h1>
-							<p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-content-secondary">
-								Sign in to keep conversations, persistent memory, Deep Research, and your private agent workspace together.
-							</p>
-						</div>
-						<div className="mt-7">
-							<Suspense fallback={<div className="flex h-[118px] items-center justify-center rounded-2xl bg-surface-inset/70"><span className="aira-orbit-loader" aria-hidden /></div>}>
-								<SignInPanel showGoogle={showGoogle} showGitHub={showGitHub} />
-							</Suspense>
+		<main className="aira-auth-stage">
+			<section className="aira-auth-frame" aria-label="Aira AI authentication">
+				<div className="aira-auth-visual">
+					<div className="aira-auth-visual-noise" aria-hidden />
+					<div className="aira-auth-orb" aria-hidden>
+						<span className="aira-auth-orb-core" />
+						<span className="aira-auth-orb-ring aira-auth-orb-ring-one" />
+						<span className="aira-auth-orb-ring aira-auth-orb-ring-two" />
+						<span className="aira-auth-orb-glow aira-auth-orb-glow-one" />
+						<span className="aira-auth-orb-glow aira-auth-orb-glow-two" />
+					</div>
+
+					<div className="aira-auth-brand">
+						<AiraLogo />
+					</div>
+
+					<div className="aira-auth-visual-copy">
+						<p className="aira-auth-eyebrow">Aira intelligence workspace</p>
+						<h2>
+							One workspace.
+							<br />
+							Every intelligence.
+						</h2>
+						<p>
+							Research, create, automate, compare models, and run agents from one continuous workspace.
+						</p>
+						<div className="aira-auth-capabilities" aria-label="Aira capabilities">
+							<span>Chat</span>
+							<span>Agents</span>
+							<span>Research</span>
+							<span>Files</span>
+							<span>Models</span>
+							<span>Workflows</span>
 						</div>
 					</div>
 				</div>
-				<p className="mt-6 text-center text-xs leading-relaxed text-content-tertiary">
-					Your provider shares only basic profile data used for authentication and account linking.
-				</p>
-			</div>
-		</div>
+
+				<div className="aira-auth-form-side">
+					<div className="aira-auth-mobile-brand">
+						<AiraLogo />
+						<span className="aira-auth-mobile-orb" aria-hidden />
+					</div>
+					<Suspense
+						fallback={
+							<div className="aira-auth-panel-content flex min-h-[360px] items-center justify-center">
+								<span className="aira-orbit-loader" aria-hidden />
+							</div>
+						}
+					>
+						<SignInPanel showGoogle={showGoogle} showGitHub={showGitHub} />
+					</Suspense>
+				</div>
+			</section>
+		</main>
 	);
 }
