@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Suspense } from "react";
 
 import { AiraLogo } from "../../components/AiraLogo";
@@ -29,23 +28,17 @@ export default function SignInPage() {
 
 	return (
 		<main className="aira-auth-stage aira-auth-stage-visme">
-			<Script
-				src="https://static-bundles.visme.co/forms/vismeforms-embed.js"
-				strategy="afterInteractive"
-			/>
-
 			<section className="aira-auth-frame aira-auth-frame-visme" aria-label="Aira AI authentication">
 				<div className="aira-auth-visual aira-auth-visme-column">
-					<div className="aira-auth-visme-shell" aria-hidden="true">
-						<div
-							className="visme_d aira-auth-visme-embed"
-							data-title="Webinar Registration Form"
-							data-url="x9m86gyq-webinar-registration-form?fullPage=true"
-							data-domain="forms"
-							data-full-page="true"
-							data-min-height="100vh"
-							data-form-id="161717"
-						/>
+					<div className="aira-auth-native-scene" aria-hidden="true">
+						<span className="aira-auth-native-blob aira-auth-native-blob-one" />
+						<span className="aira-auth-native-blob aira-auth-native-blob-two" />
+						<span className="aira-auth-native-blob aira-auth-native-blob-three" />
+						<span className="aira-auth-native-orbit aira-auth-native-orbit-one" />
+						<span className="aira-auth-native-orbit aira-auth-native-orbit-two" />
+						<span className="aira-auth-native-dot aira-auth-native-dot-one" />
+						<span className="aira-auth-native-dot aira-auth-native-dot-two" />
+						<span className="aira-auth-native-dot aira-auth-native-dot-three" />
 					</div>
 					<div className="aira-auth-visme-shade" aria-hidden />
 
