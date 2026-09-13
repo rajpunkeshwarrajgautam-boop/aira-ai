@@ -47,7 +47,14 @@ function projectRow(row: AgentProject): AgentProject {
 }
 
 function runRow(row: PlatformRun): PlatformRun {
-	return { ...row, budgets: jsonObject(row.budgets) as unknown as RunBudgets };
+	return {
+		...row,
+		inputTokensUsed: row.inputTokensUsed !== null && row.inputTokensUsed !== undefined ? Number(row.inputTokensUsed) : 0,
+		outputTokensUsed: row.outputTokensUsed !== null && row.outputTokensUsed !== undefined ? Number(row.outputTokensUsed) : 0,
+		cachedTokensUsed: row.cachedTokensUsed !== null && row.cachedTokensUsed !== undefined ? Number(row.cachedTokensUsed) : 0,
+		knownCostUsd: row.knownCostUsd !== null && row.knownCostUsd !== undefined ? Number(row.knownCostUsd) : 0,
+		budgets: jsonObject(row.budgets) as unknown as RunBudgets,
+	};
 }
 
 function taskRow(row: PlatformTask): PlatformTask {

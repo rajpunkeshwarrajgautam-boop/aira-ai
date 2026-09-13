@@ -37,9 +37,14 @@ const StartRunSchema = z.object({
 });
 
 function json(body: unknown, init?: ResponseInit): Response {
-	return Response.json(body, {
+	const serialized = JSON.stringify(body, (_key, value) => typeof value === "bigint" ? Number(value) : value);
+	return new Response(serialized, {
 		...init,
-		headers: { "Cache-Control": "no-store", ...(init?.headers ?? {}) },
+		headers: {
+			"Content-Type": "application/json",
+			"Cache-Control": "no-store",
+			...(init?.headers ?? {}),
+		},
 	});
 }
 

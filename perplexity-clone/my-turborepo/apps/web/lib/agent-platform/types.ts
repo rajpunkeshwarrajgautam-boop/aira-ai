@@ -71,6 +71,10 @@ export interface PlatformRun {
 	readonly managerRole: string;
 	readonly budgets: RunBudgets;
 	readonly summary: string | null;
+	readonly inputTokensUsed?: number | null;
+	readonly outputTokensUsed?: number | null;
+	readonly cachedTokensUsed?: number | null;
+	readonly knownCostUsd?: number | null;
 	readonly createdAt: Date;
 	readonly updatedAt: Date;
 	readonly startedAt: Date | null;
