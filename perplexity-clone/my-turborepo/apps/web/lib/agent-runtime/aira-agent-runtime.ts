@@ -201,7 +201,12 @@ export async function submitAiraAgentRun(
 		];
 
 		let step = 0;
-		const maxSteps = Math.min(5, Math.max(1, (options?.budgets?.maxToolCalls as number) ?? 5));
+		let maxSteps = Math.min(5, Math.max(1, (options?.budgets?.maxToolCalls as number) ?? 5));
+		if (taskRole === "VERIFICATION" || taskKey === "verification") {
+			maxSteps = 1;
+		} else if (taskRole === "ARCHITECT" || taskKey === "synthesis") {
+			maxSteps = Math.min(2, maxSteps);
+		}
 		let finalOutput = "";
 		let verificationObj: VerificationResult | null = null;
 		const executedTools: Array<{ tool: string; action: string; result: unknown }> = [];
@@ -291,13 +296,21 @@ export async function submitAiraAgentRun(
 		const artifactsCreated: string[] = [];
 
 		if (taskKey === "synthesis" || taskRole === "ARCHITECT" || (!taskId && finalOutput.length > 50)) {
+			let deliverableMarkdown = finalOutput;
+			try {
+				const parsed = JSON.parse(finalOutput);
+				if (parsed.finalAnswer) deliverableMarkdown = parsed.finalAnswer;
+			} catch {
+				// Raw markdown already
+			}
+
 			const deliverableArtifact = await createRunArtifact({
 				projectId,
 				runId,
 				taskId,
 				kind: "DELIVERABLE",
 				name: "final_deliverable.md",
-				content: finalOutput,
+				content: deliverableMarkdown,
 				metadata: {
 					title: options?.name ?? "Final Deliverable",
 					taskKey,

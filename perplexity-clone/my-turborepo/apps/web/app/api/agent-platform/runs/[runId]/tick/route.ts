@@ -4,6 +4,7 @@ import { getRunForUser } from "@/lib/agent-platform/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type Params = { params: Promise<{ runId: string }> };
 

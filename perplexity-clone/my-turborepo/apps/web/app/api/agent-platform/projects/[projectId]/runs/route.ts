@@ -16,6 +16,7 @@ import { resolveEffectiveWorkBudgets } from "@/lib/agent-platform/budgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type Params = { params: Promise<{ projectId: string }> };
 
