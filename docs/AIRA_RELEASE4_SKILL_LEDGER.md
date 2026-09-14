@@ -375,5 +375,10 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 - **Evidence**: Build output exited with code 0.
 - **Result**: `PASS`
 
-
-
+### Skill: aira-verification / test-driven-development / agentic-tdd / verification-before-completion
+- **Purpose**: End-to-end live Vercel Preview verification for Phase 6 AIRA Work.
+- **Files inspected**: `scratch/phase6_live_preview_certification.js`, `scratch/phase6_preview_certification_report.json`, `docs/AIRA_RELEASE4_PHASE6_WORK_CERTIFICATION.md`.
+- **Files modified**: `lib/agent-runtime/aira-agent-runtime.ts`, `docs/AIRA_RELEASE4_PHASE6_WORK_CERTIFICATION.md`, `docs/AIRA_RELEASE4_SKILL_LEDGER.md`.
+- **Commands/actions**: Deployed candidate commit `4122ce53` to Vercel Preview deployment `dpl_H4eB8mBRfoeyNNkJZ31n4hTnPr5f` (`https://aira-ai-live-fw1c91ke3-rajpunkeshwarrajgautam-boops-projects.vercel.app`). Ran live E2E certification harness testing 18 live gates: authenticated status probe, server-authoritative planning and budget ceilings, project creation, run launch idempotency, multi-tick autonomous orchestration across 4 tasks (PRODUCT, RESEARCH, ARCHITECT, VERIFICATION), run terminal completion (`COMPLETED`), real materialized deliverable (`final_deliverable.md`, 499 bytes), verification report (`verification_report.json`, 690 bytes), substantive deliverable retrieval, IDOR cross-user protection (404), cancel execution, late-completion CAS fence, and native Work UI routes.
+- **Evidence**: 18/18 live preview checks PASSED (100% PASS rate). Authoritative report recorded at `scratch/phase6_preview_certification_report.json`. Production baseline strictly untouched.
+- **Result**: `PASS`
