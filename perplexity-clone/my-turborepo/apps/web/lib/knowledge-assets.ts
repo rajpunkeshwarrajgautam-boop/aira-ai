@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
+import { deleteKnowledgeObject } from "@/lib/foundation-storage";
 import { prisma } from "@/lib/prisma";
 import {
 	embedTextWithRoute,
@@ -269,3 +270,88 @@ export async function getRelevantKnowledgeContext(
 		return [];
 	}
 }
+
+export async function getKnowledgeAsset(
+	userId: string,
+	assetId: string,
+): Promise<{
+	id: string;
+	filename: string;
+	mimeType: string;
+	sizeBytes: bigint;
+	status: string;
+	errorMessage: string | null;
+	createdAt: Date;
+	updatedAt: Date;
+	sampleText?: string;
+	chunkCount?: number;
+} | null> {
+	const rows = await prisma.$queryRaw<KnowledgeAssetRow[]>`
+		select id, filename, "mimeType", "sizeBytes", status, "errorMessage", "createdAt", "updatedAt"
+		from public."KnowledgeAsset"
+		where id = ${assetId} and "userId" = ${userId}
+		limit 1
+	`;
+	if (rows.length === 0 || !rows[0]) return null;
+	const asset = rows[0];
+
+	const chunks = await prisma.$queryRaw<Array<{ content: string }>>`
+		select content
+		from public."KnowledgeChunk"
+		where "assetId" = ${assetId} and "userId" = ${userId}
+		order by ordinal asc
+		limit 3
+	`;
+	const countRow = await prisma.$queryRaw<Array<{ count: bigint }>>`
+		select count(*)::bigint as count
+		from public."KnowledgeChunk"
+		where "assetId" = ${assetId} and "userId" = ${userId}
+	`;
+
+	return {
+		...asset,
+		sampleText: chunks.map((c) => c.content).join("\n\n").slice(0, 3000),
+		chunkCount: Number(countRow[0]?.count ?? 0n),
+	};
+}
+
+export async function deleteKnowledgeAsset(
+	userId: string,
+	assetId: string,
+): Promise<boolean> {
+	const rows = await prisma.$queryRaw<Array<{ id: string; storageKey: string }>>`
+		select id, "storageKey"
+		from public."KnowledgeAsset"
+		where id = ${assetId} and "userId" = ${userId}
+		limit 1
+	`;
+	if (rows.length === 0 || !rows[0]) return false;
+	const { storageKey } = rows[0];
+
+	await prisma.$transaction(async (tx) => {
+		await tx.$executeRaw`
+			delete from public."KnowledgeChunkSemanticEmbedding"
+			where "chunkId" in (
+				select id from public."KnowledgeChunk"
+				where "assetId" = ${assetId} and "userId" = ${userId}
+			) and "userId" = ${userId}
+		`;
+		await tx.$executeRaw`
+			delete from public."KnowledgeChunk"
+			where "assetId" = ${assetId} and "userId" = ${userId}
+		`;
+		await tx.$executeRaw`
+			delete from public."KnowledgeAsset"
+			where id = ${assetId} and "userId" = ${userId}
+		`;
+	});
+
+	try {
+		await deleteKnowledgeObject(storageKey);
+	} catch (e) {
+		console.warn("[AIRA knowledge asset] Storage object cleanup warning:", e instanceof Error ? e.message : e);
+	}
+
+	return true;
+}
+

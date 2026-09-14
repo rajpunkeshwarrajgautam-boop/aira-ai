@@ -10,29 +10,30 @@ import { cn } from "../lib/cn";
 import { AiraLogo } from "./AiraLogo";
 
 const PRIMARY_NAV = [
-  { href: "/", label: "AIRA Search", description: "Ask, investigate, cite", icon: Search },
-  { href: "/work", label: "AIRA Work", description: "Outcome-driven managed work", icon: Sparkles },
-  { href: "/build", label: "AIRA Builder", description: "Plan, delegate and ship", icon: Hammer },
+  { href: "/", label: "Research", description: "Search, investigate, cite", icon: Search },
+  { href: "/work", label: "Work", description: "Outcome-driven managed missions", icon: Sparkles },
+  { href: "/knowledge", label: "Knowledge", description: "Files and document context", icon: FolderOpen },
+  { href: "/compare", label: "Models", description: "Compare models side by side", icon: Columns2 },
+  { href: "/settings", label: "Settings", description: "Preferences, connections & tools", icon: Settings2 },
 ] as const;
 const CREATE_NAV = [
-  { href: "/agents", label: "AIRA Agents", description: "Design and run autonomous agents", icon: Bot },
+  { href: "/build", label: "Builder", description: "Plan, delegate and ship", icon: Hammer },
+  { href: "/agents", label: "Agents", description: "Design and run autonomous agents", icon: Bot },
   { href: "/workflows", label: "Workflows", description: "Durable routines and workflows", icon: History },
-  { href: "/browser", label: "AIRA Browser", description: "Operate and take browser control", icon: Globe2 },
+  { href: "/browser", label: "Browser", description: "Operate and take browser control", icon: Globe2 },
 ] as const;
 const WORKSPACE_NAV = [
-  { href: "/projects", label: "AIRA Projects", description: "Context, runs and deliverables", icon: Boxes },
-  { href: "/knowledge", label: "AIRA Knowledge", description: "Files and document context", icon: FolderOpen },
-  { href: "/memory", label: "AIRA Memory", description: "Review retained context", icon: Brain },
-  { href: "/artifacts", label: "AIRA Outputs", description: "Durable deliverables & provenance", icon: Layers },
+  { href: "/projects", label: "Projects", description: "Context, runs and deliverables", icon: Boxes },
+  { href: "/memory", label: "Memory", description: "Review retained context", icon: Brain },
+  { href: "/artifacts", label: "Outputs", description: "Durable deliverables & provenance", icon: Layers },
 ] as const;
 const INTELLIGENCE_NAV = [
-  { href: "/omniroute", label: "AIRA Route", description: "Smart multi-provider gateway", icon: Network },
-  { href: "/compare", label: "AIRA Models", description: "Compare models side by side", icon: Columns2 },
+  { href: "/omniroute", label: "Route", description: "Smart multi-provider gateway", icon: Network },
 ] as const;
 const SYSTEM_NAV = [
-  { href: "/settings#integrations", label: "AIRA Connections", description: "Providers and runtime status", icon: Settings2 },
-  { href: "/control-center", label: "AIRA Command Center", description: "System health and activity", icon: Gauge },
-  { href: "/governance", label: "AIRA Governance", description: "Organizations and access controls", icon: ShieldCheck },
+  { href: "/settings#integrations", label: "Connections", description: "Providers and runtime status", icon: Settings2 },
+  { href: "/control-center", label: "Command Center", description: "System health and activity", icon: Gauge },
+  { href: "/governance", label: "Governance", description: "Organizations and access controls", icon: ShieldCheck },
   { href: "/pricing", label: "Plans & Billing", description: "Usage and upgrades", icon: CreditCard },
   { href: "/workspace-search", label: "Global Search", description: "Chats, projects, outputs & knowledge", icon: Search },
 ] as const;

@@ -209,6 +209,70 @@ export function WorkExecutionWorkspace() {
 
         {error ? <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">{error}</div> : null}
 
+        {sessionStatus !== "authenticated" ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#c9a84c]/25 bg-[#c9a84c]/[0.06] p-4 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="grid size-8 place-items-center rounded-lg bg-[#c9a84c]/20 text-[#e5c97b]">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <p className="font-semibold text-[#f0f0ed]">Discover AIRA Work Mode</p>
+                <p className="text-[#8e95a2]">Pick a verified mission template below to preview multi-agent execution graphs, or sign in to launch live autonomous missions.</p>
+              </div>
+            </div>
+            <Link
+              href="/signin?callbackUrl=%2Fwork"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#d0ae55] px-4 py-2 text-xs font-semibold text-[#111214] transition hover:bg-[#dfbd63]"
+            >
+              Sign in to Launch
+            </Link>
+          </div>
+        ) : null}
+
+        {/* Mission Templates */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              title: "Market & Due Diligence",
+              desc: "Deep competitive matrix, regulatory posture, and evidence synthesis.",
+              goal: "Conduct a comprehensive due diligence investigation into competitive AI gateway infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.",
+              depth: "HIGH" as const,
+              cost: 10,
+            },
+            {
+              title: "Security & Threat Modeling",
+              desc: "IDOR boundaries, SSRF prevention, and strict tenant isolation.",
+              goal: "Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.",
+              depth: "MAXIMUM" as const,
+              cost: 15,
+            },
+            {
+              title: "System Performance Audit",
+              desc: "Latency bottlenecks, connection pools, and cold-start profiling.",
+              goal: "Analyze end-to-end serverless request latency, PostgreSQL pool saturation limits, and pgvector retrieval similarity bounds under high concurrency.",
+              depth: "MEDIUM" as const,
+              cost: 5,
+            },
+          ].map((tmpl) => (
+            <button
+              key={tmpl.title}
+              type="button"
+              onClick={() => {
+                setObjective(tmpl.goal);
+                setEffort(tmpl.depth);
+                setMaxBudgetUsd(tmpl.cost);
+              }}
+              className="rounded-xl border border-white/[0.07] bg-[#0c0f14] p-3.5 text-left transition hover:border-[#c9a84c]/30 hover:bg-white/[0.03]"
+            >
+              <p className="text-xs font-semibold text-[#f0f0ed]">{tmpl.title}</p>
+              <p className="mt-1 text-[11px] leading-5 text-[#8e95a2]">{tmpl.desc}</p>
+              <span className="mt-2 inline-block rounded bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-[#c9a84c]">
+                Load template →
+              </span>
+            </button>
+          ))}
+        </div>
+
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
             <label className="text-xs font-semibold text-[#deded9]" htmlFor="work-objective">Outcome objective</label>
@@ -231,7 +295,7 @@ export function WorkExecutionWorkspace() {
 
           <aside className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
             <h2 className="text-sm font-semibold">Execution evidence</h2>
-            {!plan ? <p className="mt-4 text-sm leading-6 text-[#777d85]">Generate a plan to inspect the real task graph before execution.</p> : <div className="mt-4 space-y-3"><div className="rounded-xl bg-white/[0.03] p-3 text-xs text-[#9ba0a8]"><div>Risk: <span className="text-[#deded9]">{plan.overallRisk}</span></div><div className="mt-1">Estimated cost: <span className="text-[#deded9]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div><div className="mt-1">Tasks: <span className="text-[#deded9]">{plan.tasks.length}</span></div></div>{plan.tasks.slice(0, 6).map((task) => <div key={task.id} className="rounded-xl border border-white/[0.06] px-3 py-2"><p className="text-xs font-medium text-[#e4e4df]">{task.title}</p><p className="mt-1 text-[11px] text-[#747a82]">{task.agentRole} · {task.risk}</p></div>)}</div>}
+            {!plan ? <p className="mt-4 text-sm leading-6 text-[#777d85]">Generate a plan or load a template above to inspect the task graph before execution.</p> : <div className="mt-4 space-y-3"><div className="rounded-xl bg-white/[0.03] p-3 text-xs text-[#9ba0a8]"><div>Risk: <span className="text-[#deded9]">{plan.overallRisk}</span></div><div className="mt-1">Estimated cost: <span className="text-[#deded9]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div><div className="mt-1">Tasks: <span className="text-[#deded9]">{plan.tasks.length}</span></div></div>{plan.tasks.slice(0, 6).map((task) => <div key={task.id} className="rounded-xl border border-white/[0.06] px-3 py-2"><p className="text-xs font-medium text-[#e4e4df]">{task.title}</p><p className="mt-1 text-[11px] text-[#747a82]">{task.agentRole} · {task.risk}</p></div>)}</div>}
             {launch ? <div className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3"><p className="text-xs font-semibold text-emerald-200">Managed run created · {launch.status}</p><p className="mt-1 break-all text-[10px] text-[#778079]">{launch.runId}</p><Link href={`/work/runs/${encodeURIComponent(launch.runId)}`} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#d0ae55]">Open Work Mission Control <ExternalLink className="size-3" /></Link></div> : null}
           </aside>
         </section>

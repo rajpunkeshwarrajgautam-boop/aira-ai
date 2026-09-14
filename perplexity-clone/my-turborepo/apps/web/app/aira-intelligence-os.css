@@ -551,7 +551,7 @@
   .aira-intelligence-os .aira-v2-nav-item.aira-v2-nav-item.is-active::before { left: -13px !important; }
   .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy { display: flex !important; min-width: 0; flex: 1 1 auto; flex-direction: column; text-align: left; }
   .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy strong { font-size: 11.5px !important; line-height: 1.25; text-align: left; }
-  .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy small { display: block !important; margin-top: 2px; font-size: 9.5px !important; }
+  .aira-intelligence-os .aira-v2-nav-copy.aira-v2-nav-copy small { display: block !important; margin-top: 2px; font-size: 11px !important; color: #8e95a2 !important; }
   .aira-intelligence-os .aira-v2-command-trigger.aira-v2-command-trigger { grid-template-columns: 24px 1fr auto !important; min-height: 42px !important; place-items: center stretch; padding: 7px 9px !important; }
   .aira-intelligence-os .aira-v2-command-trigger.aira-v2-command-trigger span,
   .aira-intelligence-os .aira-v2-command-trigger.aira-v2-command-trigger kbd { display: inline !important; }
