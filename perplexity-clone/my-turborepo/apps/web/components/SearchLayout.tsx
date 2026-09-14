@@ -1365,69 +1365,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								</div>
 							) : null}
 
-							{!isAuthed && !messages.length && phase === "idle" ? (
-								<div className="mt-7 w-full rounded-2xl border border-white/[0.08] bg-[#0c1017]/80 p-5 text-left shadow-lg">
-									<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
-										<div className="flex items-center gap-2.5">
-											<span className="grid size-7 place-items-center rounded-lg bg-[#c9a84c]/20 text-[#d0ae55]">
-												<Sparkles className="size-4" />
-											</span>
-											<div>
-												<p className="text-xs font-semibold text-[#f0f0ed]">Discover AIRA Work Mode</p>
-												<p className="text-[11px] text-[#8e95a2]">Autonomous multi-agent execution with verified deliverables and proof.</p>
-											</div>
-										</div>
-										<Link
-											href="/work"
-											className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3 py-1.5 text-xs font-medium text-[#e5c97b] transition hover:bg-[#c9a84c]/20"
-										>
-											<span>Explore Work</span>
-											<span aria-hidden="true">→</span>
-										</Link>
-									</div>
-									<p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-[#8e95a2]">
-										Verified Mission Templates
-									</p>
-									<div className="mt-2.5 grid gap-2.5 sm:grid-cols-3">
-										{[
-											{
-												title: "Market & Due Diligence",
-												desc: "Deep competitive matrix, regulatory posture, and evidence synthesis.",
-												query: "Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.",
-											},
-											{
-												title: "Security & Threat Modeling",
-												desc: "IDOR boundaries, SSRF prevention, and strict tenant isolation.",
-												query: "Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.",
-											},
-											{
-												title: "System Performance Audit",
-												desc: "Latency benchmarks, query profiling, and memory leak analysis.",
-												query: "Analyze end-to-end inference latency bottlenecks, profile database connection pools under concurrent load, and recommend caching topologies for sub-100ms responses.",
-											},
-										].map((item) => (
-											<button
-												key={item.title}
-												type="button"
-												onClick={() => {
-													setQuery(item.query);
-													searchBoxRef.current?.focus();
-												}}
-												className="group flex flex-col justify-between rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 text-left transition hover:border-[#c9a84c]/40 hover:bg-white/[0.05]"
-											>
-												<div>
-													<p className="text-xs font-medium text-[#ecece8] group-hover:text-[#e5c97b]">{item.title}</p>
-													<p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#8e95a2]">{item.desc}</p>
-												</div>
-												<span className="mt-3 inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-[#a98b43] group-hover:text-[#e5c97b]">
-													Try Template →
-												</span>
-											</button>
-										))}
-									</div>
-								</div>
-							) : null}
-
 							{phase === "error" && errorMessage ? (
 								<div
 									className={cn(
