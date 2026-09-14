@@ -10,6 +10,7 @@ import {
 } from "@/lib/billing/plan-enforcement";
 import { prisma } from "@/lib/prisma";
 import { createRunArtifact, listRunArtifacts } from "@/lib/agent-platform/store";
+import { VerificationResultSchema } from "@/lib/agent-platform/verification-schema";
 import type { VerificationResult } from "@/lib/agent-platform/types";
 import { executeTool } from "@/lib/tool-gateway/gateway";
 import type { AiraToolId, ToolContext } from "@/lib/tool-gateway/types";
@@ -100,6 +101,31 @@ export function parseModelDecision(text: string): ModelDecision {
 
 export function isToolPermitted(tool: string, allowedTools: readonly string[]): boolean {
 	return allowedTools.includes(tool);
+}
+
+export function isToolExecutionSuccessful(result: unknown): boolean {
+	if (!result || typeof result !== "object") return false;
+	const status = (result as { status?: string }).status;
+	return status === "COMPLETED";
+}
+
+export function generateFallbackDeliverable(
+	objective: string,
+	name: string | undefined,
+	executedTools: readonly { tool: string; action: string; result: unknown; status?: string }[],
+): string {
+	const successfulTools = executedTools.filter((t) => t.status === "COMPLETED");
+	const failedTools = executedTools.filter((t) => t.status !== "COMPLETED");
+
+	const toolEvidence = successfulTools.length > 0
+		? successfulTools.map((t, idx) => `### Source Observation ${idx + 1}: ${t.tool}.${t.action}\n\`\`\`json\n${JSON.stringify(t.result, null, 2)}\n\`\`\``).join("\n\n")
+		: "No successful tool observations were obtained during execution (insufficient evidence).";
+
+	const diagnostics = failedTools.length > 0
+		? `\n\n## Diagnostic Notices\n${failedTools.map((t) => `- Attempted tool ${t.tool}.${t.action}: Unsuccessful or failed execution`).join("\n")}`
+		: "";
+
+	return `# Outcome Report: ${name ?? "Execution Summary"}\n\n## Objective\n${objective}\n\n## Execution Status\nPartial or reconstructed execution without independent verified completion.\n\n## Tool Observations & Collected Data\n${toolEvidence}${diagnostics}\n\n## Scope & Deliverable Notes\nThis is a fallback execution record. Acceptance criteria have NOT been certified by this deliverable.`;
 }
 
 export async function submitAiraAgentRun(
@@ -213,7 +239,7 @@ export async function submitAiraAgentRun(
 		}
 		let finalOutput = "";
 		let verificationObj: VerificationResult | null = null;
-		const executedTools: Array<{ tool: string; action: string; result: unknown }> = [];
+		const executedTools: Array<{ tool: string; action: string; result: unknown; status?: string }> = [];
 
 		while (step < maxSteps) {
 			step += 1;
@@ -274,7 +300,8 @@ export async function submitAiraAgentRun(
 					toolResult = { status: "FAILED", error: toolErr instanceof Error ? toolErr.message : "Tool execution failed" };
 				}
 
-				executedTools.push({ tool, action, result: toolResult });
+				const isSuccess = isToolExecutionSuccessful(toolResult);
+				executedTools.push({ tool, action, result: toolResult, status: isSuccess ? "COMPLETED" : "FAILED" });
 
 				messages.push({ role: "assistant", content: responseText });
 				messages.push({
@@ -320,10 +347,7 @@ export async function submitAiraAgentRun(
 		}
 
 		if (!finalOutput.trim() || finalOutput.trim().length < 20) {
-			const toolSummaries = executedTools
-				.map((t, idx) => `### Source Evidence ${idx + 1}: ${t.tool}.${t.action}\n\`\`\`json\n${JSON.stringify(t.result, null, 2)}\n\`\`\``)
-				.join("\n\n");
-			finalOutput = `# Deliverable: ${options?.name ?? "Outcome Report"}\n\n## Objective\n${input.objective}\n\n## Executive Summary\nExecution completed with verified observations across authorized tools.\n\n## Evidence & Analysis\n${toolSummaries || "Analysis completed based on authorized project context and task specifications."}\n\n## Conclusion & Verification\nAll scoping requirements and acceptance criteria have been evaluated and recorded.`;
+			finalOutput = generateFallbackDeliverable(input.objective, options?.name, executedTools);
 		}
 
 		// Gate 9 & 10: Materialize real persisted deliverables
@@ -360,25 +384,60 @@ export async function submitAiraAgentRun(
 		}
 
 		if (taskKey === "verification" || taskRole === "VERIFICATION") {
-			let validVerification: VerificationResult = verificationObj as VerificationResult;
-			if (!validVerification || !Array.isArray(validVerification.criteria)) {
-				validVerification = {
-					criteria: [
-						{
-							criterionId: "crit_objective_fulfilled",
-							passed: true,
-							evidence: ["Verified final deliverable fulfills task objectives and requirements."],
-						},
-						{
-							criterionId: "crit_evidence_cited",
-							passed: true,
-							evidence: ["Verified factual evidence and source citations are present."],
-						},
-					],
-					requiredEvidencePresent: true,
-					overallPassed: true,
-					summary: finalOutput.slice(0, 300) || "Acceptance criteria verified with evidence.",
-				};
+			let candidate: unknown = verificationObj;
+			if (!candidate) {
+				const parsed = parseModelDecision(finalOutput);
+				if (parsed.verification) {
+					candidate = parsed.verification;
+				} else if (parsed && typeof parsed === "object" && "criteria" in parsed) {
+					candidate = parsed;
+				}
+			}
+
+			let validVerification: VerificationResult | null = null;
+			if (candidate) {
+				const parsedValidation = VerificationResultSchema.safeParse(candidate);
+				if (parsedValidation.success) {
+					validVerification = parsedValidation.data;
+				}
+			}
+
+			// Gate 1 & 2: Allow at most ONE bounded correction attempt for missing/malformed structured verification
+			if (!validVerification && !abortController.signal.aborted) {
+				messages.push({
+					role: "assistant",
+					content: finalOutput || "No structured verification output provided.",
+				});
+				messages.push({
+					role: "user",
+					content: "WORK_VERIFICATION_INVALID: Verification requires a valid structured JSON report adhering strictly to the schema. Your previous output was missing, plain-text, or malformed. Respond ONLY with a valid JSON object matching:\n{\n  \"criteria\": [\n    {\"criterionId\": string, \"passed\": boolean, \"evidence\": [string]}\n  ],\n  \"requiredEvidencePresent\": boolean,\n  \"overallPassed\": boolean,\n  \"summary\": string\n}\nRules:\n- criteria must be non-empty\n- every passed criterion must have at least one substantive, non-empty evidence string\n- if any criterion fails, overallPassed must be false\n- if required evidence is missing, overallPassed must be false\n- do NOT wrap in extra prose",
+				});
+
+				try {
+					const correctionResponse = await OpenAIService.collectTextStream(
+						service.streamChatText(messages, { abortSignal: abortController.signal }),
+					);
+					const correctionDecision = parseModelDecision(correctionResponse);
+					const correctionCandidate = correctionDecision.verification ?? (correctionDecision && "criteria" in correctionDecision ? correctionDecision : null);
+					if (correctionCandidate) {
+						const correctionValidation = VerificationResultSchema.safeParse(correctionCandidate);
+						if (correctionValidation.success) {
+							validVerification = correctionValidation.data;
+							finalOutput = correctionDecision.finalAnswer || JSON.stringify(validVerification, null, 2);
+						}
+					}
+				} catch (corrErr: unknown) {
+					if (abortController.signal.aborted || (corrErr as { name?: string })?.name === "AbortError") {
+						throw new Error("Execution was cancelled by user request.");
+					}
+					// Correction failed or timed out
+				}
+			}
+
+			// Gate 1: If structured verification is absent, invalid, or refused: MUST NOT produce PASS.
+			// Do NOT create a passing verification_report.json for invalid verification.
+			if (!validVerification) {
+				throw new Error("WORK_VERIFICATION_INVALID: Verification task failed to produce a valid structured verification report adhering to VerificationResultSchema.");
 			}
 
 			const reportArtifact = await createRunArtifact({

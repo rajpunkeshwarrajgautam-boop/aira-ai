@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { PostgresBlobStorageProvider } from "@/lib/artifacts/blob-storage";
 
 import type {
 	AgentProject,
@@ -238,6 +237,7 @@ export interface RunArtifactRecord {
 	readonly uri: string;
 	readonly metadata: Record<string, unknown>;
 	readonly createdAt: Date;
+	readonly userId?: string | null;
 }
 
 const inMemoryArtifacts = new Map<string, RunArtifactRecord>();
@@ -248,7 +248,7 @@ export async function listRunArtifacts(
 ): Promise<Array<{ id: string; name: string; kind: string; uri: string; metadata?: Record<string, unknown>; createdAt: Date }>> {
 	if (!process.env.DATABASE_URL) {
 		return Array.from(inMemoryArtifacts.values())
-			.filter((a) => a.runId === runId)
+			.filter((a) => a.runId === runId && (!a.userId || a.userId === userId))
 			.map((a) => ({
 				id: a.id,
 				name: a.name,
@@ -284,6 +284,7 @@ export async function createRunArtifact(input: {
 	readonly uri?: string;
 	readonly content?: string;
 	readonly metadata?: Record<string, unknown>;
+	readonly userId?: string;
 }): Promise<RunArtifactRecord> {
 	const id = `art_${crypto.randomUUID()}`;
 	const safeName = input.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
@@ -308,6 +309,7 @@ export async function createRunArtifact(input: {
 			uri,
 			metadata: meta,
 			createdAt: new Date(),
+			userId: input.userId ?? null,
 		};
 		inMemoryArtifacts.set(id, rec);
 		return rec;
@@ -317,16 +319,6 @@ export async function createRunArtifact(input: {
 		INSERT INTO "AgentArtifact" ("id", "projectId", "runId", "taskId", "kind", "name", "uri", "metadata", "createdAt")
 		VALUES (${id}, ${input.projectId}, ${input.runId}, ${input.taskId ?? null}, ${input.kind}, ${safeName}, ${uri}, ${JSON.stringify(meta)}::jsonb, current_timestamp)
 	`;
-
-	if (content) {
-		try {
-			const blobKey = `artifacts/${input.runId}/${safeName}`;
-			const blobStorage = new PostgresBlobStorageProvider();
-			await blobStorage.putBlob(blobKey, Buffer.from(content, "utf8"), "text/markdown");
-		} catch {
-			// Non-blocking secondary blob mirror
-		}
-	}
 
 	return {
 		id,
@@ -349,6 +341,7 @@ export async function getRunArtifact(
 	if (!process.env.DATABASE_URL) {
 		const item = inMemoryArtifacts.get(artifactId);
 		if (!item || item.runId !== runId) return null;
+		if (item.userId && item.userId !== userId) return null;
 		return item;
 	}
 	const rows = await prisma.$queryRaw<Array<{
@@ -374,6 +367,26 @@ export async function getRunArtifact(
 		...row,
 		metadata: jsonObject(row.metadata),
 	};
+}
+
+export async function deleteRunArtifact(
+	userId: string,
+	runId: string,
+	artifactId: string,
+): Promise<boolean> {
+	if (!process.env.DATABASE_URL) {
+		const item = inMemoryArtifacts.get(artifactId);
+		if (!item || item.runId !== runId) return false;
+		if (item.userId && item.userId !== userId) return false;
+		inMemoryArtifacts.delete(artifactId);
+		return true;
+	}
+	const count = await prisma.$executeRaw`
+		delete from "AgentArtifact" a
+		using "AgentPlatformRun" r
+		where a."id" = ${artifactId} and a."runId" = ${runId} and r."id" = a."runId" and r."userId" = ${userId}
+	`;
+	return count > 0;
 }
 
 

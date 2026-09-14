@@ -10,11 +10,11 @@ import type { AIProvider, ProviderOptions } from "./provider-router";
  * must *name* the model before calling it (provider pickers, status readouts)
  * cannot drift from the model the provider will really use.
  */
-export const DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
+export const DEFAULT_NVIDIA_MODEL = "meta/llama-3.2-11b-vision-instruct";
 const DEFAULT_NVIDIA_FALLBACK_MODELS = [
-	"meta/llama-3.2-11b-vision-instruct",
-	"deepseek-ai/deepseek-v4-flash-0731",
-	"meta/llama-3.2-90b-vision-instruct",
+	"nvidia/nemotron-3-super-120b-a12b",
+	"openai/gpt-oss-20b",
+	"meta/muse-glimmer-30b",
 ] as const;
 
 function getErrorStatus(error: unknown): number | undefined {

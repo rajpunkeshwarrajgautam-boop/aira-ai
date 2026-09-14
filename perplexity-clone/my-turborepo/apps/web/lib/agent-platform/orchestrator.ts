@@ -940,18 +940,8 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 	return dispatched;
 }
 
-export const VerificationCriterionSchema = z.object({
-	criterionId: z.string().min(1),
-	passed: z.boolean(),
-	evidence: z.array(z.string()).min(1),
-});
-
-export const VerificationResultSchema = z.object({
-	criteria: z.array(VerificationCriterionSchema).min(1),
-	requiredEvidencePresent: z.boolean(),
-	overallPassed: z.boolean(),
-	summary: z.string().min(1),
-});
+import { VerificationCriterionSchema, VerificationResultSchema } from "./verification-schema";
+export { VerificationCriterionSchema, VerificationResultSchema };
 
 export interface AcceptanceEvaluation {
 	readonly passed: boolean;
@@ -1065,6 +1055,33 @@ export async function evaluateRunAcceptance(
 			artifacts,
 			failedCriteria: failedCriteria.map((c) => c.criterionId),
 		};
+	}
+
+	// Gate 9 & 10: Server-authoritative evidence audit
+	// Failed, denied, blocked, or unapproved tool runs cannot count as positive evidence
+	for (const crit of parsedResult.criteria) {
+		if (crit.passed) {
+			for (const ev of crit.evidence) {
+				const lower = ev.toLowerCase();
+				if (
+					(lower.includes("tool failed") ||
+					 lower.includes("execution failed") ||
+					 lower.includes("status: failed") ||
+					 lower.includes("status: \"failed\"") ||
+					 lower.includes("tool denied") ||
+					 lower.includes("approval_required")) &&
+					!lower.includes("expected to fail") &&
+					!lower.includes("negative test")
+				) {
+					return {
+						passed: false,
+						summary: `Acceptance criteria rejected: criterion "${crit.criterionId}" relies on failed or unapproved tool execution as positive evidence.`,
+						artifacts,
+						failedCriteria: [crit.criterionId],
+					};
+				}
+			}
+		}
 	}
 
 	return {

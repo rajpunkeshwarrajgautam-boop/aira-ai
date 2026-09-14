@@ -22,16 +22,17 @@ Before triggering production deployment:
 ## 2. Production Cutover Procedure (Step-by-Step)
 
 ### Step 1: Database Snapshot / Backup
-1. Access Neon console or execute branch creation:
+1. Execute schema and data backup from primary Supabase host prior to applying migrations:
    ```bash
-   # Create safe restore branch before applying migrations
-   neon branches create --project-id <PROJECT_ID> --name pre-release-4-backup
+   # Create safe SQL dump before applying migrations
+   pg_dump --clean --if-exists --no-owner --no-privileges -d "$DIRECT_URL" -f "pre-release-4-backup-$(date +%Y%m%d_%H%M%SZ).sql"
    ```
-2. Verify WAL point-in-time recovery timestamp.
+2. Verify WAL point-in-time recovery availability in Supabase Dashboard.
 
 ### Step 2: Additive Database Migrations
-1. Run Prisma migrate deploy against the production database:
+1. Run Prisma migrate deploy against the production database using direct connection with verified TLS:
    ```bash
+   # Uses DIRECT_URL (port 5432 session pooler with sslmode=verify-full)
    npx prisma migrate deploy
    ```
 2. Validate that all migrations applied cleanly:
@@ -45,13 +46,16 @@ Before triggering production deployment:
 Verify in Vercel Production Environment:
 - `AIRA_WORK_RUNTIME_ENABLED=true`
 - `AIRA_AGENT_RUNTIME_PRIORITY=AIRA_AGENT,DEERFLOW,AUTOGPT`
-- `DATABASE_URL` (production pooled connection)
-- `DIRECT_URL` (direct PostgreSQL connection for migrations)
+- `DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[POOLER_HOST]:6543/postgres?sslmode=verify-full` (production pooled connection)
+- `DIRECT_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[POOLER_HOST]:5432/postgres?sslmode=verify-full` (direct PostgreSQL connection for migrations)
 - `AUTH_SECRET` (production 32-byte secret)
 - `NVIDIA_NIM_API_KEY` (production funded key)
 - `OPENAI_API_KEY` (production funded key)
 - `AIRA_BROWSER_RUNTIME_URL` (hosted browser service HTTPS endpoint)
 - `AIRA_BROWSER_RUNTIME_TOKEN` (shared authorization secret)
+
+> [!IMPORTANT]
+> Both `DATABASE_URL` and `DIRECT_URL` must explicitly specify `sslmode=verify-full`. This enforces full X.509 certificate chain validation and SNI hostname verification against Node.js root CAs, preventing MITM vulnerabilities and eliminating node-postgres (`pg` v8/v9) deprecation warnings.
 
 ### Step 4: Production Deployment
 1. Deploy exact certified commit SHA to production:
@@ -64,13 +68,16 @@ Verify in Vercel Production Environment:
 1. **Health Probes**:
    - `GET https://aira-ai-live.vercel.app/api/omniroute/status` -> 200 OK
    - `GET https://aira-ai-live.vercel.app/api/agent-platform/runtime/status` -> 200 OK (`ready: true`)
-2. **Work Surface**:
+2. **Database TLS & Connectivity Verification**:
+   - Verify Vercel deployment runtime logs show zero `SECURITY WARNING: The SSL modes 'prefer', 'require' ...` warnings from `pg-connection-string`.
+   - Verify Prisma queries execute with `sslmode=verify-full` cleanly over Supavisor.
+3. **Work Surface**:
    - Load `/work` in browser
    - Submit test objective: "Research route handlers"
    - Confirm server-side plan returns tasks, budget ceilings, and risk analysis
    - Launch managed run -> verify redirect to `/work/runs/[runId]`
    - Verify task graph, live events, deliverables, and acceptance verification
-3. **Tenant Security**:
+4. **Tenant Security**:
    - Log in as test User B -> attempt `GET /api/agent-platform/runs/[userA_runId]` -> must return 404.
 
 ---
@@ -91,7 +98,7 @@ If any P0 defect, unhandled exception, or unexpected regression occurs post-cuto
    npx vercel redeploy
    ```
 3. If database changes caused incompatibilities:
-   - Point application to the pre-release backup database branch in Neon.
+   - Restore database state from pre-release SQL backup or Supabase point-in-time recovery.
 
 ---
 

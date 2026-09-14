@@ -224,9 +224,10 @@ test("VerificationResultSchema validates structured verification output", () => 
 	const parsed = VerificationResultSchema.safeParse(valid);
 	assert.ok(parsed.success);
 
+	// empty evidence array rejected
 	const invalidMissingEvidence = {
 		criteria: [
-			{ criterionId: "c1", passed: true, evidence: [] }, // empty evidence array
+			{ criterionId: "c1", passed: true, evidence: [] },
 		],
 		requiredEvidencePresent: true,
 		overallPassed: true,
@@ -234,6 +235,7 @@ test("VerificationResultSchema validates structured verification output", () => 
 	};
 	assert.equal(VerificationResultSchema.safeParse(invalidMissingEvidence).success, false);
 
+	// empty criteria rejected
 	const invalidMissingCriteria = {
 		criteria: [],
 		requiredEvidencePresent: true,
@@ -241,4 +243,144 @@ test("VerificationResultSchema validates structured verification output", () => 
 		summary: "Incomplete",
 	};
 	assert.equal(VerificationResultSchema.safeParse(invalidMissingCriteria).success, false);
+
+	// one criterion false + overallPassed=true MUST be rejected
+	const invalidConflict = {
+		criteria: [
+			{ criterionId: "c1", passed: true, evidence: ["Valid evidence present"] },
+			{ criterionId: "c2", passed: false, evidence: ["Failed to match expected pattern"] },
+		],
+		requiredEvidencePresent: true,
+		overallPassed: true, // Conflict: overallPassed true when c2 is false
+		summary: "Falsely claiming overall pass",
+	};
+	assert.equal(VerificationResultSchema.safeParse(invalidConflict).success, false);
+
+	// requiredEvidencePresent=false + overallPassed=true MUST be rejected
+	const invalidNoEvidenceOverallPass = {
+		criteria: [
+			{ criterionId: "c1", passed: true, evidence: ["Valid evidence string"] },
+		],
+		requiredEvidencePresent: false,
+		overallPassed: true,
+		summary: "Falsely claiming overall pass without required evidence",
+	};
+	assert.equal(VerificationResultSchema.safeParse(invalidNoEvidenceOverallPass).success, false);
+
+	// generic placeholder evidence like "..." or "none" rejected
+	const invalidPlaceholderEvidence = {
+		criteria: [
+			{ criterionId: "c1", passed: true, evidence: ["..."] },
+		],
+		requiredEvidencePresent: true,
+		overallPassed: true,
+		summary: "Placeholder evidence",
+	};
+	assert.equal(VerificationResultSchema.safeParse(invalidPlaceholderEvidence).success, false);
+
+	// plain text rejected
+	assert.equal(VerificationResultSchema.safeParse("All acceptance criteria passed successfully.").success, false);
+
+	// malformed JSON structure rejected
+	assert.equal(VerificationResultSchema.safeParse({ criteria: "not-an-array", overallPassed: true }).success, false);
+
+	// model refusal rejected
+	assert.equal(VerificationResultSchema.safeParse({ refusal: "I cannot fulfill this verification request.", overallPassed: false }).success, false);
+});
+
+test("evaluateRunAcceptance: rejects when positive criterion relies on failed tool execution", async () => {
+	const run = mockRun("run_failed_tool_ev");
+	const tasks: PlatformTask[] = [
+		mockTask("t1", "PRODUCT", "COMPLETED"),
+		mockTask("t2", "VERIFICATION", "COMPLETED"),
+	];
+
+	const { createRunArtifact } = await import("../lib/agent-platform/store");
+	await createRunArtifact({
+		projectId: run.projectId,
+		runId: run.id,
+		taskId: "t1",
+		kind: "DELIVERABLE",
+		name: "final_deliverable.md",
+		content: "## Substantive Deliverable\nContains complete analysis and facts.",
+	});
+
+	await createRunArtifact({
+		projectId: run.projectId,
+		runId: run.id,
+		taskId: "t2",
+		kind: "VERIFICATION_REPORT",
+		name: "verification_report.json",
+		metadata: {
+			criteria: [
+				{
+					criterionId: "crit_api_audit",
+					passed: true,
+					evidence: ["Execution failed with status: FAILED on web search adapter."],
+				},
+			],
+			requiredEvidencePresent: true,
+			overallPassed: true,
+			summary: "Claims pass based on failed tool observation.",
+		},
+	});
+
+	const res = await evaluateRunAcceptance("usr_test", run, tasks);
+	assert.equal(res.passed, false);
+	assert.ok(res.summary.includes("relies on failed or unapproved tool execution"));
+});
+
+test("evaluateRunAcceptance: rejects fallback deliverable when treated as verification report", async () => {
+	const run = mockRun("run_fallback_not_verif");
+	const tasks: PlatformTask[] = [
+		mockTask("t1", "PRODUCT", "COMPLETED"),
+		mockTask("t2", "VERIFICATION", "COMPLETED"),
+	];
+
+	const { createRunArtifact } = await import("../lib/agent-platform/store");
+	await createRunArtifact({
+		projectId: run.projectId,
+		runId: run.id,
+		taskId: "t1",
+		kind: "DELIVERABLE",
+		name: "final_deliverable.md",
+		content: "# Outcome Report\n## Execution Status\nPartial or reconstructed execution without independent verified completion.",
+	});
+
+	// No verification_report.json created because verification task produced only fallback deliverable
+	const res = await evaluateRunAcceptance("usr_test", run, tasks);
+	assert.equal(res.passed, false);
+	assert.ok(res.summary.includes("verification report"));
+});
+
+test("evaluateRunAcceptance: verification provider timeout blocks Work completion and generates no pass", async () => {
+	const run = mockRun("run_verif_timeout");
+	// 1. Verification task timed out and ended in FAILED status
+	const tasksFailedVerif: PlatformTask[] = [
+		mockTask("t1", "PRODUCT", "COMPLETED"),
+		mockTask("t2", "VERIFICATION", "FAILED"),
+	];
+
+	const resFailed = await evaluateRunAcceptance("usr_test", run, tasksFailedVerif);
+	assert.equal(resFailed.passed, false);
+	assert.ok(resFailed.summary.includes("Not all tasks"));
+
+	// 2. Even if tasks were marked COMPLETED, but verification task timed out before writing verification_report.json
+	const tasksNoReport: PlatformTask[] = [
+		mockTask("t1", "PRODUCT", "COMPLETED"),
+		mockTask("t2", "VERIFICATION", "COMPLETED"),
+	];
+	const { createRunArtifact } = await import("../lib/agent-platform/store");
+	await createRunArtifact({
+		projectId: run.projectId,
+		runId: run.id,
+		taskId: "t1",
+		kind: "DELIVERABLE",
+		name: "final_deliverable.md",
+		content: "## Complete Analysis\nThis is a substantive deliverable with facts.",
+	});
+	// No verification_report.json exists because timeout aborted writing it
+	const resNoReport = await evaluateRunAcceptance("usr_test", run, tasksNoReport);
+	assert.equal(resNoReport.passed, false);
+	assert.ok(resNoReport.summary.includes("verification report"));
 });
