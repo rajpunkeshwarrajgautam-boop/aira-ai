@@ -4,18 +4,29 @@
 **Repository:** `rajpunkeshwarrajgautam-boop/aira-ai`  
 **Current Branch:** `feat/aira-release-4-runtime-activation`  
 **Target Release:** Release 4 (Phases 1–6)  
-**Strict Safety Rule:** DO NOT execute this runbook during Phase 6 preview certification. This runbook is the approved protocol for eventual public production cutover.
+**Certified Application Product Candidate:** `1b2f09e9a09f4bef1a9764a802230faf2f7b528e`  
+**Certified Preview Deployment:** `dpl_H8mQvnPxM7cMGo38jjQfVHhsVBbS`  
+**Strict Safety Rule:** DO NOT execute this runbook during Phase 6 preview certification. This runbook is the approved protocol for eventual public production cutover. Cutover is authorized ONLY after the user explicitly issues the command: `MAKE IT LIVE`.
 
 ---
 
-## 1. Pre-Deployment Verification Checklist
+## 1. Pre-Deployment Verification Checklist (14 Launch Prerequisites)
 
-Before triggering production deployment:
-1. [ ] **Git Working Tree**: Ensure `main` or release branch is clean and contains the certified certification commit SHA.
-2. [ ] **Build Validation**: Ensure `npx tsc --noEmit` and `npm run build` pass with exit code 0.
-3. [ ] **Test Coverage**: All unit, integration, route auth, and regression tests pass with 0 failures (`P0 = 0`, `P1 = 0`).
-4. [ ] **Preview Verification**: Exact Vercel Preview deployment certified and confirmed with `READY` state.
-5. [ ] **Zero Secret Leakage**: Audit commits with git secret scanning; no credentials committed.
+Before triggering production deployment, all 14 prerequisites must be satisfied:
+1. [ ] **Production PostgreSQL TLS Configuration**: Apply `sslmode=verify-full` to both `DATABASE_URL` and `DIRECT_URL`.
+2. [ ] **Production Environment Variables**: Verify all production variables are set (`AIRA_WORK_RUNTIME_ENABLED=true`, `AUTH_SECRET`, etc.).
+3. [ ] **Production Provider Credentials**: Verify active funded keys for NVIDIA NIM, OpenAI, and Exa.
+4. [ ] **Production Supabase Connection**: Verify pooled (6543) and direct (5432) connectivity with valid TLS certificates.
+5. [ ] **Approved Production Migration Procedure**: Run `npx prisma migrate deploy` via direct port if schema changes are required.
+6. [ ] **Deploy / Promote Exact Certified Candidate**: Deploy exact SHA `1b2f09e9a09f4bef1a9764a802230faf2f7b528e` to production.
+7. [ ] **Execute Production Smoke Tests**: Validate `/api/omniroute/status` and `/api/agent-platform/runtime/status`.
+8. [ ] **Inspect Production Logs**: Ensure clean log window after smoke run.
+9. [ ] **Confirm No Dead NVIDIA Model**: Confirm `nvidia/nemotron-3-nano-30b-a3b` is not attempted; verify `meta/llama-3.2-11b-vision-instruct` default.
+10. [ ] **Confirm No DurableBlob Errors**: Verify zero references to missing `DurableBlob` table.
+11. [ ] **Confirm No Unexpected 500s**: Verify zero 500 status codes.
+12. [ ] **Confirm Auth & Tenant Isolation**: Verify User B receives 404 on User A resources.
+13. [ ] **Confirm Work Path**: Verify end-to-end plan -> project -> run -> tick execution on `/work`.
+14. [ ] **Confirm Rollback Path**: Verify instant rollback to `dpl_8XH4S9CpGmEg781J4htovF1w863S` is primed and ready.
 
 ---
 

@@ -390,3 +390,21 @@ This document tracks all Antigravity skills invoked during AIRA Release 4 Runtim
 - **Commands/actions**: Audited node-postgres (`pg` v8.20.0) driver behavior; reproduced security deprecation warning emitted on `sslmode=require` / `prefer` / `verify-ca`; validated that explicit `sslmode=verify-full` strictly enforces X.509 certificate validation and SNI hostname verification against Node.js trusted root CAs with zero warning output; verified compatibility with Supabase PostgreSQL 17.6 Supavisor transaction pooler (port 6543) and session pooler (port 5432); documented exact production connection string specifications and operational verification runbook.
 - **Evidence**: Verified node execution outputs with `client.ssl: {}` on `sslmode=verify-full`; zero credentials exposed; production database strictly untouched.
 - **Result**: `PASS`
+
+### Skill: aira-verification / verification-before-completion / vercel-deployment / test-architect / agentic-tdd / test-driven-development / qa-engineering / cybersecurity / privacy-guardian / observability / observability-sre / logging-strategies / executing-plans / finishing-a-development-branch
+- **Purpose**: Phase 6 — Integration & Live Preview Certification Block (Gates 18–24) sealing Product Candidate `1b2f09e9a09f4bef1a9764a802230faf2f7b528e` on exact Vercel Preview `dpl_H8mQvnPxM7cMGo38jjQfVHhsVBbS`.
+- **Files inspected**: `docs/AIRA_RELEASE4_PHASE6_WORK_CERTIFICATION.md`, `docs/AIRA_RELEASE4_PUBLIC_LAUNCH_READINESS.md`, `docs/AIRA_RELEASE4_PRODUCTION_RUNBOOK.md`, `docs/AIRA_RELEASE4_PRODUCTION_DEPENDENCIES.md`, `scratch/check_clean_logs.js`.
+- **Files modified**: `docs/AIRA_RELEASE4_PHASE6_WORK_CERTIFICATION.md`, `docs/AIRA_RELEASE4_PUBLIC_LAUNCH_READINESS.md`, `docs/AIRA_RELEASE4_PRODUCTION_RUNBOOK.md`, `docs/AIRA_RELEASE4_PRODUCTION_DEPENDENCIES.md`, `docs/AIRA_RELEASE4_SKILL_LEDGER.md`.
+- **Commands/actions**:
+  1. Ran pre-candidate verification suite (`pnpm test` [594 pass, 0 fail], `pnpm check-types` [0 errors], `pnpm lint` [0 warnings], `pnpm build` [clean 7.1s compilation]).
+  2. Created Product Candidate commit `1b2f09e9a09f4bef1a9764a802230faf2f7b528e` and deployed exact Vercel Preview `dpl_H8mQvnPxM7cMGo38jjQfVHhsVBbS`.
+  3. Gate 18 (Live Positive E2E): Executed run `72ebd58d-1bda-4be6-a4ef-f5b4807e62b9` through plan -> project -> 4 tasks -> Tool Gateway `memory.lookup` -> deliverable `art_b72905e6` -> verification report `art_7406c3d9` -> acceptance -> `COMPLETED`.
+  4. Gate 19 (Live Negative Verification): Executed run `af8642ee-d55f-4c48-a76e-de1013a3b235`, failed verification report rejected by acceptance, run transitioned to `FAILED`, zero synthetic pass.
+  5. Gate 20 (Live Cancellation Race): Executed run `7dfe10bc-00c5-4d48-9a94-634e3aed997f`, cancelled pending child, late response safely rejected by CAS state fence, state remained `CANCELLED`.
+  6. Gate 14 (Cross-Serverless Artifact Durability & IDOR): Created artifact `art_f9ab7539-4858-4987-a6cb-2b7ae07562c9`, verified independent HTTP 200 owner retrieval and HTTP 404 unauthorized cross-user probe. Verified persistence in `AgentArtifact.metadata` JSONB column.
+  7. Gate 21 (Clean Preview Logs): Inspected log window via `scratch/check_clean_logs.js`: 0 unexpected 500s, 0 DurableBlob errors, 0 dead NVIDIA model 410 errors, 0 unhandled Prisma errors, 0 unhandled promise rejections, 0 secret leakage.
+  8. Gate 22 (Regression Confirmation): Verified candidate immutability; protected user work `compare/page.tsx` preserved unstaged.
+  9. Gate 24 (Docs-Only Certification Head): Sealed Phase 6 certification head with exact lineage and zero application code changes.
+- **Evidence**: Live Preview logs, API status 200/404 responses, PostgreSQL database verification records, git commit provenance.
+- **Result**: `PASS`
+

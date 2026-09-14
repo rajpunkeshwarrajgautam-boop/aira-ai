@@ -3,7 +3,7 @@
 **Authoritative Phase 6 Certification Document**  
 **Repository:** `rajpunkeshwarrajgautam-boop/aira-ai`  
 **Branch:** `feat/aira-release-4-runtime-activation`  
-**Date:** 2026-09-13  
+**Date:** 2026-09-14  
 **Status:** `AIRA_WORK_WORKING_E2E_IN_PREVIEW`  
 **Public Launch Readiness:** `PRODUCTION_CONFIGURATION_REQUIRED`
 
@@ -11,14 +11,128 @@
 
 ## 1. Lineage & Commit Ledger
 
-- **Expected Starting Head:** `1debb0f0618684f7db6eb1a1ef47e85108164509`
-- **Product Candidate SHA:** `4122ce538ef84db56ea28ca1e8e89f64aa27f8eb`
-- **Certification Head SHA:** Pending docs-only commit
+- **Starting Head:** `1debb0f0618684f7db6eb1a1ef47e85108164509`
+- **Product Candidate SHA:** `1b2f09e9a09f4bef1a9764a802230faf2f7b528e` (Commit subject: `feat(agent-platform): release 4 phase 6 product candidate truthfulness reconciliation`)
+- **Certification Head SHA:** Pending docs-only commit (Lineage strictly maintains Product Candidate as parent)
+- **Candidate Immutability Statement:** The certified application bytes are Product Candidate `1b2f09e9a09f4bef1a9764a802230faf2f7b528e`. The later Certification Head contains documentation/evidence only and does not alter the certified application implementation.
+- **Working Tree Provenance:** Product Candidate source remained unchanged after certification. The working tree remains intentionally non-clean only because the protected pre-existing `perplexity-clone/my-turborepo/apps/web/app/compare/page.tsx` modification is unstaged.
 - **Production Baseline (UNTOUCHED):**
   - Production SHA: `0c0b7bcc8f032490d8efd1d527bcd1e67562acab`
   - Production Deployment: `dpl_8XH4S9CpGmEg781J4htovF1w863S`
   - Production URL: `https://aira-ai-live.vercel.app`
-  - Production DB: UNTOUCHED
+  - Production DB: UNTOUCHED (`aws-1-ap-south-1.pooler.supabase.com`)
+
+---
+
+## 2. Vercel Preview Verification (Gate 23)
+
+- **Deployment ID:** `dpl_H8mQvnPxM7cMGo38jjQfVHhsVBbS`
+- **Immutable URL:** `https://aira-ai-live-acdaliagk-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Branch Alias:** `https://aira-ai-live-git-f-d9350a-rajpunkeshwarrajgautam-boops-projects.vercel.app`
+- **Target:** `preview`
+- **State:** `● Ready`
+- **Git Commit SHA:** `1b2f09e9a09f4bef1a9764a802230faf2f7b528e`
+- **Exact SHA Match:** YES (`git.commit.sha` in deployment metadata maps 1:1 to candidate)
+
+---
+
+## 3. Carry-Forward Gate Summary (Steps 1–4)
+
+- **Step 1 — Verification Integrity (Gates 1–7):** GO. Runtime requires structured `verification_report.json` passing schema and resolving substantive evidence. Zero synthetic PASS reports.
+- **Step 2 — Artifact Persistence & IDOR (Gates 11–14):** GO. Deprecated `DurableBlob` removed; artifact persistence canonically backed by PostgreSQL `AgentArtifact` table. Authenticated cross-user queries return 404.
+- **Step 3 — NVIDIA Provider Resolution (Gates 15–16):** GO. Retired model `nvidia/nemotron-3-nano-30b-a3b` removed from default configuration; active default model is `meta/llama-3.2-11b-vision-instruct` with seamless multi-tier failover.
+- **Step 4 — PostgreSQL TLS Readiness (Gate 17):** GO. Documentation and runbook updated for `sslmode=verify-full` on Supabase pooled/direct connections; zero production mutation prior to authorized cutover.
+
+---
+
+## 4. Live Preview E2E Certification Results (Gates 18–23)
+
+### Gate 18: Live Positive Work E2E
+- **Project ID:** `7619af70-b356-4bf3-a5d4-e43337d7a4de`
+- **Run ID:** `72ebd58d-1bda-4be6-a4ef-f5b4807e62b9`
+- **Tasks Executed:** 4 (`PRODUCT`, `RESEARCH`, `ARCHITECT`, `VERIFICATION`), all reached `COMPLETED`.
+- **Tool Gateway Execution:** Real `memory.lookup` call executed with query `compliance:gdpr`.
+- **Tool Event ID:** `evt_d64022ea-c89b-4395-8e79-ca01878d30e3`
+- **Final Deliverable:** `art_b72905e6-c91e-4ebb-b279-749d2ce9f622` (`final_deliverable.md`, substantive deliverable).
+- **Verification Report:** `art_7406c3d9-b64a-4923-b77d-96bf8e7c9342` (`verification_report.json`, 717 bytes, SHA-256 `8646ef9acafb60eb442940213e20d192b621c1e975e7205e484dc612b1bd73f9`).
+- **Criteria Evidence Resolution:** 3/3 criteria verified against actual deliverables and memory entries.
+- **Acceptance Evaluation:** `evaluateRunAcceptance` returned `accepted: true`.
+- **Terminal Status:** `COMPLETED` at `2026-09-14T13:39:08.230Z`.
+- **Result:** `PASS`
+
+### Gate 19: Live Negative Verification E2E
+- **Project ID:** `b54f6827-338e-47b4-83f3-b0ed49ec0504`
+- **Run ID:** `af8642ee-d55f-4c48-a76e-de1013a3b235`
+- **Malformed/Failed Verification:** Report created with `overallPassed: false` and 4 failing criteria.
+- **Correction Attempt:** 1 bounded correction loop triggered; verification criteria remained failing.
+- **Synthetic PASS Created:** NO (Gating rejected invalid output).
+- **Acceptance Evaluation:** Rejected (`accepted: false`).
+- **Terminal Status:** `FAILED`. Run COMPLETED: NO.
+- **Result:** `PASS`
+
+### Gate 20: Live Cancellation Race
+- **Project ID:** `eb28738a-bb01-4cbb-9a19-8356d3cd55ba`
+- **Run ID:** `7dfe10bc-00c5-4d48-9a94-634e3aed997f`
+- **Child Task:** `task_c8742b8e-d98c-4a31-9f93-559d8ec3c09b` (Started at timestamp `1789392646401`).
+- **Cancellation Request:** Requested at `1789392686635`, atomic state transition applied at `1789392687631`.
+- **Delayed Provider Response:** Received after cancel request; rejected by atomic CAS state fence.
+- **Child Final State:** `CANCELLED` / `TERMINATED`.
+- **Work Final State:** `CANCELLED`.
+- **Late Completed Event:** NO. Late Accepted Artifact: NO.
+- **Result:** `PASS`
+
+### Gate 14 Deferred Proof: Cross-Serverless Artifact Durability & IDOR
+- **Artifact ID:** `art_f9ab7539-4858-4987-a6cb-2b7ae07562c9`
+- **Creation Request:** `POST /api/agent-platform/runs/af8642ee-d55f-4c48-a76e-de1013a3b235/artifacts`
+- **Later Retrieval Request:** Independent `GET` request by owner user (`usr_preview_phase5_cert_a`) succeeded with HTTP 200.
+- **Cross-User Retrieval:** Independent `GET` request by unauthorized attacker user (`usr_preview_phase5_cert_b`) returned HTTP 404 (`NOT_FOUND: Artifact not found or unauthorized`).
+- **Data Integrity:** Byte content match 100%; SHA-256 (`f6b359bd378c54c95641836a8a3477c1424a8af9a69b21a76876da3284faa58e`) and size (561 bytes) match database record exactly.
+- **Durability Classification:** Cross-request durable persistence on the Vercel Preview backed by PostgreSQL without process-local object state dependency.
+- **Result:** `PASS`
+
+### Gate 21: Clean Preview Log Window
+- **Time Window:** `2026-09-14 13:00:00 UTC` to `2026-09-14 13:40:00 UTC`
+- **Unexpected HTTP 500s:** 0
+- **DurableBlob Missing-Table Errors:** 0
+- **Dead NVIDIA Model 410 Errors:** 0
+- **Unhandled Prisma Errors:** 0
+- **Unhandled Promise Rejections:** 0
+- **Uncaught Runtime Exceptions:** 0
+- **Secret Leakage:** 0
+- **Result:** `PASS`
+
+### Gate 22: Regression Confirmation
+- **Local Working Tree:** Matched candidate SHA `1b2f09e9` exactly (only unstaged `compare/page.tsx` user work preserved).
+- **Automated Test Results:** 594 pass, 0 fail, 19 skipped.
+- **TypeScript & Lint:** 0 errors, 0 warnings.
+- **Production Build:** Compiled cleanly in 7.1s.
+- **Result:** `PASS`
+
+---
+
+## 5. Truthfulness Reconciliations
+
+1. **Actual AgentArtifact Storage Field:**
+   - Artifact content is stored in the `AgentArtifact.metadata` JSONB column (specifically accessed as `metadata.content`, alongside `metadata.contentHash` and `metadata.sizeBytes`).
+   - The PostgreSQL table schema consists of `(id, projectId, runId, taskId, kind, name, uri, metadata, createdAt)`. There is no standalone top-level `content` column.
+2. **Cross-Serverless Persistence Classification:**
+   - The proven property is **cross-request durable persistence on the Vercel Preview** (independent-request serverless durability). Because serverless container instance boundaries cannot be directly fingerprinted without platform telemetry, separate physical compute instances are not claimed.
+3. **Working Tree Cleanliness Wording:**
+   - Product Candidate source remained unchanged after certification. The working tree remains intentionally non-clean only because the protected pre-existing `compare/page.tsx` modification is unstaged.
+
+---
+
+## 6. Public Launch Readiness & Cutover Gate
+
+- **Preview Feature Status:** `WORKING_E2E_IN_PREVIEW`
+- **Public Launch Readiness:** `PRODUCTION_CONFIGURATION_REQUIRED`
+- **Production Deployment:** NOT YET EXECUTED.
+- **Production Cutover:** Authorized ONLY after user issues explicit command `MAKE IT LIVE`.
+- **Launch Cutover Prerequisites:**
+  1. Apply `sslmode=verify-full` to Production `DATABASE_URL` and `DIRECT_URL`.
+  2. Verify Production API keys (`OPENAI_API_KEY`, `NVIDIA_NIM_API_KEY`, `AUTH_SECRET`).
+  3. Deploy exact certified Product Candidate SHA `1b2f09e9a09f4bef1a9764a802230faf2f7b528e`.
+  4. Run post-deployment smoke verification per `docs/AIRA_RELEASE4_PRODUCTION_RUNBOOK.md`.
 
 ---
 
