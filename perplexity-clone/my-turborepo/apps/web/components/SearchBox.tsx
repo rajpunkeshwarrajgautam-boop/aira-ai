@@ -36,7 +36,7 @@ import { cn } from "../lib/cn";
 export interface SearchBoxProps {
 	readonly value: string;
 	readonly onChange: (value: string) => void;
-	readonly onSubmit: () => void;
+	readonly onSubmit: (context?: { model?: string; attachments?: readonly AttachedFile[] }) => void;
 	readonly onCancel?: () => void;
 	readonly disabled?: boolean;
 	readonly isBusy?: boolean;
@@ -201,8 +201,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 			window.location.assign("/workspace-search");
 			return;
 		}
-		onSubmit();
-	}, [value, attachments.length, busy, onSubmit]);
+		onSubmit({ model: selectedModel, attachments });
+	}, [value, attachments, busy, onSubmit, selectedModel]);
 
 	const toggleVoice = useCallback(() => {
 		if (!voiceAvailable || busy) return;

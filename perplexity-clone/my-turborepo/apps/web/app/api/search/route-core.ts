@@ -51,6 +51,7 @@ const SearchRequestSchema = z.object({
 	continueResearch: z.boolean().optional(),
 	mode: z.enum(["standard", "deep"]).optional().default("standard"),
 	presetId: z.string().optional().default("general"),
+	model: z.string().optional(),
 });
 
 type CitationPayload = {
@@ -99,6 +100,7 @@ type MetadataEvent = {
 	readonly citations: readonly CitationPayload[];
 	readonly exaRequestId?: string;
 	readonly exaSearchType?: string;
+	readonly model?: string;
 };
 
 type TextEvent = {
@@ -412,6 +414,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				chatHistory: context.chatHistory,
 				contextualMemory: context.contextualMemory,
 				presetId: parsed.data.presetId,
+				model: parsed.data.model,
 			});
 		}
 	} catch (e) {
@@ -441,6 +444,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		citations: grounded.sources.map(mapCitation),
 		exaRequestId: grounded.exaRequestId,
 		exaSearchType: grounded.exaSearchType,
+		model: parsed.data.model ?? "auto",
 	};
 
 	const stream = new ReadableStream<Uint8Array>({
