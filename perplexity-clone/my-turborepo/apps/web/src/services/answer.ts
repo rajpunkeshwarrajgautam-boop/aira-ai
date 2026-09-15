@@ -18,6 +18,7 @@ import {
 	type SourceCandidate,
 } from "./citations";
 import { buildAdaptiveResponseInstruction } from "./chat-prompt-policy";
+import { composeAiraSystemPrompt } from "@/lib/ai/prompts";
 import {
 	buildContestedPromptInstruction,
 	buildContestedSupplementaryQueries,
@@ -176,8 +177,20 @@ function buildMessages(
 		searchRan: options.searchRan,
 		searchDisabled: options.searchDisabled,
 	});
-	const systemPrompt = `${SYSTEM_PROMPT}\n\n${options.agenticAdvisorInstruction}\n\n${adaptiveInstruction}\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
-	const messages: ChatCompletionMessageParam[] = [{ role: "system", content: systemPrompt }];
+	const composed = composeAiraSystemPrompt({
+		mode: "chat",
+		capabilities: {
+			web: !options.searchDisabled && (options.searchRan || sources.length > 0),
+			memory: Boolean(options.contextualMemory && options.contextualMemory.length > 0),
+		},
+		customInstructions: [
+			options.agenticAdvisorInstruction,
+			adaptiveInstruction,
+			`Style/Preset: ${preset.label}`,
+			preset.systemPromptModifier,
+		].filter(Boolean).join("\n\n"),
+	});
+	const messages: ChatCompletionMessageParam[] = [{ role: "system", content: composed.systemPrompt }];
 
 	if (options.contextualMemory && options.contextualMemory.length > 0) {
 		messages.push({

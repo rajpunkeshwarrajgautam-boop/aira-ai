@@ -22,6 +22,7 @@ import {
 import { createExaSearchService, DEFAULT_EXA_SEARCH_OPTIONS, type ExaSearchOptions, type ExaSearchService, type ExaSearchType } from "./search";
 import { ProviderRouter } from "./providers/provider-router";
 
+import { composeAiraSystemPrompt } from "@/lib/ai/prompts";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 const DEEP_PLANNER_SYSTEM_PROMPT = `You are a research query planner for an AI search assistant.
@@ -165,8 +166,19 @@ function buildChatMessages(
 	const preset = getResearchPreset(options.presetId);
 	const messages: ChatCompletionMessageParam[] = [];
 
-	const systemPrompt = `${options.systemPrompt}\n\nStyle/Preset: ${preset.label}\n${preset.systemPromptModifier}`;
-	messages.push({ role: "system", content: systemPrompt });
+	const composed = composeAiraSystemPrompt({
+		mode: "research",
+		capabilities: {
+			web: true,
+			memory: Boolean(options.contextualMemory && options.contextualMemory.length > 0),
+		},
+		customInstructions: [
+			options.systemPrompt,
+			`Style/Preset: ${preset.label}`,
+			preset.systemPromptModifier,
+		].filter(Boolean).join("\n\n"),
+	});
+	messages.push({ role: "system", content: composed.systemPrompt });
 
 	if (options.contextualMemory && options.contextualMemory.length > 0) {
 		messages.push({

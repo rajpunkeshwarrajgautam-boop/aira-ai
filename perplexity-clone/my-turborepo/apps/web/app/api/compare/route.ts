@@ -22,6 +22,7 @@ import {
 	SafetyBlockedError,
 	SafetyGatewayError,
 } from "@services/safety/safety-gateway";
+import { composeAiraSystemPrompt } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -183,12 +184,12 @@ async function runTarget(
 	let text = "";
 	const startedAt = Date.now();
 	try {
+		const compareSystemPrompt = composeAiraSystemPrompt({ mode: "compare" }).systemPrompt;
 		for await (const delta of router.streamChat(
 			[
 				{
 					role: "system",
-					content:
-						"You are participating in AIRA's model comparison workspace. Answer the user's prompt directly and independently. Do not claim web access unless the prompt itself provides sources. Prefer accuracy, explicit uncertainty, and useful structure.",
+					content: compareSystemPrompt,
 				},
 				{ role: "user", content: prompt },
 			],
