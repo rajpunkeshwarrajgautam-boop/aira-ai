@@ -1,0 +1,10 @@
+﻿# Ensure all shell scripts have LF line endings across all platforms
+*.sh text eol=lf
+
+# Enforce deterministic LF line endings for future Prisma migration SQL files
+prisma/migrations/**/*.sql text eol=lf
+prisma/baseline/**/*.sql text eol=lf
+
+# Preserve applied production checksum (42e6b334...) for Release 4 migration
+# without modifying the historical migration file bytes on disk or in git
+prisma/migrations/20260912_browser_rate_limit_events/migration.sql text eol=crlf
