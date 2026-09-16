@@ -1,0 +1,78 @@
+﻿name: Production Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Type "DEPLOY" to confirm execution against Production database'
+        required: true
+        type: string
+      target_git_sha:
+        description: 'Exact certified Git commit SHA to execute'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-migration-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  production-migrate:
+    name: Execute Production Migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Validate Manual Confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm_production }}" != "DEPLOY" ]; then
+            echo "::error::Execution confirmation string mismatch. Must be 'DEPLOY'."
+            exit 1
+          fi
+
+      - name: Check out certified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_git_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Migration Preflight
+        env:
+          EXPECTED_SHA: ${{ github.event.inputs.target_git_sha }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: node scripts/db/migration-preflight.mjs
+
+      - name: Execute Prisma Migrate Deploy
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+        run: pnpm exec prisma migrate deploy
+
+      - name: Run Migration Postflight
+        env:
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: node scripts/db/migration-postflight.mjs
+
+      - name: Upload Migration Evidence Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-migration-evidence-${{ github.event.inputs.target_git_sha }}
+          path: migration-postflight-evidence.json
+          if-no-files-found: warn
