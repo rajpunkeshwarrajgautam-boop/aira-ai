@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { assertAnonymousSearchAllowed, AnonymousQuotaError } from "@/lib/anonymous-search-quota";
@@ -224,13 +225,25 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	try {
 		body = await req.json();
 	} catch (e) {
-		console.error("SEARCH_ERROR:", e);
+		logger.clientError("Invalid JSON in search request", {
+			route: "/api/search",
+			status: 400,
+			category: "4xx.CLIENT_INPUT",
+			errorCode: "INVALID_JSON",
+			metadata: { error: e instanceof Error ? e.message : String(e) },
+		});
 		return jsonErrorResponse(400, "INVALID_JSON", "Request body must be valid JSON.");
 	}
 
 	const parsed = SearchRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		console.error("SEARCH_ERROR:", parsed.error);
+		logger.clientError("Validation error in search request", {
+			route: "/api/search",
+			status: 400,
+			category: "4xx.CLIENT_INPUT",
+			errorCode: "VALIDATION_ERROR",
+			metadata: { issues: parsed.error.issues },
+		});
 		return jsonErrorResponse(400, "VALIDATION_ERROR", "Invalid request body.", z.treeifyError(parsed.error));
 	}
 
@@ -297,10 +310,21 @@ async function handleSearchPost(req: Request): Promise<Response> {
 						requiredPlan: BillingPlan.PRO,
 					});
 				}
-				console.error("SEARCH_ERROR:", e);
+				logger.warn("Plan enforcement rejection", {
+					route: "/api/search",
+					status: e.status,
+					category: e.code === "QUOTA_EXCEEDED" ? "4xx.RATE_LIMIT" : "4xx.AUTH",
+					errorCode: e.code,
+					metadata: { userId, message: e.message },
+				});
 				return jsonErrorResponse(e.status, e.code, e.message);
 			}
-			console.error("SEARCH_ERROR:", e);
+			logger.error("Database or entitlement resolution error", {
+				route: "/api/search",
+				status: 500,
+				category: "5xx.DATABASE",
+				metadata: { error: e instanceof Error ? e.message : String(e) },
+			});
 			throw e;
 		}
 	}
@@ -419,8 +443,14 @@ async function handleSearchPost(req: Request): Promise<Response> {
 		}
 	} catch (e) {
 		const err = e instanceof Error ? e : new Error(String(e));
-		console.error("SEARCH_ERROR:", err);
 		const { status, code, clientMessage } = classifyUpstreamError(err);
+		logger.error("Upstream answer provider failure", {
+			route: "/api/search",
+			status,
+			category: "5xx.PROVIDER",
+			errorCode: code,
+			metadata: { message: err.message },
+		});
 		const message =
 			process.env.NODE_ENV === "development" ? err.message : clientMessage;
 
@@ -507,8 +537,13 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				}
 			} catch (e) {
 				const err = e instanceof Error ? e : new Error(String(e));
-				console.error("SEARCH_ERROR:", err);
 				const { code, clientMessage } = classifyUpstreamError(err);
+				logger.error("SSE stream error during generation", {
+					route: "/api/search",
+					category: "5xx.STREAM",
+					errorCode: code,
+					metadata: { message: err.message },
+				});
 				const message =
 					process.env.NODE_ENV === "development" ? err.message : clientMessage;
 
@@ -550,7 +585,12 @@ export async function POST(req: Request): Promise<Response> {
 	try {
 		return await handleSearchPost(req);
 	} catch (error) {
-		console.error("SEARCH_ERROR:", error);
+		logger.error("Unhandled search error", {
+			route: "/api/search",
+			status: 500,
+			category: "5xx.INTERNAL",
+			metadata: { error: error instanceof Error ? error.message : String(error) },
+		});
 		const message =
 			process.env.NODE_ENV === "development" && error instanceof Error
 				? error.message
