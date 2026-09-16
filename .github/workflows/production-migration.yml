@@ -1,4 +1,4 @@
-﻿name: Production Database Migration
+name: Production Database Migration
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       target_git_sha:
-        description: 'Exact certified Git commit SHA to execute'
+        description: 'Exact certified Git commit SHA on refs/heads/main to execute'
         required: true
         type: string
 
@@ -27,17 +27,29 @@ jobs:
     environment: production
 
     steps:
-      - name: Validate Manual Confirmation
+      - name: Validate Execution Context, Branch, and SHA Binding
         run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production migrations can only be dispatched from refs/heads/main. Current ref: ${{ github.ref }}"
+            exit 1
+          fi
+
           if [ "${{ github.event.inputs.confirm_production }}" != "DEPLOY" ]; then
             echo "::error::Execution confirmation string mismatch. Must be 'DEPLOY'."
             exit 1
           fi
 
-      - name: Check out certified commit
+          if [ "${{ github.event.inputs.target_git_sha }}" != "${{ github.sha }}" ]; then
+            echo "::error::Provided target_git_sha (${{ github.event.inputs.target_git_sha }}) does not match current main commit SHA (${{ github.sha }}). Refusing arbitrary execution."
+            exit 1
+          fi
+
+          echo "Execution validated: Dispatched on refs/heads/main at certified SHA ${{ github.sha }}."
+
+      - name: Check out certified main commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.target_git_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up Node.js
@@ -53,7 +65,8 @@ jobs:
 
       - name: Run Migration Preflight
         env:
-          EXPECTED_SHA: ${{ github.event.inputs.target_git_sha }}
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_REF: ${{ github.ref }}
           DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: node scripts/db/migration-preflight.mjs
@@ -73,6 +86,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: production-migration-evidence-${{ github.event.inputs.target_git_sha }}
+          name: production-migration-evidence-${{ github.sha }}
           path: migration-postflight-evidence.json
           if-no-files-found: warn
