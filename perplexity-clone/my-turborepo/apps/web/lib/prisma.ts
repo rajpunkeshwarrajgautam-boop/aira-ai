@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { Pool } from "pg";
+import { logger } from "./logger";
 
 const globalForPrisma = globalThis as unknown as {
 	prisma?: PrismaClient;
@@ -25,6 +26,13 @@ function createPrismaClient(): PrismaClient {
 			idleTimeoutMillis: 20_000,
 			connectionTimeoutMillis: 10_000,
 		});
+
+	pool.on("error", (err) => {
+		logger.error("PostgreSQL pool client error", {
+			category: "5xx.DATABASE",
+			metadata: { error: err instanceof Error ? err.message : String(err) },
+		});
+	});
 
 	globalForPrisma.pool = pool;
 
