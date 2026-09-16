@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Bot, Brain, CreditCard, Search } from "lucide-react";
 import Link from "next/link";
@@ -25,13 +25,14 @@ export function WorkspaceNav({ className }: { readonly className?: string }) {
 						key={item.href}
 						href={item.href}
 						data-active={active ? "true" : "false"}
+						aria-label={item.label}
 						className={cn(
 							"aira-nav-pill inline-flex h-9 items-center gap-1.5 px-3 text-[13px] font-medium",
 							active ? "text-content-primary" : "text-content-secondary hover:text-content-primary",
 						)}
 					>
 						<Icon className="size-3.5" strokeWidth={1.8} aria-hidden />
-						<span className="hidden lg:inline">{item.label}</span>
+						<span className="hidden lg:inline" aria-hidden>{item.label}</span>
 					</Link>
 				);
 			})}
