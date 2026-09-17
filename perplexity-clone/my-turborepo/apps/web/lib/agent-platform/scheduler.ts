@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 import { tickManagedRun } from "./orchestrator";
+import { recoverExpiredClaims } from "./store";
 
 export interface ScheduledRunRef {
 	readonly id: string;
@@ -159,6 +160,7 @@ async function releaseSchedulerLease(
 }
 
 export async function advanceScheduledRuns(limit = 8): Promise<SchedulerResult> {
+	await recoverExpiredClaims().catch(() => 0);
 	const workerId = `scheduler:${crypto.randomUUID()}`;
 	const runs = await claimSchedulableRuns(workerId, limit);
 	let advanced = 0;

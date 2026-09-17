@@ -390,24 +390,110 @@ export async function deleteRunArtifact(
 }
 
 
-export async function recoverExpiredClaims(runId: string): Promise<number> {
+export async function recoverExpiredClaims(runId?: string): Promise<number> {
 	const expired = await prisma.$transaction(async (tx) => {
-		const rows = await tx.$queryRaw<Array<{ id: string }>>`
-			update "AgentTask"
-			set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
-				"lastError"=coalesce("lastError", 'Worker claim expired before remote execution started.'),
-				"updatedAt"=current_timestamp
-			where "runId"=${runId} and "status"='CLAIMED' and "leaseExpiresAt" < current_timestamp
-			returning "id"
-		`;
-		for (const task of rows) {
+		const claimedRows = runId
+			? await tx.$queryRaw<Array<{ id: string }>>`
+				update "AgentTask"
+				set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+					"lastError"=coalesce("lastError", 'Worker claim expired before remote execution started.'),
+					"updatedAt"=current_timestamp
+				where "runId"=${runId} and "status"='CLAIMED' and "leaseExpiresAt" < current_timestamp
+				returning "id"
+			`
+			: await tx.$queryRaw<Array<{ id: string }>>`
+				update "AgentTask"
+				set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+					"lastError"=coalesce("lastError", 'Worker claim expired before remote execution started.'),
+					"updatedAt"=current_timestamp
+				where "status"='CLAIMED' and "leaseExpiresAt" < current_timestamp
+				returning "id"
+			`;
+
+		// Mark orphaned AgentRuns as FAILED before clearing runtimeRunId
+		const orphanedRunIds = runId
+			? await tx.$queryRaw<Array<{ runtimeRunId: string }>>`
+				select "runtimeRunId" from "AgentTask"
+				where "runId"=${runId} and "status"='RUNNING'
+				  and "leaseExpiresAt" is not null and "leaseExpiresAt" < current_timestamp
+				  and "runtimeRunId" is not null
+			`
+			: await tx.$queryRaw<Array<{ runtimeRunId: string }>>`
+				select "runtimeRunId" from "AgentTask"
+				where "status"='RUNNING'
+				  and "leaseExpiresAt" is not null and "leaseExpiresAt" < current_timestamp
+				  and "runtimeRunId" is not null
+			`;
+
+		for (const row of orphanedRunIds) {
+			await tx.$executeRaw`
+				update "AgentRun"
+				set "status"='FAILED', "errorMessage"='Execution lease expired before completion.', "completedAt"=current_timestamp, "updatedAt"=current_timestamp
+				where "id"=${row.runtimeRunId} and "status"='RUNNING'
+			`.catch(() => undefined);
+		}
+
+		const retryRunningRows = runId
+			? await tx.$queryRaw<Array<{ id: string; runtimeRunId: string | null }>>`
+				update "AgentTask"
+				set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+					"runtimeRunId"=null,
+					"lastError"='Worker execution lease expired. Requeued for retry.',
+					"updatedAt"=current_timestamp
+				where "runId"=${runId} and "status"='RUNNING'
+				  and "leaseExpiresAt" is not null and "leaseExpiresAt" < current_timestamp
+				  and "attempt" < "maxAttempts"
+				returning "id", "runtimeRunId"
+			`
+			: await tx.$queryRaw<Array<{ id: string; runtimeRunId: string | null }>>`
+				update "AgentTask"
+				set "status"='QUEUED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+					"runtimeRunId"=null,
+					"lastError"='Worker execution lease expired. Requeued for retry.',
+					"updatedAt"=current_timestamp
+				where "status"='RUNNING'
+				  and "leaseExpiresAt" is not null and "leaseExpiresAt" < current_timestamp
+				  and "attempt" < "maxAttempts"
+				returning "id", "runtimeRunId"
+			`;
+
+		const failedRunningRows = runId
+			? await tx.$queryRaw<Array<{ id: string; runtimeRunId: string | null }>>`
+				update "AgentTask"
+				set "status"='FAILED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+					"lastError"='Worker execution lease expired and maximum retry attempts exceeded.',
+					"completedAt"=current_timestamp,
+					"updatedAt"=current_timestamp
+				where "runId"=${runId} and "status"='RUNNING'
+				  and "leaseExpiresAt" is not null and "leaseExpiresAt" < current_timestamp
+				  and "attempt" >= "maxAttempts"
+				returning "id", "runtimeRunId"
+			`
+			: await tx.$queryRaw<Array<{ id: string; runtimeRunId: string | null }>>`
+				update "AgentTask"
+				set "status"='FAILED', "leaseOwner"=null, "leaseExpiresAt"=null, "heartbeatAt"=null,
+					"lastError"='Worker execution lease expired and maximum retry attempts exceeded.',
+					"completedAt"=current_timestamp,
+					"updatedAt"=current_timestamp
+				where "status"='RUNNING'
+				  and "leaseExpiresAt" is not null and "leaseExpiresAt" < current_timestamp
+				  and "attempt" >= "maxAttempts"
+				returning "id", "runtimeRunId"
+			`;
+
+		const allRecovered = [...claimedRows, ...retryRunningRows, ...failedRunningRows];
+
+		for (const task of allRecovered) {
 			await tx.$executeRaw`
 				update "AgentInstance"
 				set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp
-				where "currentTaskId"=${task.id} and "status"='IDLE'
+				where "currentTaskId"=${task.id} and "status" in ('IDLE','WORKING')
 			`;
 		}
-		return rows;
+
+
+
+		return allRecovered;
 	});
 	for (const task of expired) localTaskClaims.delete(task.id);
 	return expired.length;
@@ -428,16 +514,18 @@ export async function claimTask(taskId: string, workerId: string, leaseSeconds =
 	return taskRow(rows[0]);
 }
 
-export async function markTaskRunning(taskId: string, runtimeRunId: string, agentId: string): Promise<void> {
+export async function markTaskRunning(taskId: string, runtimeRunId: string, agentId: string, leaseSeconds = 120): Promise<void> {
 	const expectedOwner = localTaskClaims.get(taskId);
 	if (!expectedOwner) throw new TaskClaimLostError(taskId);
+	const safeLease = Math.max(15, Math.min(600, Math.trunc(leaseSeconds)));
 	try {
 		await prisma.$transaction(async (tx) => {
 			const claimed = await tx.$queryRaw<Array<{ id: string }>>`
 				update "AgentTask"
 				set "status"='RUNNING', "runtimeRunId"=${runtimeRunId}, "attempt"="attempt"+1,
 					"startedAt"=coalesce("startedAt", current_timestamp), "heartbeatAt"=current_timestamp,
-					"leaseOwner"=null, "leaseExpiresAt"=null, "updatedAt"=current_timestamp
+					"leaseOwner"=${expectedOwner}, "leaseExpiresAt"=current_timestamp + (${safeLease} * interval '1 second'),
+					"updatedAt"=current_timestamp
 				where "id"=${taskId}
 				  and "status"='CLAIMED'
 				  and "leaseOwner"=${expectedOwner}
@@ -453,15 +541,29 @@ export async function markTaskRunning(taskId: string, runtimeRunId: string, agen
 			if (agentChanged !== 1) throw new TaskClaimLostError(taskId);
 		});
 	} catch (error) {
+		localTaskClaims.delete(taskId);
 		await prisma.$executeRaw`
 			update "AgentInstance"
 			set "status"='STOPPED', "currentTaskId"=null, "updatedAt"=current_timestamp
 			where "id"=${agentId} and "status"='IDLE'
 		`.catch(() => undefined);
 		throw error;
-	} finally {
-		localTaskClaims.delete(taskId);
 	}
+}
+
+export async function heartbeatTask(taskId: string, workerId: string, leaseSeconds = 120): Promise<boolean> {
+	const safeLease = Math.max(15, Math.min(600, Math.trunc(leaseSeconds)));
+	const changed = await prisma.$executeRaw`
+		update "AgentTask"
+		set "heartbeatAt"=current_timestamp,
+			"leaseExpiresAt"=current_timestamp + (${safeLease} * interval '1 second'),
+			"updatedAt"=current_timestamp
+		where "id"=${taskId}
+		  and "leaseOwner"=${workerId}
+		  and "status" in ('CLAIMED','RUNNING')
+		  and ("leaseExpiresAt" is null or "leaseExpiresAt" >= current_timestamp)
+	`;
+	return changed === 1;
 }
 
 export async function createAgentInstance(input: {
