@@ -121,7 +121,7 @@ function emitComposerCommand(command: string) {
 
 function AssistantSkeleton({ statusText, sourceCount }: { readonly statusText?: string; readonly sourceCount: number }) {
 	return (
-		<div className="flex gap-3 py-5" aria-busy="true" aria-label="Researching">
+		<div className="flex gap-3 py-5" aria-busy="true" aria-label="Researching" aria-live="polite">
 			<div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-[11px] font-semibold text-accent">A</div>
 			<div className="min-w-0 flex-1">
 				<div className="flex items-center gap-2"><p className="text-[12px] font-medium text-content-primary">{statusText || "Researching…"}</p><span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden /></div>
@@ -536,7 +536,7 @@ export function ConversationMessageList({
 											</div>
 											<Link
 												href="/work"
-												className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3 py-1.5 text-xs font-medium text-[#e5c97b] transition hover:bg-[#c9a84c]/20"
+												className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3.5 py-2.5 text-xs font-medium text-[#e5c97b] transition hover:bg-[#c9a84c]/20"
 											>
 												<span>Explore Work</span>
 												<span aria-hidden="true">→</span>

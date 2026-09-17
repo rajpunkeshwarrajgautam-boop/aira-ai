@@ -61,6 +61,22 @@ Current-practice and state-of-the-field questions:
 - When available, balance academic or survey-style evidence with practitioner-facing evidence such as official APIs and documentation, widely used frameworks, vendor documentation, engineering blogs, standards, and benchmarks.
 - Use blogs and secondary commentary for practical experience or discovery, not as substitutes for primary rules, official specifications, measured data, or strong evidence when those should exist.`;
 
+
+export type SearchProgressStage =
+	| "request_received"
+	| "searching_web"
+	| "sources_found"
+	| "analyzing_sources"
+	| "generating_answer"
+	| "finalizing_citations"
+	| "complete";
+
+export interface SearchProgressEvent {
+	readonly stage: SearchProgressStage;
+	readonly message: string;
+	readonly elapsedMs: number;
+}
+
 export interface GroundedAnswerInput {
 	query: string;
 	abortSignal?: AbortSignal;
@@ -78,6 +94,7 @@ export interface GroundedAnswerInput {
 	}[];
 	contextualMemory?: readonly string[];
 	presetId?: string;
+	onProgress?: (event: SearchProgressEvent) => void;
 }
 
 export interface GroundedAnswerStreamResult {
@@ -384,6 +401,19 @@ export async function streamGroundedAnswer(
 ): Promise<GroundedAnswerStreamResult> {
 	assertNonEmptyQuery(input.query);
 
+	const answerStartTime = Date.now();
+	const reportProgress = (stage: SearchProgressStage, message: string) => {
+		try {
+			input.onProgress?.({
+				stage,
+				message,
+				elapsedMs: Date.now() - answerStartTime,
+			});
+		} catch {
+			// ignore progress reporting failures
+		}
+	};
+
 	const router = input.router ?? (await ProviderRouter.createDefault());
 	const agenticPlan = buildAgenticAnswerPlan(input.query);
 	const searchDisabled = input.disableSearch === true || agenticPlan.retrievalMode === "reasoning";
@@ -408,6 +438,7 @@ export async function streamGroundedAnswer(
 
 	if (!searchDisabled) {
 		searchRan = true;
+		reportProgress("searching_web", "Searching the web…");
 		const exa = input.exa ?? createExaSearchService();
 		const searchOpts: Partial<ExaSearchOptions> = {
 			...input.search,
@@ -422,6 +453,7 @@ export async function streamGroundedAnswer(
 		exaRequestId = retrieved.requestId;
 		exaSearchType = retrieved.searchType;
 		let candidates: SourceCandidate[] = [...retrieved.candidates];
+		reportProgress("sources_found", "Reviewing sources…");
 
 		if (agenticPlan.retrievalMode === "agentic") {
 			const plannerSpecs = decisionBrief ? decisionBriefSearchSpecs(decisionBrief) : [];
@@ -453,6 +485,7 @@ export async function streamGroundedAnswer(
 			);
 		}
 
+		reportProgress("analyzing_sources", "Analyzing evidence…");
 		candidates = normalizeMergedCandidateRanks(candidates);
 		const finalMaxSources = input.ranking?.maxSources ?? 8;
 		const poolMaxSources = agenticPlan.preferAuthoritative
@@ -500,6 +533,7 @@ export async function streamGroundedAnswer(
 		}
 
 		const draft = await collectChatText(router, messages, input);
+		reportProgress("finalizing_citations", "Preparing citations…");
 		const verificationMessages = buildVerificationMessages({
 			query: input.query,
 			draft,

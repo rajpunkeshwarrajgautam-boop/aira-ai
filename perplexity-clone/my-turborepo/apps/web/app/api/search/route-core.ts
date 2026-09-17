@@ -95,6 +95,13 @@ function mapCitation(s: {
 	};
 }
 
+type ProgressEvent = {
+	readonly type: "progress";
+	readonly stage: string;
+	readonly message: string;
+	readonly elapsedMs: number;
+};
+
 type MetadataEvent = {
 	readonly type: "metadata";
 	readonly query: string;
@@ -358,133 +365,126 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	}
 
 
-	let grounded:
-		| Awaited<ReturnType<typeof streamGroundedAnswer>>
-		| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 	/** Analytics mode: bypass paths always count as standard (no web retrieval). */
 	let analyticsSearchMode: "standard" | "deep" = parsed.data.mode;
-	try {
-		const providerTier = providerAccessTierForBillingPlan(entitlements?.billingPlan);
-		if (mathAnswer !== null) {
-			analyticsSearchMode = "standard";
-			let resultText = mathAnswer;
-			try {
-				const mathExpression = parsed.data.query
-					.trim()
-					.replace(/^\/calc\s+/i, "")
-					.replace(/^=\s*/, "");
-				const { globalToolRegistry, registerBuiltInTools } = await import(
-					"@/lib/agents/tools/tool-registry"
-				);
-				await registerBuiltInTools();
-				const toolResult = await globalToolRegistry.executeTool<{ result: number }>(
-					"calculator",
-					{ expression: mathExpression },
-				);
-				resultText = String(toolResult.result);
-			} catch {
-				// keep tryParseMathAnswer fallback
-			}
-			grounded = {
-				query: parsed.data.query.trim(),
-				sources: [],
-				exaRequestId: undefined,
-				exaSearchType: undefined,
-				textStream: (async function* () {
-					yield `The result is **${resultText}**.`;
-				})(),
-			};
-		} else if (greetingOnly) {
-			analyticsSearchMode = "standard";
-			grounded = await streamGroundedAnswer({
-				query: parsed.data.query,
-				router: await ProviderRouter.createDefault(providerTier),
-				abortSignal: abort.signal,
-				chatHistory: context.chatHistory,
-				contextualMemory: context.contextualMemory,
-				disableSearch: true,
-				presetId: parsed.data.presetId,
-			});
-		} else if (parsed.data.mode === "deep") {
-			const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
-
-			if (isAgenticEnabled) {
-				const { ResearchOrchestrator } = await import(
-					"@/lib/agents/orchestrator/research-orchestrator"
-				);
-				grounded = await ResearchOrchestrator.streamAnswer({
-					query: parsed.data.query,
-					router: await ProviderRouter.createDefault(providerTier),
-					abortSignal: abort.signal,
-					chatHistory: context.chatHistory,
-					contextualMemory: context.contextualMemory,
-					presetId: parsed.data.presetId,
-				});
-			} else {
-				grounded = await streamDeepResearchAnswer({
-					query: parsed.data.query,
-					router: await ProviderRouter.createDefault(providerTier),
-					abortSignal: abort.signal,
-					chatHistory: context.chatHistory,
-					contextualMemory: context.contextualMemory,
-					presetId: parsed.data.presetId,
-				});
-			}
-		} else {
-			grounded = await streamGroundedAnswer({
-				query: parsed.data.query,
-				router: await ProviderRouter.createDefault(providerTier),
-				abortSignal: abort.signal,
-				chatHistory: context.chatHistory,
-				contextualMemory: context.contextualMemory,
-				presetId: parsed.data.presetId,
-				model: parsed.data.model,
-			});
-		}
-	} catch (e) {
-		const err = e instanceof Error ? e : new Error(String(e));
-		const { status, code, clientMessage } = classifyUpstreamError(err);
-		logger.error("Upstream answer provider failure", {
-			route: "/api/search",
-			status,
-			category: "5xx.PROVIDER",
-			errorCode: code,
-			metadata: { message: err.message },
-		});
-		const message =
-			process.env.NODE_ENV === "development" ? err.message : clientMessage;
-
-		await trackSearchErrorEvent({
-			userId: userId ?? undefined,
-			anonymousId,
-			code,
-			message,
-			metadata: {
-				mode: parsed.data.mode,
-			},
-		});
-		return jsonErrorResponse(status, code, message);
-	} finally {
-		req.signal.removeEventListener("abort", onAbort);
-	}
-
-	const metadata: MetadataEvent = {
-		type: "metadata",
-		query: grounded.query,
-		citations: grounded.sources.map(mapCitation),
-		exaRequestId: grounded.exaRequestId,
-		exaSearchType: grounded.exaSearchType,
-		model: parsed.data.model ?? "auto",
-	};
+	const providerTier = providerAccessTierForBillingPlan(entitlements?.billingPlan);
+	const searchPipelineStartTime = Date.now();
 
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
-			controller.enqueue(sseEncode("metadata", metadata));
-			let fullText = "";
-			let persistedConversationId: string | undefined;
-			let persistedAssistantMessageId: string | undefined;
+			const emitProgress = (stage: string, message: string) => {
+				if (abort.signal.aborted) return;
+				const progressPayload: ProgressEvent = {
+					type: "progress",
+					stage,
+					message,
+					elapsedMs: Date.now() - searchPipelineStartTime,
+				};
+				controller.enqueue(sseEncode("progress", progressPayload));
+			};
+
+			// Emit initial progress event immediately to establish visible feedback (<50ms)
+			emitProgress("request_received", "Request received…");
+
+			let grounded:
+				| Awaited<ReturnType<typeof streamGroundedAnswer>>
+				| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 
 			try {
+				if (mathAnswer !== null) {
+					analyticsSearchMode = "standard";
+					let resultText = mathAnswer;
+					try {
+						const mathExpression = parsed.data.query
+							.trim()
+							.replace(/^\/calc\s+/i, "")
+							.replace(/^=\s*/, "");
+						const { globalToolRegistry, registerBuiltInTools } = await import(
+							"@/lib/agents/tools/tool-registry"
+						);
+						await registerBuiltInTools();
+						const toolResult = await globalToolRegistry.executeTool<{ result: number }>(
+							"calculator",
+							{ expression: mathExpression },
+						);
+						resultText = String(toolResult.result);
+					} catch {
+						// keep tryParseMathAnswer fallback
+					}
+					grounded = {
+						query: parsed.data.query.trim(),
+						sources: [],
+						exaRequestId: undefined,
+						exaSearchType: undefined,
+						textStream: (async function* () {
+							yield `The result is **${resultText}**.`;
+						})(),
+					};
+				} else if (greetingOnly) {
+					analyticsSearchMode = "standard";
+					grounded = await streamGroundedAnswer({
+						query: parsed.data.query,
+						router: await ProviderRouter.createDefault(providerTier),
+						abortSignal: abort.signal,
+						chatHistory: context.chatHistory,
+						contextualMemory: context.contextualMemory,
+						disableSearch: true,
+						presetId: parsed.data.presetId,
+						onProgress: (ev) => emitProgress(ev.stage, ev.message),
+					});
+				} else if (parsed.data.mode === "deep") {
+					emitProgress("searching_web", "Deep Research running multi-step synthesis…");
+					const isAgenticEnabled = process.env.AGENTIC_DEEP_RESEARCH_ENABLED === "true";
+
+					if (isAgenticEnabled) {
+						const { ResearchOrchestrator } = await import(
+							"@/lib/agents/orchestrator/research-orchestrator"
+						);
+						grounded = await ResearchOrchestrator.streamAnswer({
+							query: parsed.data.query,
+							router: await ProviderRouter.createDefault(providerTier),
+							abortSignal: abort.signal,
+							chatHistory: context.chatHistory,
+							contextualMemory: context.contextualMemory,
+							presetId: parsed.data.presetId,
+						});
+					} else {
+						grounded = await streamDeepResearchAnswer({
+							query: parsed.data.query,
+							router: await ProviderRouter.createDefault(providerTier),
+							abortSignal: abort.signal,
+							chatHistory: context.chatHistory,
+							contextualMemory: context.contextualMemory,
+							presetId: parsed.data.presetId,
+						});
+					}
+				} else {
+					grounded = await streamGroundedAnswer({
+						query: parsed.data.query,
+						router: await ProviderRouter.createDefault(providerTier),
+						abortSignal: abort.signal,
+						chatHistory: context.chatHistory,
+						contextualMemory: context.contextualMemory,
+						presetId: parsed.data.presetId,
+						model: parsed.data.model,
+						onProgress: (ev) => emitProgress(ev.stage, ev.message),
+					});
+				}
+
+				const metadata: MetadataEvent = {
+					type: "metadata",
+					query: grounded.query,
+					citations: grounded.sources.map(mapCitation),
+					exaRequestId: grounded.exaRequestId,
+					exaSearchType: grounded.exaSearchType,
+					model: parsed.data.model ?? "auto",
+				};
+
+				controller.enqueue(sseEncode("metadata", metadata));
+				let fullText = "";
+				let persistedConversationId: string | undefined;
+				let persistedAssistantMessageId: string | undefined;
+
 				for await (const delta of grounded.textStream) {
 					if (abort.signal.aborted) break;
 					fullText += delta;
@@ -494,7 +494,6 @@ async function handleSearchPost(req: Request): Promise<Response> {
 
 				if (!abort.signal.aborted) {
 					// Strip phantom citation markers before persisting.
-					// Valid indices come from the ranked sources sent in metadata.
 					const validIndices = new Set(grounded.sources.map((s) => s.index));
 					const cleanedText = fullText.replace(
 						/\[(\d{1,4})\]/g,
@@ -528,6 +527,8 @@ async function handleSearchPost(req: Request): Promise<Response> {
 						exaSearchType: metadata.exaSearchType,
 					});
 
+					emitProgress("complete", "Complete");
+
 					const done: DoneEvent = {
 						type: "done",
 						conversationId: persistedConversationId,
@@ -538,7 +539,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 			} catch (e) {
 				const err = e instanceof Error ? e : new Error(String(e));
 				const { code, clientMessage } = classifyUpstreamError(err);
-				logger.error("SSE stream error during generation", {
+				logger.error("SSE stream error during answer processing", {
 					route: "/api/search",
 					category: "5xx.STREAM",
 					errorCode: code,
@@ -562,6 +563,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				};
 				controller.enqueue(sseEncode("error", payload));
 			} finally {
+				req.signal.removeEventListener("abort", onAbort);
 				controller.close();
 			}
 		},

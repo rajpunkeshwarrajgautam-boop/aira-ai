@@ -576,8 +576,8 @@
     cursor: pointer;
   }
 
-  .aira-v2-mobile-menu { width: 32px; height: 32px; border-radius: var(--aira-radius-md); }
-  .aira-v2-mobile-close { width: 30px; height: 30px; margin-left: auto; border-radius: var(--aira-radius-md); }
+  .aira-v2-mobile-menu { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: var(--aira-radius-md); }
+  .aira-v2-mobile-close { width: 44px; height: 44px; min-width: 44px; min-height: 44px; margin-left: auto; border-radius: var(--aira-radius-md); }
   .aira-intelligence-os .aira-v2-main.aira-v2-main { width: 100%; }
   .aira-intelligence-os .aira-v2-topbar.aira-v2-topbar { padding-inline: 14px !important; }
   .aira-os-page { padding: 24px 16px 42px; }

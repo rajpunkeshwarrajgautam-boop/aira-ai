@@ -5,12 +5,18 @@
 
 export type ProductAnalyticsEvent =
 	| "search_submitted"
+	| "search_started"
 	| "answer_stream_started"
 	| "answer_completed"
 	| "citation_clicked"
 	| "source_opened"
 	| "example_query_clicked"
 	| "sign_in_clicked"
+	| "signin_started"
+	| "pricing_viewed"
+	| "upgrade_clicked"
+	| "work_opened"
+	| "compare_started"
 	| "guest_quota_reached"
 	| "deep_research_clicked"
 	| "share_clicked"
@@ -48,8 +54,25 @@ export type ProductAnalyticsPayload = {
 	readonly errorCode?: string;
 };
 
+
+const recentEvents = new Map<string, number>();
+const DEDUP_WINDOW_MS = 1500;
+
 export function logProductEvent(params: ProductAnalyticsPayload): void {
 	try {
+		const dedupKey = `${params.event}:${params.surface ?? ""}:${params.errorCode ?? ""}:${params.citationIndex ?? ""}:${params.sourceDomain ?? ""}`;
+		const now = Date.now();
+		const lastSent = recentEvents.get(dedupKey);
+		if (lastSent && now - lastSent < DEDUP_WINDOW_MS) {
+			return; // Drop duplicate event within deduplication window
+		}
+		recentEvents.set(dedupKey, now);
+		if (recentEvents.size > 100) {
+			for (const [key, ts] of recentEvents.entries()) {
+				if (now - ts > 10000) recentEvents.delete(key);
+			}
+		}
+
 		const body: Record<string, unknown> = {
 			event: params.event,
 		};

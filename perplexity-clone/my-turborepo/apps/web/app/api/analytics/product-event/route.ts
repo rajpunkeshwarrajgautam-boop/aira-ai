@@ -6,12 +6,18 @@ export const dynamic = "force-dynamic";
 
 const ProductEventNameSchema = z.enum([
 	"search_submitted",
+	"search_started",
 	"answer_stream_started",
 	"answer_completed",
 	"citation_clicked",
 	"source_opened",
 	"example_query_clicked",
 	"sign_in_clicked",
+	"signin_started",
+	"pricing_viewed",
+	"upgrade_clicked",
+	"work_opened",
+	"compare_started",
 	"guest_quota_reached",
 	"deep_research_clicked",
 	"share_clicked",

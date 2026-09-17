@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { logProductEvent } from "@/lib/log-product-event";
 
 interface PricingPlan {
 	readonly name: "Free" | "Pro" | "Team";
@@ -124,7 +125,24 @@ export default function PricingPage() {
 								) : plan.name === "Free" ? (
 									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-surface-inset/60"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
 								) : (
-									<Button type="button" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Paid upgrades unavailable</Button>
+									<Button
+			type="button"
+			onClick={() => {
+				try {
+					logProductEvent({
+						event: "upgrade_clicked",
+						surface: "pricing",
+						userType: sessionStatus === "authenticated" ? "signed_in" : "guest",
+						errorCode: key,
+					});
+				} catch {
+					// ignore
+				}
+			}}
+			className="relative h-11 w-full rounded-xl bg-surface-inset/60 hover:bg-surface-inset text-content-primary"
+		>
+			Paid upgrades unavailable
+		</Button>
 								)}
 							</section>
 						);

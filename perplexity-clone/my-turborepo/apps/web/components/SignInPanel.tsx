@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { safeAuthReturnPath } from "../lib/auth-origin";
 import { Button } from "./ui/button";
+import { logProductEvent } from "../lib/log-product-event";
 
 export interface SignInPanelProps {
 	readonly showGoogle: boolean;

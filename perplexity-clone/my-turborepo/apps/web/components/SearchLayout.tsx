@@ -1,5 +1,11 @@
-// SSE boundary fix: robust parsing of LF/CRLF
 "use client";
+
+// SSE boundary fix: robust parsing of LF/CRLF
+interface ProgressPayload {
+	readonly stage: string;
+	readonly message: string;
+	readonly elapsedMs: number;
+}
 
 import { Sparkles, RotateCw, Menu, X } from "lucide-react";
 import Link from "next/link";
@@ -161,6 +167,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [selectedPresetId, setSelectedPresetId] = useState<ResearchPresetId>("general");
 	const [billing, setBilling] = useState<BillingStatusPayload | null>(null);
 	const [statusText, setStatusText] = useState("Searching the web...");
+	const [progressStage, setProgressStage] = useState<string | null>(null);
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
@@ -722,7 +729,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					const block = parseSseBlock(raw);
 					if (!block) return;
 
-					if (block.event === "metadata") {
+					if (block.event === "progress") {
+						const prog = safeJson<ProgressPayload>(block.data);
+						if (prog?.message) {
+							setStatusText(prog.message);
+							setProgressStage(prog.stage);
+						}
+					} else if (block.event === "metadata") {
 						const meta = safeJson<MetadataPayload>(block.data);
 						if (meta && Array.isArray(meta.citations)) {
 							finalCitations = [...meta.citations];
