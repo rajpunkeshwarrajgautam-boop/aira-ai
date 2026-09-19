@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { knowledgeCallbackUrl } from "@/lib/knowledge-callback-auth";
 
 import { auth } from "@/auth";
 import { enqueueFoundationJob } from "@/lib/foundation-control-plane";
@@ -69,21 +70,7 @@ function safeFilename(name: string): string {
 	return cleaned || "upload";
 }
 
-function knowledgeCallbackUrl(): string | null {
-	const raw = process.env.AUTH_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
-	if (!raw) return null;
-	try {
-		const base = new URL(raw);
-		if (process.env.NODE_ENV === "production" && base.protocol !== "https:") return null;
-		if (!["https:", "http:"].includes(base.protocol)) return null;
-		base.pathname = "/api/knowledge/callback";
-		base.search = "";
-		base.hash = "";
-		return base.toString();
-	} catch {
-		return null;
-	}
-}
+
 
 function advancedMediaConfigured(): boolean {
 	return Boolean(
