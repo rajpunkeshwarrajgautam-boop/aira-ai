@@ -64,11 +64,39 @@ function message(error: unknown): string {
 	return parts.join(" ").toLowerCase();
 }
 
-export type ProviderFailureClass = "transient" | "quota" | "configuration" | "content" | "fatal";
+export type ProviderFailureClass =
+	| "model_unavailable"
+	| "credentials"
+	| "quota"
+	| "transient"
+	| "residency"
+	| "safety"
+	| "configuration"
+	| "content"
+	| "fatal";
 
 export function classifyProviderFailure(error: unknown): ProviderFailureClass {
 	const status = getStatus(error);
 	const text = message(error);
+
+	if (
+		text.includes("safety") ||
+		text.includes("content_filter") ||
+		text.includes("safety boundary") ||
+		text.includes("moderation") ||
+		text.includes("blocked by safety")
+	) {
+		return "safety";
+	}
+
+	if (
+		text.includes("residency") ||
+		text.includes("jurisdiction") ||
+		text.includes("region restriction") ||
+		text.includes("geofence")
+	) {
+		return "residency";
+	}
 
 	if (
 		text.includes("private verifier") ||
@@ -80,12 +108,30 @@ export function classifyProviderFailure(error: unknown): ProviderFailureClass {
 	}
 
 	if (
+		status === 404 ||
+		status === 410 ||
+		text.includes("model_not_found") ||
+		text.includes("unknown model") ||
+		text.includes("model does not exist") ||
+		text.includes("model unavailable") ||
+		text.includes("model_unavailable") ||
+		text.includes("no accessible nvidia chat model") ||
+		text.includes("no longer available") ||
+		text.includes("end of life") ||
+		text.includes("model not found") ||
+		text.includes("gone")
+	) {
+		return "model_unavailable";
+	}
+
+	if (
 		status === 429 ||
 		text.includes("429") ||
 		text.includes("rate limit") ||
 		text.includes("insufficient_quota") ||
 		text.includes("billing_hard_limit_reached") ||
-		text.includes("limit_reached")
+		text.includes("limit_reached") ||
+		text.includes("quota exceeded")
 	) {
 		return "quota";
 	}
@@ -94,10 +140,11 @@ export function classifyProviderFailure(error: unknown): ProviderFailureClass {
 		status === 401 ||
 		status === 403 ||
 		text.includes("api key") ||
+		text.includes("invalid api key") ||
 		text.includes("authentication") ||
 		text.includes("unauthorized")
 	) {
-		return "configuration";
+		return "credentials";
 	}
 
 	if (
@@ -111,9 +158,17 @@ export function classifyProviderFailure(error: unknown): ProviderFailureClass {
 		text.includes("eai_again") ||
 		text.includes("network") ||
 		text.includes("socket") ||
-		text.includes("temporarily unavailable")
+		text.includes("temporarily unavailable") ||
+		text.includes("overloaded") ||
+		text.includes("bad gateway") ||
+		text.includes("service unavailable") ||
+		text.includes("gateway timeout")
 	) {
 		return "transient";
+	}
+
+	if (text.includes("configuration") || text.includes("misconfigured")) {
+		return "configuration";
 	}
 
 	return "fatal";
@@ -121,7 +176,13 @@ export function classifyProviderFailure(error: unknown): ProviderFailureClass {
 
 export function shouldFailOverProviderError(error: unknown): boolean {
 	const kind = classifyProviderFailure(error);
-	return kind === "transient" || kind === "quota" || kind === "configuration";
+	return (
+		kind === "transient" ||
+		kind === "quota" ||
+		kind === "configuration" ||
+		kind === "model_unavailable" ||
+		kind === "credentials"
+	);
 }
 
 function refreshDistributedProviderState(providerId: string): void {
@@ -169,7 +230,7 @@ export function recordProviderSuccess(providerId: string): void {
 
 export function recordProviderFailure(providerId: string, error: unknown, now = Date.now()): void {
 	const kind = classifyProviderFailure(error);
-	if (kind === "content" || kind === "fatal") return;
+	if (kind === "content" || kind === "fatal" || kind === "safety" || kind === "residency") return;
 
 	const previous = states.get(providerId) ?? {
 		consecutiveFailures: 0,
@@ -177,7 +238,9 @@ export function recordProviderFailure(providerId: string, error: unknown, now = 
 		lastFailureAt: 0,
 	};
 	const consecutiveFailures = previous.consecutiveFailures + 1;
-	const cooldownMs = kind === "configuration" ? CONFIG_COOLDOWN_MS : DEFAULT_COOLDOWN_MS;
+	const isConfigLike =
+		kind === "configuration" || kind === "model_unavailable" || kind === "credentials";
+	const cooldownMs = isConfigLike ? CONFIG_COOLDOWN_MS : DEFAULT_COOLDOWN_MS;
 	const openedUntil = consecutiveFailures >= FAILURE_THRESHOLD ? now + cooldownMs : 0;
 	states.set(providerId, {
 		consecutiveFailures,
