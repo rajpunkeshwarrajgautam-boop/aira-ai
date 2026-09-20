@@ -13,7 +13,6 @@ import type { AIProvider, ProviderOptions } from "./provider-router";
 export const DEFAULT_NVIDIA_MODEL = "meta/llama-3.2-11b-vision-instruct";
 const DEFAULT_NVIDIA_FALLBACK_MODELS: readonly string[] = [
 	"nvidia/nemotron-3-super-120b-a12b",
-	"openai/gpt-oss-20b",
 	"meta/muse-glimmer-30b",
 ];
 
@@ -40,9 +39,11 @@ function isModelAccessError(error: unknown): boolean {
 	const status = getErrorStatus(error);
 	if (status === 403 || status === 404 || status === 410) return true;
 
-	const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
 	return (
-		message.includes("forbidden") ||
+		message.includes("410") ||
+		message.includes("404") ||
+		message.includes("model") ||
 		message.includes("permission") ||
 		message.includes("model_not_found") ||
 		message.includes("unknown model") ||
@@ -137,17 +138,22 @@ export class NVIDIAProvider implements AIProvider {
 			} catch (error) {
 				lastError = error;
 				const hasAnotherModel = index < models.length - 1;
-				if (emittedText || !hasAnotherModel || !isModelAccessError(error)) {
+				if (emittedText || !isModelAccessError(error)) {
 					throw error;
 				}
 
-				console.warn(
-					`[NVIDIAProvider] Model ${model} is unavailable (status ${getErrorStatus(error) ?? "unknown"}). Trying the next configured model.`,
-				);
+				if (hasAnotherModel) {
+					console.warn(
+						`[NVIDIAProvider] Model ${model} is unavailable (status ${getErrorStatus(error) ?? "unknown"}). Trying the next configured model.`,
+					);
+				}
 			}
 		}
 
-		const exhaustionError = new Error("No accessible NVIDIA chat model is available.");
+		const exhaustionError = new Error(
+			"No accessible NVIDIA chat model is available: " +
+				(lastError instanceof Error ? lastError.message : String(lastError ?? "unknown error")),
+		);
 		Object.assign(exhaustionError, {
 			status: getErrorStatus(lastError) ?? 410,
 			code: "MODEL_UNAVAILABLE",

@@ -103,22 +103,53 @@ test("P0 Proof 2: A verified accessible NVIDIA model produces an answer", async 
 	assert.equal(chunks.length, 2);
 });
 
-test("P0 Proof 3: Model-chain exhaustion permits eligible OpenAI fallback", async () => {
-	const router = new ProviderRouter("nvidia", "openai");
+test("P0 Proof 3: Real NVIDIAProvider model-chain exhaustion emits structured error and permits eligible OpenAI fallback", async () => {
+	const realNvidiaProvider = new NVIDIAProvider("dummy-key", DEFAULT_NVIDIA_MODEL);
+	const attemptedModels: string[] = [];
 
-	const nvidiaProvider = createMockProvider(
-		"nvidia",
-		// eslint-disable-next-line require-yield
-		async function* () {
-			const exhaustionError = new Error("No accessible NVIDIA chat model is available.");
-			Object.assign(exhaustionError, {
-				status: 410,
-				code: "MODEL_UNAVAILABLE",
-			});
-			throw exhaustionError;
+	const upstreamError = Object.assign(new Error("410 Gone: model retired upstream"), { status: 410 });
+
+	(realNvidiaProvider as unknown as { client: unknown }).client = {
+		chat: {
+			completions: {
+				create: async (params: { model: string }) => {
+					attemptedModels.push(params.model);
+					throw upstreamError;
+				},
+			},
 		},
-		DEFAULT_NVIDIA_MODEL,
+	};
+
+	// 1. Direct invocation proof: real NVIDIAProvider emits structured exhaustion error
+	let caughtError: unknown;
+	try {
+		for await (const chunk of realNvidiaProvider.generateTextStream(
+			[{ role: "user", content: "test" }],
+			{},
+		)) {
+			assert.ok(chunk);
+		}
+	} catch (err) {
+		caughtError = err;
+	}
+
+	assert.ok(caughtError instanceof Error, "Must emit an Error on complete model exhaustion");
+	assert.ok(
+		caughtError.message.includes("No accessible NVIDIA chat model is available"),
+		"Error message must specify NVIDIA chat model exhaustion",
 	);
+	assert.ok(
+		caughtError.message.includes("410 Gone"),
+		"Error message must preserve original upstream error detail",
+	);
+	assert.equal((caughtError as { code?: string }).code, "MODEL_UNAVAILABLE");
+	assert.equal((caughtError as { status?: number }).status, 410);
+	assert.equal((caughtError as { cause?: unknown }).cause, upstreamError);
+	assert.ok(attemptedModels.length >= 1, "Must have attempted configured model chain");
+
+	// 2. Integration proof: ProviderRouter accepts real NVIDIAProvider and falls over to OpenAI
+	const router = new ProviderRouter("nvidia", "openai");
+	router.registerProvider(realNvidiaProvider);
 
 	const openAiProvider = createMockProvider(
 		"openai",
@@ -127,8 +158,6 @@ test("P0 Proof 3: Model-chain exhaustion permits eligible OpenAI fallback", asyn
 		},
 		"gpt-4o",
 	);
-
-	router.registerProvider(nvidiaProvider);
 	router.registerProvider(openAiProvider);
 
 	let fullAnswer = "";
