@@ -7,7 +7,9 @@
 		"audit:prod": "pnpm audit --prod",
 		"test": "turbo run test --filter=web",
 		"ci": "pnpm run verify:migrations && pnpm run audit:prod && pnpm run lint && pnpm run check-types && pnpm run test && pnpm run build",
-		"verify:migrations": "node scripts/db/verify-migration-bytes.mjs"
+		"verify:migrations": "node scripts/db/verify-migration-bytes.mjs",
+		"worker:dev": "pnpm --filter=web worker:dev",
+		"worker:start": "pnpm --filter=web worker:start"
 	},
 	"devDependencies": {
 		"dotenv": "^17.4.2",

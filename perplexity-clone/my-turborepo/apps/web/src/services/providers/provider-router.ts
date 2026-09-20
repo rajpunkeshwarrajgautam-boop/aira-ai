@@ -146,6 +146,13 @@ export class ProviderRouter {
 		return this.registeredProviderIds.has(providerId) && providerAllowedByResidency(providerId);
 	}
 
+	hasConfiguredRoute(): boolean {
+		return (
+			this.providerConfigured(this.primaryProviderId) ||
+			(this.fallbackCore !== undefined && this.providerConfigured(this.fallbackProviderId))
+		);
+	}
+
 	private fallbackOptions(options: ProviderOptions): ProviderOptions {
 		const fallbackModel = this.providerDefaultModels.get(this.fallbackProviderId);
 		return {

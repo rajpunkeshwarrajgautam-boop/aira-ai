@@ -62,6 +62,7 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 	memory: {
 		read: "LOW",
 		search: "LOW",
+		lookup: "LOW",
 		retrieve: "LOW",
 		write: "MEDIUM",
 		delete: "HIGH",

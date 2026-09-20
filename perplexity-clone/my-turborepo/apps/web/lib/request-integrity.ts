@@ -23,6 +23,9 @@ export function getConfiguredTrustedOrigins(): { origins: Set<string>; isConfigu
 		process.env.VERCEL_URL
 			? `https://${process.env.VERCEL_URL.replace(/^https?:\/\//i, "")}`
 			: undefined,
+		process.env.VERCEL_BRANCH_URL
+			? `https://${process.env.VERCEL_BRANCH_URL.replace(/^https?:\/\//i, "")}`
+			: undefined,
 	];
 
 	for (const envUrl of envUrls) {

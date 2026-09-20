@@ -89,6 +89,13 @@ export class OpenAIService {
 	}
 
 	/**
+	 * Returns true if the service has at least one active, residency-allowed provider route.
+	 */
+	hasConfiguredRoute(): boolean {
+		return this.router.hasConfiguredRoute();
+	}
+
+	/**
 	 * Collect a full assistant string from a text stream (utility for non-SSE callers).
 	 */
 	static async collectTextStream(stream: AsyncIterable<string>): Promise<string> {

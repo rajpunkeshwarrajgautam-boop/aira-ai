@@ -22,7 +22,7 @@ export async function GET(): Promise<Response> {
 		);
 	}
 
-	const workEnabled = process.env.AIRA_WORK_RUNTIME_ENABLED !== "false";
+	const workEnabled = process.env.AIRA_WORK_RUNTIME_ENABLED === "true";
 	const [runtimeStates, tools] = await Promise.all([
 		getAgentRuntimeStates().catch(() => []),
 		toolAvailability().catch(() => ({} as Record<string, boolean>)),
