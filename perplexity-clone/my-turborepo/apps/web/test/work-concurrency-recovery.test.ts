@@ -51,7 +51,8 @@ test.after(async () => {
 	await prisma.$executeRaw`delete from "User" where "id"=${testUserId}`.catch(() => undefined);
 });
 
-test("Phase 5 & 19: Exclusive claim prevents duplicate execution between concurrent workers", async () => {
+test("Phase 5 & 19: Exclusive claim prevents duplicate execution between concurrent workers", async (t) => {
+	if (!HAS_DB) { t.skip("Requires database"); return; }
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -99,7 +100,8 @@ test("Phase 5 & 19: Exclusive claim prevents duplicate execution between concurr
 	assert.equal(claim3, null, "Third worker must be rejected while lease is held");
 });
 
-test("Phase 7 & 19: Heartbeat extends lease expiration for active worker", async () => {
+test("Phase 7 & 19: Heartbeat extends lease expiration for active worker", async (t) => {
+	if (!HAS_DB) { t.skip("Requires database"); return; }
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -135,7 +137,8 @@ test("Phase 7 & 19: Heartbeat extends lease expiration for active worker", async
 	assert.equal(impostorRenewed, false, "Impostor must not be able to extend lease");
 });
 
-test("Phase 7, 8, 21: Crashed worker recovery reclaims abandoned RUNNING task for retry", async () => {
+test("Phase 7, 8, 21: Crashed worker recovery reclaims abandoned RUNNING task for retry", async (t) => {
+	if (!HAS_DB) { t.skip("Requires database"); return; }
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -232,7 +235,8 @@ test("Phase 7, 8, 21: Crashed worker recovery reclaims abandoned RUNNING task fo
 	assert.equal(finalTask.leaseOwner, null);
 });
 
-test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", async () => {
+test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", async (t) => {
+	if (!HAS_DB) { t.skip("Requires database"); return; }
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -272,7 +276,7 @@ test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", a
 
 	// Expire lease
 	await prisma.$executeRaw`
-		update "AgentTask" set "leaseExpiresAt" = current_timestamp - interval '5 seconds' where "id" = ${task.id}
+		update "AgentTask" set "leaseExpiresAt" = current_timestamp - interval '30 seconds' where "id" = ${task.id}
 	`;
 
 	// Recover: because attempt (1) >= maxAttempts (1), it must transition to FAILED
@@ -284,7 +288,8 @@ test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", a
 	assert.ok(failedTask.completedAt, "CompletedAt must be populated");
 });
 
-test("Phase 9: Cooperative cancellation terminates active work and records cancellation event", async () => {
+test("Phase 9: Cooperative cancellation terminates active work and records cancellation event", async (t) => {
+	if (!HAS_DB) { t.skip("Requires database"); return; }
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
