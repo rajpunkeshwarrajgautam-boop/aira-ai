@@ -123,6 +123,7 @@ export async function getRelevantPersistentMemories(
 		query,
 	);
 	const queryTokens = tokenize(query);
+	if (queryTokens.length === 0 && !showAll) return [];
 	const ranked = candidates
 		.map((memory) => ({ memory, score: scoreMemory(memory, queryTokens, showAll) }))
 		.filter(({ memory, score }) => showAll || memory.pinned || score >= 3.8)
