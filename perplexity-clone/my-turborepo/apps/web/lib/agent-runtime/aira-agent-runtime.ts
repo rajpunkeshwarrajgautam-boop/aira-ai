@@ -64,11 +64,14 @@ export function isAiraAgentEnabled(): boolean {
 }
 
 export function isAiraAgentConfigured(): boolean {
-	return Boolean(
-		process.env.OPENAI_API_KEY?.trim() ||
-			process.env.NVIDIA_API_KEY?.trim() ||
-			process.env.OMNIROUTE_API_KEY?.trim(),
-	);
+	try {
+		return getOpenAIService().hasConfiguredRoute();
+	} catch {
+		return Boolean(
+			process.env.OPENAI_API_KEY?.trim() ||
+				process.env.NVIDIA_API_KEY?.trim(),
+		);
+	}
 }
 
 interface ModelDecision {

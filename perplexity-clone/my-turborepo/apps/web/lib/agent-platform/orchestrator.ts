@@ -694,6 +694,9 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		.slice(0, capacity);
 	let dispatched = 0;
 	const runtime = getAgentRuntime(run.runtime ?? "");
+	if (!runtime.isEnabled() || !runtime.isConfigured()) {
+		return 0;
+	}
 	for (const task of candidates) {
 		const workerId = `aira:${run.id}:${crypto.randomUUID()}`;
 		const claimed = await claimTask(task.id, workerId);
