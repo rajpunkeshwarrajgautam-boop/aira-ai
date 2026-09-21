@@ -355,21 +355,21 @@ export function ConversationMessageList({
 				</div>
 			)}
 
-			<div className="aira-thread-toolbar sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-white/[0.07] bg-[#0b1020]/92 px-4 backdrop-blur-xl sm:px-5">
+			<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(245,244,239,0.07)] bg-[#0d0e12]/95 px-4 backdrop-blur-xl sm:px-5">
 				<div className="min-w-0">
 					<h2 className="truncate text-[13px] font-semibold text-content-primary">{title}</h2>
 					<p className="mt-0.5 text-[9px] text-content-tertiary">AIRA workspace</p>
 				</div>
 
 				{/* Effort Selector in Toolbar (Gate 102) */}
-				<div className="hidden items-center rounded-xl border border-white/[0.08] bg-[#0d1322] p-1 sm:flex" aria-label="Effort Control">
+				<div className="hidden items-center rounded-lg border border-[rgba(245,244,239,0.08)] bg-[#13151b] p-0.5 sm:flex" aria-label="Effort Control">
 					{(["LOW", "MEDIUM", "HIGH", "MAXIMUM"] as const).map((lvl) => (
 						<button
 							key={lvl}
 							type="button"
 							onClick={() => onEffortChange?.(lvl)}
-							className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold transition ${
-								effort === lvl ? "bg-accent/15 text-accent" : "text-content-tertiary hover:text-content-primary"
+							className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition ${
+								effort === lvl ? "bg-[rgba(212,175,55,0.15)] text-[#d4af37]" : "text-content-tertiary hover:text-content-primary"
 							}`}
 							title={`Set effort to ${lvl}`}
 						>
@@ -490,15 +490,15 @@ export function ConversationMessageList({
 									</p>
 								</div>
 								{exampleQueries.length > 0 && onPickExample ? (
-									<div className="mx-auto mt-7 grid max-w-2xl gap-2 sm:grid-cols-3">
+									<div className="mx-auto mt-6 grid max-w-2xl gap-2.5 sm:grid-cols-3">
 										{exampleQueries.map((item) => (
 											<button
 												key={item}
 												type="button"
 												onClick={() => onPickExample(item)}
-												className="min-h-20 rounded-xl border border-white/[0.08] bg-[#101727]/75 px-3 py-3 text-left text-[11px] leading-5 text-content-secondary transition hover:border-accent/25 hover:bg-[#141c30] hover:text-content-primary"
+												className="min-h-20 rounded-xl border border-[rgba(245,244,239,0.08)] bg-[#121419]/90 px-3.5 py-3 text-left text-[11.5px] leading-5 text-content-secondary transition hover:border-[rgba(212,175,55,0.35)] hover:bg-[#181a22] hover:text-content-primary shadow-sm"
 											>
-												<span className="mb-1 block text-[10px] font-semibold text-accent/80">Ask AIRA</span>
+												<span className="mb-1 block text-[10px] font-semibold text-[#d4af37]">Ask AIRA</span>
 												{item}
 											</button>
 										))}

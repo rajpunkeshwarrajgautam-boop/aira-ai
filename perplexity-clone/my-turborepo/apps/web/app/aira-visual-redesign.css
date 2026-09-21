@@ -43,180 +43,286 @@
 .aira-intelligence-os .aira-v2-rail {
   width: var(--aira-sidebar-width) !important;
   min-width: var(--aira-sidebar-width) !important;
-  padding: 10px 8px !important;
+  padding: 14px 12px !important;
   border-right: 1px solid var(--aira-border) !important;
-  background: #0d0f13 !important;
-  overflow: visible !important;
+  background: var(--aira-surface) !important;
+  overflow-y: auto !important;
   box-shadow: none !important;
 }
 
 .aira-intelligence-os .aira-v2-brand {
   min-height: 48px !important;
-  padding: 0 !important;
-  justify-content: center !important;
-  border: 0 !important;
+  padding: 0 4px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  border-bottom: 1px solid var(--aira-border) !important;
 }
 
 .aira-intelligence-os .aira-v2-brand > a {
-  width: 42px;
-  height: 42px;
-  justify-content: center;
-  gap: 0 !important;
-  border-radius: 12px;
-  transition: background-color 140ms ease;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 8px;
+  transition: opacity 140ms ease;
 }
 
 .aira-intelligence-os .aira-v2-brand > a:hover {
-  background: var(--aira-surface-raised);
+  opacity: 0.9;
 }
 
-.aira-intelligence-os .aira-v2-brand > a > span:last-child,
 .aira-intelligence-os .aira-v2-brand-copy {
-  display: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px;
+}
+
+.aira-intelligence-os .aira-v2-brand-copy span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--aira-text-primary);
+}
+
+.aira-intelligence-os .aira-v2-brand-copy small {
+  font-size: 10px;
+  color: var(--aira-accent);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .aira-intelligence-os .aira-mark {
-  width: 30px !important;
-  height: 30px !important;
-  color: #eef0f6 !important;
+  width: 26px !important;
+  height: 26px !important;
+  color: var(--aira-accent) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav {
   display: flex !important;
   flex: 1 1 auto !important;
   flex-direction: column !important;
-  align-items: center !important;
+  align-items: stretch !important;
   gap: 0 !important;
   padding: 14px 0 10px !important;
-  overflow: visible !important;
+  overflow-y: auto !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-group {
   width: 100% !important;
-  align-items: center !important;
-  gap: 3px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 2px !important;
   position: relative;
 }
 
 .aira-intelligence-os .aira-v2-nav-group + .aira-v2-nav-group {
-  margin-top: 16px !important;
-  padding-top: 16px;
-}
-
-.aira-intelligence-os .aira-v2-nav-group + .aira-v2-nav-group::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 12px;
-  right: 12px;
-  height: 1px;
-  background: var(--aira-border);
+  margin-top: 14px !important;
+  padding-top: 14px !important;
+  border-top: 1px solid var(--aira-border);
 }
 
 .aira-intelligence-os .aira-v2-nav-label {
-  display: none !important;
+  display: block !important;
+  margin: 0 8px 6px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--aira-text-muted) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-item {
   position: relative !important;
-  display: grid !important;
-  width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  place-items: center !important;
-  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 38px !important;
+  padding: 7px 10px !important;
   border: 1px solid transparent !important;
-  border-radius: 11px !important;
+  border-radius: var(--aira-radius-md) !important;
   background: transparent !important;
-  color: #79818e !important;
-  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease !important;
-}
-
-.aira-intelligence-os .aira-v2-nav-item::before {
-  display: none !important;
+  color: var(--aira-text-secondary) !important;
+  gap: 10px !important;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-item:hover {
   border-color: var(--aira-border) !important;
   background: var(--aira-surface-raised) !important;
-  color: #d4d8e1 !important;
-  transform: translateY(-1px);
+  color: var(--aira-text-primary) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-item.is-active {
-  border-color: rgba(82, 104, 217, 0.34) !important;
+  border-color: var(--aira-accent-border) !important;
   background: var(--aira-accent-soft) !important;
-  color: #aeb9ff !important;
-  box-shadow: inset 0 0 0 1px rgba(82, 104, 217, 0.04) !important;
+  color: var(--aira-text-primary) !important;
+}
+
+.aira-intelligence-os .aira-v2-nav-item.is-active::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 6px !important;
+  bottom: 6px !important;
+  width: 2.5px !important;
+  border-radius: 4px !important;
+  background: var(--aira-accent) !important;
+  display: block !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-icon {
-  display: grid !important;
-  width: auto !important;
-  height: auto !important;
-  place-items: center !important;
-  color: currentColor !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: var(--aira-text-muted) !important;
+  flex-shrink: 0 !important;
+}
+
+.aira-intelligence-os .aira-v2-nav-item:hover .aira-v2-nav-icon {
+  color: var(--aira-text-primary) !important;
+}
+
+.aira-intelligence-os .aira-v2-nav-item.is-active .aira-v2-nav-icon {
+  color: var(--aira-accent) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-copy {
-  position: absolute !important;
-  z-index: 90;
-  left: 52px;
-  top: 50%;
-  display: block !important;
-  min-width: max-content;
-  transform: translate(5px, -50%);
-  opacity: 0;
-  pointer-events: none;
-  padding: 7px 10px;
-  border: 1px solid var(--aira-border-strong);
-  border-radius: 8px;
-  background: #171a20;
-  color: #f0f2f5;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.aira-intelligence-os .aira-v2-nav-item:hover .aira-v2-nav-copy,
-.aira-intelligence-os .aira-v2-nav-item:focus-visible .aira-v2-nav-copy {
-  opacity: 1;
-  transform: translate(0, -50%);
+  position: static !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  overflow: hidden !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-copy strong {
   display: block !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
   color: inherit !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.01em;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-copy small {
-  display: none !important;
+  display: block !important;
+  font-size: 10.5px !important;
+  line-height: 1.2 !important;
+  color: var(--aira-text-muted) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .aira-intelligence-os .aira-v2-command-trigger {
-  width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  margin: 0 auto !important;
-  padding: 0 !important;
-  justify-content: center !important;
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  margin-top: 12px !important;
+  padding: 0 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
   border: 1px solid var(--aira-border) !important;
-  border-radius: 11px !important;
-  background: transparent !important;
-  color: #747c89 !important;
+  border-radius: var(--aira-radius-md) !important;
+  background: var(--aira-surface-raised) !important;
+  color: var(--aira-text-muted) !important;
   box-shadow: none !important;
+  font-size: 12px !important;
 }
 
 .aira-intelligence-os .aira-v2-command-trigger:hover {
-  background: var(--aira-surface-raised) !important;
-  color: #d7dae1 !important;
+  border-color: var(--aira-accent-border) !important;
+  background: var(--aira-surface-muted) !important;
+  color: var(--aira-text-primary) !important;
 }
 
-.aira-intelligence-os .aira-v2-command-trigger span,
+.aira-intelligence-os .aira-v2-command-trigger span {
+  display: inline !important;
+  flex: 1 1 auto !important;
+  text-align: left !important;
+}
+
 .aira-intelligence-os .aira-v2-command-trigger kbd {
-  display: none !important;
+  display: inline-flex !important;
+  padding: 1px 5px !important;
+  border: 1px solid var(--aira-border) !important;
+  border-radius: 4px !important;
+  background: var(--aira-canvas) !important;
+  color: var(--aira-text-muted) !important;
+  font-size: 10px !important;
+}
+
+/* Tablet compact rail breakpoint (768px - 1179px) */
+@media (min-width: 768px) and (max-width: 1179px) {
+  .aira-v2-frame.aira-intelligence-os {
+    grid-template-columns: 68px minmax(0, 1fr) !important;
+  }
+  .aira-intelligence-os .aira-v2-rail {
+    width: 68px !important;
+    min-width: 68px !important;
+    padding: 10px 8px !important;
+  }
+  .aira-intelligence-os .aira-v2-brand {
+    justify-content: center !important;
+  }
+  .aira-intelligence-os .aira-v2-brand-copy,
+  .aira-intelligence-os .aira-v2-nav-label {
+    display: none !important;
+  }
+  .aira-intelligence-os .aira-v2-nav-item {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  .aira-intelligence-os .aira-v2-nav-copy {
+    position: absolute !important;
+    z-index: 90;
+    left: 54px;
+    top: 50%;
+    display: block !important;
+    min-width: max-content;
+    transform: translate(5px, -50%);
+    opacity: 0 !important;
+    pointer-events: none;
+    padding: 6px 10px;
+    border: 1px solid var(--aira-border-strong);
+    border-radius: 8px;
+    background: #171a20;
+    color: #f0f2f5;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+    transition: opacity 120ms ease, transform 120ms ease;
+  }
+  .aira-intelligence-os .aira-v2-nav-item:hover .aira-v2-nav-copy {
+    opacity: 1 !important;
+    transform: translate(0, -50%);
+  }
+  .aira-intelligence-os .aira-v2-command-trigger {
+    width: 44px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  .aira-intelligence-os .aira-v2-command-trigger span,
+  .aira-intelligence-os .aira-v2-command-trigger kbd {
+    display: none !important;
+  }
 }
 
 .aira-intelligence-os .aira-v2-topbar {

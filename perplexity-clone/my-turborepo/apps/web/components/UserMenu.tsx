@@ -28,7 +28,7 @@ function UserMenuInner({ className }: { readonly className?: string }) {
 
 	if (!session?.user) {
 		return (
-			<Button variant="default" size="sm" asChild className={cn("aira-shine-button h-10 rounded-xl px-4 text-sm font-semibold shadow-[0_7px_20px_hsl(var(--accent)/0.16)]", className)}>
+			<Button variant="ghost" size="sm" asChild className={cn("h-8 rounded-lg px-3.5 text-xs font-medium border border-[rgba(212,175,55,0.35)] bg-[rgba(212,175,55,0.08)] text-[#f5f4ef] hover:bg-[rgba(212,175,55,0.18)] hover:border-[rgba(212,175,55,0.6)] transition-colors shadow-sm", className)}>
 				<Link
 					href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
 					onClick={() => {

@@ -388,7 +388,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							<div
 								id={contextMenuId}
 								aria-label="Add context"
-								className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-white/[0.1] bg-[#111827] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
+								className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(245,244,239,0.1)] bg-[#121418] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
 							>
 								<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
 									Add In-Context Research
@@ -481,7 +481,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								<div
 									id={modelMenuId}
 									aria-label="Select AI Model"
-									className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-white/[0.1] bg-[#111827] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
+									className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(245,244,239,0.1)] bg-[#121418] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
 								>
 									<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
 										Active Routing Mode
