@@ -35,9 +35,20 @@ function tokenize(value: string): string[] {
 function looksSensitive(content: string): boolean {
 	const normalized = content.toLowerCase();
 	if (
-		/\b(password|passcode|pin code|one[- ]?time password|otp|api key|access token|refresh token|private key|client secret|cvv|credit card|debit card|bank account|auth token|bearer token)\b/i.test(
+		/\b(password|passcode|pin code|one[- ]?time password|otp|api key|access token|refresh token|private key|client secret|cvv|credit card|debit card|bank account|auth token|bearer token|ssn|social security number|driver'?s license|passport number|aadhaar)\b/i.test(
 			normalized,
 		)
+	) {
+		return true;
+	}
+	// Detect card numbers or SSN-like patterns
+	if (/\b\d{3}-\d{2}-\d{4}\b/.test(content) || /\b(?:\d{4}[ -]?){3}\d{4}\b/.test(content)) {
+		return true;
+	}
+	// Never store minor status, self-harm, or suicide markers
+	if (
+		/\b(?:i am|i'm)\s+(?:under 18|[1-9]|1[0-7])\s*(?:years? old)?\b/i.test(normalized) ||
+		/\b(?:minor|suicide|self[- ]?harm)\b/i.test(normalized)
 	) {
 		return true;
 	}

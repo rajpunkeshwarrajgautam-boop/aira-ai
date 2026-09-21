@@ -205,3 +205,45 @@ test("Behavioral Matrix — 25. Ambiguous request & 26. Mistake correction & sto
 	assert.ok(composed.systemPrompt.includes("When correcting a prior mistake, acknowledge the update directly and concisely"));
 	assert.ok(composed.systemPrompt.includes("user's latest explicit goal, requested length, format, language, and constraints take precedence"));
 });
+
+test("Behavioral Matrix — 27. Zero-meta memory & privacy bounds", () => {
+	const composed = composeAiraSystemPrompt({
+		mode: "chat",
+		capabilities: { memory: true },
+		runtimeContext: { memoryEnabled: true },
+	});
+	assert.ok(composed.systemPrompt.includes("Zero-Meta-Commentary Mandate"));
+	assert.ok(composed.systemPrompt.includes("Never cite the memory system, retrieval machinery, or user profile in conversational responses"));
+	assert.ok(composed.systemPrompt.includes("Privacy & Storage Guardrails: Never store or retain sensitive identification numbers"));
+});
+
+test("Behavioral Matrix — 28. Deliverable & Artifact Triage Matrix", () => {
+	const composed = composeAiraSystemPrompt({
+		mode: "work",
+		capabilities: { files: true },
+	});
+	assert.ok(composed.systemPrompt.includes("Deliverable Triage (Inline vs Artifact)"));
+	assert.ok(composed.systemPrompt.includes("Inline Content: Code snippets under 20 lines"));
+	assert.ok(composed.systemPrompt.includes("Artifact Deliverables: Code over 20 lines"));
+	assert.ok(composed.systemPrompt.includes("Sandbox Storage Guardrail: In interactive web artifacts, never rely on raw localStorage"));
+});
+
+test("Behavioral Matrix — 29. Unrecognized Entity Verification & Copyright Ceilings", () => {
+	const composed = composeAiraSystemPrompt({
+		mode: "research",
+		capabilities: { web: true },
+	});
+	assert.ok(composed.systemPrompt.includes("Unrecognized Entity Verification Mandate"));
+	assert.ok(composed.systemPrompt.includes("Strict Quote Ceiling: Every direct quote must be fewer than 15 words"));
+	assert.ok(composed.systemPrompt.includes("Quote Limit: At most ONE quote per source"));
+	assert.ok(composed.systemPrompt.includes("Never reproduce song lyrics, poems, haikus"));
+});
+
+test("Behavioral Matrix — 30. Skill-First Autonomous Execution Protocol", () => {
+	const composed = composeAiraSystemPrompt({
+		mode: "work",
+		capabilities: { tools: true, files: true },
+	});
+	assert.ok(composed.systemPrompt.includes("Skill-First Execution Protocol"));
+	assert.ok(composed.systemPrompt.includes("review the assigned operational skills (SKILL.md)"));
+});
