@@ -12,19 +12,19 @@
   --aira-surface-input: #141820;
   --aira-text-primary: #f3f4f6;
   --aira-text-secondary: #b4bac6;
-  --aira-text-muted: #737b89;
-  --aira-border: rgba(255, 255, 255, 0.065);
-  --aira-border-strong: rgba(255, 255, 255, 0.11);
-  --aira-accent: #5268d9;
-  --aira-accent-hover: #6478e6;
-  --aira-accent-soft: rgba(82, 104, 217, 0.12);
-  --aira-accent-line: rgba(82, 104, 217, 0.38);
+  --aira-text-muted: #7d7c77;
+  --aira-border: rgba(245, 244, 239, 0.08);
+  --aira-border-strong: rgba(245, 244, 239, 0.16);
+  --aira-accent: #d4af37;
+  --aira-accent-hover: #e5c158;
+  --aira-accent-soft: rgba(212, 175, 55, 0.12);
+  --aira-accent-line: rgba(212, 175, 55, 0.38);
   --aira-radius-sm: 7px;
   --aira-radius-md: 10px;
   --aira-radius-lg: 14px;
-  --aira-sidebar-width: 68px;
-  --aira-context-width: 258px;
-  --aira-content-max: 1120px;
+  --aira-sidebar-width: 240px;
+  --aira-context-width: 280px;
+  --aira-content-max: 1280px;
   background: var(--aira-canvas);
 }
 
