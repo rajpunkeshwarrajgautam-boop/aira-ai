@@ -426,11 +426,15 @@ export async function recoverExpiredClaims(runId?: string): Promise<number> {
 			`;
 
 		for (const row of orphanedRunIds) {
-			await tx.$executeRaw`
-				update "AgentRun"
-				set "status"='FAILED', "errorMessage"='Execution lease expired before completion.', "completedAt"=current_timestamp, "updatedAt"=current_timestamp
-				where "id"=${row.runtimeRunId} and "status"='RUNNING'
-			`.catch(() => undefined);
+			try {
+				await tx.$executeRaw`
+					update "AgentRun"
+					set "status"='FAILED', "errorMessage"='Execution lease expired before completion.', "completedAt"=current_timestamp, "updatedAt"=current_timestamp
+					where "id"=${row.runtimeRunId} and "status"='RUNNING'
+				`;
+			} catch {
+				// Non-fatal if AgentRun was already completed or absent
+			}
 		}
 
 		const retryRunningRows = runId
