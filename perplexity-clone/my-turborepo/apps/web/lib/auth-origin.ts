@@ -61,9 +61,27 @@ export function runtimeTrustedAuthOrigins(env: AuthEnvironment = process.env): r
 	add(configuredOrigin(env.AUTH_URL));
 	add(configuredOrigin(env.NEXTAUTH_URL));
 
+	if (env.AUTH_TRUSTED_ORIGINS) {
+		for (const part of env.AUTH_TRUSTED_ORIGINS.split(",")) {
+			add(configuredOrigin(part.trim()));
+		}
+	}
+
 	if (env.VERCEL_ENV === "production") {
 		add(vercelOrigin(env.VERCEL_PROJECT_PRODUCTION_URL));
 		add(vercelOrigin(env.VERCEL_URL));
+		const primary = configuredOrigin(env.AUTH_URL);
+		if (primary) {
+			try {
+				const u = new URL(primary);
+				if (u.hostname.startsWith("www.")) {
+					add(`${u.protocol}//${u.hostname.slice(4)}`);
+				} else if (!u.hostname.endsWith(".vercel.app")) {
+					add(`${u.protocol}//www.${u.hostname}`);
+				}
+			} catch {}
+		}
+		add("https://aira-ai-live.vercel.app");
 	}
 
 	return [...origins];

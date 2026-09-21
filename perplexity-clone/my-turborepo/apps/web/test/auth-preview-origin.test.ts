@@ -117,3 +117,19 @@ test("local development remains available without trusting arbitrary remote host
 	assert.equal(isTrustedAuthRequestUrl("http://127.0.0.1:3000/work", env), true);
 	assert.equal(isTrustedAuthRequestUrl("https://evil.example/work", env), false);
 });
+
+test("production environment trusts custom domain apex, www pair, and legacy project alias", () => {
+	const env = {
+		VERCEL_ENV: "production",
+		AUTH_URL: "https://aira-ai.in",
+		NEXTAUTH_URL: "https://aira-ai.in",
+		VERCEL_PROJECT_PRODUCTION_URL: "aira-ai.in",
+		VERCEL_URL: "aira-ai-few5a1kdf.vercel.app",
+	};
+
+	assert.equal(isTrustedAuthRequestUrl("https://aira-ai.in/", env), true);
+	assert.equal(isTrustedAuthRequestUrl("https://www.aira-ai.in/", env), true);
+	assert.equal(isTrustedAuthRequestUrl("https://aira-ai-live.vercel.app/", env), true);
+	assert.equal(isTrustedAuthRequestUrl("https://evil.example/", env), false);
+});
+
