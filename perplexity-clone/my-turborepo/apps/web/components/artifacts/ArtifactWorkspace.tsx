@@ -71,7 +71,7 @@ export function ArtifactWorkspace() {
 				versions: [
 					{
 						version: 1,
-						content: "# Q3 Executive AI Performance & Model Landscape\n\n## Overview\nAIRA autonomous workflows demonstrated a 4.2x latency reduction compared to manual orchestration.\n\n| Model | Latency (ms) | Quality Score | Cost / 1M |\n|---|---|---|---|\n| meta/llama-3.3-70b | 1150 | 92 | $0.70 |\n| meta/llama-3.2-11b | 850 | 86 | $0.35 |\n| deepseek-r1 | 2400 | 95 | $0.55 |\n\n### Recommendation\nRoute latency-sensitive reasoning through 11b vision models with selective escalation to 70b.",
+						content: "# Q3 Executive AI Performance & Architecture Landscape\n\n## Overview\nAIRA autonomous workflows demonstrated a 4.2x latency reduction compared to manual orchestration.\n\n| Model Tier | Latency (ms) | Quality Score | Cost / 1M |\n|---|---|---|---|\n| AIRA Cortex-9 | 950 | 96 | $0.70 |\n| AIRA DeepDeliberate | 1650 | 98 | $0.55 |\n| AIRA Ultra-Fast | 210 | 92 | $0.25 |\n\n### Recommendation\nRoute latency-sensitive workflows through AIRA Ultra-Fast edge nodes with selective escalation to Cortex-9.",
 						checksum: "sha_sample_1",
 						sizeBytes: 420,
 						validation: {
@@ -108,7 +108,7 @@ export function ArtifactWorkspace() {
 				versions: [
 					{
 						version: 1,
-						content: "Model,Provider,TokensPerSecond,CostPerMillionUsd,ReliabilityPct\nLlama-3.3-70B,NVIDIA,84,0.70,99.9\nLlama-3.2-11B,NVIDIA,142,0.35,99.8\nNemotron-4-340B,NVIDIA,38,1.80,99.5\nOmniRoute-Auto,AIRA,115,0.45,99.99",
+						content: "Model,Architecture,TokensPerSecond,CostPerMillionTokens,ReliabilityPct\nAIRA-Cortex-9,Frontier-Logic,124,0.70,99.98\nAIRA-DeepDeliberate,Cognitive-Chain,82,0.55,99.99\nAIRA-Ultra-Fast,Edge-Matrix,260,0.25,99.95\nAIRA-OmniRoute,Adaptive-Mesh,195,0.40,99.99",
 						checksum: "sha_sample_2",
 						sizeBytes: 215,
 						validation: {

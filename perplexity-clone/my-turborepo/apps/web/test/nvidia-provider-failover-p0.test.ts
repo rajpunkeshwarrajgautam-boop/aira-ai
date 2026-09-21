@@ -277,3 +277,68 @@ test("P0 Proof 8: Successful streaming delivers text and clean completion", asyn
 	assert.equal(chunks.join(""), "First sentence. Second sentence. Done.");
 	assert.equal(chunks.length, 3);
 });
+
+test("P0 Proof 9: NVIDIAProvider correctly maps 'auto' and 'default' to DEFAULT_NVIDIA_MODEL", async () => {
+	const provider = new NVIDIAProvider("dummy-key");
+	const attemptedModels: string[] = [];
+
+	(provider as unknown as { client: unknown }).client = {
+		chat: {
+			completions: {
+				create: async (params: { model: string }) => {
+					attemptedModels.push(params.model);
+					return (async function* () {
+						yield { choices: [{ delta: { content: "answer" } }] };
+					})();
+				},
+			},
+		},
+	};
+
+	const chunks: string[] = [];
+	for await (const chunk of provider.generateTextStream(
+		[{ role: "user", content: "hello" }],
+		{ model: "auto" },
+	)) {
+		chunks.push(chunk);
+	}
+
+	assert.equal(chunks.join(""), "answer");
+	assert.equal(attemptedModels[0], DEFAULT_NVIDIA_MODEL, "'auto' model option must map to DEFAULT_NVIDIA_MODEL");
+});
+
+test("P0 Proof 10: NVIDIAProvider tries next model on 503 service overload before text is emitted", async () => {
+	const provider = new NVIDIAProvider("dummy-key");
+	let callCount = 0;
+
+	(provider as unknown as { client: unknown }).client = {
+		chat: {
+			completions: {
+				create: async () => {
+					callCount++;
+					if (callCount === 1) {
+						const err: any = new Error("Service temporarily overloaded");
+						err.code = 503;
+						err.status = 503;
+						throw err;
+					}
+					return (async function* () {
+						yield { choices: [{ delta: { content: "recovered-from-overload" } }] };
+					})();
+				},
+			},
+		},
+	};
+
+	const chunks: string[] = [];
+	for await (const chunk of provider.generateTextStream(
+		[{ role: "user", content: "hello" }],
+		{},
+	)) {
+		chunks.push(chunk);
+	}
+
+	assert.equal(chunks.join(""), "recovered-from-overload");
+	assert.equal(callCount, 2, "Must retry next model when receiving a 503 overload before text is emitted");
+});
+

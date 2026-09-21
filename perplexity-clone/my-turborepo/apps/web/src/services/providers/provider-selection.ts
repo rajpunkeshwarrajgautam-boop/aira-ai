@@ -1,4 +1,4 @@
-﻿export type ProviderAccessTier = "free" | "pro";
+export type ProviderAccessTier = "free" | "pro";
 
 type ProviderRouteEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -39,9 +39,15 @@ export function resolveProviderRoute(
 	// the ProviderRouter can instantiate a real fallbackCore and perform failover.
 	// For the pro tier, keep the existing behaviour of using the free provider as
 	// the safety net.
+	const defaultFreeFallback = environment.OPENAI_API_KEY
+		? FREE_TIER_FALLBACK_PROVIDER_ID
+		: environment.OMNIROUTE_API_KEY
+			? "omniroute"
+			: FREE_TIER_FALLBACK_PROVIDER_ID;
+
 	const fallbackProviderId =
 		tier === "free"
-			? environment.DEFAULT_FREE_FALLBACK_PROVIDER ?? FREE_TIER_FALLBACK_PROVIDER_ID
+			? environment.DEFAULT_FREE_FALLBACK_PROVIDER ?? defaultFreeFallback
 			: freeProviderId;
 
 	const route = {

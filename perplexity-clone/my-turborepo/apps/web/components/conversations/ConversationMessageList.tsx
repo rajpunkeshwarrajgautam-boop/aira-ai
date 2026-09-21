@@ -553,7 +553,7 @@ export function ConversationMessageList({
 										</div>
 									</div>
 
-									{/* Bento Tile 2: OmniRoute Gateway */}
+									{/* Bento Tile 2: AIRA Neural Grid */}
 									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
 										<div>
 											<div className="flex items-center gap-2.5">
@@ -561,31 +561,31 @@ export function ConversationMessageList({
 													<Network className="size-4" />
 												</span>
 												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">OmniRoute Grid</h3>
-													<p className="text-[10.5px] text-[#94A3B8]">Multi-provider failover</p>
+													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">AIRA Neural Grid</h3>
+													<p className="text-[10.5px] text-[#94A3B8]">Autonomous multi-tier routing</p>
 												</div>
 											</div>
 											<div className="mt-3.5 space-y-1.5">
 												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
-													<span>Claude 3.7 Sonnet</span>
-													<span className="text-sky-400">Frontier</span>
+													<span>AIRA Cortex-9</span>
+													<span className="text-sky-400">Frontier Logic</span>
 												</div>
 												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
-													<span>DeepSeek R1</span>
-													<span className="text-emerald-400">Reasoning</span>
+													<span>AIRA DeepDeliberate</span>
+													<span className="text-emerald-400">Deep Reasoning</span>
 												</div>
 												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8]">
-													<span>GPT-4.5 / Gemini 2.0</span>
-													<span className="text-[#CBD5E1]">Balanced</span>
+													<span>AIRA Ultra-Fast</span>
+													<span className="text-[#CBD5E1]">Sub-100ms Synthesis</span>
 												</div>
 											</div>
 										</div>
 										<button
 											type="button"
-											onClick={() => onPickExample?.("Compare ChatGPT vs Gemini reasoning benchmarks and cost curves")}
+											onClick={() => onPickExample?.("Benchmark AIRA Cortex-9 reasoning depth against standard synthesis latency")}
 											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
 										>
-											<span>Compare Models Side-by-Side</span>
+											<span>Benchmark Neural Architecture</span>
 											<span className="text-sky-400">→</span>
 										</button>
 									</div>

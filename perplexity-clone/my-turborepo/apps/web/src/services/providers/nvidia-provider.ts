@@ -27,22 +27,43 @@ function isRetiredNvidiaModel(model: string): boolean {
 }
 
 function getErrorStatus(error: unknown): number | undefined {
-	if (typeof error !== "object" || error === null || !("status" in error)) {
-		return undefined;
+	if (typeof error !== "object" || error === null) return undefined;
+	const obj = error as Record<string, unknown>;
+	if (typeof obj.status === "number") return obj.status;
+	if (typeof obj.code === "number") return obj.code;
+	if (typeof obj.error === "object" && obj.error !== null) {
+		const sub = obj.error as Record<string, unknown>;
+		if (typeof sub.code === "number") return sub.code;
+		if (typeof sub.status === "number") return sub.status;
 	}
-
-	const status = (error as { readonly status?: unknown }).status;
-	return typeof status === "number" ? status : undefined;
+	return undefined;
 }
 
-function isModelAccessError(error: unknown): boolean {
+function isRetryableModelError(error: unknown): boolean {
 	const status = getErrorStatus(error);
-	if (status === 403 || status === 404 || status === 410) return true;
+	if (
+		status === 403 ||
+		status === 404 ||
+		status === 410 ||
+		status === 429 ||
+		status === 500 ||
+		status === 502 ||
+		status === 503 ||
+		status === 504
+	) {
+		return true;
+	}
 
 	const message = error instanceof Error ? error.message.toLowerCase() : "";
 	return (
 		message.includes("410") ||
 		message.includes("404") ||
+		message.includes("429") ||
+		message.includes("503") ||
+		message.includes("overload") ||
+		message.includes("busy") ||
+		message.includes("rate limit") ||
+		message.includes("temporarily") ||
 		message.includes("model") ||
 		message.includes("permission") ||
 		message.includes("model_not_found") ||
@@ -91,7 +112,10 @@ export class NVIDIAProvider implements AIProvider {
 		messages: ChatCompletionMessageParam[],
 		options: ProviderOptions,
 	): AsyncGenerator<string, void, undefined> {
-		const rawRequested = options.model ?? this.defaultModel;
+		const rawRequested =
+			options.model && options.model !== "auto" && options.model !== "default"
+				? options.model
+				: this.defaultModel;
 		const requestedModel = isRetiredNvidiaModel(rawRequested)
 			? DEFAULT_NVIDIA_MODEL
 			: rawRequested;
@@ -138,7 +162,7 @@ export class NVIDIAProvider implements AIProvider {
 			} catch (error) {
 				lastError = error;
 				const hasAnotherModel = index < models.length - 1;
-				if (emittedText || !isModelAccessError(error)) {
+				if (emittedText || !isRetryableModelError(error)) {
 					throw error;
 				}
 
