@@ -1155,3 +1155,693 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ============================================================================ */
+/* PHASE 2 — Grounded Research Canvas, Evidence Carousel, Streaming Progress    */
+/* ============================================================================ */
+
+/* ---------------------------------------------------------------------------- */
+/* Phase 2 tokens                                                                 */
+/* ---------------------------------------------------------------------------- */
+.aira-intelligence-os {
+  --aira-stage-dot: rgba(212, 175, 55, 0.7);
+  --aira-stage-line: rgba(245, 244, 239, 0.08);
+  --aira-evidence-card: #131619;
+  --aira-evidence-hover: #191d22;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Homepage hero — remove redundant LOW/MEDIUM/HIGH/MAXIMUM toolbar              */
+/* The thread toolbar contains those pills — suppress them on the homepage       */
+/* ---------------------------------------------------------------------------- */
+
+/* The entire thread toolbar row at top of the research canvas (not topbar)
+   only hides on the empty/home state where there's nothing to share/compare. */
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] span + span,
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] ~ span,
+.aira-home .aira-thread-toolbar > div > div:first-child {
+  /* Let toolbar remain but suppress the pill cluster overlay on canvas */
+}
+
+/* Suppress only the inline LOW/MEDIUM/HIGH/MAXIMUM pill row that floats
+   inside the main canvas header (not inside topbar) */
+.aira-home .aira-v2-workspace-stage main > header > div > div:first-child > div:first-child:has([aria-label="Research tools"]),
+.aira-home .aira-v2-workspace-stage main > header [role="group"][aria-label="Effort"] {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Homepage hero — commanding centered empty-state                               */
+/* ---------------------------------------------------------------------------- */
+
+/* The centered greeting heading "What are you working on?" */
+.aira-home .aira-thread-layout .aira-enter.py-8 h2,
+.aira-home .aira-thread-layout .aira-enter.sm\:py-12 h2,
+.aira-home section[aria-label="Conversation messages"] h2:first-of-type {
+  font-size: clamp(22px, 2.8vw, 32px) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.04em !important;
+  color: #eef0f4 !important;
+  line-height: 1.18 !important;
+}
+
+/* Subtitle under heading */
+.aira-home .aira-thread-layout .aira-enter.py-8 p,
+.aira-home .aira-thread-layout .aira-enter.sm\:py-12 p,
+.aira-home section[aria-label="Conversation messages"] h2:first-of-type + p {
+  font-size: 13.5px !important;
+  color: var(--aira-text-muted) !important;
+  line-height: 1.6 !important;
+  max-width: 56ch !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Example query prompt chips — command-style, clean */
+.aira-home .aira-thread-layout button[class*="min-h-20"] {
+  min-height: 66px !important;
+  border: 1px solid var(--aira-border) !important;
+  border-radius: 11px !important;
+  background: var(--aira-evidence-card) !important;
+  box-shadow: none !important;
+  color: var(--aira-text-secondary) !important;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease !important;
+}
+
+.aira-home .aira-thread-layout button[class*="min-h-20"]:hover {
+  border-color: var(--aira-accent-line) !important;
+  background: var(--aira-evidence-hover) !important;
+  color: var(--aira-text-primary) !important;
+}
+
+.aira-home .aira-thread-layout button[class*="min-h-20"] strong,
+.aira-home .aira-thread-layout button[class*="min-h-20"] [class*="font-semibold"] {
+  font-size: 12.5px !important;
+  font-weight: 550 !important;
+  color: var(--aira-text-primary) !important;
+}
+
+.aira-home .aira-thread-layout button[class*="min-h-20"] p,
+.aira-home .aira-thread-layout button[class*="min-h-20"] [class*="text-content-tertiary"] {
+  font-size: 11px !important;
+  color: var(--aira-text-muted) !important;
+  margin-top: 2px !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Streaming progress breadcrumb — replaces empty dark void during search        */
+/* ---------------------------------------------------------------------------- */
+
+/* The skeleton assistant bubble that shows during streaming */
+.aira-home .aira-thread-layout [aria-busy="true"] {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 4px 0 !important;
+}
+
+/* Status text inside skeleton — style as a grounded progress row */
+.aira-home .aira-thread-layout [aria-busy="true"] > div:first-child {
+  width: 28px !important;
+  height: 28px !important;
+  border: 1px solid var(--aira-accent-line) !important;
+  background: rgba(212, 175, 55, 0.1) !important;
+  color: var(--aira-accent) !important;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.06) !important;
+}
+
+/* Animated streaming shimmer lines — make them feel like real breadcrumbs */
+.aira-home .aira-thread-layout [aria-busy="true"] [class*="animate-pulse"],
+.aira-home .aira-thread-layout [aria-busy="true"] [class*="skeleton"] {
+  border-radius: 4px !important;
+  background: linear-gradient(
+    90deg,
+    rgba(245, 244, 239, 0.04) 0%,
+    rgba(245, 244, 239, 0.09) 50%,
+    rgba(245, 244, 239, 0.04) 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: aira-shimmer 1.8s ease-in-out infinite !important;
+}
+
+@keyframes aira-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* The status text below the skeleton (e.g. "Preparing answer... • 8 sources found") */
+.aira-home .aira-thread-layout [aria-busy="true"] p,
+.aira-home .aira-thread-layout [aria-busy="true"] [class*="text-content-tertiary"],
+.aira-home .aira-thread-layout [aria-busy="true"] [class*="text-xs"] {
+  font-size: 11.5px !important;
+  color: var(--aira-text-muted) !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* The pulsing status dot in the skeleton */
+.aira-home .aira-thread-layout [aria-busy="true"] span[class*="bg-green"],
+.aira-home .aira-thread-layout [aria-busy="true"] span[class*="rounded-full"][class*="bg-"] {
+  background: var(--aira-accent) !important;
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.6) !important;
+}
+
+/* Stage status string ("Preparing answer...") */
+.aira-home .aira-thread-layout [aria-busy="true"] > div:nth-child(2) > div:first-child {
+  color: var(--aira-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Source evidence carousel — horizontal scrollable citation strip               */
+/* ---------------------------------------------------------------------------- */
+
+/* CitationCards container */
+.aira-home .answer-citations,
+.aira-home [class*="CitationCards"],
+.aira-home [aria-label="Sources"] {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  gap: 8px !important;
+  padding: 10px 0 6px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(245, 244, 239, 0.1) transparent !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-snap-type: x mandatory !important;
+}
+
+.aira-home .answer-citations::-webkit-scrollbar,
+.aira-home [class*="CitationCards"]::-webkit-scrollbar {
+  height: 3px !important;
+}
+
+.aira-home .answer-citations::-webkit-scrollbar-track,
+.aira-home [class*="CitationCards"]::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.aira-home .answer-citations::-webkit-scrollbar-thumb,
+.aira-home [class*="CitationCards"]::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.2) !important;
+  border-radius: 4px !important;
+}
+
+/* Individual citation card */
+.aira-home .answer-citations > *,
+.aira-home [class*="CitationCards"] > *,
+.aira-home [aria-label="Sources"] > * {
+  flex: 0 0 auto !important;
+  min-width: 200px !important;
+  max-width: 240px !important;
+  scroll-snap-align: start !important;
+  border: 1px solid var(--aira-border) !important;
+  border-radius: 10px !important;
+  background: var(--aira-evidence-card) !important;
+  padding: 10px 12px !important;
+  transition: border-color 140ms ease, background 140ms ease !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+}
+
+.aira-home .answer-citations > *:hover,
+.aira-home [class*="CitationCards"] > *:hover {
+  border-color: var(--aira-accent-line) !important;
+  background: var(--aira-evidence-hover) !important;
+}
+
+/* Citation card title */
+.aira-home .answer-citations > * [class*="font-semibold"],
+.aira-home .answer-citations > * [class*="font-medium"],
+.aira-home [class*="CitationCards"] > * [class*="font-semibold"],
+.aira-home [class*="CitationCards"] > * [class*="font-medium"] {
+  font-size: 11.5px !important;
+  font-weight: 550 !important;
+  color: var(--aira-text-primary) !important;
+  line-height: 1.4 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* Citation source hostname / favicon row */
+.aira-home .answer-citations > * [class*="text-content-tertiary"],
+.aira-home [class*="CitationCards"] > * [class*="text-content-tertiary"] {
+  font-size: 10px !important;
+  color: var(--aira-text-muted) !important;
+  margin-top: 4px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Citation number badge */
+.aira-home .answer-citations > * [class*="rounded-full"],
+.aira-home [class*="CitationCards"] > * [class*="rounded-full"] {
+  background: var(--aira-accent-soft) !important;
+  color: var(--aira-accent) !important;
+  border: 1px solid var(--aira-accent-line) !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  min-width: 18px !important;
+  height: 18px !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Research mode & focus controls — elevated, compact, on-brand                  */
+/* ---------------------------------------------------------------------------- */
+
+/* Research focus select wrapper */
+.aira-home .aira-v2-workspace-stage div[class*="rounded-3xl"][class*="max-w-\[200px\]"],
+.aira-home form[aria-label="Ask AiraAI"] ~ div div[class*="rounded-3xl"][class*="max-w"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(17, 19, 24, 0.95) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+/* Research mode group container */
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(17, 19, 24, 0.95) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  padding: 2px !important;
+}
+
+/* Mode toggle buttons */
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"] button {
+  border-radius: 8px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.005em !important;
+  transition: background 140ms ease, color 140ms ease !important;
+}
+
+/* Active mode button */
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"] button[class*="bg-accent"] {
+  background: rgba(212, 175, 55, 0.16) !important;
+  color: var(--aira-accent) !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+}
+
+/* Inactive mode button hover */
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"] button:not([class*="bg-accent"]):hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--aira-text-primary) !important;
+}
+
+/* "Deep Research · Sign in" guest button — polished dark surface */
+.aira-home .aira-v2-workspace-stage button[aria-label="Deep Research requires a signed-in account"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(17, 19, 24, 0.95) !important;
+  border-radius: 10px !important;
+  color: var(--aira-text-secondary) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease !important;
+}
+
+.aira-home .aira-v2-workspace-stage button[aria-label="Deep Research requires a signed-in account"]:hover {
+  border-color: var(--aira-accent-line) !important;
+  background: rgba(212, 175, 55, 0.06) !important;
+  color: var(--aira-accent) !important;
+}
+
+/* Focus select */
+.aira-home .aira-v2-workspace-stage select[aria-label="Research focus"] {
+  background: transparent !important;
+  color: var(--aira-text-secondary) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Thread toolbar (header row above conversation) — minimal, functional          */
+/* ---------------------------------------------------------------------------- */
+
+/* Effort level tab group within thread toolbar */
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] {
+  gap: 2px !important;
+  padding: 2px !important;
+}
+
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] button {
+  border-radius: 6px !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  height: 24px !important;
+  padding: 0 8px !important;
+  letter-spacing: 0.01em !important;
+  text-transform: uppercase !important;
+  color: var(--aira-text-muted) !important;
+  transition: background 140ms ease, color 140ms ease !important;
+}
+
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] button:hover {
+  color: var(--aira-text-primary) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] button[aria-selected="true"],
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] button[data-state="active"],
+.aira-home .aira-thread-toolbar [aria-label="Research tools"] button[class*="bg-"] {
+  background: var(--aira-accent-soft) !important;
+  color: var(--aira-accent) !important;
+  border: 1px solid var(--aira-accent-line) !important;
+}
+
+/* Thread toolbar compare / export / share icon buttons */
+.aira-home .aira-thread-toolbar button:not([aria-label="Research tools"] *) {
+  color: var(--aira-text-muted) !important;
+  transition: color 140ms ease, background 140ms ease !important;
+}
+
+.aira-home .aira-thread-toolbar button:not([aria-label="Research tools"] *):hover {
+  color: var(--aira-text-primary) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* "AIRA Auto" model badge */
+.aira-home .aira-thread-toolbar a[title="Open Model Compare"],
+.aira-home .aira-thread-toolbar [href*="compare"] {
+  border-color: var(--aira-border) !important;
+  background: var(--aira-evidence-card) !important;
+  color: var(--aira-text-muted) !important;
+  font-size: 10.5px !important;
+  border-radius: 8px !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* User query bubbles — refined                                                   */
+/* ---------------------------------------------------------------------------- */
+
+.aira-home .aira-thread-layout .justify-end.py-3 > div > div:first-child,
+.aira-home .aira-thread-layout [aria-label="Streaming user message"] > div {
+  border: 1px solid rgba(245, 244, 239, 0.09) !important;
+  border-radius: 16px !important;
+  background: #1d2130 !important;
+  color: #edf0f5 !important;
+  box-shadow: none !important;
+  padding: 11px 16px !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Answer markdown — editorial reading experience                                */
+/* ---------------------------------------------------------------------------- */
+
+.aira-home .answer-markdown {
+  color: #c5cad3 !important;
+  font-size: 14px !important;
+  line-height: 1.82 !important;
+  letter-spacing: 0.005em !important;
+}
+
+.aira-home .answer-markdown :where(p, li) {
+  color: #c5cad3 !important;
+}
+
+.aira-home .answer-markdown :where(h1, h2, h3, h4) {
+  color: #eef0f4 !important;
+  letter-spacing: -0.03em !important;
+  margin-top: 1.4em !important;
+  margin-bottom: 0.5em !important;
+}
+
+.aira-home .answer-markdown :where(h1) { font-size: 20px !important; font-weight: 650 !important; }
+.aira-home .answer-markdown :where(h2) { font-size: 16px !important; font-weight: 620 !important; }
+.aira-home .answer-markdown :where(h3) { font-size: 14.5px !important; font-weight: 600 !important; }
+
+.aira-home .answer-markdown a {
+  color: var(--aira-accent) !important;
+  text-decoration: underline !important;
+  text-decoration-color: rgba(212, 175, 55, 0.4) !important;
+  text-underline-offset: 3px !important;
+}
+
+.aira-home .answer-markdown a:hover {
+  color: var(--aira-accent-hover) !important;
+  text-decoration-color: var(--aira-accent) !important;
+}
+
+.aira-home .answer-markdown :where(code:not(pre code)) {
+  border: 1px solid var(--aira-border) !important;
+  border-radius: 5px !important;
+  background: #151820 !important;
+  color: #d0d8ff !important;
+  padding: 1px 6px !important;
+  font-size: 0.86em !important;
+}
+
+.aira-home .answer-markdown pre {
+  border: 1px solid var(--aira-border) !important;
+  border-radius: 10px !important;
+  background: #0f1115 !important;
+  padding: 14px 16px !important;
+  overflow-x: auto !important;
+  margin: 12px 0 !important;
+}
+
+.aira-home .answer-markdown pre code {
+  background: transparent !important;
+  border: 0 !important;
+  color: #c8d0e0 !important;
+  font-size: 12.5px !important;
+  line-height: 1.65 !important;
+}
+
+.aira-home .answer-markdown blockquote {
+  border-left: 2.5px solid var(--aira-accent-line) !important;
+  margin-left: 0 !important;
+  padding-left: 14px !important;
+  color: var(--aira-text-muted) !important;
+  font-style: italic !important;
+}
+
+.aira-home .answer-markdown :where(ul, ol) {
+  padding-left: 20px !important;
+}
+
+.aira-home .answer-markdown li {
+  margin-top: 5px !important;
+}
+
+.aira-home .answer-markdown hr {
+  border-color: var(--aira-border) !important;
+  margin: 18px 0 !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Research History Panel — conversation cards on empty state                    */
+/* ---------------------------------------------------------------------------- */
+
+.aira-home [class*="ResearchHistoryPanel"],
+.aira-home [class*="ResearchHistory"] {
+  gap: 8px !important;
+}
+
+.aira-home [class*="ResearchHistoryPanel"] button,
+.aira-home [class*="ResearchHistory"] button {
+  border: 1px solid var(--aira-border) !important;
+  border-radius: 10px !important;
+  background: var(--aira-evidence-card) !important;
+  padding: 10px 14px !important;
+  transition: border-color 140ms ease, background 140ms ease !important;
+  box-shadow: none !important;
+}
+
+.aira-home [class*="ResearchHistoryPanel"] button:hover,
+.aira-home [class*="ResearchHistory"] button:hover {
+  border-color: var(--aira-accent-line) !important;
+  background: var(--aira-evidence-hover) !important;
+}
+
+.aira-home [class*="ResearchHistoryPanel"] button p:first-child,
+.aira-home [class*="ResearchHistory"] button p:first-child {
+  font-size: 12px !important;
+  font-weight: 550 !important;
+  color: var(--aira-text-primary) !important;
+}
+
+.aira-home [class*="ResearchHistoryPanel"] button p:last-child,
+.aira-home [class*="ResearchHistory"] button p:last-child {
+  font-size: 10.5px !important;
+  color: var(--aira-text-muted) !important;
+  margin-top: 2px !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Conversation sidebar (right panel for signed-in users)                        */
+/* ---------------------------------------------------------------------------- */
+
+/* Override the old violet styles with obsidian/brass */
+.aira-home .aira-new-chat {
+  height: 36px !important;
+  border: 1px solid var(--aira-accent-line) !important;
+  border-radius: 9px !important;
+  background: rgba(212, 175, 55, 0.1) !important;
+  color: var(--aira-accent) !important;
+  font-size: 11.5px !important;
+  font-weight: 550 !important;
+  box-shadow: none !important;
+  transition: border-color 140ms ease, background 140ms ease !important;
+}
+
+.aira-home .aira-new-chat:hover {
+  border-color: rgba(212, 175, 55, 0.55) !important;
+  background: rgba(212, 175, 55, 0.16) !important;
+}
+
+.aira-home .aira-new-chat span:last-child {
+  border-color: rgba(212, 175, 55, 0.2) !important;
+  background: rgba(212, 175, 55, 0.08) !important;
+  color: rgba(212, 175, 55, 0.7) !important;
+}
+
+/* Active conversation highlight — brass instead of violet */
+.aira-home aside[aria-label="Conversation sidebar"] section[aria-label$="conversations"] button[aria-current="page"] {
+  background: rgba(212, 175, 55, 0.09) !important;
+  color: var(--aira-text-primary) !important;
+  border-left: 2px solid var(--aira-accent) !important;
+}
+
+/* Conversation search input focus */
+.aira-home aside[aria-label="Conversation sidebar"] input[aria-label="Search recent conversations"]:focus {
+  border-color: var(--aira-accent-line) !important;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.07) !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Footer — quiet, functional                                                     */
+/* ---------------------------------------------------------------------------- */
+
+.aira-home main > footer {
+  border-top-color: var(--aira-border) !important;
+  color: var(--aira-text-muted) !important;
+  font-size: 11px !important;
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+}
+
+.aira-home main > footer p {
+  color: var(--aira-text-muted) !important;
+}
+
+.aira-home main > footer a {
+  border-color: var(--aira-border) !important;
+  background: var(--aira-evidence-card) !important;
+  color: var(--aira-text-secondary) !important;
+  transition: border-color 140ms ease, color 140ms ease !important;
+}
+
+.aira-home main > footer a:hover {
+  border-color: var(--aira-accent-line) !important;
+  color: var(--aira-accent) !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Billing plan banner — dark surface                                             */
+/* ---------------------------------------------------------------------------- */
+
+.aira-home main > header [aria-label="Plan and usage"] {
+  border-color: var(--aira-border) !important;
+  background: var(--aira-evidence-card) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aira-home main > header [aria-label="Plan and usage"] span[class*="font-semibold"] {
+  color: var(--aira-text-primary) !important;
+}
+
+.aira-home main > header [aria-label="Plan and usage"] span[class*="text-content-secondary"] {
+  color: var(--aira-text-muted) !important;
+}
+
+.aira-home main > header [aria-label="Plan and usage"] span[class*="tabular-nums"] {
+  color: var(--aira-text-secondary) !important;
+}
+
+/* Upgrade CTA inside billing row */
+.aira-home main > header [aria-label="Plan and usage"] a[href="/upgrade"] {
+  background: var(--aira-accent) !important;
+  color: #0c0d10 !important;
+  border-radius: 7px !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  transition: background 140ms ease !important;
+}
+
+.aira-home main > header [aria-label="Plan and usage"] a[href="/upgrade"]:hover {
+  background: var(--aira-accent-hover) !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Command palette — Phase 2 polish                                              */
+/* ---------------------------------------------------------------------------- */
+
+.aira-intelligence-os .aira-v2-palette input[type="text"],
+.aira-intelligence-os .aira-v2-palette input[type="search"] {
+  border: 0 !important;
+  border-bottom: 1px solid var(--aira-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--aira-text-primary) !important;
+  font-size: 14px !important;
+  padding: 14px 16px !important;
+}
+
+.aira-intelligence-os .aira-v2-palette input::placeholder {
+  color: var(--aira-text-muted) !important;
+}
+
+.aira-intelligence-os .aira-v2-palette-item {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  transition: background 120ms ease !important;
+}
+
+.aira-intelligence-os .aira-v2-palette-item:hover,
+.aira-intelligence-os .aira-v2-palette-item:focus-visible {
+  background: rgba(212, 175, 55, 0.07) !important;
+}
+
+.aira-intelligence-os .aira-v2-palette-item[aria-selected="true"],
+.aira-intelligence-os .aira-v2-palette-item[data-selected="true"] {
+  background: var(--aira-accent-soft) !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Mobile drawer — Phase 2 polish                                                 */
+/* ---------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  /* Slide-over drawer match design system */
+  .aira-intelligence-os .aira-v2-rail {
+    border-right: 1px solid var(--aira-border) !important;
+    box-shadow: 24px 0 60px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Full-width nav items in mobile drawer */
+  .aira-intelligence-os .aira-v2-nav-item.is-active {
+    border-color: var(--aira-accent-line) !important;
+  }
+
+  /* Evidence carousel in mobile — single card at a time */
+  .aira-home .answer-citations,
+  .aira-home [class*="CitationCards"] {
+    scroll-snap-type: x mandatory !important;
+  }
+
+  .aira-home .answer-citations > *,
+  .aira-home [class*="CitationCards"] > * {
+    min-width: 82vw !important;
+    max-width: 82vw !important;
+  }
+}
