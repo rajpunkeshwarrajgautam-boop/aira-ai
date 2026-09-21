@@ -30,6 +30,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { CitationCards, hostnameFromUrl, type CitationItem } from "../CitationCards";
+import { AiraNeuralDeliberation } from "../AiraNeuralDeliberation";
 import { getMarkdownComponents } from "../markdownComponents";
 import { linkifyCitations, parseCitationIndicesFromAnswer } from "../../src/services/citations";
 import { type ConversationSummary } from "./ConversationSidebar";
@@ -121,22 +122,17 @@ function emitComposerCommand(command: string) {
 
 function AssistantSkeleton({ statusText, sourceCount }: { readonly statusText?: string; readonly sourceCount: number }) {
 	return (
-		<div className="flex gap-3 py-5" aria-busy="true" aria-label="Researching" aria-live="polite">
-			<div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-[11px] font-semibold text-accent">A</div>
-			<div className="min-w-0 flex-1">
-				<div className="flex items-center gap-2"><p className="text-[12px] font-medium text-content-primary">{statusText || "Researching…"}</p><span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden /></div>
-				<p className="mt-1 text-[11px] text-content-tertiary">{sourceCount > 0 ? `${sourceCount} sources found · verifying answer` : "Searching, reading, and comparing relevant sources"}</p>
-				<div className="mt-4 space-y-2.5"><div className="h-2 w-[88%] animate-pulse rounded bg-white/[0.055]" /><div className="h-2 w-[72%] animate-pulse rounded bg-white/[0.055]" /><div className="h-2 w-[58%] animate-pulse rounded bg-white/[0.055]" /></div>
-			</div>
+		<div className="py-2" aria-busy="true" aria-label="Researching" aria-live="polite">
+			<AiraNeuralDeliberation isDeliberating={true} sourceCount={sourceCount} />
 		</div>
 	);
 }
 
 const STARTERS = [
-	{ href: "/work", title: "Work Mode", description: "State an outcome and produce validated deliverables.", icon: Sparkles },
-	{ href: "/knowledge", title: "Work with files", description: "Upload PDFs and documents, then ask with context.", icon: FileText },
-	{ href: "/agents", title: "Delegate a task", description: "Run a longer autonomous workflow with an agent.", icon: WandSparkles },
-	{ href: "/omniroute", title: "Open OmniRoute", description: "Route across your configured AI providers and models.", icon: Network },
+	{ href: "/work", title: "AIRA Swarms", description: "Outcome-driven autonomous missions with verified proof.", icon: Sparkles },
+	{ href: "/knowledge", title: "Sovereign Vault", description: "Zero-leak private context, PDF analysis & embeddings.", icon: FileText },
+	{ href: "/agents", title: "Agent Builder", description: "Design, simulate and launch resilient autonomous agents.", icon: WandSparkles },
+	{ href: "/omniroute", title: "Cortex Engine", description: "Multi-neural gateway optimizing speed, cost & reasoning.", icon: Network },
 ] as const;
 
 function threadTitle(messages: readonly ConversationMessageDto[], streamingUserQuery: string | null): string {
@@ -326,6 +322,14 @@ export function ConversationMessageList({
 										)}
 									</div>
 								) : null}
+								<button
+									type="button"
+									onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}
+									className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-sky-400 transition hover:bg-sky-500/10"
+									title="Open in AIRA Deliverables Canvas"
+								>
+									<Layers className="size-3" /> Canvas
+								</button>
 								<MessageCopyButton text={message.content} />
 							</div>
 						) : null}

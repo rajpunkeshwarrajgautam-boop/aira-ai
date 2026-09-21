@@ -8,6 +8,7 @@ import {
 	ExternalLink,
 	FileText,
 	Globe2,
+	Layers,
 	Mic,
 	MicOff,
 	Network,
@@ -83,17 +84,17 @@ type ModelOption = {
 };
 
 const MODEL_OPTIONS: readonly ModelOption[] = [
-	{ id: "auto", label: "Auto (OmniRoute)", description: "Dynamic intelligent multi-provider routing", badge: "Smart" },
-	{ id: "fast", label: "Fast", description: "Ultra-low latency for immediate answers", badge: "Low Latency" },
-	{ id: "deep", label: "Deep Reasoning", description: "Multi-step investigation & structured synthesis", badge: "Deep" },
-	{ id: "smart", label: "Smart Frontier", description: "Maximum reasoning capability for complex domains", badge: "Frontier" },
+	{ id: "auto", label: "AIRA Sovereign Auto", description: "Cortex dynamic multi-neural intelligence", badge: "Cortex" },
+	{ id: "fast", label: "AIRA Ultra-Fast", description: "Sub-100ms low-latency synthesis", badge: "Sub-100ms" },
+	{ id: "deep", label: "AIRA HyperResearch", description: "Multi-hop source triangulation & verified proof", badge: "Verified" },
+	{ id: "smart", label: "AIRA Frontier Logic", description: "Maximum reasoning power for complex domains", badge: "Frontier" },
 ] as const;
 
 const QUICK_COMMANDS: readonly QuickCommand[] = [
-	{ command: "/deep ", label: "Deep Research", description: "Run a longer multi-step investigation" },
-	{ command: "/new", label: "New chat", description: "Clear the current thread and start fresh" },
-	{ command: "/history", label: "History", description: "Search conversations, messages, and memory" },
-	{ command: "/share", label: "Share", description: "Share the current conversation" },
+	{ command: "/deep ", label: "AIRA HyperResearch", description: "Launch multi-hop verified source investigation" },
+	{ command: "/new", label: "New thread", description: "Initialize fresh sovereign context" },
+	{ command: "/history", label: "History & Memory", description: "Search conversations, messages, and retained context" },
+	{ command: "/share", label: "Share Dossier", description: "Export and share this intelligence dossier" },
 ] as const;
 
 export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
@@ -545,7 +546,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							)}
 						>
 							<Globe2 className="size-3.5" strokeWidth={1.6} />
-							Deep Research
+							HyperResearch™
 						</button>
 
 						<Link
@@ -553,15 +554,25 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-white/[0.18] hover:bg-white/[0.05] hover:text-[#f0f0ed] md:flex"
 						>
 							<WandSparkles className="size-3.5" strokeWidth={1.6} />
-							Agents
+							Swarms
 						</Link>
 						<Link
 							href="/omniroute"
 							className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-white/[0.18] hover:bg-white/[0.05] hover:text-[#f0f0ed] lg:flex"
 						>
 							<Network className="size-3.5" strokeWidth={1.6} />
-							OmniRoute
+							Cortex Engine
 						</Link>
+
+						<button
+							type="button"
+							onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}
+							className="hidden h-8 items-center gap-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 px-2.5 text-[11px] font-medium text-sky-400 transition hover:bg-sky-500/20 sm:flex"
+							aria-label="Toggle AIRA Deliverables Stage"
+						>
+							<Layers className="size-3.5" />
+							<span>Canvas Stage</span>
+						</button>
 					</div>
 
 					<div className="flex items-center gap-2">

@@ -20,6 +20,7 @@ import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/researc
 
 import { type CitationItem } from "./CitationCards";
 import { SearchBox, type SearchBoxHandle } from "./SearchBox";
+import { AiraDeliverablesCanvas } from "./AiraDeliverablesCanvas";
 import {
 	type ConversationMessageDto,
 	ConversationMessageList,
@@ -40,9 +41,9 @@ export interface SearchLayoutProps {
 }
 
 const EXAMPLE_QUERIES = [
-	"Latest AI news summary",
-	"Compare ChatGPT vs Gemini",
-	"Best laptops under 1 lakh in India",
+	"Competitive AI Infrastructure Due Diligence & SLA Analysis",
+	"Sovereign Multi-Tenant Security & IDOR Threat Model",
+	"Sub-100ms Inference Topologies & Dynamic Model Routing",
 ] as const;
 
 /** Public support address. The feedback actions stay hidden until configured. */
@@ -206,6 +207,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	} | null>(null);
 
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+	const [canvasOpen, setCanvasOpen] = useState(false);
+
+	useEffect(() => {
+		const onToggle = () => setCanvasOpen((prev) => !prev);
+		window.addEventListener("aira:toggle-canvas", onToggle);
+		return () => window.removeEventListener("aira:toggle-canvas", onToggle);
+	}, []);
 
 	const showAssistantSkeleton = useMemo(
 		() =>
@@ -1551,6 +1559,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</div>
 				</div>
 			) : null}
+
+			<AiraDeliverablesCanvas
+				isOpen={canvasOpen}
+				onClose={() => setCanvasOpen(false)}
+				title={query || (messages[0]?.content ?? "AIRA Intelligence Dossier")}
+				content={streamingAssistantMarkdown || (messages.filter((m) => m.role === "ASSISTANT").pop()?.content ?? "")}
+				citations={streamingCitations.length > 0 ? streamingCitations : (messages.filter((m) => m.role === "ASSISTANT").pop()?.citations as readonly CitationItem[] ?? [])}
+				isBusy={busy}
+			/>
 		</div>
 	);
 }
