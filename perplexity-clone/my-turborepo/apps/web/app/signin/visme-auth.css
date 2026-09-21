@@ -1,11 +1,134 @@
 .aira-auth-stage-visme {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 32px 24px;
   background:
     radial-gradient(circle at 12% 10%, rgba(99,102,241,.08), transparent 28%),
     #09090b;
 }
 
 .aira-auth-frame-visme {
-  grid-template-columns: minmax(0, 1.08fr) minmax(420px, .92fr);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(400px, 0.85fr);
+  width: min(1120px, 100%);
+  min-height: 640px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0d0f17;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.55);
+}
+
+.aira-auth-form-side-visme {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(32px, 5vw, 56px);
+  background: #0a0c13;
+}
+
+.aira-auth-panel-content {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.aira-auth-tabs {
+  position: relative;
+  display: inline-flex;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 24px;
+}
+
+.aira-auth-tab {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8f95a3;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.aira-auth-tab[aria-selected="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.aira-auth-tab-indicator {
+  display: none;
+}
+
+.aira-auth-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #7b8499;
+}
+
+.aira-auth-heading {
+  margin: 8px 0 0;
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: #f1f3f9;
+}
+
+.aira-auth-supporting {
+  margin: 10px 0 28px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #8b92a5 !important;
+}
+
+.aira-auth-provider {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: 50px !important;
+  padding: 0 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #e5e8f2 !important;
+  font-size: 13.5px !important;
+  font-weight: 550 !important;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.aira-auth-provider:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  transform: translateY(-1px);
+}
+
+.aira-auth-provider-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.aira-auth-privacy {
+  margin-top: 24px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: #636a7e !important;
+  text-align: center;
 }
 
 .aira-auth-visme-column {
