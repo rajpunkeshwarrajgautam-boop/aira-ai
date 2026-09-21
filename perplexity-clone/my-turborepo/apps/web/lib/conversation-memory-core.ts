@@ -5,6 +5,7 @@ import {
 } from "@/lib/persistent-memory";
 import { prisma } from "@/lib/prisma";
 import { generatePublicShareToken } from "@/lib/research-share";
+import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
 
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
 const DEFAULT_MEMORY_LIMIT = 8;
@@ -160,8 +161,9 @@ export async function getFollowUpContext(args: {
 
 	const normalized = normalizeQuery(query);
 	const queryTokens = normalized.split(" ").filter((t) => t.length > 2).slice(0, 5);
-	const researchCandidates = queryTokens.length
-		? await prisma.researchHistory.findMany({
+	const researchCandidates =
+		!isGreetingOnlyQuery(query) && queryTokens.length
+			? await prisma.researchHistory.findMany({
 				where: {
 					userId,
 					OR: [

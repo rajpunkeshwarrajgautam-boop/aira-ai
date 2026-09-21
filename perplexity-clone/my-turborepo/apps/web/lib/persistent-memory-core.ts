@@ -46,6 +46,24 @@ function looksSensitive(content: string): boolean {
 	);
 }
 
+const GREETING_PATTERNS: ReadonlyArray<RegExp> = [
+	/^(hi|hello|hey|howdy)(\s+there)?[!.,\s]*$/i,
+	/^(thanks|thank you|thx|ty)[!.,\s]*$/i,
+	/^(bye|goodbye|see you|cya)[!.,\s]*$/i,
+	/^good (morning|afternoon|evening|night)[!.,\s]*$/i,
+	/^(gm|gn)\b[!.,\s]*$/i,
+	/^(ok|okay|k|cool|nice|great)[!.,\s]*$/i,
+	/^how are you\??[!.,\s]*$/i,
+	/^what'?s up\??[!.,\s]*$/i,
+	/^sup\??[!.,\s]*$/i,
+];
+
+function isGreetingQuery(raw: string): boolean {
+	const t = raw.trim().replace(/\s+/g, " ");
+	if (t.length === 0 || t.length > 80 || raw.includes("\n")) return false;
+	return GREETING_PATTERNS.some((r) => r.test(t));
+}
+
 /**
  * Compatibility entry point for existing conversation-persistence callers.
  *
@@ -123,7 +141,7 @@ export async function getRelevantPersistentMemories(
 		query,
 	);
 	const queryTokens = tokenize(query);
-	if (queryTokens.length === 0 && !showAll) return [];
+	if ((queryTokens.length === 0 || isGreetingQuery(query)) && !showAll) return [];
 	const ranked = candidates
 		.map((memory) => ({ memory, score: scoreMemory(memory, queryTokens, showAll) }))
 		.filter(({ memory, score }) => showAll || memory.pinned || score >= 3.8)

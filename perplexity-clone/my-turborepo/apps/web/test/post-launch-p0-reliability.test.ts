@@ -97,7 +97,7 @@ function loadMemorySubject() {
 // Behavioral Tests: Memory Recall & Isolation
 // ---------------------------------------------------------------------------
 
-test("P0-MEM-BEH-01: standalone 'hi' suppresses recall of unrelated pinned memories", async () => {
+test("P0-MEM-BEH-01: standalone greetings suppress recall of unrelated pinned memories", async () => {
 	const { subject, rows } = loadMemorySubject();
 	rows.push({
 		id: "mem-qa-1",
@@ -115,13 +115,26 @@ test("P0-MEM-BEH-01: standalone 'hi' suppresses recall of unrelated pinned memor
 		updatedAt: new Date(),
 	});
 
-	// A standalone greeting query like "hi" has no search keywords (token length <= 2)
-	const memories = await subject.getRelevantPersistentMemories("usr_test_owner_a", "hi");
-	assert.deepEqual(
-		memories,
-		[],
-		"Greeting 'hi' must return empty array, suppressing unrelated pinned memories",
-	);
+	const greetings = [
+		"hi",
+		"hello",
+		"hey",
+		"howdy",
+		"good morning",
+		"good evening",
+		"thanks",
+		"thank you",
+		"how are you?",
+		"what's up?",
+	];
+	for (const greeting of greetings) {
+		const memories = await subject.getRelevantPersistentMemories("usr_test_owner_a", greeting);
+		assert.deepEqual(
+			memories,
+			[],
+			`Greeting '${greeting}' must return empty array, suppressing unrelated pinned memories`,
+		);
+	}
 });
 
 test("P0-MEM-BEH-02: genuinely relevant memory question retrieves authorized user memory", async () => {
@@ -151,6 +164,32 @@ test("P0-MEM-BEH-02: genuinely relevant memory question retrieves authorized use
 		memories[0]?.includes("fashion business landing page with 5L budget"),
 		"Recalled memory content must match user query",
 	);
+});
+
+test("P0-MEM-BEH-02b: explicit showAll query recalls pinned and general memories", async () => {
+	const { subject, rows } = loadMemorySubject();
+	rows.push({
+		id: "mem-qa-1",
+		userId: "usr_test_owner_a",
+		memoryKey: "qa_fashion_project",
+		kind: "OTHER",
+		content: "Working on a temporary QA project for fashion business landing page with 5L budget",
+		keywords: ["qa", "project", "fashion", "business", "budget"],
+		importance: 5,
+		confidence: 1,
+		pinned: true,
+		lastRecalledAt: null,
+		recallCount: 0,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	});
+
+	const memories = await subject.getRelevantPersistentMemories(
+		"usr_test_owner_a",
+		"what do you remember about me?",
+	);
+	assert.equal(memories.length, 1, "Must recall memory when user explicitly asks what is remembered");
+	assert.ok(memories[0]?.includes("fashion business landing page with 5L budget"));
 });
 
 test("P0-MEM-BEH-03: memory retrieval strictly enforces server-authoritative tenant isolation", async () => {
