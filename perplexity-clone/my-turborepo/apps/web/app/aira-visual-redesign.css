@@ -874,6 +874,147 @@
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Dark-mode surface corrections for Research workspace                        */
+/* Tailwind design tokens are light-mode; these override within the dark frame */
+/* -------------------------------------------------------------------------- */
+
+/* Error banners — light-mode colors replaced with dark equivalents */
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-indigo"] {
+  border-color: rgba(82, 104, 217, 0.28) !important;
+  background: rgba(82, 104, 217, 0.09) !important;
+  color: #c5ceff !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-indigo"] p {
+  color: #9aaaf5 !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-indigo"] p[class*="font-semibold"] {
+  color: #dce2ff !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-indigo"] ul li span {
+  color: #8ca0ec !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-amber"] {
+  border-color: rgba(196, 148, 55, 0.28) !important;
+  background: rgba(196, 148, 55, 0.07) !important;
+  color: #e0c682 !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-amber"] p {
+  color: #c9b068 !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-red"] {
+  border-color: rgba(200, 80, 80, 0.28) !important;
+  background: rgba(200, 80, 80, 0.07) !important;
+  color: #f0a0a0 !important;
+}
+.aira-home .aira-v2-workspace-stage [role="alert"][class*="border-red"] p {
+  color: #d98888 !important;
+}
+
+/* Guest upsell "Continue your research" banner */
+.aira-home .aira-v2-workspace-stage [role="region"][aria-label="Continue research"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(20, 24, 32, 0.92) !important;
+  backdrop-filter: blur(14px) !important;
+}
+.aira-home .aira-v2-workspace-stage [role="region"][aria-label="Continue research"] p:first-child {
+  color: #d8dce5 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.aira-home .aira-v2-workspace-stage [role="region"][aria-label="Continue research"] p:last-child {
+  color: #636f80 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+}
+
+/* Composer controls (selects, mode buttons) — override light Tailwind tokens */
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"],
+.aira-home .aira-v2-workspace-stage select[aria-label="Research focus"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(18, 22, 30, 0.92) !important;
+  color: #9aa2b0 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(12px) !important;
+}
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"] button {
+  color: #868f9e !important;
+  font-size: 11px !important;
+}
+.aira-home .aira-v2-workspace-stage [role="group"][aria-label="Search mode"] button[class*="bg-accent"] {
+  background: rgba(82, 104, 217, 0.18) !important;
+  color: #c2cbff !important;
+}
+
+/* Guest mode hint text — "5 free searches per day" */
+.aira-home .aira-v2-workspace-stage p.text-center.text-xs {
+  color: #5a6272 !important;
+}
+.aira-home .aira-v2-workspace-stage p.text-center.text-xs span {
+  color: #7d8a9b !important;
+}
+.aira-home .aira-v2-workspace-stage p.text-center.text-xs a {
+  color: #8999ef !important;
+}
+.aira-home .aira-v2-workspace-stage p.text-center.text-xs a:hover {
+  color: #aab6ff !important;
+}
+
+/* "Deep Research · Sign in" upsell button */
+.aira-home .aira-v2-workspace-stage button[aria-label="Deep Research requires a signed-in account"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(16, 20, 28, 0.88) !important;
+  color: #8999ef !important;
+  backdrop-filter: blur(12px) !important;
+  box-shadow: none !important;
+}
+.aira-home .aira-v2-workspace-stage button[aria-label="Deep Research requires a signed-in account"]:hover {
+  border-color: rgba(82, 104, 217, 0.36) !important;
+  background: rgba(82, 104, 217, 0.1) !important;
+  color: #b8c3ff !important;
+}
+
+/* Research history panel — cards need dark surfaces */
+.aira-home .aira-v2-workspace-stage [class*="ResearchHistory"],
+.aira-home .aira-v2-workspace-stage div[class*="grid"][class*="gap"] > button[class*="rounded"] {
+  border-color: var(--aira-border) !important;
+  background: #111419 !important;
+}
+.aira-home .aira-v2-workspace-stage div[class*="grid"][class*="gap"] > button[class*="rounded"]:hover {
+  border-color: rgba(82, 104, 217, 0.28) !important;
+  background: #151922 !important;
+}
+
+/* Slash command hint under the composer */
+.aira-home .aira-v2-workspace-stage .text-xs.text-content-tertiary {
+  color: #53606f !important;
+}
+.aira-home .aira-v2-workspace-stage .text-xs.text-content-tertiary span.font-mono {
+  color: #7888a4 !important;
+}
+
+/* Inline sign-in link in composer area */
+.aira-home .aira-v2-workspace-stage a[class*="text-accent"][href*="signin"] {
+  color: #8999ef !important;
+}
+.aira-home .aira-v2-workspace-stage a[class*="text-accent"][href*="signin"]:hover {
+  color: #aab5ff !important;
+}
+
+/* Share result bar at bottom of anonymous thread */
+.aira-home .aira-v2-workspace-stage [aria-label="Share result"] {
+  border-color: var(--aira-border) !important;
+  background: rgba(14, 17, 23, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+/* Sticky mobile composer background override — suppress light backdrop */
+.aira-home .aira-v2-workspace-stage .sticky.bottom-0 {
+  background: rgba(11, 12, 15, 0.95) !important;
+  border-color: var(--aira-border) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .aira-intelligence-os *,
   .aira-intelligence-os *::before,

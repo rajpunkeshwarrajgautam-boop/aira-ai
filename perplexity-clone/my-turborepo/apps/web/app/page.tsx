@@ -10,13 +10,12 @@ import { SearchLayout } from "../components/SearchLayout";
 
 function HomeSkeleton() {
   return (
-    <div className="min-h-[calc(100dvh-64px)] w-full bg-[#0d1014]" aria-hidden>
-      <div className="flex min-h-[calc(100dvh-64px)]">
-        <div className="hidden w-[286px] shrink-0 border-r border-white/[0.07] bg-[#12161b] md:block" />
+    <div className="min-h-[calc(100dvh-52px)] w-full bg-[#0b0c0f]" aria-hidden>
+      <div className="flex min-h-[calc(100dvh-52px)]">
         <div className="flex flex-1 flex-col px-5 py-5 md:px-8">
           <div className="mx-auto flex w-full max-w-[820px] flex-1 flex-col justify-center gap-4">
-            <div className="mx-auto h-7 w-52 animate-pulse rounded-md bg-[#171b20]" />
-            <div className="mx-auto h-28 w-full max-w-[780px] animate-pulse rounded-2xl border border-white/[0.08] bg-[#13171c]" />
+            <div className="mx-auto h-7 w-52 animate-pulse rounded-md bg-[#16191f]" />
+            <div className="mx-auto h-28 w-full max-w-[780px] animate-pulse rounded-2xl border border-white/[0.06] bg-[#111418]" />
           </div>
         </div>
       </div>
