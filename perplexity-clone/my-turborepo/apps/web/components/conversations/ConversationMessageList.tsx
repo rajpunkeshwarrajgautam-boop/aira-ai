@@ -34,6 +34,7 @@ import { AiraNeuralDeliberation } from "../AiraNeuralDeliberation";
 import { getMarkdownComponents } from "../markdownComponents";
 import { linkifyCitations, parseCitationIndicesFromAnswer } from "../../src/services/citations";
 import { type ConversationSummary } from "./ConversationSidebar";
+import { cn } from "../../lib/cn";
 
 export interface ConversationMessageDto {
 	readonly id: string;
@@ -76,6 +77,7 @@ export interface ConversationMessageListProps {
 	readonly effort?: "LOW" | "MEDIUM" | "HIGH" | "MAXIMUM";
 	readonly onEffortChange?: (effort: "LOW" | "MEDIUM" | "HIGH" | "MAXIMUM") => void;
 	readonly onRetry?: (mode: "same" | "alternate_model" | "deep_reasoning", messageId: string) => void;
+	readonly composerSlot?: React.ReactNode;
 }
 
 function MarkdownContent({ markdown, citations }: { readonly markdown: string; readonly citations: readonly CitationItem[] }) {
@@ -160,6 +162,7 @@ export function ConversationMessageList({
 	effort = "MEDIUM",
 	onEffortChange,
 	onRetry,
+	composerSlot,
 }: ConversationMessageListProps) {
 	const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 	const [retryMenuOpenId, setRetryMenuOpenId] = useState<string | null>(null);
@@ -359,7 +362,8 @@ export function ConversationMessageList({
 				</div>
 			)}
 
-			<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(245,244,239,0.07)] bg-[#0d0e12]/95 px-4 backdrop-blur-xl sm:px-5">
+			{!showEmptyHint && (
+				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(245,244,239,0.07)] bg-[#0d0e12]/95 px-4 backdrop-blur-xl sm:px-5">
 				<div className="min-w-0">
 					<h2 className="truncate text-[13px] font-semibold text-content-primary">{title}</h2>
 					<p className="mt-0.5 text-[9px] text-content-tertiary">AIRA workspace</p>
@@ -421,6 +425,7 @@ export function ConversationMessageList({
 				</div>
 				{shareFeedback ? <span className="sr-only" role="status" aria-live="polite">{shareFeedback}</span> : null}
 			</div>
+			)}
 
 			{/* Export Modal (Gate 105) */}
 			{showExportModal && (
@@ -479,24 +484,31 @@ export function ConversationMessageList({
 				</div>
 			)}
 
-			<div className="aira-thread-columns grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
+			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1", !showEmptyHint && "xl:grid-cols-[minmax(0,1fr)_280px]")}>
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
-					<div className="aira-message-stack mx-auto max-w-[960px]">
+					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-[960px]")}>
 						{showEmptyHint ? (
-							<div className="aira-enter py-6 sm:py-8 space-y-6">
+							<div className="aira-enter py-4 sm:py-6 space-y-6">
 								{/* Command Hero Header */}
 								<div className="flex flex-col items-start text-left space-y-3">
 									<div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-[11px] font-medium text-sky-400">
 										<span className="size-1.5 rounded-full bg-sky-400 animate-pulse" aria-hidden />
 										<span>AIRA Intelligence OS · Sovereign Multi-Provider Grid</span>
 									</div>
-									<h2 className="text-2xl sm:text-3xl font-bold tracking-[-0.035em] text-[#F8FAFC]">
+									<h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.035em] text-[#F8FAFC]">
 										Where Autonomous Research Meets Verified Truth.
 									</h2>
-									<p className="max-w-2xl text-[12.5px] leading-relaxed text-[#94A3B8]">
+									<p className="max-w-2xl text-[13px] leading-relaxed text-[#94A3B8]">
 										Orchestrate multi-model reasoning, deep web investigation, and autonomous agent missions with source-grounded proof.
 									</p>
 								</div>
+
+								{/* Center-Stage Hero Composer */}
+								{composerSlot ? (
+									<div className="w-full my-2">
+										{composerSlot}
+									</div>
+								) : null}
 
 								{/* Asymmetric Bento Capabilities Grid */}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
@@ -693,6 +705,7 @@ export function ConversationMessageList({
 					</div>
 				</section>
 
+				{!showEmptyHint && (
 				<aside className="aira-live-inspector hidden border-l border-white/[0.07] bg-[#0d1320]/72 p-3 xl:block" aria-label="Conversation inspector">
 					<div className="sticky top-20 space-y-3">
 						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
@@ -816,6 +829,7 @@ export function ConversationMessageList({
 						</section>
 					</div>
 				</aside>
+				)}
 			</div>
 		</div>
 	);

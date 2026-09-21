@@ -207,12 +207,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	} | null>(null);
 
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+	const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
 	const [canvasOpen, setCanvasOpen] = useState(false);
 
 	useEffect(() => {
 		const onToggle = () => setCanvasOpen((prev) => !prev);
+		const onKey = (event: KeyboardEvent) => {
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "h") {
+				event.preventDefault();
+				setDesktopSidebarOpen((prev) => !prev);
+			}
+		};
 		window.addEventListener("aira:toggle-canvas", onToggle);
-		return () => window.removeEventListener("aira:toggle-canvas", onToggle);
+		window.addEventListener("keydown", onKey);
+		return () => {
+			window.removeEventListener("aira:toggle-canvas", onToggle);
+			window.removeEventListener("keydown", onKey);
+		};
 	}, []);
 
 	const showAssistantSkeleton = useMemo(
@@ -997,11 +1008,305 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const isProviderAvailabilityError = errorCode?.startsWith("UPSTREAM_") ?? false;
 	const currentErrorTitle = searchErrorTitle(errorCode, limitErrorAction, isAuthed);
 
+	const composerBlock = (
+		<div className="flex flex-col gap-3">
+			<div className="flex flex-col sm:flex-row gap-2.5">
+				<div
+					className={cn(
+						"flex w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#141b2e]/85 shadow-sm backdrop-blur-md ring-1 ring-white/10 sm:max-w-[180px]",
+					)}
+				>
+					<select
+						className="w-full bg-transparent px-3 py-2 text-xs font-medium text-content-primary focus:outline-none"
+						value={selectedPresetId}
+						onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
+						disabled={busy}
+						aria-label="Research focus"
+					>
+						{Object.values(RESEARCH_PRESETS).map((p) => (
+							<option key={p.id} value={p.id} className="bg-[#10141e] text-white">
+								{p.label}
+							</option>
+						))}
+					</select>
+				</div>
+
+				{isAuthed ? (
+					<div
+						className={cn(
+							"flex w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#141b2e]/85 p-0.5 shadow-sm backdrop-blur-md ring-1 ring-white/10 sm:max-w-[280px]",
+						)}
+						role="group"
+						aria-label="Search mode"
+					>
+						<button
+							type="button"
+							onClick={() => setResearchMode("standard")}
+							disabled={busy}
+							className={cn(
+								"flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+								researchMode === "standard"
+									? "bg-accent/25 text-sky-300 font-semibold"
+									: "bg-transparent text-content-secondary hover:text-content-primary",
+								"disabled:opacity-40 disabled:pointer-events-none",
+							)}
+						>
+							Standard Search
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								try {
+									logProductEvent({
+										event: "deep_research_clicked",
+										surface: "deep_research",
+										userType: "signed_in",
+									});
+								} catch {
+									// ignore analytics
+								}
+								setResearchMode("deep");
+							}}
+							disabled={busy}
+							className={cn(
+								"flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+								researchMode === "deep"
+									? "bg-sky-500 text-white font-semibold shadow-sm"
+									: "bg-transparent text-content-secondary hover:text-content-primary",
+								"disabled:opacity-40 disabled:pointer-events-none",
+							)}
+						>
+							Deep Research
+						</button>
+					</div>
+				) : (
+					<button
+						type="button"
+						disabled={busy}
+						onClick={() => {
+							try {
+								logProductEvent({
+									event: "deep_research_clicked",
+									surface: "deep_research",
+									userType: "guest",
+								});
+							} catch {
+								// ignore analytics
+							}
+							router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
+						}}
+						className={cn(
+							"flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-[#141b2e]/85 px-3 py-2 text-xs font-medium text-content-secondary shadow-sm backdrop-blur-md ring-1 ring-white/10",
+							"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+							"sm:max-w-[280px]",
+							"disabled:opacity-40 disabled:pointer-events-none",
+						)}
+						aria-label="Deep Research requires a signed-in account"
+					>
+						Deep Research · Sign in
+					</button>
+				)}
+			</div>
+			{!isAuthed ? (
+				<p className="text-center text-xs leading-relaxed text-content-tertiary">
+					<span className="text-content-secondary">
+						Guest mode: 5 free searches per day.{" "}
+					</span>
+					<Link
+						href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
+						onClick={() => {
+							try {
+								logProductEvent({
+									event: "sign_in_clicked",
+									surface: "auth",
+									userType: "guest",
+								});
+							} catch {
+								// ignore analytics
+							}
+						}}
+						className="font-medium text-accent underline-offset-2 hover:underline"
+					>
+						Sign in
+					</Link>{" "}
+					for saved threads, slash commands, follow-ups, Deep Research, and sharing.
+				</p>
+			) : null}
+			{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
+				<p className="text-center text-xs text-amber-400/90">
+					Deep Research requires a Pro or Team plan.{" "}
+					<Link href="/upgrade" className="font-medium text-accent underline-offset-2 hover:underline">
+						Upgrade
+					</Link>
+				</p>
+			) : null}
+
+			<SearchBox
+				ref={searchBoxRef}
+				value={query}
+				onChange={setQuery}
+				onSubmit={(ctx) => void runSearch(ctx)}
+				disabled={busy}
+				isBusy={busy}
+				placeholder={
+					!isAuthed
+						? "Ask anything or delegate an autonomous mission..."
+						: messages.length > 0
+							? "Send a follow-up…"
+							: "Ask anything or delegate an autonomous mission..."
+				}
+			/>
+			{isAuthed ? (
+				<div className="text-xs text-content-tertiary px-1 flex items-center gap-2">
+					<span>Quick commands:</span>
+					<span className="font-mono text-content-secondary">/deep</span>
+					<span className="font-mono text-content-secondary">/new</span>
+					<span className="font-mono text-content-secondary">/history</span>
+					<span className="font-mono text-content-secondary">/share</span>
+				</div>
+			) : null}
+
+			{phase === "error" && errorMessage ? (
+				<div
+					className={cn(
+						"rounded-2xl border p-4 text-sm shadow-panel backdrop-blur-md",
+						errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+							? "border-indigo-400/30 bg-indigo-950/40 text-indigo-200"
+							: isProviderAvailabilityError
+								? "border-amber-400/30 bg-amber-950/40 text-amber-200"
+								: "border-red-400/30 bg-red-950/40 text-red-200",
+					)}
+					role="alert"
+				>
+					<p
+						className={cn(
+							"font-semibold",
+							errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
+								? "text-indigo-200"
+								: isProviderAvailabilityError
+									? "text-amber-200"
+									: "text-red-200",
+						)}
+					>
+						{currentErrorTitle}
+					</p>
+					{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ? (
+						<div className="mt-2 space-y-3">
+							<p className="text-indigo-200/90">
+								You’ve used your free searches for today. Sign in to continue this research.
+							</p>
+							<ul className="space-y-1.5 text-indigo-200/80">
+								<li className="flex items-center gap-2">
+									<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+									<span>Save this thread</span>
+								</li>
+								<li className="flex items-center gap-2">
+									<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+									<span>Ask follow-up questions</span>
+								</li>
+								<li className="flex items-center gap-2">
+									<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+									<span>Unlock Deep Research</span>
+								</li>
+							</ul>
+						</div>
+					) : (
+						<p
+							className={cn(
+								"mt-1",
+								isProviderAvailabilityError ? "text-amber-200/95" : "text-red-200/95",
+							)}
+						>
+							{errorMessage}
+						</p>
+					)}
+					{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
+					errorCode === "SIGNIN_DEEP" ||
+					(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") ? (
+						<div className="mt-3">
+							<Link
+								href={`/signin?callbackUrl=${encodeURIComponent(
+									lastSubmittedQueryRef.current.trim().length > 0
+										? `/?q=${encodeURIComponent(lastSubmittedQueryRef.current.trim())}`
+										: "/",
+								)}`}
+								onClick={() => {
+									try {
+										logProductEvent({
+											event: "sign_in_clicked",
+											surface: "auth",
+											userType: "guest",
+											errorCode: errorCode ?? undefined,
+										});
+									} catch {
+										// ignore analytics
+									}
+								}}
+								className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+							>
+								Sign in to continue
+							</Link>
+						</div>
+					) : null}
+					{limitErrorAction === "quota" || limitErrorAction === "plan" ? (
+						<div className="mt-3 flex flex-wrap gap-2">
+							<Link
+								href="/upgrade"
+								className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+							>
+								View plans & upgrade
+							</Link>
+							{limitErrorAction === "plan" ? (
+								<button
+									type="button"
+									onClick={() => {
+										setResearchMode("standard");
+										setLimitErrorAction(null);
+										setErrorMessage(null);
+										setErrorCode(null);
+										setPhase("idle");
+									}}
+									className="inline-flex items-center justify-center rounded-xl border border-border-subtle bg-surface-elevated/80 px-4 py-2 text-sm font-medium text-content-primary hover:bg-surface-elevated"
+								>
+									Switch to Standard Search
+								</button>
+							) : null}
+						</div>
+					) : limitErrorAction === null &&
+					  errorCode !== "ANONYMOUS_QUOTA_EXCEEDED" &&
+					  errorCode !== "SIGNIN_DEEP" &&
+					  !(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") &&
+					  errorCode !== "SIGNIN_FOLLOWUP" ? (
+						<div className="mt-3">
+							<button
+								type="button"
+								onClick={() => {
+									void runSearch();
+								}}
+							className={cn(
+								"inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+								isProviderAvailabilityError
+									? "border-amber-500/30 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 focus-visible:outline-amber-400"
+									: "border-red-500/30 bg-red-500/20 text-red-200 hover:bg-red-500/30 focus-visible:outline-red-400",
+							)}
+							>
+								<RotateCw className="mr-2 size-4" />
+								Retry Search
+							</button>
+						</div>
+					) : null}
+				</div>
+			) : null}
+		</div>
+	);
+
 	return (
 		<div className={cn("relative min-h-dvh w-full overflow-hidden", className)}>
-			<div className="relative z-10 mx-auto flex min-h-dvh max-w-7xl flex-col md:flex-row">
-				{isAuthed ? (
-					<div className="hidden w-[320px] shrink-0 md:block md:py-4 md:pl-4">
+			<div className="relative z-10 mx-auto flex min-h-dvh max-w-[1440px] flex-col md:flex-row">
+				{isAuthed && desktopSidebarOpen ? (
+					<div className="hidden w-[300px] shrink-0 md:block md:py-3 md:pl-3 animate-in fade-in slide-in-from-left-2 duration-200">
 						<ConversationSidebar
 							conversations={conversations}
 							selectedConversationId={selectedConversationId}
@@ -1012,14 +1317,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</div>
 				) : null}
 
-				<main className="flex min-h-dvh flex-1 flex-col md:py-4 md:pr-4">
+				<main className="flex min-h-dvh flex-1 flex-col md:py-3 md:px-4">
 					<header className={cn(
-						"mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 transition-all duration-300",
-						showConversationEmpty ? "pt-4 pb-2 md:pt-6 md:pb-3" : "py-3 md:py-4"
+						"mx-auto flex w-full max-w-5xl flex-col gap-2.5 px-4 transition-all duration-300",
+						showConversationEmpty ? "py-2 md:py-3" : "py-3 md:py-4"
 					)}>
 						{billing && sessionStatus === "authenticated" ? (
 							<div
-								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-subtle bg-surface-elevated/75 px-4 py-2.5 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
+								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-subtle bg-surface-elevated/75 px-4 py-2 text-xs sm:text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
 								aria-label="Plan and usage"
 							>
 								<span className="font-semibold text-content-primary">
@@ -1056,38 +1361,28 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											<History className="size-4 text-accent" />
 											<span className="text-xs font-medium">Chats</span>
 										</button>
-										<div className="hidden size-9 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10 text-accent md:flex">
-											<Sparkles className="size-4" aria-hidden />
-										</div>
+										<button
+											type="button"
+											onClick={() => setDesktopSidebarOpen((open) => !open)}
+											className="hidden md:flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.08] bg-[#141b2e]/80 px-2.5 text-content-primary shadow-sm backdrop-blur-sm hover:bg-white/[0.12] active:scale-95 transition"
+											aria-label={desktopSidebarOpen ? "Hide conversation history" : "Open conversation history"}
+											title={desktopSidebarOpen ? "Hide history (⌘H)" : "Show history (⌘H)"}
+										>
+											<History className="size-3.5 text-sky-400" />
+											<span className="text-[11px] font-medium">{desktopSidebarOpen ? "Hide History" : "History"}</span>
+										</button>
 									</>
-								) : (
-									<div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10 text-accent">
-										<Sparkles className="size-4" aria-hidden />
+								) : null}
+								{!showConversationEmpty ? (
+									<div className="min-w-0">
+										<h1 className="truncate text-base md:text-lg font-semibold tracking-tight text-content-primary">
+											{selectedConversationTitle ?? "Research"}
+										</h1>
+										<p className="mt-0.5 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
+											{showAssistantSkeleton ? statusText : "Persistent thread with live web citations."}
+										</p>
 									</div>
-								)}
-								<div className="min-w-0">
-									<h1
-										className={cn(
-											"font-semibold tracking-tight text-content-primary transition-all duration-300",
-											showConversationEmpty
-												? "text-xl md:text-2xl font-bold"
-												: "truncate text-base md:text-lg",
-										)}
-									>
-										{showConversationEmpty
-											? "Research"
-											: (selectedConversationTitle ?? "Research")}
-									</h1>
-									<p className="mt-0.5 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
-										{showAssistantSkeleton
-											? statusText
-											: showConversationEmpty
-												? isAuthed
-													? "Start a fresh thread with live web citations. Previous conversations remain in the sidebar."
-													: "Grounded answers with live citations. No account required."
-												: "Persistent threads with live web citations."}
-									</p>
-								</div>
+								) : null}
 							</div>
 							<div className="flex shrink-0 items-center gap-2">
 								{FEEDBACK_MAILTO_HREF ? (
@@ -1105,7 +1400,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</div>
 					</header>
 
-					<div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 pb-8 md:px-8">
+					<div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6">
 						{isAuthed && showConversationEmpty ? (
 							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
@@ -1129,6 +1424,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									recentConversations={conversations}
 									onSelectConversation={onSelectConversation}
 									exampleQueries={EXAMPLE_QUERIES}
+									composerSlot={showConversationEmpty ? composerBlock : undefined}
 									onPickExample={(q) => {
 										try {
 											logProductEvent({
@@ -1206,303 +1502,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											: ""}
 						</p>
 
-						<div
-							className={cn(
-								"flex flex-col gap-3",
-								showConversationEmpty
-									? "order-3 md:order-none"
-									: "order-2 md:order-none sticky bottom-0 z-20 -mx-4 bg-surface/95 px-4 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none"
-							)}
-						>
-							<div className="flex flex-col sm:flex-row gap-3">
-								<div
-									className={cn(
-										"flex w-full overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 shadow-panel backdrop-blur-sm ring-1 ring-white/40 sm:max-w-[200px] md:backdrop-blur-md",
-									)}
-								>
-									<select
-										className="w-full bg-transparent px-3 py-2 text-sm font-medium text-content-primary focus:outline-none"
-										value={selectedPresetId}
-										onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
-										disabled={busy}
-										aria-label="Research focus"
-									>
-										{Object.values(RESEARCH_PRESETS).map((p) => (
-											<option key={p.id} value={p.id}>
-												{p.label}
-											</option>
-										))}
-									</select>
-								</div>
-
-								{isAuthed ? (
-									<div
-										className={cn(
-											"flex w-full overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 shadow-panel backdrop-blur-sm ring-1 ring-white/40 sm:max-w-[320px] md:backdrop-blur-md",
-										)}
-										role="group"
-										aria-label="Search mode"
-									>
-										<button
-											type="button"
-											onClick={() => setResearchMode("standard")}
-											disabled={busy}
-											className={cn(
-												"flex-1 px-3 py-2 text-sm font-medium transition",
-												"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-												researchMode === "standard"
-													? "bg-accent/20 text-accent"
-													: "bg-transparent text-content-secondary hover:text-content-primary",
-												"disabled:opacity-40 disabled:pointer-events-none",
-											)}
-										>
-											Standard Search
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												try {
-													logProductEvent({
-														event: "deep_research_clicked",
-														surface: "deep_research",
-														userType: "signed_in",
-													});
-												} catch {
-													// ignore analytics
-												}
-												setResearchMode("deep");
-											}}
-											disabled={busy}
-											className={cn(
-												"flex-1 px-3 py-2 text-sm font-medium transition",
-												"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-												researchMode === "deep"
-													? "bg-accent/20 text-accent"
-													: "bg-transparent text-content-secondary hover:text-content-primary",
-												"disabled:opacity-40 disabled:pointer-events-none",
-											)}
-										>
-											Deep Research
-										</button>
-									</div>
-								) : (
-									<button
-										type="button"
-										disabled={busy}
-										onClick={() => {
-											try {
-												logProductEvent({
-													event: "deep_research_clicked",
-													surface: "deep_research",
-													userType: "guest",
-												});
-											} catch {
-												// ignore analytics
-											}
-											router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
-										}}
-										className={cn(
-											"flex w-full items-center justify-center rounded-3xl border border-border-subtle/80 bg-surface-elevated/85 px-3 py-2 text-sm font-medium text-content-secondary shadow-panel backdrop-blur-sm ring-1 ring-white/40 md:backdrop-blur-md",
-											"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-											"sm:max-w-[320px]",
-											"disabled:opacity-40 disabled:pointer-events-none",
-										)}
-										aria-label="Deep Research requires a signed-in account"
-									>
-										Deep Research · Sign in
-									</button>
-								)}
+						{!showConversationEmpty ? (
+							<div className="order-2 md:order-none sticky bottom-0 z-20 -mx-4 bg-surface/95 px-4 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none">
+								{composerBlock}
 							</div>
-							{!isAuthed ? (
-								<p className="text-center text-xs leading-relaxed text-content-tertiary">
-									<span className="text-content-secondary">
-										Guest mode: 5 free searches per day.{" "}
-									</span>
-									<Link
-										href={`/signin?callbackUrl=${encodeURIComponent("/")}`}
-										onClick={() => {
-											try {
-												logProductEvent({
-													event: "sign_in_clicked",
-													surface: "auth",
-													userType: "guest",
-												});
-											} catch {
-												// ignore analytics
-											}
-										}}
-										className="font-medium text-accent underline-offset-2 hover:underline"
-									>
-										Sign in
-									</Link>{" "}
-									for saved threads, slash commands, follow-ups, Deep Research, and sharing.
-								</p>
-							) : null}
-							{billing?.billingPlan === "FREE" && researchMode === "deep" ? (
-								<p className="text-center text-xs text-amber-800/90">
-									Deep Research requires a Pro or Team plan.{" "}
-									<Link href="/upgrade" className="font-medium text-accent underline-offset-2 hover:underline">
-										Upgrade
-									</Link>
-								</p>
-							) : null}
-
-							<SearchBox
-								ref={searchBoxRef}
-								value={query}
-								onChange={setQuery}
-								onSubmit={(ctx) => void runSearch(ctx)}
-								disabled={busy}
-								isBusy={busy}
-								placeholder={
-									!isAuthed
-										? "Ask anything..."
-										: messages.length > 0
-											? "Send a follow-up…"
-											: "Ask anything..."
-								}
-							/>
-							{isAuthed ? (
-								<div className="text-xs text-content-tertiary px-2">
-									Try <span className="font-mono text-content-secondary">/new</span>,{" "}
-									<span className="font-mono text-content-secondary">/history</span>,{" "}
-									<span className="font-mono text-content-secondary">/deep</span>,{" "}
-									<span className="font-mono text-content-secondary">/share</span>
-								</div>
-							) : null}
-
-							{phase === "error" && errorMessage ? (
-								<div
-									className={cn(
-										"rounded-3xl border p-4 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md",
-										errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
-											? "border-indigo-200 bg-indigo-50/90 text-indigo-950"
-											: isProviderAvailabilityError
-												? "border-amber-200/90 bg-amber-50/95 text-amber-950"
-												: "border-red-200/80 bg-red-50/90 text-red-800",
-									)}
-									role="alert"
-								>
-									<p
-										className={cn(
-											"font-semibold",
-											errorCode === "ANONYMOUS_QUOTA_EXCEEDED"
-												? "text-indigo-950"
-												: isProviderAvailabilityError
-													? "text-amber-950"
-													: "text-red-900",
-										)}
-									>
-										{currentErrorTitle}
-									</p>
-									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ? (
-										<div className="mt-2 space-y-3">
-											<p className="text-indigo-900/90">
-												You’ve used your free searches for today. Sign in to continue this research.
-											</p>
-											<ul className="space-y-1.5 text-indigo-900/80">
-												<li className="flex items-center gap-2">
-													<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
-													<span>Save this thread</span>
-												</li>
-												<li className="flex items-center gap-2">
-													<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
-													<span>Ask follow-up questions</span>
-												</li>
-												<li className="flex items-center gap-2">
-													<div className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
-													<span>Unlock Deep Research</span>
-												</li>
-											</ul>
-										</div>
-									) : (
-										<p
-											className={cn(
-												"mt-1",
-												isProviderAvailabilityError ? "text-amber-900/95" : "text-red-800/95",
-											)}
-										>
-											{errorMessage}
-										</p>
-									)}
-									{errorCode === "ANONYMOUS_QUOTA_EXCEEDED" ||
-									errorCode === "SIGNIN_DEEP" ||
-									(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") ? (
-										<div className="mt-3">
-											<Link
-												href={`/signin?callbackUrl=${encodeURIComponent(
-													lastSubmittedQueryRef.current.trim().length > 0
-														? `/?q=${encodeURIComponent(lastSubmittedQueryRef.current.trim())}`
-														: "/",
-												)}`}
-												onClick={() => {
-													try {
-														logProductEvent({
-															event: "sign_in_clicked",
-															surface: "auth",
-															userType: "guest",
-															errorCode: errorCode ?? undefined,
-														});
-													} catch {
-														// ignore analytics
-													}
-												}}
-												className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-											>
-												Sign in to continue
-											</Link>
-										</div>
-									) : null}
-									{limitErrorAction === "quota" || limitErrorAction === "plan" ? (
-										<div className="mt-3 flex flex-wrap gap-2">
-											<Link
-												href="/upgrade"
-												className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-											>
-												View plans & upgrade
-											</Link>
-											{limitErrorAction === "plan" ? (
-												<button
-													type="button"
-													onClick={() => {
-														setResearchMode("standard");
-														setLimitErrorAction(null);
-														setErrorMessage(null);
-														setErrorCode(null);
-														setPhase("idle");
-													}}
-													className="inline-flex items-center justify-center rounded-xl border border-border-subtle bg-surface-elevated/80 px-4 py-2 text-sm font-medium text-content-primary hover:bg-surface-elevated"
-												>
-													Switch to Standard Search
-												</button>
-											) : null}
-										</div>
-									) : limitErrorAction === null &&
-									  errorCode !== "ANONYMOUS_QUOTA_EXCEEDED" &&
-									  errorCode !== "SIGNIN_DEEP" &&
-									  !(errorCode === "PLAN_REQUIRED" && sessionStatus !== "authenticated") &&
-									  errorCode !== "SIGNIN_FOLLOWUP" ? (
-										<div className="mt-3">
-											<button
-												type="button"
-												onClick={() => {
-													void runSearch();
-												}}
-											className={cn(
-												"inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
-												isProviderAvailabilityError
-													? "border-amber-200 bg-amber-100/60 text-amber-950 hover:bg-amber-100 focus-visible:outline-amber-600"
-													: "border-red-200 bg-red-100/50 text-red-900 hover:bg-red-100 focus-visible:outline-red-600",
-											)}
-											>
-												<RotateCw className="mr-2 size-4" />
-												Retry Search
-											</button>
-										</div>
-									) : null}
-								</div>
-							) : null}
-						</div>
+						) : null}
 					</div>
 
 					<footer className="mt-auto flex flex-col items-center gap-2 border-t border-border-subtle/70 py-6 text-center text-xs text-content-tertiary">
