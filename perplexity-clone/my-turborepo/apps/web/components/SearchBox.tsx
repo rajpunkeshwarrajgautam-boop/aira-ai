@@ -347,7 +347,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								key={att.id}
 								className="inline-flex items-center gap-2 rounded-lg border border-white/[0.12] bg-[#141b2b] px-3 py-1.5 text-xs text-[#cfd2d8] shadow-sm"
 							>
-								<FileText className="size-3.5 text-[#c9a84c]" />
+								<FileText className="size-3.5 text-sky-400" />
 								<span className="max-w-[160px] truncate text-[11px] font-medium text-[#f0f0ed]">{att.name}</span>
 								<span className="text-[10px] text-[#8e95a2]">({(att.size / 1024).toFixed(0)} KB)</span>
 								<button
@@ -400,7 +400,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									onClick={() => fileInputRef.current?.click()}
 									className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-[#cfd2d8] transition hover:bg-white/[0.06] hover:text-[#f0f0ed]"
 								>
-									<Paperclip className="size-4 text-[#c9a84c]" strokeWidth={1.7} aria-hidden />
+									<Paperclip className="size-4 text-sky-400" strokeWidth={1.7} aria-hidden />
 									<span>Attach local document</span>
 								</button>
 
@@ -465,13 +465,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								}}
 								className={cn(
 									"flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 text-xs text-[#cfd2d8] transition hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-[#f0f0ed]",
-									modelMenuOpen && "border-[#c9a84c]/40 bg-[#c9a84c]/[0.08] text-[#f0f0ed]",
+									modelMenuOpen && "border-sky-500/40 bg-sky-500/[0.08] text-[#f0f0ed]",
 								)}
 								aria-label={`Select model: currently ${activeModelOption.label}`}
 								aria-controls={modelMenuId}
 								aria-expanded={modelMenuOpen}
 							>
-								<Sparkles className="size-3 text-[#c9a84c]" />
+								<Sparkles className="size-3 text-sky-400" />
 								<span className="text-[11px] font-medium">{activeModelOption.label}</span>
 								<ChevronDown className="size-3 text-[#8e95a2]" />
 							</button>
@@ -514,7 +514,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 														className={cn(
 															"rounded px-1.5 py-0.5 text-[9px] font-semibold",
 															isSelected
-																? "bg-[#c9a84c]/20 text-[#e5c97b]"
+																? "bg-sky-500/20 text-sky-300"
 																: "bg-white/[0.06] text-[#8e95a2]",
 														)}
 													>
@@ -540,8 +540,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							}}
 							disabled={busy}
 							className={cn(
-								"hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-[#c9a84c]/30 hover:bg-[#c9a84c]/[0.08] hover:text-[#e5c97b] sm:flex",
-								value.startsWith("/deep ") && "border-[#c9a84c]/40 bg-[#c9a84c]/10 text-[#e5c97b]",
+								"hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-sky-500/30 hover:bg-sky-500/[0.08] hover:text-sky-300 sm:flex",
+								value.startsWith("/deep ") && "border-sky-500/40 bg-sky-500/10 text-sky-300",
 							)}
 						>
 							<Globe2 className="size-3.5" strokeWidth={1.6} />
@@ -572,7 +572,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								disabled={busy}
 								className={cn(
 									"grid size-9 place-items-center rounded-xl border border-white/[0.07] text-[#8e95a2] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]",
-									listening && "border-[#c9a84c]/40 bg-[#c9a84c]/10 text-[#e5c97b]",
+									listening && "border-sky-500/40 bg-sky-500/10 text-sky-300",
 								)}
 								aria-label={listening ? "Stop voice input" : "Start voice input"}
 							>
@@ -594,10 +594,10 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								type="submit"
 								disabled={!canSubmit}
 								size="icon"
-								className="size-9 rounded-xl border-0 bg-[#d0ae55] text-[#111214] shadow-[0_7px_18px_rgba(208,174,85,.25)] transition hover:bg-[#dfbd63] active:scale-[0.98] disabled:pointer-events-none disabled:bg-white/[0.06] disabled:text-[#6e747f] disabled:shadow-none"
+								className="size-9 rounded-xl border-0 bg-sky-400 text-[#08090C] shadow-[0_0_18px_rgba(56,189,248,0.3)] transition hover:bg-sky-300 active:scale-[0.98] disabled:pointer-events-none disabled:bg-white/[0.06] disabled:text-[#6e747f] disabled:shadow-none"
 								aria-label="Send to AIRA AI"
 							>
-								<ArrowUp className="size-4" strokeWidth={2.2} aria-hidden />
+								<ArrowUp className="size-4" strokeWidth={2.4} aria-hidden />
 							</Button>
 						)}
 					</div>

@@ -479,108 +479,171 @@ export function ConversationMessageList({
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
 					<div className="aira-message-stack mx-auto max-w-[960px]">
 						{showEmptyHint ? (
-							<div className="aira-enter py-8 sm:py-12">
-								<div className="mx-auto flex max-w-xl flex-col items-center text-center">
-									<div className="mx-auto flex size-10 items-center justify-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
-										<Sparkles className="size-5" strokeWidth={1.6} aria-hidden />
+							<div className="aira-enter py-6 sm:py-8 space-y-6">
+								{/* Command Hero Header */}
+								<div className="flex flex-col items-start text-left space-y-3">
+									<div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-[11px] font-medium text-sky-400">
+										<span className="size-1.5 rounded-full bg-sky-400 animate-pulse" aria-hidden />
+										<span>AIRA Intelligence OS · Sovereign Multi-Provider Grid</span>
 									</div>
-									<h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-content-primary">What are you working on?</h2>
-									<p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-content-tertiary">
-										Research the web, work with private files, compare models, or hand a longer workflow to an agent.
+									<h2 className="text-2xl sm:text-3xl font-bold tracking-[-0.035em] text-[#F8FAFC]">
+										Where Autonomous Research Meets Verified Truth.
+									</h2>
+									<p className="max-w-2xl text-[12.5px] leading-relaxed text-[#94A3B8]">
+										Orchestrate multi-model reasoning, deep web investigation, and autonomous agent missions with source-grounded proof.
 									</p>
 								</div>
-								{exampleQueries.length > 0 && onPickExample ? (
-									<div className="mx-auto mt-6 grid max-w-2xl gap-2.5 sm:grid-cols-3">
-										{exampleQueries.map((item) => (
-											<button
-												key={item}
-												type="button"
-												onClick={() => onPickExample(item)}
-												className="min-h-20 rounded-xl border border-[rgba(245,244,239,0.08)] bg-[#121419]/90 px-3.5 py-3 text-left text-[11.5px] leading-5 text-content-secondary transition hover:border-[rgba(212,175,55,0.35)] hover:bg-[#181a22] hover:text-content-primary shadow-sm"
-											>
-												<span className="mb-1 block text-[10px] font-semibold text-[#d4af37]">Ask AIRA</span>
-												{item}
-											</button>
-										))}
-									</div>
-								) : null}
-								<div className="mx-auto mt-3 grid max-w-2xl gap-1 sm:grid-cols-4">
-									{STARTERS.map((item) => {
-										const Icon = item.icon;
-										return (
-											<Link
-												key={item.href}
-												href={item.href}
-												className="group flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/[0.035]"
-											>
-												<Icon className="mt-0.5 size-3.5 shrink-0 text-content-tertiary transition group-hover:text-accent" strokeWidth={1.7} aria-hidden />
-												<span>
-													<strong className="block text-[11px] font-medium text-content-secondary group-hover:text-content-primary">{item.title}</strong>
-													<small className="mt-0.5 block text-[10px] leading-4 text-content-tertiary">{item.description}</small>
-												</span>
-											</Link>
-										);
-									})}
-								</div>
-								{!isAuthed ? (
-									<div className="mx-auto mt-6 w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0c1017]/80 p-4 text-left shadow-lg">
-										<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+
+								{/* Asymmetric Bento Capabilities Grid */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+									{/* Dominant Hero Bento Tile (2 cols wide) */}
+									<div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_32px_rgba(0,0,0,0.4)] transition hover:border-sky-500/30">
+										<div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3.5">
 											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-[#c9a84c]/20 text-[#d0ae55]">
+												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/20 text-sky-400">
+													<Globe2 className="size-4" />
+												</span>
+												<div>
+													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Autonomous Deep Investigation</h3>
+													<p className="text-[11px] text-[#94A3B8]">Multi-hop source triangulation & fail-closed isolation.</p>
+												</div>
+											</div>
+											<span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-400">
+												48+ Live Indices
+											</span>
+										</div>
+										<p className="mt-3.5 text-[12px] leading-5 text-[#CBD5E1]">
+											Launch exhaustive research sweeps synthesizing authoritative market documents, technical specifications, and regulatory frameworks.
+										</p>
+										<div className="mt-4 flex flex-wrap gap-2">
+											<button
+												type="button"
+												onClick={() => onPickExample?.("Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.")}
+												className="group inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-left text-[11.5px] font-medium text-[#E2E8F0] transition hover:border-sky-500/40 hover:bg-sky-500/[0.08] hover:text-white"
+											>
+												<Sparkles className="size-3.5 text-sky-400" />
+												<span>Run Competitive AI Due Diligence</span>
+												<span className="text-sky-400 transition group-hover:translate-x-0.5">→</span>
+											</button>
+											<button
+												type="button"
+												onClick={() => onPickExample?.("Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.")}
+												className="group inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-left text-[11.5px] font-medium text-[#E2E8F0] transition hover:border-sky-500/40 hover:bg-sky-500/[0.08] hover:text-white"
+											>
+												<ShieldCheck className="size-3.5 text-sky-400" />
+												<span>Security & Threat Model Audit</span>
+												<span className="text-sky-400 transition group-hover:translate-x-0.5">→</span>
+											</button>
+										</div>
+									</div>
+
+									{/* Bento Tile 2: OmniRoute Gateway */}
+									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
+										<div>
+											<div className="flex items-center gap-2.5">
+												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
+													<Network className="size-4" />
+												</span>
+												<div>
+													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">OmniRoute Grid</h3>
+													<p className="text-[10.5px] text-[#94A3B8]">Multi-provider failover</p>
+												</div>
+											</div>
+											<div className="mt-3.5 space-y-1.5">
+												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
+													<span>Claude 3.7 Sonnet</span>
+													<span className="text-sky-400">Frontier</span>
+												</div>
+												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
+													<span>DeepSeek R1</span>
+													<span className="text-emerald-400">Reasoning</span>
+												</div>
+												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8]">
+													<span>GPT-4.5 / Gemini 2.0</span>
+													<span className="text-[#CBD5E1]">Balanced</span>
+												</div>
+											</div>
+										</div>
+										<button
+											type="button"
+											onClick={() => onPickExample?.("Compare ChatGPT vs Gemini reasoning benchmarks and cost curves")}
+											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
+										>
+											<span>Compare Models Side-by-Side</span>
+											<span className="text-sky-400">→</span>
+										</button>
+									</div>
+
+									{/* Bento Tile 3: Work Mode Swarms */}
+									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
+										<div>
+											<div className="flex items-center gap-2.5">
+												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
 													<Sparkles className="size-4" />
 												</span>
 												<div>
-													<p className="text-xs font-semibold text-[#f0f0ed]">Discover AIRA Work Mode</p>
-													<p className="text-[11px] text-[#8e95a2]">Autonomous multi-agent execution with verified deliverables and proof.</p>
+													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Work Mode Swarms</h3>
+													<p className="text-[10.5px] text-[#94A3B8]">Autonomous missions</p>
 												</div>
 											</div>
-											<Link
-												href="/work"
-												className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[#c9a84c]/30 bg-[#c9a84c]/10 px-3.5 py-2.5 text-xs font-medium text-[#e5c97b] transition hover:bg-[#c9a84c]/20"
-											>
-												<span>Explore Work</span>
-												<span aria-hidden="true">→</span>
-											</Link>
+											<p className="mt-3 text-[11.5px] leading-relaxed text-[#94A3B8]">
+												State target business outcomes and delegate execution to resilient autonomous agents with verified artifacts.
+											</p>
 										</div>
-										<p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
-											Verified Mission Templates
-										</p>
-										<div className="mt-2 grid gap-2 sm:grid-cols-3">
-											{[
-												{
-													title: "Market & Due Diligence",
-													desc: "Deep competitive matrix, regulatory posture, and evidence synthesis.",
-													query: "Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.",
-												},
-												{
-													title: "Security & Threat Modeling",
-													desc: "IDOR boundaries, SSRF prevention, and strict tenant isolation.",
-													query: "Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.",
-												},
-												{
-													title: "System Performance Audit",
-													desc: "Latency benchmarks, query profiling, and memory leak analysis.",
-													query: "Analyze end-to-end inference latency bottlenecks, profile database connection pools under concurrent load, and recommend caching topologies for sub-100ms responses.",
-												},
-											].map((item) => (
-												<button
-													key={item.title}
-													type="button"
-													onClick={() => onPickExample?.(item.query)}
-													className="group flex flex-col justify-between rounded-xl border border-white/[0.08] bg-white/[0.02] p-2.5 text-left transition hover:border-[#c9a84c]/40 hover:bg-white/[0.05]"
-												>
-													<div>
-														<p className="text-xs font-medium text-[#ecece8] group-hover:text-[#e5c97b]">{item.title}</p>
-														<p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[#8e95a2]">{item.desc}</p>
-													</div>
-													<span className="mt-2.5 inline-flex items-center text-[9px] font-semibold uppercase tracking-wider text-[#a98b43] group-hover:text-[#e5c97b]">
-														Try Template →
-													</span>
-												</button>
-											))}
-										</div>
+										<Link
+											href="/work"
+											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
+										>
+											<span>Explore Managed Work</span>
+											<span className="text-sky-400">→</span>
+										</Link>
 									</div>
-								) : null}
+
+									{/* Bento Tile 4: Knowledge Vault (Spans 2 cols) */}
+									<div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+										<div className="space-y-1">
+											<div className="flex items-center gap-2">
+												<FileText className="size-4 text-sky-400" />
+												<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Private Context & Knowledge Vault</h3>
+											</div>
+											<p className="text-[11.5px] text-[#94A3B8]">
+												Zero-data-retention document ingestion. Query PDFs, codebases, and financial reports with citation grounding.
+											</p>
+										</div>
+										<Link
+											href="/knowledge"
+											className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2 text-[11.5px] font-medium text-sky-400 transition hover:bg-sky-500/20 hover:text-sky-300"
+										>
+											<span>Upload Context</span>
+											<span>↗</span>
+										</Link>
+									</div>
+								</div>
+
+								{/* Quick Workspaces Row */}
+								<div className="pt-2">
+									<p className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] mb-2.5">
+										Quick Workspaces
+									</p>
+									<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+										{STARTERS.map((item) => {
+											const Icon = item.icon;
+											return (
+												<Link
+													key={item.href}
+													href={item.href}
+													className="group flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left transition hover:border-sky-500/30 hover:bg-white/[0.04]"
+												>
+													<Icon className="size-4 shrink-0 text-[#94A3B8] transition group-hover:text-sky-400" strokeWidth={1.8} aria-hidden />
+													<div className="min-w-0">
+														<strong className="block truncate text-[11.5px] font-medium text-[#CBD5E1] group-hover:text-white">{item.title}</strong>
+														<small className="block truncate text-[10px] text-[#64748B]">{item.description}</small>
+													</div>
+												</Link>
+											);
+										})}
+									</div>
+								</div>
 							</div>
 						) : null}
 
