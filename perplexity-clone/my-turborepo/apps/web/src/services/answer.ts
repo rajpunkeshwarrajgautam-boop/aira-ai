@@ -449,9 +449,14 @@ export async function streamGroundedAnswer(
 			},
 		};
 
-		const retrieved = await exa.search(input.query, searchOpts);
-		exaRequestId = retrieved.requestId;
-		exaSearchType = retrieved.searchType;
+		let retrieved: ExaSearchExecutionResult = { hits: [], candidates: [] };
+		try {
+			retrieved = await exa.search(input.query, searchOpts);
+			exaRequestId = retrieved.requestId;
+			exaSearchType = retrieved.searchType;
+		} catch (searchError) {
+			console.warn("[answer] Primary web search provider temporarily unavailable, continuing with direct synthesis:", searchError);
+		}
 		let candidates: SourceCandidate[] = [...retrieved.candidates];
 		reportProgress("sources_found", "Reviewing sources…");
 
