@@ -7,7 +7,7 @@ interface ProgressPayload {
 	readonly elapsedMs: number;
 }
 
-import { Sparkles, RotateCw, Menu, X } from "lucide-react";
+import { Sparkles, RotateCw, Menu, X, History } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,7 +20,6 @@ import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/researc
 
 import { type CitationItem } from "./CitationCards";
 import { SearchBox, type SearchBoxHandle } from "./SearchBox";
-import { UserMenu } from "./UserMenu";
 import {
 	type ConversationMessageDto,
 	ConversationMessageList,
@@ -1006,21 +1005,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				) : null}
 
 				<main className="flex min-h-dvh flex-1 flex-col md:py-4 md:pr-4">
-					<div className="px-4 pt-4 md:pt-0">
-						<div className="mx-auto flex max-w-4xl justify-center">
-							<div className="inline-flex max-w-full items-center justify-center rounded-full border border-accent/15 bg-surface-elevated/70 px-4 py-2 text-center text-xs font-medium text-accent shadow-panel backdrop-blur-sm sm:text-sm md:bg-surface-elevated/55 md:backdrop-blur-md">
-								Research with live citations—try standard search here. Sign in for saved threads, Deep Research, and
-								share links.
-							</div>
-						</div>
-					</div>
 					<header className={cn(
 						"mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 transition-all duration-300",
-						showConversationEmpty ? "py-10 md:py-16" : "py-6 md:py-8"
+						showConversationEmpty ? "pt-4 pb-2 md:pt-6 md:pb-3" : "py-3 md:py-4"
 					)}>
 						{billing && sessionStatus === "authenticated" ? (
 							<div
-								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-3xl border border-border-subtle bg-surface-elevated/75 px-4 py-3 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
+								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-subtle bg-surface-elevated/75 px-4 py-2.5 text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
 								aria-label="Plan and usage"
 							>
 								<span className="font-semibold text-content-primary">
@@ -1037,7 +1028,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								{billing.billingPlan === "FREE" ? (
 									<Link
 										href="/upgrade"
-										className="ml-auto inline-flex items-center rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+										className="ml-auto inline-flex items-center rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 									>
 										Upgrade
 									</Link>
@@ -1051,24 +1042,19 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										<button
 											type="button"
 											onClick={() => setMobileSidebarOpen(true)}
-											className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border-subtle bg-surface-elevated/80 text-content-primary shadow-panel backdrop-blur-sm md:hidden hover:bg-surface-elevated active:scale-95 transition-transform"
+											className="flex h-9 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface-elevated/80 px-2.5 text-content-primary shadow-sm backdrop-blur-sm md:hidden hover:bg-surface-elevated active:scale-95 transition-transform"
 											aria-label="Open conversation list"
 										>
-											<Menu className="size-5" />
+											<History className="size-4 text-accent" />
+											<span className="text-xs font-medium">Chats</span>
 										</button>
-										<div className={cn(
-											"hidden shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-glass ring-1 ring-white/25 md:flex transition-all duration-300",
-											showConversationEmpty ? "size-12 md:size-14" : "size-11"
-										)}>
-											<Sparkles className={cn(showConversationEmpty ? "size-6 md:size-7" : "size-5")} aria-hidden />
+										<div className="hidden size-9 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10 text-accent md:flex">
+											<Sparkles className="size-4" aria-hidden />
 										</div>
 									</>
 								) : (
-									<div className={cn(
-										"flex shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-glass ring-1 ring-white/25 transition-all duration-300",
-										showConversationEmpty ? "size-14 md:size-16" : "size-11"
-									)}>
-										<Sparkles className={cn(showConversationEmpty ? "size-6 md:size-8" : "size-5")} aria-hidden />
+									<div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10 text-accent">
+										<Sparkles className="size-4" aria-hidden />
 									</div>
 								)}
 								<div className="min-w-0">
@@ -1076,21 +1062,21 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										className={cn(
 											"font-semibold tracking-tight text-content-primary transition-all duration-300",
 											showConversationEmpty
-												? "text-3xl md:text-4xl font-extrabold"
-												: "truncate text-lg md:text-xl",
+												? "text-xl md:text-2xl font-bold"
+												: "truncate text-base md:text-lg",
 										)}
 									>
 										{showConversationEmpty
-											? "Welcome to AiraAI"
+											? "Research"
 											: (selectedConversationTitle ?? "Research")}
 									</h1>
-									<p className="mt-1 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
+									<p className="mt-0.5 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
 										{showAssistantSkeleton
 											? statusText
 											: showConversationEmpty
 												? isAuthed
-													? "Start a fresh conversation. Saved memory can still help when relevant, while previous chats stay in the sidebar."
-													: "Get answers grounded with live web citations. No account required."
+													? "Start a fresh thread with live web citations. Previous conversations remain in the sidebar."
+													: "Grounded answers with live citations. No account required."
 												: "Persistent threads with live web citations."}
 									</p>
 								</div>
@@ -1107,7 +1093,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										Feedback
 									</a>
 								) : null}
-								<UserMenu className="flex" />
 							</div>
 						</div>
 					</header>

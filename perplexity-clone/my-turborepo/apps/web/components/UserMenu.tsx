@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
+import { Suspense } from "react";
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
 import { logProductEvent } from "../lib/log-product-event";
@@ -15,7 +16,7 @@ function initials(name: string): string {
 	return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("");
 }
 
-export function UserMenu({ className }: { readonly className?: string }) {
+function UserMenuInner({ className }: { readonly className?: string }) {
 	const { data: session, status } = useSession();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -74,5 +75,13 @@ export function UserMenu({ className }: { readonly className?: string }) {
 				</button>
 			</div>
 		</details>
+	);
+}
+
+export function UserMenu({ className }: { readonly className?: string }) {
+	return (
+		<Suspense fallback={<div className={cn("h-10 w-10 animate-pulse rounded-xl bg-surface-inset/40", className)} aria-hidden />}>
+			<UserMenuInner className={className} />
+		</Suspense>
 	);
 }
