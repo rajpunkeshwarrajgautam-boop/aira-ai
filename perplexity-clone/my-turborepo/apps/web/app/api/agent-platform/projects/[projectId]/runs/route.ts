@@ -67,6 +67,12 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 	if (!session?.user?.id) {
 		return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	}
+	if (process.env.AIRA_WORK_RUNTIME_ENABLED !== "true") {
+		return json(
+			{ error: { code: "WORK_RUNTIME_UNAVAILABLE", message: "Managed execution is currently disabled by administrator configuration." } },
+			{ status: 503 },
+		);
+	}
 	const { projectId } = await params;
 	const project = await getProjectForUser(session.user.id, projectId);
 	if (!project) {
@@ -84,12 +90,6 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 				},
 			},
 			{ status: 400 },
-		);
-	}
-	if (process.env.AIRA_WORK_RUNTIME_ENABLED !== "true") {
-		return json(
-			{ error: { code: "WORK_RUNTIME_UNAVAILABLE", message: "Managed execution is currently disabled by administrator configuration." } },
-			{ status: 503 },
 		);
 	}
 

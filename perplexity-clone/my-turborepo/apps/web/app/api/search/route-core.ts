@@ -427,7 +427,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 						router: await ProviderRouter.createDefault(providerTier),
 						abortSignal: abort.signal,
 						chatHistory: context.chatHistory,
-						contextualMemory: context.contextualMemory,
+						contextualMemory: context.chatHistory.length > 0 ? context.contextualMemory : [],
 						disableSearch: true,
 						presetId: parsed.data.presetId,
 						onProgress: (ev) => emitProgress(ev.stage, ev.message),
