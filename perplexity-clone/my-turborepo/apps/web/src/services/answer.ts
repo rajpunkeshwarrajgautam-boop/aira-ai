@@ -36,6 +36,7 @@ import { getResearchPreset } from "./research-presets";
 import {
 	createExaSearchService,
 	DEFAULT_EXA_SEARCH_OPTIONS,
+	type ExaSearchExecutionResult,
 	type ExaSearchOptions,
 	type ExaSearchService,
 } from "./search";
