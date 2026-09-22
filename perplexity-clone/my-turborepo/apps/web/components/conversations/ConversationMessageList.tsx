@@ -1,9 +1,11 @@
 "use client";
 
 import {
+	BookOpen,
 	Check,
 	ChevronLeft,
 	ChevronRight,
+	Compass,
 	Copy,
 	Download,
 	ExternalLink,
@@ -18,6 +20,7 @@ import {
 	MessageSquarePlus,
 	Network,
 	PencilLine,
+	PenTool,
 	RotateCcw,
 	Share2,
 	ShieldCheck,
@@ -252,33 +255,33 @@ export function ConversationMessageList({
 		const hasCalibratedConfidence = typeof message.confidence === "number" && message.confidence > 0;
 
 		return (
-			<div className="aira-enter group flex gap-3 py-5">
-				<div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-[11px] font-semibold text-accent">A</div>
-				<div className="aira-assistant-response min-w-0 flex-1 border-b border-white/[0.07] pb-5">
-					<div className="mb-2 flex min-h-7 items-center justify-between gap-3">
-						<div className="flex min-w-0 items-center gap-2">
-							<p className="text-[12px] font-semibold text-content-primary">AIRA AI</p>
+			<div className="aira-enter group flex gap-3 py-4 sm:py-5">
+				<div className="mt-0.5 flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg border border-[#3A0CA3]/25 bg-[#3A0CA3]/10 text-[11px] font-semibold text-[#3A0CA3]">A</div>
+				<div className="aira-assistant-response min-w-0 flex-1 border-b border-[rgba(17,17,21,0.08)] pb-5">
+					<div className="mb-2 flex min-h-7 flex-wrap items-center justify-between gap-2">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<p className="shrink-0 whitespace-nowrap text-[12px] font-semibold text-[#111115]">AIRA AI</p>
 							{effectiveCitations.length > 0 ? (
-								<span className="inline-flex items-center gap-1 text-[10px] text-content-tertiary">
-									<Globe2 className="size-3" aria-hidden /> {effectiveCitations.length} sources
+								<span className="inline-flex shrink-0 items-center gap-1 text-[10.5px] text-[#6B6A75]">
+									<Globe2 className="size-3 text-[#3A0CA3]" aria-hidden /> {effectiveCitations.length} sources
 								</span>
 							) : null}
 							{/* Evidence / Confidence Badge */}
 							{hasCalibratedConfidence ? (
-								<span className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-emerald-400">
+								<span className="inline-flex shrink-0 items-center gap-1 rounded border border-emerald-500/20 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700">
 									<ShieldCheck className="size-2.5" /> {Math.round(message.confidence! * 100)}% Calibrated
 								</span>
 							) : effectiveCitations.length > 0 ? (
-								<span className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-sky-300">
+								<span className="inline-flex shrink-0 items-center gap-1 rounded border border-[#3A0CA3]/15 bg-[#3A0CA3]/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-[#3A0CA3]">
 									<ShieldCheck className="size-2.5" /> Source-Grounded
 								</span>
 							) : null}
 							{/* Branching indicator if present (Gate 103) */}
 							{message.branchCount && message.branchCount > 1 ? (
-								<span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-content-secondary">
-									<ChevronLeft className="size-2.5 cursor-pointer hover:text-accent" />
+								<span className="inline-flex items-center gap-1 rounded border border-[rgba(17,17,21,0.08)] bg-white px-1.5 py-0.5 text-[9px] text-[#6B6A75]">
+									<ChevronLeft className="size-2.5 cursor-pointer hover:text-[#3A0CA3]" />
 									{message.branchIndex ?? 1} / {message.branchCount}
-									<ChevronRight className="size-2.5 cursor-pointer hover:text-accent" />
+									<ChevronRight className="size-2.5 cursor-pointer hover:text-[#3A0CA3]" />
 								</span>
 							) : null}
 						</div>
@@ -290,20 +293,20 @@ export function ConversationMessageList({
 										<button
 											type="button"
 											onClick={() => setRetryMenuOpenId(retryMenuOpenId === message.id ? null : (message.id ?? null))}
-											className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] text-content-tertiary hover:bg-white/[0.05] hover:text-content-primary"
+											className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 											title="Retry response"
 										>
 											<RotateCcw className="size-3" /> Retry
 										</button>
 										{retryMenuOpenId === message.id && (
-											<div className="absolute right-0 top-8 z-30 w-44 rounded-lg border border-white/[0.1] bg-[#111728] p-1 shadow-xl">
+											<div className="absolute right-0 top-8 z-30 w-44 rounded-lg border border-[rgba(17,17,21,0.1)] bg-white p-1 shadow-lg">
 												<button
 													type="button"
 													onClick={() => {
 														onRetry("same", message.id!);
 														setRetryMenuOpenId(null);
 													}}
-													className="w-full rounded px-2 py-1 text-left text-[11px] text-content-secondary hover:bg-white/[0.08] hover:text-content-primary"
+													className="w-full rounded px-2 py-1 text-left text-[11px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 												>
 													Same model
 												</button>
@@ -313,7 +316,7 @@ export function ConversationMessageList({
 														onRetry("alternate_model", message.id!);
 														setRetryMenuOpenId(null);
 													}}
-													className="w-full rounded px-2 py-1 text-left text-[11px] text-content-secondary hover:bg-white/[0.08] hover:text-content-primary"
+													className="w-full rounded px-2 py-1 text-left text-[11px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 												>
 													Alternate model
 												</button>
@@ -323,7 +326,7 @@ export function ConversationMessageList({
 														onRetry("deep_reasoning", message.id!);
 														setRetryMenuOpenId(null);
 													}}
-													className="w-full rounded px-2 py-1 text-left text-[11px] text-content-secondary hover:bg-white/[0.08] hover:text-content-primary"
+													className="w-full rounded px-2 py-1 text-left text-[11px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 												>
 													Deeper reasoning
 												</button>
@@ -334,7 +337,7 @@ export function ConversationMessageList({
 								<button
 									type="button"
 									onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}
-									className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-sky-400 transition hover:bg-sky-500/10"
+									className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-[#3A0CA3] transition hover:bg-[#3A0CA3]/[0.08]"
 									title="Open in AIRA Deliverables Canvas"
 								>
 									<Layers className="size-3" /> Canvas
@@ -494,17 +497,14 @@ export function ConversationMessageList({
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
 					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-[960px]")}>
 						{showEmptyHint ? (
-							<div className="aira-enter py-6 sm:py-10 space-y-5 max-w-2xl mx-auto text-center">
-								{/* Command Hero Header */}
-								<div className="flex flex-col items-center space-y-2">
-									<p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6B6A75]">
-										Autonomous Research Workspace
-									</p>
-									<h2 className="text-2xl sm:text-[34px] font-semibold tracking-[-0.025em] text-[#111115] leading-[1.2] break-words">
-										Where Autonomous Research Meets Grounded Truth.
-									</h2>
-									<p className="max-w-lg text-[13.5px] leading-relaxed text-[#6B6A75]">
-										Synthesize live web intelligence with verified citations, compare frontier models, or conduct sovereign investigations.
+							<div className="aira-enter mx-auto max-w-2xl py-8 sm:py-12 space-y-6 text-center">
+								{/* Approved Aira Greeting */}
+								<div className="flex flex-col items-center space-y-1.5">
+									<h1 className="text-2xl sm:text-[32px] font-semibold tracking-[-0.025em] text-[#111115] leading-tight">
+										Where would you like to begin?
+									</h1>
+									<p className="text-[14px] text-[#6B6A75]">
+										Ask anything. Explore further with Aira.
 									</p>
 								</div>
 
@@ -515,77 +515,77 @@ export function ConversationMessageList({
 									</div>
 								) : null}
 
-								{/* At Most Three Curated Starter Prompts */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-left">
+								{/* Exactly Three Curated Starter Prompts: Explore, Understand, Create */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-left">
 									<button
 										type="button"
-										onClick={() => onPickExample?.("Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:shadow-[0_4px_16px_rgba(58,12,163,0.06)]"
+										onClick={() => onPickExample?.("Investigate how renewable energy grids and geothermal sources are evolving to power gigawatt-scale AI computing clusters.")}
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3.5 shadow-[0_1px_3px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:bg-[#FAF9F6] hover:shadow-[0_4px_14px_rgba(58,12,163,0.06)]"
 									>
 										<div>
 											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-medium uppercase tracking-wider text-[#6B6A75] bg-[#111115]/[0.04] px-2 py-0.5 rounded">
-													Market Research
+												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+													Explore
 												</span>
-												<Sparkles className="size-3.5 text-[#3A0CA3] opacity-50 group-hover:opacity-100 transition" />
+												<Compass className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
-												Competitive AI Infrastructure Due Diligence
-											</h3>
-											<p className="mt-1.5 text-[11.5px] leading-relaxed text-[#6B6A75]">
-												Evaluate fail-closed security, SLA guarantees, and enterprise pricing models across providers.
+											<h2 className="text-[13px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+												Frontier Energy & Compute
+											</h2>
+											<p className="mt-1 text-[11.5px] leading-relaxed text-[#6B6A75]">
+												Renewable grids and geothermal sources powering gigawatt-scale AI clusters.
 											</p>
 										</div>
 										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
-											Explore prompt <span className="transition group-hover:translate-x-0.5">→</span>
+											Start research <span className="transition group-hover:translate-x-0.5">→</span>
 										</span>
 									</button>
 
 									<button
 										type="button"
-										onClick={() => onPickExample?.("Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:shadow-[0_4px_16px_rgba(58,12,163,0.06)]"
+										onClick={() => onPickExample?.("Break down the architectural differences and latency trade-offs between test-time compute scaling and standard inference.")}
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3.5 shadow-[0_1px_3px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:bg-[#FAF9F6] hover:shadow-[0_4px_14px_rgba(58,12,163,0.06)]"
 									>
 										<div>
 											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-medium uppercase tracking-wider text-[#6B6A75] bg-[#111115]/[0.04] px-2 py-0.5 rounded">
-													Security Audit
+												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+													Understand
 												</span>
-												<ShieldCheck className="size-3.5 text-[#3A0CA3] opacity-50 group-hover:opacity-100 transition" />
+												<BookOpen className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
-												Sovereign Multi-Tenant Security & IDOR
-											</h3>
-											<p className="mt-1.5 text-[11.5px] leading-relaxed text-[#6B6A75]">
-												Verify row-level policies, signed storage tokens, and memory namespaces fail closed.
+											<h2 className="text-[13px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+												Test-Time Reasoning Models
+											</h2>
+											<p className="mt-1 text-[11.5px] leading-relaxed text-[#6B6A75]">
+												Latency trade-offs between test-time compute search depth and standard inference.
 											</p>
 										</div>
 										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
-											Explore prompt <span className="transition group-hover:translate-x-0.5">→</span>
+											Start research <span className="transition group-hover:translate-x-0.5">→</span>
 										</span>
 									</button>
 
 									<button
 										type="button"
-										onClick={() => onPickExample?.("Benchmark AIRA Cortex-9 reasoning depth against standard synthesis latency and analyze sub-100ms inference topologies.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:shadow-[0_4px_16px_rgba(58,12,163,0.06)]"
+										onClick={() => onPickExample?.("Synthesize an executive briefing comparing row-level tenant isolation, signed storage tokens, and private inference deployments.")}
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3.5 shadow-[0_1px_3px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:bg-[#FAF9F6] hover:shadow-[0_4px_14px_rgba(58,12,163,0.06)]"
 									>
 										<div>
 											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-medium uppercase tracking-wider text-[#6B6A75] bg-[#111115]/[0.04] px-2 py-0.5 rounded">
-													Architecture
+												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+													Create
 												</span>
-												<Network className="size-3.5 text-[#3A0CA3] opacity-50 group-hover:opacity-100 transition" />
+												<PenTool className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
-												Sub-100ms Inference Topologies & Routing
-											</h3>
-											<p className="mt-1.5 text-[11.5px] leading-relaxed text-[#6B6A75]">
-												Benchmark reasoning depth against standard synthesis latency with dynamic failover.
+											<h2 className="text-[13px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+												Sovereign AI Architecture
+											</h2>
+											<p className="mt-1 text-[11.5px] leading-relaxed text-[#6B6A75]">
+												Executive briefing on row-level security, signed tokens, and private infrastructure.
 											</p>
 										</div>
 										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
-											Explore prompt <span className="transition group-hover:translate-x-0.5">→</span>
+											Start research <span className="transition group-hover:translate-x-0.5">→</span>
 										</span>
 									</button>
 								</div>

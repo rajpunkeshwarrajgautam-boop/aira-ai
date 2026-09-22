@@ -107,53 +107,52 @@ export function MemoryManager() {
 	return (
 		<div className="grid gap-5 lg:grid-cols-[350px_minmax(0,1fr)]">
 			<div className="space-y-4">
-				<form onSubmit={addMemory} className="aira-premium-card relative overflow-hidden rounded-3xl p-5">
-					<span className="pointer-events-none absolute -right-12 -top-14 size-40 rounded-full bg-[radial-gradient(circle,hsl(var(--accent-violet)/0.13),transparent_68%)]" aria-hidden />
-					<div className="relative flex items-center gap-3">
-						<span className="aira-icon-pop flex size-10 items-center justify-center rounded-2xl"><Plus className="size-4.5" aria-hidden /></span>
-						<div><h2 className="text-sm font-semibold text-content-primary">Pin something important</h2><p className="mt-0.5 text-xs text-content-tertiary">Give Aira context worth carrying forward.</p></div>
+				<form onSubmit={addMemory} className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
+					<div className="flex items-center gap-3">
+						<span className="flex size-9 items-center justify-center rounded-xl bg-[#3A0CA3]/[0.08] text-[#3A0CA3]"><Plus className="size-4" aria-hidden /></span>
+						<div><h2 className="text-sm font-semibold text-[#111115]">Pin something important</h2><p className="mt-0.5 text-xs text-[#6B6A75]">Give Aira context worth carrying forward.</p></div>
 					</div>
-					<div className="relative mt-5 rounded-2xl border border-border-subtle bg-white/70 p-2 shadow-inner">
-						<select value={kind} onChange={(event) => setKind(event.target.value as (typeof KIND_OPTIONS)[number])} className="h-9 w-full rounded-xl border-0 bg-surface-inset/70 px-3 text-sm font-medium text-content-primary outline-none focus:ring-2 focus:ring-accent/20">
-							{KIND_OPTIONS.map((option) => <option key={option} value={option}>{option.toLowerCase()}</option>)}
+					<div className="mt-4 rounded-xl border border-[rgba(17,17,21,0.1)] bg-[#FAF9F6] p-2.5">
+						<select value={kind} onChange={(event) => setKind(event.target.value as (typeof KIND_OPTIONS)[number])} className="h-9 w-full rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-3 text-xs font-medium text-[#111115] outline-none focus:border-[#3A0CA3] capitalize">
+							{KIND_OPTIONS.map((option) => <option key={option} value={option} className="capitalize">{option.toLowerCase()}</option>)}
 						</select>
-						<textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={600} rows={5} placeholder="Example: I prefer the recommendation first, then the reasoning." className="mt-2 w-full resize-none rounded-2xl border-0 bg-transparent px-2 py-2 text-sm leading-6 text-content-primary outline-none placeholder:text-content-tertiary focus:ring-0" />
+						<textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={600} rows={5} placeholder="Example: I prefer the recommendation first, then the reasoning." className="mt-2 w-full resize-none rounded-lg border-0 bg-transparent px-2 py-2 text-sm leading-6 text-[#111115] outline-none placeholder:text-[#8F8E98]" />
 					</div>
-					<Button type="submit" disabled={!content.trim() || busyId === "new"} className="aira-shine-button relative mt-3 h-10 w-full rounded-xl bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] shadow-[0_8px_24px_hsl(var(--accent)/0.18)]">Remember this</Button>
+					<button type="submit" disabled={!content.trim() || busyId === "new"} className="mt-3 flex h-10 w-full items-center justify-center rounded-xl bg-[#3A0CA3] px-4 text-sm font-medium text-white shadow-xs transition hover:bg-[#2D0A82] disabled:cursor-not-allowed disabled:border disabled:border-[rgba(17,17,21,0.08)] disabled:bg-[rgba(17,17,21,0.04)] disabled:text-[#8F8E98]">Remember this</button>
 				</form>
 
-				<div className="aira-glass rounded-3xl p-5">
-					<div className="flex items-start gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700"><ShieldCheck className="size-4.5" aria-hidden /></span><div><p className="text-sm font-semibold text-content-primary">Private by design</p><p className="mt-1 text-xs leading-5 text-content-tertiary">Credentials, passwords, API keys, auth tokens, card details, and similar secrets are rejected from memory.</p></div></div>
+				<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+					<div className="flex items-start gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><ShieldCheck className="size-4" aria-hidden /></span><div><p className="text-xs font-semibold text-[#111115]">Private by design</p><p className="mt-0.5 text-xs leading-5 text-[#6B6A75]">Credentials, passwords, API keys, auth tokens, card details, and similar secrets are rejected from memory.</p></div></div>
 				</div>
 			</div>
 
-			<section className="aira-premium-card rounded-3xl p-5 sm:p-6">
-				<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4">
-					<div><h2 className="text-base font-semibold text-content-primary">Your memory garden</h2><p className="mt-1 text-xs text-content-tertiary">Pinned memories stay closest to Aira when context matters.</p></div>
-					<div className="flex items-center gap-2"><span className="rounded-full bg-surface-inset px-2.5 py-1 text-xs font-medium text-content-secondary">{memories.length} total</span><span className="rounded-full bg-accent/[0.08] px-2.5 py-1 text-xs font-medium text-accent">{pinnedCount} pinned</span></div>
+			<section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs sm:p-6">
+				<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(17,17,21,0.08)] pb-4">
+					<div><h2 className="text-base font-semibold text-[#111115]">Your memory garden</h2><p className="mt-0.5 text-xs text-[#6B6A75]">Pinned memories stay closest to Aira when context matters.</p></div>
+					<div className="flex items-center gap-2"><span className="rounded-full border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] px-2.5 py-1 text-xs text-[#6B6A75]">{memories.length} total</span><span className="rounded-full bg-[#3A0CA3]/[0.08] px-2.5 py-1 text-xs font-medium text-[#3A0CA3]">{pinnedCount} pinned</span></div>
 				</div>
 
-				{selectedMemoryId && !loading && !selectedMemoryExists ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">That memory is no longer available. Showing your current memory list instead.</div> : null}
-				{error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+				{selectedMemoryId && !loading && !selectedMemoryExists ? <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800" role="status">That memory is no longer available. Showing your current memory list instead.</div> : null}
+				{error ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div> : null}
 
 				{loading ? (
-					<div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-content-tertiary"><span className="aira-orbit-loader" aria-hidden /><span>Loading memory…</span></div>
+					<div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-[#8F8E98]"><span className="size-6 animate-spin rounded-full border-2 border-[#3A0CA3] border-t-transparent" aria-hidden /><span>Loading memory…</span></div>
 				) : memories.length === 0 ? (
-					<div className="py-14 text-center"><span className="aira-icon-pop mx-auto flex size-12 items-center justify-center rounded-2xl"><Brain className="size-5" /></span><p className="mt-4 text-sm font-semibold text-content-primary">Nothing planted yet</p><p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-content-tertiary">Pin a useful preference, project, goal, or constraint and Aira can carry it into future conversations.</p></div>
+					<div className="py-14 text-center"><span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[#FAF9F6] border border-[rgba(17,17,21,0.08)] text-[#6B6A75]"><Brain className="size-5" /></span><p className="mt-4 text-sm font-semibold text-[#111115]">Nothing planted yet</p><p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[#6B6A75]">Pin a useful preference, project, goal, or constraint and Aira can carry it into future conversations.</p></div>
 				) : (
 					<div className="mt-5 grid gap-3 sm:grid-cols-2">
 						{memories.map((memory) => {
 							const selected = memory.id === selectedMemoryId;
 							return (
-								<article id={`memory-${memory.id}`} key={memory.id} className={cn("aira-card-hover relative scroll-mt-28 rounded-2xl border p-4 transition", selected ? "border-accent/55 bg-[linear-gradient(145deg,hsl(var(--accent)/0.11),hsl(var(--accent-violet)/0.06),white)] ring-2 ring-accent/15" : memory.pinned ? "border-accent/20 bg-[linear-gradient(145deg,hsl(var(--accent)/0.045),hsl(var(--accent-violet)/0.025),white)]" : "border-border-subtle bg-white/70")} aria-current={selected ? "true" : undefined}>
-									{memory.pinned ? <Sparkles className="absolute right-3 top-3 size-3.5 text-accent/70" aria-hidden /> : null}
-									<div className="flex flex-wrap items-center gap-2 pr-5"><span className="rounded-full bg-accent/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-accent">{memory.kind}</span>{memory.pinned ? <span className="text-[11px] font-medium text-content-secondary">Pinned</span> : null}{selected ? <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-white">Search result</span> : null}</div>
-									<p className="mt-3 text-sm leading-6 text-content-primary">{memory.content}</p>
-									<div className="mt-4 flex items-end justify-between gap-2">
-										<div><p className="text-[10px] uppercase tracking-[0.1em] text-content-tertiary">importance {memory.importance}/5</p><p className="mt-1 text-[10px] text-content-tertiary">Recalled {memory.recallCount} times · {new Date(memory.updatedAt).toLocaleDateString()}</p></div>
+								<article id={`memory-${memory.id}`} key={memory.id} className={cn("relative scroll-mt-28 rounded-xl border p-4 transition", selected ? "border-[#3A0CA3] bg-[#FAF9F6] shadow-2xs ring-1 ring-[#3A0CA3]" : memory.pinned ? "border-[rgba(58,12,163,0.2)] bg-[#FAF9F6]" : "border-[rgba(17,17,21,0.08)] bg-white")} aria-current={selected ? "true" : undefined}>
+									{memory.pinned ? <Sparkles className="absolute right-3 top-3 size-3.5 text-[#3A0CA3]" aria-hidden /> : null}
+									<div className="flex flex-wrap items-center gap-2 pr-5"><span className="rounded-full bg-white border border-[rgba(17,17,21,0.08)] px-2 py-0.5 text-[11px] font-medium text-[#3A0CA3] capitalize">{memory.kind.toLowerCase()}</span>{memory.pinned ? <span className="text-xs font-medium text-[#6B6A75]">Pinned</span> : null}{selected ? <span className="rounded-full bg-[#3A0CA3] px-2 py-0.5 text-[11px] font-medium text-white">Search result</span> : null}</div>
+									<p className="mt-2.5 text-sm leading-6 text-[#111115]">{memory.content}</p>
+									<div className="mt-4 flex items-end justify-between gap-2 border-t border-[rgba(17,17,21,0.06)] pt-3">
+										<div><p className="text-xs text-[#6B6A75]">Importance {memory.importance}/5</p><p className="mt-0.5 text-[11px] text-[#8F8E98]">Recalled {memory.recallCount} times · {new Date(memory.updatedAt).toLocaleDateString()}</p></div>
 										<div className="flex shrink-0 gap-1">
-											<Button variant="ghost" size="sm" className="aira-pin-button size-8 rounded-xl p-0" aria-pressed={memory.pinned} disabled={busyId === memory.id} onClick={() => void togglePinned(memory)} title={memory.pinned ? "Unpin memory" : "Pin memory"}>{memory.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}</Button>
-											<Button variant="ghost" size="sm" className="size-8 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600" disabled={busyId === memory.id} onClick={() => void removeMemory(memory)} title="Delete memory"><Trash2 className="size-4" /></Button>
+											<Button variant="ghost" size="sm" className="size-8 rounded-lg p-0 text-[#6B6A75] hover:bg-[#FAF9F6] hover:text-[#111115]" aria-pressed={memory.pinned} disabled={busyId === memory.id} onClick={() => void togglePinned(memory)} title={memory.pinned ? "Unpin memory" : "Pin memory"}>{memory.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}</Button>
+											<Button variant="ghost" size="sm" className="size-8 rounded-lg p-0 text-red-500 hover:bg-red-50 hover:text-red-600" disabled={busyId === memory.id} onClick={() => void removeMemory(memory)} title="Delete memory"><Trash2 className="size-4" /></Button>
 										</div>
 									</div>
 								</article>

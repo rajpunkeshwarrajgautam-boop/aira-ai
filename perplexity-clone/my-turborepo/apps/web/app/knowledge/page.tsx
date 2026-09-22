@@ -4,6 +4,7 @@ import {
 	AlertTriangle,
 	Eye,
 	FileText,
+	FolderOpen,
 	Info,
 	Loader2,
 	RefreshCw,
@@ -57,6 +58,7 @@ export default function KnowledgePage() {
 	const [assets, setAssets] = useState<Asset[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [uploading, setUploading] = useState(false);
+	const [ingestionDisabled, setIngestionDisabled] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [isDragging, setIsDragging] = useState(false);
@@ -76,9 +78,18 @@ export default function KnowledgePage() {
 			const r = await fetch("/api/knowledge/library", { cache: "no-store" });
 			const d = (await r.json()) as {
 				assets?: Asset[];
-				error?: { message?: string };
+				error?: { code?: string; message?: string };
 			};
-			if (!r.ok) throw new Error(d.error?.message ?? "Knowledge workspace unavailable.");
+			if (!r.ok) {
+				if (d.error?.code === "MULTIMODAL_INGESTION_DISABLED" || r.status === 503) {
+					setIngestionDisabled(true);
+					setAssets([]);
+					setError(null);
+					return;
+				}
+				throw new Error(d.error?.message ?? "Knowledge workspace unavailable.");
+			}
+			setIngestionDisabled(false);
 			setAssets(d.assets ?? []);
 			setError(null);
 		} catch (e) {
@@ -203,10 +214,10 @@ export default function KnowledgePage() {
 						{/* Header */}
 						<div className="mb-7 flex flex-wrap items-end justify-between gap-4">
 							<div>
-								<p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-[#3A0CA3]">
-									Knowledge
-								</p>
-								<h1 className="text-2xl font-semibold tracking-[-.025em] text-[#111115] md:text-3xl">
+								<div className="flex items-center gap-2 text-xs font-semibold text-[#3A0CA3]">
+									<FolderOpen className="size-3.5" aria-hidden /> Knowledge
+								</div>
+								<h1 className="mt-2 text-2xl font-semibold tracking-[-.025em] text-[#111115] md:text-3xl">
 									Documents & Context Library
 								</h1>
 								<p className="mt-2 max-w-2xl text-sm leading-6 text-[#6B6A75]">
@@ -224,56 +235,74 @@ export default function KnowledgePage() {
 							</button>
 						</div>
 
-						{/* Drag and Drop Zone */}
-						<section
-							onDragEnter={handleDragEnter}
-							onDragOver={handleDragOver}
-							onDragLeave={handleDragLeave}
-							onDrop={handleDrop}
-							className={`mb-6 rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-								isDragging
-									? "border-[#3A0CA3] bg-[rgba(58,12,163,0.06)]"
-									: "border-[rgba(17,17,21,0.14)] bg-white shadow-xs hover:border-[#3A0CA3]/40 hover:bg-[#FAF9F6]"
-							}`}
-						>
-							<UploadCloud
-								className={`mx-auto size-8 transition ${
-									isDragging ? "text-[#3A0CA3] scale-110" : "text-[#3A0CA3]"
+						{/* Ingestion Status or Drag and Drop Zone */}
+						{ingestionDisabled ? (
+							<section className="mb-6 rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-6 shadow-xs">
+								<div className="flex items-start gap-4">
+									<span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] text-[#3A0CA3]">
+										<FolderOpen className="size-5" />
+									</span>
+									<div className="min-w-0 flex-1">
+										<h2 className="text-sm font-semibold text-[#111115]">
+											Document ingestion is not enabled on this deployment
+										</h2>
+										<p className="mt-1 text-xs leading-5 text-[#6B6A75]">
+											Multimodal and local document upload requires a configured embedding model and vector index. Research continues to leverage verified web sources, real-time live retrieval, and persistent user memory.
+										</p>
+									</div>
+								</div>
+							</section>
+						) : (
+							<section
+								onDragEnter={handleDragEnter}
+								onDragOver={handleDragOver}
+								onDragLeave={handleDragLeave}
+								onDrop={handleDrop}
+								className={`mb-6 rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
+									isDragging
+										? "border-[#3A0CA3] bg-[rgba(58,12,163,0.06)]"
+										: "border-[rgba(17,17,21,0.14)] bg-white shadow-xs hover:border-[#3A0CA3]/40 hover:bg-[#FAF9F6]"
 								}`}
-							/>
-							<h2 className="mt-3 text-base font-semibold text-[#111115]">
-								{isDragging ? "Drop your file here" : "Add knowledge assets"}
-							</h2>
-							<p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-[#6B6A75] sm:text-sm">
-								Drag and drop files here, or click to browse. Supports PDF, DOCX, Markdown, TXT,
-								CSV, JSON, and images up to 20 MB.
-							</p>
-							<input
-								ref={input}
-								type="file"
-								accept={ALLOWED_EXTENSIONS.join(",")}
-								className="hidden"
-								onChange={(e) => {
-									const f = e.target.files?.[0];
-									if (f) void upload(f);
-								}}
-							/>
-							<div className="mt-5 flex items-center justify-center gap-3">
-								<button
-									type="button"
-									disabled={uploading}
-									onClick={() => input.current?.click()}
-									className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] active:scale-[0.98] disabled:opacity-40"
-								>
-									{uploading ? (
-										<Loader2 className="size-4 animate-spin" />
-									) : (
-										<UploadCloud className="size-4" />
-									)}
-									{uploading ? "Ingesting…" : "Choose File"}
-								</button>
-							</div>
-						</section>
+							>
+								<UploadCloud
+									className={`mx-auto size-8 transition ${
+										isDragging ? "text-[#3A0CA3] scale-110" : "text-[#3A0CA3]"
+									}`}
+								/>
+								<h2 className="mt-3 text-base font-semibold text-[#111115]">
+									{isDragging ? "Drop your file here" : "Add knowledge assets"}
+								</h2>
+								<p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-[#6B6A75] sm:text-sm">
+									Drag and drop files here, or click to browse. Supports PDF, DOCX, Markdown, TXT,
+									CSV, JSON, and images up to 20 MB.
+								</p>
+								<input
+									ref={input}
+									type="file"
+									accept={ALLOWED_EXTENSIONS.join(",")}
+									className="hidden"
+									onChange={(e) => {
+										const f = e.target.files?.[0];
+										if (f) void upload(f);
+									}}
+								/>
+								<div className="mt-5 flex items-center justify-center gap-3">
+									<button
+										type="button"
+										disabled={uploading}
+										onClick={() => input.current?.click()}
+										className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] active:scale-[0.98] disabled:opacity-40"
+									>
+										{uploading ? (
+											<Loader2 className="size-4 animate-spin" />
+										) : (
+											<UploadCloud className="size-4" />
+										)}
+										{uploading ? "Ingesting…" : "Choose File"}
+									</button>
+								</div>
+							</section>
+						)}
 
 						{/* Notification Banners */}
 						{message ? (
@@ -386,7 +415,9 @@ export default function KnowledgePage() {
 							) : (
 								<div className="py-16 text-center text-sm text-[#6B6A75]">
 									<Info className="mx-auto mb-2 size-5 text-[#8F8E98]" />
-									No knowledge assets uploaded yet. Add documents above to augment research queries.
+									{ingestionDisabled
+										? "No local knowledge assets. Document ingestion is disabled on this deployment."
+										: "No knowledge assets uploaded yet. Add documents above to augment research queries."}
 								</div>
 							)}
 						</section>
@@ -457,14 +488,14 @@ export default function KnowledgePage() {
 
 								<div className="mt-5 space-y-4">
 									<div>
-										<p className="text-[11px] font-semibold uppercase tracking-wider text-[#3A0CA3]">
+										<p className="text-xs font-semibold text-[#3A0CA3]">
 											Status
 										</p>
 										<p className="mt-1 text-xs text-[#111115]">{previewAsset.status}</p>
 									</div>
 
 									<div>
-										<p className="text-[11px] font-semibold uppercase tracking-wider text-[#3A0CA3]">
+										<p className="text-xs font-semibold text-[#3A0CA3]">
 											Indexed Chunks
 										</p>
 										<p className="mt-1 text-xs text-[#111115]">
@@ -477,7 +508,7 @@ export default function KnowledgePage() {
 									</div>
 
 									<div>
-										<p className="text-[11px] font-semibold uppercase tracking-wider text-[#3A0CA3]">
+										<p className="text-xs font-semibold text-[#3A0CA3]">
 											Extracted Text Preview
 										</p>
 										<div className="mt-2 max-h-80 overflow-y-auto rounded-xl border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-4 text-xs leading-6 text-[#111115]">

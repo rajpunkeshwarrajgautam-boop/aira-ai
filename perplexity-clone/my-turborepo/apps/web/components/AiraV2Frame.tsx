@@ -55,7 +55,7 @@ function routeFromHref(href: string): string { return href.split(/[?#]/, 1)[0] |
 function isActivePath(pathname: string, href: string): boolean { const route = routeFromHref(href); return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(route + "/"); }
 
 function NavGroup({ label, items, pathname, onNavigate }: { readonly label: string; readonly items: readonly NavigationItem[]; readonly pathname: string; readonly onNavigate?: () => void }) {
-  return <div className="aira-v2-nav-group"><p className="aira-v2-nav-label">{label}</p>{items.map((item) => { const active = isActivePath(pathname, item.href); const Icon = item.icon; return <Link key={item.href} href={item.href} onClick={onNavigate} className={cn("aira-v2-nav-item", active && "is-active")} aria-current={active ? "page" : undefined}><span className="aira-v2-nav-icon"><Icon className="size-[18px]" strokeWidth={1.8} aria-hidden /></span><span className="aira-v2-nav-copy"><strong>{item.label}</strong><small>{item.description}</small></span></Link>; })}</div>;
+  return <div className="aira-v2-nav-group"><p className="aira-v2-nav-label">{label}</p>{items.map((item) => { const active = isActivePath(pathname, item.href); const Icon = item.icon; return <Link key={item.href} href={item.href} onClick={onNavigate} className={cn("aira-v2-nav-item", active && "is-active")} aria-current={active ? "page" : undefined}><span className="aira-v2-nav-icon"><Icon className="size-[17px]" strokeWidth={1.8} aria-hidden /></span><span className="aira-v2-nav-copy"><strong>{item.label}</strong></span></Link>; })}</div>;
 }
 
 export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
@@ -87,12 +87,11 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
     <aside className={cn("aira-v2-rail", mobileNavOpen && "is-mobile-open")} aria-label="AIRA workspace navigation">
       <div className="aira-v2-brand">
         <AiraLogo />
-        <div className="aira-v2-brand-copy"><span>AIRA AI</span><small>Intelligence OS</small></div>
         <button type="button" className="aira-v2-mobile-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><X className="size-4" /></button>
       </div>
       <nav className="aira-v2-nav" aria-label="Primary workspace">
-        <NavGroup label="Core Workspace" items={DISCOVER_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
-        <NavGroup label="Your Workspace" items={WORKSPACE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+        <NavGroup label="Core Workspaces" items={DISCOVER_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+        <NavGroup label="Workspace" items={WORKSPACE_NAV} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
         
         {/* Progressive disclosure for advanced workspaces */}
         <button
@@ -102,7 +101,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           aria-expanded={showAdvanced}
           aria-label={showAdvanced ? "Collapse advanced workspaces" : "Expand advanced workspaces"}
         >
-          <span>Advanced Workspaces</span>
+          <span>Advanced</span>
           <ChevronDown className={cn("size-3.5 transition-transform duration-200", showAdvanced && "rotate-180")} aria-hidden />
         </button>
 
@@ -115,7 +114,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
         ) : null}
       </nav>
       <button type="button" className="aira-v2-command-trigger" onClick={() => setPaletteOpen(true)}>
-        <Command className="size-[16px]" aria-hidden />
+        <Command className="size-[15px]" aria-hidden />
         <span>Quick switch</span>
         <kbd>⌘K</kbd>
       </button>
@@ -124,12 +123,11 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       <header className="aira-v2-topbar">
         <div className="aira-v2-topbar-title">
           <button type="button" className="aira-v2-mobile-menu" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}><Menu className="size-[18px]" /></button>
-          <span className="aira-v2-topbar-icon"><CurrentIcon className="size-[16px]" strokeWidth={1.9} aria-hidden /></span>
-          <div><strong>{current.label}</strong><small>{current.description}</small></div>
+          <span className="aira-v2-topbar-icon"><CurrentIcon className="size-[15px]" strokeWidth={1.9} aria-hidden /></span>
+          <div><h1 className="text-[13.5px] font-semibold text-[#111115] leading-tight">{current.label}</h1></div>
         </div>
         <div className="aira-v2-topbar-actions">
-          <span className="aira-v2-grounded-status"><span className="aira-v2-status-dot" aria-hidden />AIRA workspace</span>
-          <button type="button" className="aira-v2-topbar-command" onClick={() => setPaletteOpen(true)} aria-label="Open command palette"><Command className="size-[15px]" aria-hidden /><span>Navigate</span><kbd>⌘K</kbd></button>
+          <button type="button" className="aira-v2-topbar-command" onClick={() => setPaletteOpen(true)} aria-label="Open command palette"><Command className="size-[13px]" aria-hidden /><span>Search</span><kbd>⌘K</kbd></button>
           <UserMenu className="flex" />
         </div>
       </header>

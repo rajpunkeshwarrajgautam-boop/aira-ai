@@ -42,28 +42,35 @@ export function UsageIndicator({ className }: { className?: string }) {
 	const progress = Math.min(100, Math.max(0, (status.searchesUsed / Math.max(1, status.monthlySearchLimit)) * 100));
 
 	return (
-		<div className={cn("aira-glass flex flex-col gap-3 rounded-2xl p-4", className)}>
-			<div className="flex items-center justify-between gap-3">
-				<div className="flex items-center gap-2.5">
+		<div className={cn("flex flex-col gap-2.5 rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3 shadow-xs", className)}>
+			<div className="flex items-center justify-between gap-2.5">
+				<div className="flex items-center gap-2">
 					<div className={cn(
-						"flex size-8 items-center justify-center rounded-xl shadow-sm",
-						isLimitExceeded ? "bg-red-500/15 text-red-500" : "bg-gradient-to-br from-accent/15 to-violet-500/10 text-accent"
+						"flex size-7 items-center justify-center rounded-lg",
+						isLimitExceeded ? "bg-red-50 text-red-600 border border-red-200" : "bg-[#3A0CA3]/[0.08] text-[#3A0CA3]"
 					)}>
-						{isLimitExceeded ? <AlertCircle className="size-4" /> : <Zap className="size-4" />}
+						{isLimitExceeded ? <AlertCircle className="size-3.5" /> : <Zap className="size-3.5" />}
 					</div>
 					<div>
-						<p className="text-[13px] font-semibold text-content-primary">{isFree ? "Free Plan" : `${status.billingPlan} Plan`}</p>
-						<p className="text-[11px] text-content-tertiary">{status.searchesRemaining} searches left this month</p>
-						{status.monthlyAgentRunLimit > 0 ? <p className="text-[11px] text-content-tertiary">{status.agentRunsRemaining} agent tasks left</p> : null}
+						<p className="text-[12px] font-semibold text-[#111115]">{isFree ? "Free Plan" : `${status.billingPlan} Plan`}</p>
+						<p className="text-[10px] text-[#6B6A75]">{status.searchesRemaining} searches left</p>
 					</div>
 				</div>
 				{isFree ? (
-					<a href="/upgrade" className="aira-shine-button inline-flex h-8 items-center justify-center rounded-lg bg-accent px-3 text-[11px] font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-accent/90 active:scale-95">Upgrade</a>
+					<a href="/upgrade" className="inline-flex h-7 items-center justify-center rounded-lg bg-[#3A0CA3] px-2.5 text-[10px] font-semibold text-white shadow-xs transition hover:bg-[#2D0A82]">
+						Upgrade
+					</a>
 				) : null}
 			</div>
 
-			<div className="aira-progress-track relative h-1.5 w-full overflow-hidden rounded-full bg-surface-inset">
-				<div className={cn("h-full rounded-full transition-all duration-500", isLimitExceeded ? "bg-red-500" : isLimitLow ? "bg-gradient-to-r from-orange-400 to-amber-500" : "bg-gradient-to-r from-accent to-violet-500")} style={{ width: `${progress}%` }} />
+			<div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[#F2F0E8]">
+				<div
+					className={cn(
+						"h-full rounded-full transition-all duration-500",
+						isLimitExceeded ? "bg-red-500" : isLimitLow ? "bg-[#FF6B6B]" : "bg-[#3A0CA3]"
+					)}
+					style={{ width: `${progress}%` }}
+				/>
 			</div>
 		</div>
 	);

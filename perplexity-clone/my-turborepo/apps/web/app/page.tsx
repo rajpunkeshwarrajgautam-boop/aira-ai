@@ -1,11 +1,9 @@
 import { Suspense } from "react";
 
-import "./aira-reference.css";
 import "./impeccable-polish.css";
 import "./impeccable-chat-v2.css";
 import "./aira-v2.css";
 import "./aira-visual-redesign.css";
-import { AiraPreloader } from "../components/AiraPreloader";
 import { AiraV2Frame } from "../components/AiraV2Frame";
 import { SearchLayout } from "../components/SearchLayout";
 
@@ -27,7 +25,6 @@ function HomeSkeleton() {
 export default function Home() {
   return (
     <div className="aira-home aira-v2-page min-h-dvh">
-      <AiraPreloader />
       <AiraV2Frame>
         <Suspense fallback={<HomeSkeleton />}>
           <SearchLayout />

@@ -549,21 +549,6 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							HyperResearch™
 						</button>
 
-						<Link
-							href="/agents"
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] px-2.5 text-[11px] font-medium text-[#6B6A75] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8] hover:text-[#111115] md:flex"
-						>
-							<WandSparkles className="size-3.5 text-[#3A0CA3]" strokeWidth={1.6} />
-							Swarms
-						</Link>
-						<Link
-							href="/omniroute"
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] px-2.5 text-[11px] font-medium text-[#6B6A75] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8] hover:text-[#111115] lg:flex"
-						>
-							<Network className="size-3.5 text-[#3A0CA3]" strokeWidth={1.6} />
-							Cortex Engine
-						</Link>
-
 						<button
 							type="button"
 							onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}

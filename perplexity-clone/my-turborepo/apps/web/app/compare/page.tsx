@@ -338,10 +338,10 @@ export default function ComparePage() {
 					<div className="mx-auto max-w-[1500px]">
 						<div className="mb-7 flex flex-wrap items-end justify-between gap-4">
 							<div>
-								<p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#3A0CA3]">
-									Evaluation lab
-								</p>
-								<h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#111115] md:text-3xl">
+								<div className="flex items-center gap-2 text-xs font-semibold text-[#3A0CA3]">
+									<Scale className="size-3.5" aria-hidden /> Evaluation lab
+								</div>
+								<h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-[#111115] md:text-3xl">
 									Compare models side by side
 								</h1>
 								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#6B6A75]">
@@ -349,7 +349,7 @@ export default function ComparePage() {
 								</p>
 							</div>
 							<div className="rounded-full border border-[rgba(17,17,21,0.08)] bg-white px-3 py-1.5 text-xs text-[#6B6A75] shadow-2xs">
-								{choices.length} targets available
+								{choices.length} {choices.length === 1 ? "target" : "targets"} available
 							</div>
 						</div>
 
@@ -357,9 +357,9 @@ export default function ComparePage() {
 							<div className="grid gap-3 lg:grid-cols-3">
 								{[0, 1, 2].map((index) => (
 									<label key={index} className="block">
-										<span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B6A75]">
+										<span className="mb-1.5 block text-xs font-medium text-[#6B6A75]">
 											Target {index + 1}
-											{index === 2 ? " · optional" : ""}
+											{index === 2 ? " (optional)" : ""}
 										</span>
 										<select
 											value={slots[index]}
@@ -400,9 +400,11 @@ export default function ComparePage() {
 								placeholder="Enter one prompt to test across models…"
 								className="mt-4 w-full resize-y rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-4 py-3 text-sm leading-6 text-[#111115] outline-none placeholder:text-[#8F8E98] focus:border-[#3A0CA3] disabled:opacity-70"
 							/>
-							<div className="mt-3 flex items-center justify-between gap-3">
+							<div className="mt-3 flex flex-wrap items-center justify-between gap-3">
 								<p className="text-xs text-[#6B6A75]">
-									Select two or three distinct model targets. Completed columns stay visible even if another target fails.
+									{choices.length < 2
+										? "At least two distinct model targets are required to compare."
+										: "Select two or three distinct model targets. Completed columns stay visible even if another target fails."}
 								</p>
 								<button
 									type="button"
@@ -413,7 +415,7 @@ export default function ComparePage() {
 										uniqueSelectionCount !== selectedChoices.length ||
 										prompt.trim().length < 2
 									}
-									className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] disabled:opacity-40"
+									className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2 text-sm font-medium text-white shadow-xs transition hover:bg-[#2D0A82] disabled:cursor-not-allowed disabled:border disabled:border-[rgba(17,17,21,0.08)] disabled:bg-[rgba(17,17,21,0.04)] disabled:text-[#8F8E98]"
 								>
 									{loading ? (
 										<Loader2 className="size-4 animate-spin" />
@@ -505,8 +507,18 @@ export default function ComparePage() {
 								);
 							})}
 							{!results.length && !loading ? (
-								<div className="rounded-2xl border border-dashed border-[rgba(17,17,21,0.15)] bg-white/50 px-6 py-16 text-center text-sm text-[#6B6A75] xl:col-span-3">
-									Comparison results appear here.
+								<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-12 text-center shadow-xs xl:col-span-3">
+									<div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] text-[#6B6A75]">
+										<Scale className="size-5" />
+									</div>
+									<p className="mt-4 text-sm font-semibold text-[#111115]">
+										{choices.length < 2 ? "Additional model targets required" : "No active comparison"}
+									</p>
+									<p className="mx-auto mt-1 max-w-md text-xs leading-5 text-[#6B6A75]">
+										{choices.length < 2
+											? `Only ${choices.length} model target is configured in this deployment (${choices[0]?.label ?? "AIRA"}). Side-by-side comparison requires at least two distinct targets. Configure additional provider API keys in Settings to unlock multi-model benchmarking.`
+											: "Select two or three model targets above and enter a prompt to compare latency, streaming tokens, and reasoning quality side by side."}
+									</p>
 								</div>
 							) : null}
 						</section>

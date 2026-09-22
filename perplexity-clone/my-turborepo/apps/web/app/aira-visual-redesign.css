@@ -305,12 +305,12 @@ body,
 }
 
 .aira-intelligence-os .aira-v2-nav-label {
-  font-family: var(--font-telemetry) !important;
-  font-size: 9.5px !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
-  letter-spacing: 0.09em !important;
-  text-transform: uppercase !important;
-  color: var(--aira-text-2) !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+  color: #8F8E98 !important;
   padding: 4px 10px 6px !important;
 }
 
@@ -413,11 +413,11 @@ body,
   border: 1px dashed var(--aira-border-mid) !important;
   background: transparent !important;
   color: var(--aira-text-2) !important;
-  font-family: var(--font-telemetry) !important;
-  font-size: 10px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.05em !important;
-  text-transform: uppercase !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
   cursor: pointer !important;
   transition: all 160ms var(--smooth-ease) !important;
 }
