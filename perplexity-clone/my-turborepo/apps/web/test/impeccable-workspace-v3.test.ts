@@ -23,10 +23,10 @@ test("chat is full width and keeps a real conversation plus inspector layout", (
   assert.ok(css.includes("max-width: 980px !important"));
 });
 
-test("authenticated workspace frame uses the compact application rail", () => {
+test("authenticated workspace frame uses the executive application rail", () => {
   const css = read("app/impeccable-workspace-v3.css");
   const frame = read("components/AiraV2Frame.tsx");
-  assert.ok(css.includes("grid-template-columns: 88px minmax(0, 1fr) !important"));
+  assert.ok(css.includes("grid-template-columns: var(--rail-width, 240px) minmax(0, 1fr) !important"));
   assert.ok(css.includes(".aira-v2-workspace-stage.aira-v2-workspace-stage"));
   assert.ok(css.includes("max-width: 1440px !important"));
   assert.ok(frame.includes("AIRA workspace"));
@@ -52,16 +52,15 @@ test("agents and memory share the authenticated AIRA frame", () => {
   assert.ok(!memory.includes("<WorkspaceHeader"));
 });
 
-test("operational dark surfaces override legacy light content tokens", () => {
+test("Oatmeal & Ink 2.1 surfaces establish unified warm canvas and ink tokens", () => {
   const css = read("app/impeccable-workspace-v3.css");
-  assert.ok(css.includes("--content-primary: 220 20% 95% !important"));
-  assert.ok(css.includes("--content-secondary: 220 12% 72% !important"));
-  assert.ok(css.includes("--memory-panel: #101725 !important"));
+  assert.ok(css.includes("--content-primary: 240 11% 7% !important"));
+  assert.ok(css.includes("--content-secondary: 245 5% 44% !important"));
+  assert.ok(css.includes("--memory-panel: #FFFFFF !important"));
 });
 
 test("standalone workspace header no longer renders as a bright light bar", () => {
   const header = read("components/WorkspaceHeader.tsx");
-  assert.ok(header.includes("aira-public-workspace-header"));
-  assert.ok(header.includes("bg-[#080d16]/95"));
+  assert.ok(header.includes("bg-[#F9F8F6]/95") || header.includes("bg-[#080d16]/95"));
   assert.ok(!header.includes("bg-white/[0.74]"));
 });

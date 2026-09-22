@@ -3,23 +3,23 @@
    Legacy workspace CSS remains underneath until each domain is migrated. */
 
 .aira-intelligence-os {
-  --aira-canvas: #0c0d10;
-  --aira-surface: #121418;
-  --aira-surface-raised: #181a20;
-  --aira-surface-muted: #1e2027;
-  --aira-text-primary: #f5f4ef;
-  --aira-text-secondary: #bab8b1;
-  --aira-text-muted: #7d7c77;
-  --aira-border: rgba(245, 244, 239, 0.08);
-  --aira-border-strong: rgba(245, 244, 239, 0.16);
-  --aira-accent: #d4af37;
-  --aira-accent-hover: #e5c158;
-  --aira-accent-soft: rgba(212, 175, 55, 0.12);
-  --aira-accent-border: rgba(212, 175, 55, 0.32);
-  --aira-success: #52b77a;
-  --aira-warning: #e0a345;
-  --aira-danger: #d95f5f;
-  --aira-info: #809bf0;
+  --aira-canvas: #F9F8F6;
+  --aira-surface: #FFFFFF;
+  --aira-surface-raised: #FFFFFF;
+  --aira-surface-muted: #F3F1EC;
+  --aira-text-primary: #111115;
+  --aira-text-secondary: #6B6A75;
+  --aira-text-muted: #8F8E98;
+  --aira-border: rgba(17, 17, 21, 0.08);
+  --aira-border-strong: rgba(17, 17, 21, 0.14);
+  --aira-accent: #3A0CA3;
+  --aira-accent-hover: #2D0A82;
+  --aira-accent-soft: rgba(58, 12, 163, 0.08);
+  --aira-accent-border: rgba(58, 12, 163, 0.25);
+  --aira-success: #10B981;
+  --aira-warning: #D97706;
+  --aira-danger: #DC2626;
+  --aira-info: #3A0CA3;
   --aira-radius-sm: 6px;
   --aira-radius-md: 9px;
   --aira-radius-lg: 12px;
@@ -30,23 +30,23 @@
   --aira-motion-fast: 140ms;
   --aira-motion-normal: 180ms;
   color: var(--aira-text-primary);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
-/* Token contract for a future explicit warm-paper light theme. Do not
-   auto-switch yet because legacy feature workspaces still contain dark-only
-   hardcoded surfaces and mixed theme output would be less accessible. */
 .aira-intelligence-os[data-aira-theme="light"] {
-  --aira-canvas: #f5f2eb;
-  --aira-surface: #fbf9f4;
-  --aira-surface-raised: #ffffff;
-  --aira-surface-muted: #eeebe4;
-  --aira-text-primary: #1d1e21;
-  --aira-text-secondary: #4c4d51;
-  --aira-text-muted: #77756f;
-  --aira-border: rgba(29, 30, 33, 0.10);
-  --aira-border-strong: rgba(29, 30, 33, 0.18);
-  --aira-accent-soft: rgba(37, 60, 192, 0.08);
+  --aira-canvas: #F9F8F6;
+  --aira-surface: #FFFFFF;
+  --aira-surface-raised: #FFFFFF;
+  --aira-surface-muted: #F3F1EC;
+  --aira-text-primary: #111115;
+  --aira-text-secondary: #6B6A75;
+  --aira-text-muted: #8F8E98;
+  --aira-border: rgba(17, 17, 21, 0.08);
+  --aira-border-strong: rgba(17, 17, 21, 0.14);
+  --aira-accent: #3A0CA3;
+  --aira-accent-hover: #2D0A82;
+  --aira-accent-soft: rgba(58, 12, 163, 0.08);
+  --aira-accent-border: rgba(58, 12, 163, 0.25);
   color-scheme: light;
 }
 
@@ -264,7 +264,7 @@
 .aira-capability-gate__eyebrow {
   border-bottom: 1px solid var(--aira-border);
   padding: 12px 20px;
-  color: #8999ef;
+  color: var(--aira-accent, #3A0CA3);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .13em;
@@ -310,10 +310,10 @@
   font-weight: 600;
 }
 
-.aira-capability-state.is-available { color: #8bc699; }
-.aira-capability-state.is-offline { color: #e0b66a; }
+.aira-capability-state.is-available { color: #166534; background: #f0fdf4; border-color: rgba(22, 101, 52, 0.2); }
+.aira-capability-state.is-offline { color: #854d0e; background: #fefce8; border-color: rgba(133, 77, 14, 0.2); }
 .aira-capability-state.is-unsupported,
-.aira-capability-state.is-permission-required { color: #d89a83; }
+.aira-capability-state.is-permission-required { color: #991b1b; background: #fef2f2; border-color: rgba(153, 27, 27, 0.2); }
 
 .aira-capability-gate__body {
   border-top: 1px solid var(--aira-border);
@@ -436,7 +436,7 @@
 }
 
 .aira-os-panel__header span {
-  color: #8999ef;
+  color: var(--aira-accent, #3A0CA3);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .11em;

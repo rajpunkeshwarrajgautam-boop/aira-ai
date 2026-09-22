@@ -334,30 +334,30 @@ export default function ComparePage() {
 	return (
 		<div className="aira-v2-page">
 			<AiraV2Frame>
-				<main className="min-h-[calc(100dvh-58px)] bg-[#0a0c0f] px-5 py-7 md:px-8">
+				<main className="min-h-[calc(100dvh-58px)] bg-[var(--aira-canvas,#F9F8F6)] px-5 py-7 text-[#111115] md:px-8">
 					<div className="mx-auto max-w-[1500px]">
 						<div className="mb-7 flex flex-wrap items-end justify-between gap-4">
 							<div>
-								<p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#a98b43]">
+								<p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#3A0CA3]">
 									Evaluation lab
 								</p>
-								<h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ee] md:text-3xl">
+								<h1 className="text-2xl font-semibold tracking-[-0.025em] text-[#111115] md:text-3xl">
 									Compare models side by side
 								</h1>
-								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#8b9098]">
+								<p className="mt-2 max-w-3xl text-sm leading-6 text-[#6B6A75]">
 									Compare OmniRoute routing modes against one another, fixed models from the live registry, or AIRA&apos;s direct fallback providers. Each target streams and completes independently.
 								</p>
 							</div>
-							<div className="rounded-full border border-white/[0.08] bg-[#111419] px-3 py-1.5 text-xs text-[#8b9098]">
+							<div className="rounded-full border border-[rgba(17,17,21,0.08)] bg-white px-3 py-1.5 text-xs text-[#6B6A75] shadow-2xs">
 								{choices.length} targets available
 							</div>
 						</div>
 
-						<section className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-4 md:p-5">
+						<section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs md:p-5">
 							<div className="grid gap-3 lg:grid-cols-3">
 								{[0, 1, 2].map((index) => (
 									<label key={index} className="block">
-										<span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-[#747981]">
+										<span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B6A75]">
 											Target {index + 1}
 											{index === 2 ? " · optional" : ""}
 										</span>
@@ -365,7 +365,7 @@ export default function ComparePage() {
 											value={slots[index]}
 											onChange={(event) => updateSlot(index, event.target.value)}
 											disabled={initializing || loading}
-											className="h-11 w-full rounded-xl border border-white/[0.09] bg-[#0b0d10] px-3 text-xs text-[#e2e2de] outline-none focus:border-[#c9a84c]/45 disabled:opacity-40"
+											className="h-11 w-full rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-3 text-xs text-[#111115] outline-none focus:border-[#3A0CA3] disabled:opacity-40"
 										>
 											<option value="">Choose a target</option>
 											{choices.map((choice) => (
@@ -375,7 +375,7 @@ export default function ComparePage() {
 											))}
 										</select>
 										{slots[index] ? (
-											<span className="mt-1 block truncate text-[10px] text-[#666c74]">
+											<span className="mt-1 block truncate text-[10px] text-[#6B6A75]">
 												{choices.find((choice) => choice.key === slots[index])?.detail}
 											</span>
 										) : null}
@@ -383,12 +383,12 @@ export default function ComparePage() {
 								))}
 							</div>
 							{registryWarning ? (
-								<p className="mt-3 rounded-lg border border-amber-400/15 bg-amber-400/[0.05] px-3 py-2 text-xs text-amber-100">
+								<p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-xs text-amber-900">
 									{registryWarning}
 								</p>
 							) : null}
 							{uniqueSelectionCount !== selectedChoices.length ? (
-								<p className="mt-3 text-xs text-amber-200">
+								<p className="mt-3 text-xs text-amber-700">
 									Choose distinct targets for each column.
 								</p>
 							) : null}
@@ -398,10 +398,10 @@ export default function ComparePage() {
 								disabled={loading}
 								rows={5}
 								placeholder="Enter one prompt to test across models…"
-								className="mt-4 w-full resize-y rounded-xl border border-white/[0.09] bg-[#0b0d10] px-4 py-3 text-sm leading-6 text-[#f0f0ec] outline-none placeholder:text-[#5e636b] focus:border-[#c9a84c]/45 disabled:opacity-70"
+								className="mt-4 w-full resize-y rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-4 py-3 text-sm leading-6 text-[#111115] outline-none placeholder:text-[#8F8E98] focus:border-[#3A0CA3] disabled:opacity-70"
 							/>
 							<div className="mt-3 flex items-center justify-between gap-3">
-								<p className="text-xs text-[#6f747c]">
+								<p className="text-xs text-[#6B6A75]">
 									Select two or three distinct model targets. Completed columns stay visible even if another target fails.
 								</p>
 								<button
@@ -413,7 +413,7 @@ export default function ComparePage() {
 										uniqueSelectionCount !== selectedChoices.length ||
 										prompt.trim().length < 2
 									}
-									className="inline-flex items-center gap-2 rounded-xl bg-[#d0ae55] px-4 py-2.5 text-sm font-semibold text-[#111214] transition hover:bg-[#dfbd63] disabled:opacity-40"
+									className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] disabled:opacity-40"
 								>
 									{loading ? (
 										<Loader2 className="size-4 animate-spin" />
@@ -425,7 +425,7 @@ export default function ComparePage() {
 							</div>
 							{message ? (
 								<p
-									className="mt-3 rounded-lg border border-red-400/15 bg-red-400/[0.06] px-3 py-2 text-sm text-red-200"
+									className="mt-3 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-sm text-red-800"
 									role="alert"
 								>
 									{message}
@@ -439,45 +439,45 @@ export default function ComparePage() {
 								return (
 									<article
 										key={result.targetId}
-										className="min-h-[360px] rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"
+										className="min-h-[360px] rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs"
 									>
-										<header className="mb-4 flex items-start justify-between gap-3 border-b border-white/[0.07] pb-4">
+										<header className="mb-4 flex items-start justify-between gap-3 border-b border-[rgba(17,17,21,0.08)] pb-4">
 											<div className="flex min-w-0 items-center gap-3">
-												<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#191d23] text-[#c9a84c]">
+												<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[rgba(58,12,163,0.08)] text-[#3A0CA3]">
 													<Scale className="size-4" />
 												</span>
 												<div className="min-w-0">
-													<h2 className="text-sm font-semibold text-[#f0f0ed]">
+													<h2 className="text-sm font-semibold text-[#111115]">
 														{providers.find((provider) => provider.id === result.providerId)?.label ?? result.providerId}
 													</h2>
-													<p className="mt-0.5 truncate text-[11px] text-[#70757d]">
+													<p className="mt-0.5 truncate text-[11px] text-[#6B6A75]">
 														{result.model}
 													</p>
 												</div>
 											</div>
 											<div className="flex shrink-0 items-center gap-2">
 												{inProgress ? (
-													<span className="inline-flex items-center gap-1.5 text-[11px] text-[#9da2aa]">
-														<Loader2 className="size-3 animate-spin" />
+													<span className="inline-flex items-center gap-1.5 text-[11px] text-[#6B6A75]">
+														<Loader2 className="size-3 animate-spin text-[#3A0CA3]" />
 														{result.status === "streaming" ? "Streaming" : "Waiting"}
 													</span>
 												) : result.status === "success" && result.latencyMs !== undefined ? (
-													<span className="text-[11px] tabular-nums text-[#70757d]">
+													<span className="text-[11px] tabular-nums text-[#6B6A75]">
 														{(result.latencyMs / 1000).toFixed(1)}s
 													</span>
 												) : (
-													<span className="text-[11px] text-red-300">Failed</span>
+													<span className="text-[11px] font-medium text-red-600">Failed</span>
 												)}
 												{result.text ? (
 													<button
 														type="button"
 														onClick={() => void copyResult(result)}
-														className="grid size-8 place-items-center rounded-lg border border-white/[0.08] text-[#858a92] transition hover:bg-white/[0.04] hover:text-[#e6e7e4]"
+														className="grid size-8 place-items-center rounded-lg border border-[rgba(17,17,21,0.08)] text-[#6B6A75] transition hover:bg-[#FAF9F6] hover:text-[#111115]"
 														aria-label={`Copy ${result.model} response`}
 														title="Copy response"
 													>
 														{copiedTargetId === result.targetId ? (
-															<Check className="size-3.5" />
+															<Check className="size-3.5 text-emerald-600" />
 														) : (
 															<Copy className="size-3.5" />
 														)}
@@ -486,18 +486,18 @@ export default function ComparePage() {
 											</div>
 										</header>
 										{result.text ? (
-											<div className="whitespace-pre-wrap text-sm leading-7 text-[#cfd1d3]">
+											<div className="whitespace-pre-wrap text-sm leading-7 text-[#111115]">
 												{result.text}
 											</div>
 										) : result.status === "error" ? (
-											<p className="text-sm leading-6 text-red-200">{result.error}</p>
+											<p className="text-sm leading-6 text-red-700">{result.error}</p>
 										) : (
-											<div className="flex min-h-40 items-center justify-center text-sm text-[#666c74]">
+											<div className="flex min-h-40 items-center justify-center text-sm text-[#6B6A75]">
 												{result.status === "streaming" ? "Waiting for the first output…" : "Starting target…"}
 											</div>
 										)}
 										{result.status === "error" && result.text ? (
-											<p className="mt-4 border-t border-white/[0.07] pt-4 text-xs leading-5 text-red-200">
+											<p className="mt-4 border-t border-[rgba(17,17,21,0.08)] pt-4 text-xs leading-5 text-red-700">
 												{result.error}
 											</p>
 										) : null}
@@ -505,7 +505,7 @@ export default function ComparePage() {
 								);
 							})}
 							{!results.length && !loading ? (
-								<div className="rounded-2xl border border-dashed border-white/[0.09] px-6 py-16 text-center text-sm text-[#666c74] xl:col-span-3">
+								<div className="rounded-2xl border border-dashed border-[rgba(17,17,21,0.15)] bg-white/50 px-6 py-16 text-center text-sm text-[#6B6A75] xl:col-span-3">
 									Comparison results appear here.
 								</div>
 							) : null}
