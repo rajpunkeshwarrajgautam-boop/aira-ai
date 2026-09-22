@@ -3,7 +3,7 @@
 > **Master Execution Directive**: Oatmeal & Ink 2.0  
 > **Repository**: `rajpunkeshwarrajgautam-boop/aira-ai`  
 > **Current Branch**: `integration/aira-oatmeal-ink-v2`  
-> **Current Commit SHA**: `cb6f21e0`  
+> **Current Commit SHA**: `b171ead7`  
 > **Production Baseline**: `dpl_9dFaD2egKpx8wBf8kgoX8MxNJvfi` (`fb68d016`)
 
 ---
@@ -14,8 +14,8 @@
 | :--- | :--- | :--- | :--- |
 | **Phase 0** | Secure the Current Baseline & Isolated Worktree | ✅ **COMPLETED** | None |
 | **Phase 1** | Correct the Seven Verified Defects (D1–D7) | ✅ **COMPLETED** | None |
-| **Phase 2** | Oatmeal & Ink 2.0 Design Transformation | 🔄 **IN PROGRESS** | None |
-| **Phase 3** | Core Functional Completion (Search, SSE, Memory) | ⏳ **PENDING** | Depends on Phase 2 |
+| **Phase 2** | Oatmeal & Ink 2.0 Design Transformation | ✅ **COMPLETED** | None |
+| **Phase 3** | Core Functional Completion (Search, SSE, Memory) | 🔄 **IN PROGRESS** | None |
 | **Phase 4** | Advanced Capability Completion (Knowledge, Work) | ⏳ **PENDING** | Depends on Phase 3 |
 | **Phase 5** | Release Verification & Candidate Preparation | ⏳ **PENDING** | Depends on Phase 4 |
 
@@ -35,8 +35,30 @@
 
 ---
 
-## 3. Active Checkpoint & Next Action
+## 3. Phase 2: Oatmeal & Ink 2.0 Visual Verification Evidence
 
-- **Current Checkpoint**: Phase 1 verified, regression tests passing (7/7), commit `cb6f21e0` recorded.
-- **Immediate Next Action**: Phase 2 — Oatmeal & Ink 2.0 visual system implementation.
+| Viewport / Page | Target Dimension | Visual Verification Evidence | Status |
+| :--- | :--- | :--- | :--- |
+| **Research Home Desktop** | 1440 × 900 | [`docs/aira/oatmeal-ink-v2/screenshots/research_home_desktop_1440x900.png`](file:///c:/Users/WORKSTATION/aira-ai-v5.1/docs/aira/oatmeal-ink-v2/screenshots/research_home_desktop_1440x900.png) | ✅ PASS |
+| **Research Home Tablet** | 768 × 1024 | [`docs/aira/oatmeal-ink-v2/screenshots/research_home_tablet_768x1024.png`](file:///c:/Users/WORKSTATION/aira-ai-v5.1/docs/aira/oatmeal-ink-v2/screenshots/research_home_tablet_768x1024.png) | ✅ PASS |
+| **Research Home Mobile** | 375 × 812 | [`docs/aira/oatmeal-ink-v2/screenshots/research_home_mobile_375x812.png`](file:///c:/Users/WORKSTATION/aira-ai-v5.1/docs/aira/oatmeal-ink-v2/screenshots/research_home_mobile_375x812.png) | ✅ PASS |
+| **Sign-In Stage Desktop** | 1440 × 900 | [`docs/aira/oatmeal-ink-v2/screenshots/signin_desktop_1440x900.png`](file:///c:/Users/WORKSTATION/aira-ai-v5.1/docs/aira/oatmeal-ink-v2/screenshots/signin_desktop_1440x900.png) | ✅ PASS |
+| **Sign-In Stage Mobile** | 375 × 812 | [`docs/aira/oatmeal-ink-v2/screenshots/signin_mobile_375x812.png`](file:///c:/Users/WORKSTATION/aira-ai-v5.1/docs/aira/oatmeal-ink-v2/screenshots/signin_mobile_375x812.png) | ✅ PASS |
+
+Key Elements Delivered:
+- **Design Tokens**: 60% quiet oatmeal canvas (`#F9F8F6`), 30% crisp white surfaces (`#FFFFFF`), 10% Royal Iris (`#3A0CA3`) and Warm Coral (`#FF6B6B`), deep ink typography (`#111115`, `#6B6A75`, `#8F8E98`).
+- **Research Home**: Centered greeting and hero composer above the fold. Cluttered dark bento boxes eliminated. Exactly three starter prompts (`Market Research`, `Security Audit`, `Architecture`).
+- **Auth Transformation**: Retired dark cosmic astronaut auth; deployed Oatmeal & Ink 2.0 dual-panel editorial login stage.
+- **Accessibility & Touch Targets**: 44px minimum touch targets enforced and verified (`test/mobile-touch-targets.test.ts`).
+
+---
+
+## 4. Active Checkpoint & Next Action
+
+- **Current Checkpoint**: Phase 2 completed and committed (`b171ead7`). Real responsive screenshots verified.
+- **Immediate Next Action**: Phase 3 — Core Functional Completion:
+  - Standard Search & SSE streaming query flow
+  - Citation mapping and source cards verification
+  - Thread persistence and session restoration
+
 
