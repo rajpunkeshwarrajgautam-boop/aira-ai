@@ -306,12 +306,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			{ method: "GET" },
 		);
 		setConversations(rows.conversations);
-		setSelectedConversationId((prev) =>
-			prev && rows.conversations.some((conversation) => conversation.id === prev)
-				? prev
-				: null,
-		);
-	}, [apiFetchJson]);
+		setSelectedConversationId((prev) => {
+			const convParam = searchParams.get("conversation")?.trim() || searchParams.get("thread")?.trim();
+			const target = prev || convParam;
+			return target && rows.conversations.some((conversation) => conversation.id === target)
+				? target
+				: target || null;
+		});
+	}, [apiFetchJson, searchParams]);
 
 	const fetchMessagesForConversation = useCallback(
 		async (conversationId: string) => {
@@ -324,6 +326,30 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			setParentMessageId(lastAssistant?.id);
 		},
 		[apiFetchJson],
+	);
+
+	const onSelectConversation = useCallback(
+		async (id: string) => {
+			if (busy) return;
+			if (sessionStatus !== "authenticated") return;
+			setSelectedConversationId(id);
+			setShareContext(null);
+			try {
+				const meta = await apiFetchJson<{
+					readonly conversation: { readonly id: string; readonly title: string };
+				}>(`/api/conversations/${encodeURIComponent(id)}`, { method: "GET" });
+				setSelectedConversationTitle(meta.conversation.title);
+			} catch {
+				setSelectedConversationTitle(null);
+			}
+			setStreamingUserQuery(null);
+			setStreamingAssistantMarkdown(null);
+			setStreamingCitations([]);
+			await fetchMessagesForConversation(id);
+			setErrorMessage(null);
+			setPhase("idle");
+		},
+		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
 	);
 
 	const createConversation = useCallback(
@@ -382,6 +408,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		}, 0);
 		return () => window.clearTimeout(id);
 	}, [sessionStatus, searchParams, busy]);
+
+	useEffect(() => {
+		if (sessionStatus !== "authenticated" || busy) return;
+		const convParam = searchParams.get("conversation")?.trim() || searchParams.get("thread")?.trim();
+		if (!convParam) return;
+		if (convParam === selectedConversationId) return;
+
+		void onSelectConversation(convParam);
+	}, [busy, onSelectConversation, searchParams, selectedConversationId, sessionStatus]);
 
 	useEffect(() => {
 		if (sessionStatus !== "authenticated") return;
@@ -981,29 +1016,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		phase,
 	]);
 
-	const onSelectConversation = useCallback(
-		async (id: string) => {
-			if (busy) return;
-			if (sessionStatus !== "authenticated") return;
-			setSelectedConversationId(id);
-			setShareContext(null);
-			try {
-				const meta = await apiFetchJson<{
-					readonly conversation: { readonly id: string; readonly title: string };
-				}>(`/api/conversations/${encodeURIComponent(id)}`, { method: "GET" });
-				setSelectedConversationTitle(meta.conversation.title);
-			} catch {
-				setSelectedConversationTitle(null);
-			}
-			setStreamingUserQuery(null);
-			setStreamingAssistantMarkdown(null);
-			setStreamingCitations([]);
-			await fetchMessagesForConversation(id);
-			setErrorMessage(null);
-			setPhase("idle");
-		},
-		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
-	);
 
 	const isProviderAvailabilityError = errorCode?.startsWith("UPSTREAM_") ?? false;
 	const currentErrorTitle = searchErrorTitle(errorCode, limitErrorAction, isAuthed);

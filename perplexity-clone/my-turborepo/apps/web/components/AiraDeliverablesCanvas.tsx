@@ -44,37 +44,7 @@ export interface AiraDeliverablesCanvasProps {
 	readonly className?: string;
 }
 
-const DEFAULT_STEPS: readonly SwarmExecutionStep[] = [
-	{
-		id: "step-1",
-		title: "Objective Vectorization & Scope Analysis",
-		status: "completed",
-		detail: "Decomposed research intent across technical benchmarks, IDOR security posture, and SLA tiers.",
-		timestamp: "0.2s",
-	},
-	{
-		id: "step-2",
-		title: "Multi-Hop Web Crawl & Source Triangulation",
-		status: "completed",
-		detail: "Crawled 48 authoritative endpoints with zero-data-retention isolation.",
-		timestamp: "0.8s",
-		sourceCount: 48,
-	},
-	{
-		id: "step-3",
-		title: "Adversarial Fact-Checking & Citation Fencing",
-		status: "completed",
-		detail: "Validated cross-references against authoritative specs and regulatory filings.",
-		timestamp: "1.1s",
-	},
-	{
-		id: "step-4",
-		title: "Sovereign Synthesis & Deliverable Compilation",
-		status: "in_progress",
-		detail: "Compiling executive briefing dossier with structured provenance and citation anchors.",
-		timestamp: "1.4s",
-	},
-] as const;
+
 
 export function AiraDeliverablesCanvas({
 	isOpen,
@@ -82,7 +52,7 @@ export function AiraDeliverablesCanvas({
 	title = "AIRA Intelligence Dossier",
 	content = "",
 	citations = [],
-	steps = DEFAULT_STEPS,
+	steps = [],
 	isBusy = false,
 	className,
 }: AiraDeliverablesCanvasProps) {
@@ -249,46 +219,54 @@ export function AiraDeliverablesCanvas({
 					<div className="space-y-3">
 						<div className="flex items-center justify-between text-[11px] font-mono text-[#94A3B8] border-b border-white/[0.06] pb-2">
 							<span>Autonomous Agent Swarm Plan</span>
-							<span className="text-sky-400">Deterministic · Fail-Closed</span>
+							<span className={steps.length > 0 ? "text-sky-400" : "text-[#64748B]"}>
+								{steps.length > 0 ? "Deterministic · Fail-Closed" : "No Telemetry"}
+							</span>
 						</div>
-						<div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1.5px] before:bg-white/[0.08]">
-							{steps.map((step) => (
-								<div key={step.id} className="relative space-y-1">
-									<div
-										className={cn(
-											"absolute -left-6 top-0.5 size-4 rounded-full border grid place-items-center text-[9px]",
-											step.status === "completed"
-												? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400"
-												: step.status === "in_progress"
-													? "border-sky-500/40 bg-sky-500/20 text-sky-400 animate-pulse"
-													: "border-white/[0.1] bg-white/[0.04] text-[#64748B]",
-										)}
-									>
-										{step.status === "completed" ? "✓" : "•"}
-									</div>
-									<div className="flex items-center justify-between gap-2">
-										<p
+						{steps.length > 0 ? (
+							<div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1.5px] before:bg-white/[0.08]">
+								{steps.map((step) => (
+									<div key={step.id} className="relative space-y-1">
+										<div
 											className={cn(
-												"text-xs font-medium",
+												"absolute -left-6 top-0.5 size-4 rounded-full border grid place-items-center text-[9px]",
 												step.status === "completed"
-													? "text-[#F8FAFC]"
+													? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400"
 													: step.status === "in_progress"
-														? "text-sky-300"
-														: "text-[#64748B]",
+														? "border-sky-500/40 bg-sky-500/20 text-sky-400 animate-pulse"
+														: "border-white/[0.1] bg-white/[0.04] text-[#64748B]",
 											)}
 										>
-											{step.title}
-										</p>
-										{step.timestamp ? (
-											<span className="font-mono text-[10px] text-[#64748B]">{step.timestamp}</span>
+											{step.status === "completed" ? "✓" : "•"}
+										</div>
+										<div className="flex items-center justify-between gap-2">
+											<p
+												className={cn(
+													"text-xs font-medium",
+													step.status === "completed"
+														? "text-[#F8FAFC]"
+														: step.status === "in_progress"
+															? "text-sky-300"
+															: "text-[#64748B]",
+												)}
+											>
+												{step.title}
+											</p>
+											{step.timestamp ? (
+												<span className="font-mono text-[10px] text-[#64748B]">{step.timestamp}</span>
+											) : null}
+										</div>
+										{step.detail ? (
+											<p className="text-[11px] leading-relaxed text-[#94A3B8]">{step.detail}</p>
 										) : null}
 									</div>
-									{step.detail ? (
-										<p className="text-[11px] leading-relaxed text-[#94A3B8]">{step.detail}</p>
-									) : null}
-								</div>
-							))}
-						</div>
+								))}
+							</div>
+						) : (
+							<div className="py-12 text-center text-[11.5px] text-[#94A3B8]">
+								No execution trace recorded. Execution activity will appear here when an agent swarm or research task executes with live telemetry.
+							</div>
+						)}
 					</div>
 				) : null}
 
@@ -296,7 +274,7 @@ export function AiraDeliverablesCanvas({
 					<div className="space-y-3">
 						<div className="flex items-center justify-between text-[11px] font-mono text-[#94A3B8] border-b border-white/[0.06] pb-2">
 							<span>Triangulated Source Evidence</span>
-							<span className="text-emerald-400">Cryptographically Grounded</span>
+							<span className="text-[#94A3B8]">{citations.length > 0 ? "Retrieved Sources" : "No Citations"}</span>
 						</div>
 						{citations.length > 0 ? (
 							<div className="grid gap-2.5">

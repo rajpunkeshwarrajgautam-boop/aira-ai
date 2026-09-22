@@ -249,7 +249,7 @@ export function ConversationMessageList({
 		const citedIndices = parseCitationIndicesFromAnswer(message.content);
 		const linkedContent = linkifyCitations(message.content, effectiveCitations.length);
 		const finalText = linkedContent.trim() || (effectiveCitations.length > 0 ? "AIRA found sources but did not generate a text response." : "No response generated.");
-		const confidence = message.confidence ?? (effectiveCitations.length > 0 ? 0.94 : 0.88);
+		const hasCalibratedConfidence = typeof message.confidence === "number" && message.confidence > 0;
 
 		return (
 			<div className="aira-enter group flex gap-3 py-5">
@@ -263,10 +263,16 @@ export function ConversationMessageList({
 									<Globe2 className="size-3" aria-hidden /> {effectiveCitations.length} sources
 								</span>
 							) : null}
-							{/* Confidence Badge (Gate 61) */}
-							<span className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-emerald-400">
-								<ShieldCheck className="size-2.5" /> {Math.round(confidence * 100)}% Calibrated
-							</span>
+							{/* Evidence / Confidence Badge */}
+							{hasCalibratedConfidence ? (
+								<span className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-emerald-400">
+									<ShieldCheck className="size-2.5" /> {Math.round(message.confidence! * 100)}% Calibrated
+								</span>
+							) : effectiveCitations.length > 0 ? (
+								<span className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-sky-300">
+									<ShieldCheck className="size-2.5" /> Source-Grounded
+								</span>
+							) : null}
 							{/* Branching indicator if present (Gate 103) */}
 							{message.branchCount && message.branchCount > 1 ? (
 								<span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-content-secondary">

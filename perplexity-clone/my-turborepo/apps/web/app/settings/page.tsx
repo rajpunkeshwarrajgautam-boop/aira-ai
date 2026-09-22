@@ -427,7 +427,11 @@ export default function SettingsPage() {
 											</div>
 											<div className="rounded-xl border border-white/[0.06] bg-[#0a0d11] p-3.5">
 												<p className="text-[11px] text-[#8e95a2]">Knowledge Ingestion</p>
-												<p className="mt-1 text-xs font-semibold text-emerald-300">Active (Multi-Format pgvector)</p>
+												{status.integrations?.find((i) => i.id === "knowledge")?.configured ? (
+													<p className="mt-1 text-xs font-semibold text-emerald-300">Active (Multi-Format pgvector)</p>
+												) : (
+													<p className="mt-1 text-xs font-semibold text-amber-300/80">Disabled (Deployment Gate: Requires Ingestion Worker)</p>
+												)}
 											</div>
 										</div>
 									</section>

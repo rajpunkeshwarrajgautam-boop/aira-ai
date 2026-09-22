@@ -189,8 +189,40 @@ export default function OmniRoutePage() {
 						<div className="mt-3 rounded-xl border border-white/[0.07] bg-[#0d1014] px-4 py-3 text-[11px] text-[#6f747c]">Last gateway check: <span className="text-[#9ca1a8]">{formatCheckedAt(status?.checkedAt)}</span> · Active default: <code className="text-[#b69a50]">{status?.model ?? "auto"}</code></div>
 
 						<section className="mt-5 rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
-							<div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-[#eeeeeb]">Automatic routing</h2><span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-200/80">Live validated</span></div><p className="mt-1 max-w-3xl text-xs leading-5 text-[#72777f]">Auto, Smart, Coding, Fast, and Available passed AIRA&apos;s live routing validation. The Cheap profile remains visible but blocked because it failed the validation gate.</p></div></div>
-							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{ROUTING_PRESETS.map((preset) => <button key={preset.id} type="button" disabled={!preset.validated} onClick={() => { if (preset.validated) setSelectedModel(preset.id); }} title={preset.validated ? `Use ${preset.label} routing` : "Blocked in AIRA because this OmniRoute profile failed live validation"} className={`rounded-xl border px-3 py-3 text-left transition ${preset.validated ? (selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]") : "cursor-not-allowed border-white/[0.06] bg-[#101318] opacity-55"}`}><strong className="block text-xs font-semibold text-[#ecece8]">{preset.label}</strong><span className="mt-1 block text-[10px] text-[#747981]">{preset.detail}</span><code className="mt-2 block truncate text-[9px] text-[#9c8448]">{preset.id}</code></button>)}</div>
+							<div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+								<div>
+									<div className="flex items-center gap-2">
+										<h2 className="text-sm font-semibold text-[#eeeeeb]">Automatic routing</h2>
+										<span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] ${status?.connected ? "border-emerald-300/15 bg-emerald-300/[0.06] text-emerald-200/80" : "border-white/[0.08] bg-white/[0.04] text-[#8e95a2]"}`}>
+											{status?.connected ? "Live validated" : "Historical Baseline"}
+										</span>
+									</div>
+									<p className="mt-1 max-w-3xl text-xs leading-5 text-[#72777f]">
+										{status?.connected
+											? "Auto, Smart, Coding, Fast, and Available passed AIRA's live routing validation. The Cheap profile remains visible but blocked because it failed the validation gate."
+											: "Routing profiles reflect architectural validation gates. Connect the OmniRoute gateway to activate live routing through these presets."}
+									</p>
+								</div>
+							</div>
+							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+								{ROUTING_PRESETS.map((preset) => {
+									const isSelectable = Boolean(status?.connected && preset.validated);
+									return (
+										<button
+											key={preset.id}
+											type="button"
+											disabled={!isSelectable}
+											onClick={() => { if (isSelectable) setSelectedModel(preset.id); }}
+											title={!status?.connected ? "Connect OmniRoute gateway to enable routing presets" : preset.validated ? `Use ${preset.label} routing` : "Blocked in AIRA because this OmniRoute profile failed live validation"}
+											className={`rounded-xl border px-3 py-3 text-left transition ${isSelectable ? (selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]") : "cursor-not-allowed border-white/[0.06] bg-[#101318] opacity-55"}`}
+										>
+											<strong className="block text-xs font-semibold text-[#ecece8]">{preset.label}</strong>
+											<span className="mt-1 block text-[10px] text-[#747981]">{preset.detail}</span>
+											<code className="mt-2 block truncate text-[9px] text-[#9c8448]">{preset.id}</code>
+										</button>
+									);
+								})}
+							</div>
 						</section>
 
 						<div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">

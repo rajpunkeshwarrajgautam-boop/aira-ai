@@ -45,7 +45,7 @@ const ANALYTICS_NAV = { href: "/admin/analytics", label: "Analytics", descriptio
 
 type NavigationItem = (typeof PRIMARY_NAV)[number] | (typeof CREATE_NAV)[number] | (typeof WORKSPACE_NAV)[number] | (typeof INTELLIGENCE_NAV)[number] | (typeof SYSTEM_NAV)[number] | typeof ANALYTICS_NAV;
 function routeFromHref(href: string): string { return href.split(/[?#]/, 1)[0] || "/"; }
-function isActivePath(pathname: string, href: string): boolean { const route = routeFromHref(href); return route === "/" ? pathname === "/" : pathname.startsWith(route); }
+function isActivePath(pathname: string, href: string): boolean { const route = routeFromHref(href); return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(route + "/"); }
 
 function NavGroup({ label, items, pathname, onNavigate }: { readonly label: string; readonly items: readonly NavigationItem[]; readonly pathname: string; readonly onNavigate?: () => void }) {
   return <div className="aira-v2-nav-group"><p className="aira-v2-nav-label">{label}</p>{items.map((item) => { const active = isActivePath(pathname, item.href); const Icon = item.icon; return <Link key={item.href} href={item.href} onClick={onNavigate} className={cn("aira-v2-nav-item", active && "is-active")} aria-current={active ? "page" : undefined}><span className="aira-v2-nav-icon"><Icon className="size-[18px]" strokeWidth={1.8} aria-hidden /></span><span className="aira-v2-nav-copy"><strong>{item.label}</strong><small>{item.description}</small></span></Link>; })}</div>;
