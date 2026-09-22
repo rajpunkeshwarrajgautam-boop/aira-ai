@@ -118,6 +118,26 @@
   transform: translateY(-1px);
 }
 
+.aira-auth-provider:focus-visible {
+  outline: none !important;
+  border-color: #3A0CA3 !important;
+  box-shadow: 0 0 0 2px #F9F8F6, 0 0 0 4px #3A0CA3 !important;
+}
+
+.aira-auth-provider:active:not(:disabled) {
+  transform: translateY(0.5px) !important;
+  background: #E8E4F4 !important;
+}
+
+.aira-auth-provider:disabled,
+.aira-auth-provider[aria-disabled="true"] {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  color: #6B6A75 !important;
+  background: #FAF9F6 !important;
+  border-color: rgba(17, 17, 21, 0.08) !important;
+}
+
 .aira-auth-provider-icon {
   display: flex;
   align-items: center;

@@ -494,41 +494,40 @@ export function ConversationMessageList({
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
 					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-[960px]")}>
 						{showEmptyHint ? (
-							<div className="aira-enter py-8 sm:py-12 space-y-6 max-w-2xl mx-auto text-center">
+							<div className="aira-enter py-6 sm:py-10 space-y-5 max-w-2xl mx-auto text-center">
 								{/* Command Hero Header */}
-								<div className="flex flex-col items-center space-y-3">
-									<div className="inline-flex items-center gap-2 rounded-full border border-[#3A0CA3]/20 bg-[#3A0CA3]/[0.06] px-3.5 py-1 text-[11.5px] font-medium text-[#3A0CA3]">
-										<span className="size-1.5 rounded-full bg-[#3A0CA3] animate-pulse" aria-hidden />
-										<span>Aira AI · One workspace. Every intelligence.</span>
-									</div>
-									<h2 className="text-2xl sm:text-4xl font-semibold tracking-[-0.03em] text-[#111115] leading-[1.18] break-words">
+								<div className="flex flex-col items-center space-y-2">
+									<p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6B6A75]">
+										Autonomous Research Workspace
+									</p>
+									<h2 className="text-2xl sm:text-[34px] font-semibold tracking-[-0.025em] text-[#111115] leading-[1.2] break-words">
 										Where Autonomous Research Meets Grounded Truth.
 									</h2>
-									<p className="max-w-xl text-[14px] leading-relaxed text-[#6B6A75]">
-										Search the live web with citations, triangulate multiple models, or run deep sovereign investigations.
+									<p className="max-w-lg text-[13.5px] leading-relaxed text-[#6B6A75]">
+										Synthesize live web intelligence with verified citations, compare frontier models, or conduct sovereign investigations.
 									</p>
 								</div>
 
 								{/* Center-Stage Hero Composer */}
 								{composerSlot ? (
-									<div className="w-full my-2 text-left">
+									<div className="w-full my-1 text-left">
 										{composerSlot}
 									</div>
 								) : null}
 
 								{/* At Most Three Curated Starter Prompts */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-left">
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-left">
 									<button
 										type="button"
 										onClick={() => onPickExample?.("Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.04)] transition hover:border-[#3A0CA3]/35 hover:shadow-[0_4px_16px_rgba(58,12,163,0.08)]"
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:shadow-[0_4px_16px_rgba(58,12,163,0.06)]"
 									>
 										<div>
 											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+												<span className="text-[10px] font-medium uppercase tracking-wider text-[#6B6A75] bg-[#111115]/[0.04] px-2 py-0.5 rounded">
 													Market Research
 												</span>
-												<Sparkles className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+												<Sparkles className="size-3.5 text-[#3A0CA3] opacity-50 group-hover:opacity-100 transition" />
 											</div>
 											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
 												Competitive AI Infrastructure Due Diligence
@@ -545,14 +544,14 @@ export function ConversationMessageList({
 									<button
 										type="button"
 										onClick={() => onPickExample?.("Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.04)] transition hover:border-[#3A0CA3]/35 hover:shadow-[0_4px_16px_rgba(58,12,163,0.08)]"
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:shadow-[0_4px_16px_rgba(58,12,163,0.06)]"
 									>
 										<div>
 											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+												<span className="text-[10px] font-medium uppercase tracking-wider text-[#6B6A75] bg-[#111115]/[0.04] px-2 py-0.5 rounded">
 													Security Audit
 												</span>
-												<ShieldCheck className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+												<ShieldCheck className="size-3.5 text-[#3A0CA3] opacity-50 group-hover:opacity-100 transition" />
 											</div>
 											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
 												Sovereign Multi-Tenant Security & IDOR
@@ -569,14 +568,14 @@ export function ConversationMessageList({
 									<button
 										type="button"
 										onClick={() => onPickExample?.("Benchmark AIRA Cortex-9 reasoning depth against standard synthesis latency and analyze sub-100ms inference topologies.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.04)] transition hover:border-[#3A0CA3]/35 hover:shadow-[0_4px_16px_rgba(58,12,163,0.08)]"
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:shadow-[0_4px_16px_rgba(58,12,163,0.06)]"
 									>
 										<div>
 											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+												<span className="text-[10px] font-medium uppercase tracking-wider text-[#6B6A75] bg-[#111115]/[0.04] px-2 py-0.5 rounded">
 													Architecture
 												</span>
-												<Network className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+												<Network className="size-3.5 text-[#3A0CA3] opacity-50 group-hover:opacity-100 transition" />
 											</div>
 											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
 												Sub-100ms Inference Topologies & Routing

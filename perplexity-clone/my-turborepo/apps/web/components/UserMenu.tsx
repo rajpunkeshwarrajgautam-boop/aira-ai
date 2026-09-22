@@ -23,12 +23,12 @@ function UserMenuInner({ className }: { readonly className?: string }) {
 	const returnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
 	if (status === "loading") {
-		return <div className={cn("h-10 w-[124px] animate-pulse rounded-xl bg-surface-inset", className)} aria-hidden />;
+		return <div className={cn("h-8 w-[76px] animate-pulse rounded-lg bg-[rgba(17,17,21,0.06)]", className)} aria-hidden />;
 	}
 
 	if (!session?.user) {
 		return (
-			<Button variant="ghost" size="sm" asChild className={cn("h-8 rounded-lg px-3.5 text-xs font-medium border border-[rgba(212,175,55,0.35)] bg-[rgba(212,175,55,0.08)] text-[#f5f4ef] hover:bg-[rgba(212,175,55,0.18)] hover:border-[rgba(212,175,55,0.6)] transition-colors shadow-sm", className)}>
+			<Button variant="default" size="sm" asChild className={cn("aira-topbar-signin h-8 rounded-lg px-3.5 text-xs font-semibold bg-[#3A0CA3] text-white hover:bg-[#2D0A82] border-0 shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-[#3A0CA3]/50 focus-visible:ring-offset-1", className)}>
 				<Link
 					href={`/signin?callbackUrl=${encodeURIComponent(returnTo || "/")}`}
 					onClick={() => {
