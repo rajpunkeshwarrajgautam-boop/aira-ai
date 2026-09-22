@@ -5,8 +5,8 @@
   min-height: 100dvh;
   padding: 32px 24px;
   background:
-    radial-gradient(circle at 12% 10%, rgba(99,102,241,.08), transparent 28%),
-    #09090b;
+    radial-gradient(circle at 12% 10%, rgba(58, 12, 163, 0.04), transparent 28%),
+    #F9F8F6;
 }
 
 .aira-auth-frame-visme {
@@ -16,9 +16,9 @@
   min-height: 640px;
   border-radius: 24px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0d0f17;
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(17, 17, 21, 0.08);
+  background: #FFFFFF;
+  box-shadow: 0 24px 72px rgba(17, 17, 21, 0.06), 0 2px 8px rgba(17, 17, 21, 0.03);
 }
 
 .aira-auth-form-side-visme {
@@ -28,7 +28,7 @@
   flex-direction: column;
   justify-content: center;
   padding: clamp(32px, 5vw, 56px);
-  background: #0a0c13;
+  background: #FFFFFF;
 }
 
 .aira-auth-panel-content {
@@ -41,9 +41,9 @@
   position: relative;
   display: inline-flex;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(17, 17, 21, 0.04);
   padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(17, 17, 21, 0.08);
   margin-bottom: 24px;
 }
 
@@ -51,7 +51,7 @@
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 500;
-  color: #8f95a3;
+  color: #6B6A75;
   border-radius: 8px;
   transition: color 0.15s ease, background 0.15s ease;
   background: transparent;
@@ -60,8 +60,10 @@
 }
 
 .aira-auth-tab[aria-selected="true"] {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: #111115;
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(17, 17, 21, 0.08);
+  font-weight: 600;
 }
 
 .aira-auth-tab-indicator {
@@ -73,7 +75,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #7b8499;
+  color: #3A0CA3;
 }
 
 .aira-auth-heading {
@@ -82,14 +84,14 @@
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  color: #f1f3f9;
+  color: #111115;
 }
 
 .aira-auth-supporting {
   margin: 10px 0 28px;
   font-size: 13.5px;
   line-height: 1.6;
-  color: #8b92a5 !important;
+  color: #6B6A75 !important;
 }
 
 .aira-auth-provider {
@@ -100,17 +102,19 @@
   height: 50px !important;
   padding: 0 16px !important;
   border-radius: 12px !important;
-  border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
-  color: #e5e8f2 !important;
+  border: 1px solid rgba(17, 17, 21, 0.12) !important;
+  background: #FFFFFF !important;
+  color: #111115 !important;
   font-size: 13.5px !important;
   font-weight: 550 !important;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+  box-shadow: 0 1px 3px rgba(17, 17, 21, 0.04) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, color 0.15s ease !important;
 }
 
 .aira-auth-provider:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: #F0EEF8 !important;
+  border-color: rgba(58, 12, 163, 0.35) !important;
+  color: #3A0CA3 !important;
   transform: translateY(-1px);
 }
 
@@ -127,7 +131,7 @@
   margin-top: 24px;
   font-size: 11px;
   line-height: 1.55;
-  color: #636a7e !important;
+  color: #8F8E98 !important;
   text-align: center;
 }
 
@@ -135,8 +139,8 @@
   min-height: 680px;
   padding: 0;
   background:
-    radial-gradient(circle at 38% 38%, rgba(99,102,241,.1), transparent 32%),
-    linear-gradient(145deg, #0a0b10, #0d0f18 58%, #090a0e);
+    radial-gradient(circle at 38% 38%, rgba(58, 12, 163, 0.08), transparent 32%),
+    linear-gradient(145deg, #F5F3ED, #F9F8F6 58%, #ECEAE2);
 }
 
 .aira-auth-native-scene {
@@ -152,7 +156,7 @@
   position: absolute;
   inset: 0;
   opacity: .18;
-  background-image: radial-gradient(rgba(255,255,255,.13) .55px, transparent .55px);
+  background-image: radial-gradient(rgba(17, 17, 21, .1) .55px, transparent .55px);
   background-size: 7px 7px;
   mask-image: linear-gradient(to bottom, transparent 2%, #000 20%, #000 80%, transparent 98%);
 }
@@ -176,11 +180,11 @@
   top: 13%;
   left: 18%;
   background:
-    radial-gradient(circle at 34% 30%, rgba(255,255,255,.85), transparent 8%),
-    radial-gradient(circle at 42% 36%, rgba(76,201,240,.75), transparent 25%),
-    radial-gradient(circle at 68% 64%, rgba(139,92,246,.92), transparent 38%),
-    linear-gradient(135deg, #4f46e5, #7c3aed 58%, #111827);
-  box-shadow: 0 0 110px rgba(99,102,241,.38);
+    radial-gradient(circle at 34% 30%, rgba(255,255,255,.95), transparent 8%),
+    radial-gradient(circle at 42% 36%, rgba(58, 12, 163, 0.25), transparent 25%),
+    radial-gradient(circle at 68% 64%, rgba(255, 107, 107, 0.2), transparent 38%),
+    linear-gradient(135deg, rgba(58, 12, 163, 0.35), rgba(99, 102, 241, 0.25) 58%, rgba(245, 243, 237, 0.5));
+  box-shadow: 0 0 110px rgba(58, 12, 163, 0.15);
   animation: aira-native-morph-one 12s ease-in-out infinite alternate;
 }
 
@@ -190,10 +194,10 @@
   top: 42%;
   left: 50%;
   background:
-    radial-gradient(circle at 38% 34%, rgba(255,255,255,.22), transparent 11%),
-    linear-gradient(145deg, rgba(76,201,240,.58), rgba(99,102,241,.7) 46%, rgba(139,92,246,.62));
+    radial-gradient(circle at 38% 34%, rgba(255,255,255,.5), transparent 11%),
+    linear-gradient(145deg, rgba(255, 107, 107, 0.2), rgba(58, 12, 163, 0.2) 46%, rgba(99, 102, 241, 0.15));
   opacity: .7;
-  box-shadow: 0 0 90px rgba(76,201,240,.18);
+  box-shadow: 0 0 90px rgba(255, 107, 107, 0.1);
   animation: aira-native-morph-two 15s ease-in-out infinite alternate;
 }
 
@@ -202,14 +206,14 @@
   height: 160px;
   top: 27%;
   left: 58%;
-  background: linear-gradient(145deg, rgba(139,92,246,.65), rgba(76,201,240,.35));
+  background: linear-gradient(145deg, rgba(58, 12, 163, 0.2), rgba(255, 107, 107, 0.12));
   opacity: .42;
   filter: blur(16px);
   animation: aira-native-float 10s ease-in-out infinite;
 }
 
 .aira-auth-native-orbit {
-  border: 1px solid rgba(148,163,255,.22);
+  border: 1px solid rgba(58, 12, 163, 0.12);
   border-radius: 50%;
   transform-origin: center;
 }
@@ -227,7 +231,7 @@
   height: 360px;
   top: 20%;
   left: 34%;
-  border-color: rgba(76,201,240,.12);
+  border-color: rgba(255, 107, 107, 0.12);
   animation: aira-native-orbit-reverse 30s linear infinite;
 }
 
@@ -235,8 +239,8 @@
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  background: #8f93ff;
-  box-shadow: 0 0 24px rgba(143,147,255,.8);
+  background: #3A0CA3;
+  box-shadow: 0 0 16px rgba(58, 12, 163, 0.4);
 }
 
 .aira-auth-native-dot-one { top: 24%; left: 61%; animation: aira-native-pulse 3.6s ease-in-out infinite; }
@@ -249,8 +253,8 @@
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(8,9,14,.2) 0%, rgba(8,9,14,.02) 38%, rgba(8,9,14,.74) 100%),
-    linear-gradient(90deg, rgba(8,9,14,.18), transparent 48%, rgba(8,9,14,.1));
+    linear-gradient(180deg, rgba(249, 248, 246, 0.1) 0%, rgba(249, 248, 246, 0.01) 38%, rgba(249, 248, 246, 0.6) 100%),
+    linear-gradient(90deg, rgba(249, 248, 246, 0.1), transparent 48%, rgba(249, 248, 246, 0.06));
 }
 
 .aira-auth-visme-brand {
@@ -259,10 +263,11 @@
   left: clamp(28px, 4vw, 48px);
   z-index: 3;
   padding: 9px 12px;
-  border: 1px solid rgba(255,255,255,.12);
+  border: 1px solid rgba(17, 17, 21, 0.08);
   border-radius: 12px;
-  background: rgba(10,11,16,.58);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(17, 17, 21, 0.04);
 }
 
 .aira-auth-visme-copy {
@@ -272,16 +277,30 @@
   bottom: clamp(28px, 4vw, 48px);
   z-index: 3;
   max-width: 560px;
-  padding: 20px 22px;
-  border: 1px solid rgba(255,255,255,.1);
+  padding: 24px 26px;
+  border: 1px solid rgba(17, 17, 21, 0.08);
   border-radius: 18px;
-  background: rgba(8,9,14,.58);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);
-  box-shadow: 0 18px 60px rgba(0,0,0,.24);
+  box-shadow: 0 16px 40px rgba(17, 17, 21, 0.05);
 }
 
 .aira-auth-visme-copy h2 {
   font-size: clamp(2.35rem, 4.6vw, 4.65rem);
+  color: #111115;
+  letter-spacing: -0.04em;
+}
+
+.aira-auth-visme-copy p {
+  color: #6B6A75;
+}
+
+.aira-auth-visme-copy .aira-auth-eyebrow {
+  color: #3A0CA3;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
 }
 
 .aira-auth-form-side-visme {
@@ -323,7 +342,7 @@
 }
 
 @media (max-width: 640px) {
-  .aira-auth-stage-visme { padding: 0; background: #f7f6f2; }
+  .aira-auth-stage-visme { padding: 0; background: #F9F8F6; }
   .aira-auth-frame-visme { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
   .aira-auth-visme-column { min-height: 230px; }
   .aira-auth-visme-brand { display: none; }

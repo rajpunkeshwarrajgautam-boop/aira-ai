@@ -55,7 +55,7 @@ export const AUTH_THEMES: readonly AuthThemeDefinition[] = [
 	},
 ] as const;
 
-export const DEFAULT_AUTH_THEME: AuthThemeId = "astronaut";
+export const DEFAULT_AUTH_THEME: AuthThemeId = "minimal-ivory";
 
 export function isAuthThemeId(value: string | null | undefined): value is AuthThemeId {
 	return !!value && (AUTH_THEME_IDS as readonly string[]).includes(value);

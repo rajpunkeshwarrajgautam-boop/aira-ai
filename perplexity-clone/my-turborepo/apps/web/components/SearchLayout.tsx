@@ -1025,18 +1025,18 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			<div className="flex flex-col sm:flex-row gap-2.5">
 				<div
 					className={cn(
-						"flex w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#141b2e]/85 shadow-sm backdrop-blur-md ring-1 ring-white/10 sm:max-w-[180px]",
+						"flex w-full overflow-hidden rounded-xl border border-[rgba(17,17,21,0.12)] bg-white shadow-sm ring-1 ring-black/[0.04] sm:max-w-[180px]",
 					)}
 				>
 					<select
-						className="w-full bg-transparent px-3 py-2 text-xs font-medium text-content-primary focus:outline-none"
+						className="w-full bg-transparent px-3 py-2 text-xs font-medium text-[#111115] focus:outline-none"
 						value={selectedPresetId}
 						onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
 						disabled={busy}
 						aria-label="Research focus"
 					>
 						{Object.values(RESEARCH_PRESETS).map((p) => (
-							<option key={p.id} value={p.id} className="bg-[#10141e] text-white">
+							<option key={p.id} value={p.id} className="bg-white text-[#111115]">
 								{p.label}
 							</option>
 						))}
@@ -1046,7 +1046,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				{isAuthed ? (
 					<div
 						className={cn(
-							"flex w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#141b2e]/85 p-0.5 shadow-sm backdrop-blur-md ring-1 ring-white/10 sm:max-w-[280px]",
+							"flex w-full overflow-hidden rounded-xl border border-[rgba(17,17,21,0.12)] bg-white p-0.5 shadow-sm ring-1 ring-black/[0.04] sm:max-w-[280px]",
 						)}
 						role="group"
 						aria-label="Search mode"
@@ -1057,10 +1057,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							disabled={busy}
 							className={cn(
 								"flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A0CA3]",
 								researchMode === "standard"
-									? "bg-accent/25 text-sky-300 font-semibold"
-									: "bg-transparent text-content-secondary hover:text-content-primary",
+									? "bg-[#3A0CA3] text-white font-semibold shadow-sm"
+									: "bg-transparent text-[#6B6A75] hover:text-[#111115]",
 								"disabled:opacity-40 disabled:pointer-events-none",
 							)}
 						>
@@ -1083,10 +1083,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							disabled={busy}
 							className={cn(
 								"flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A0CA3]",
 								researchMode === "deep"
-									? "bg-sky-500 text-white font-semibold shadow-sm"
-									: "bg-transparent text-content-secondary hover:text-content-primary",
+									? "bg-[#3A0CA3] text-white font-semibold shadow-sm"
+									: "bg-transparent text-[#6B6A75] hover:text-[#111115]",
 								"disabled:opacity-40 disabled:pointer-events-none",
 							)}
 						>
@@ -1110,8 +1110,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
 						}}
 						className={cn(
-							"flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-[#141b2e]/85 px-3 py-2 text-xs font-medium text-content-secondary shadow-sm backdrop-blur-md ring-1 ring-white/10",
-							"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+							"flex w-full items-center justify-center rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#6B6A75] shadow-sm ring-1 ring-black/[0.04]",
+							"hover:border-[#3A0CA3]/35 hover:text-[#3A0CA3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A0CA3]",
 							"sm:max-w-[280px]",
 							"disabled:opacity-40 disabled:pointer-events-none",
 						)}

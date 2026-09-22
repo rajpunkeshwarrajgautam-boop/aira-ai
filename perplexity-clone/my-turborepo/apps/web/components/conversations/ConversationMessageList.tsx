@@ -369,21 +369,21 @@ export function ConversationMessageList({
 			)}
 
 			{!showEmptyHint && (
-				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(245,244,239,0.07)] bg-[#0d0e12]/95 px-4 backdrop-blur-xl sm:px-5">
+				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(17,17,21,0.08)] bg-[#F9F8F6]/95 px-4 backdrop-blur-xl sm:px-5">
 				<div className="min-w-0">
-					<h2 className="truncate text-[13px] font-semibold text-content-primary">{title}</h2>
-					<p className="mt-0.5 text-[9px] text-content-tertiary">AIRA workspace</p>
+					<h2 className="truncate text-[13px] font-semibold text-[#111115]">{title}</h2>
+					<p className="mt-0.5 text-[10px] text-[#6B6A75]">AIRA workspace</p>
 				</div>
 
 				{/* Effort Selector in Toolbar (Gate 102) */}
-				<div className="hidden items-center rounded-lg border border-[rgba(245,244,239,0.08)] bg-[#13151b] p-0.5 sm:flex" aria-label="Effort Control">
+				<div className="hidden items-center rounded-lg border border-[rgba(17,17,21,0.08)] bg-white p-0.5 sm:flex" aria-label="Effort Control">
 					{(["LOW", "MEDIUM", "HIGH", "MAXIMUM"] as const).map((lvl) => (
 						<button
 							key={lvl}
 							type="button"
 							onClick={() => onEffortChange?.(lvl)}
 							className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition ${
-								effort === lvl ? "bg-[rgba(212,175,55,0.15)] text-[#d4af37]" : "text-content-tertiary hover:text-content-primary"
+								effort === lvl ? "bg-[#3A0CA3]/10 text-[#3A0CA3] font-semibold" : "text-[#6B6A75] hover:text-[#111115]"
 							}`}
 							title={`Set effort to ${lvl}`}
 						>
@@ -395,7 +395,7 @@ export function ConversationMessageList({
 				<div className="flex items-center gap-1.5">
 					<Link
 						href="/workspace-search"
-						className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary"
+						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 						aria-label="Search conversation history"
 					>
 						<History className="size-4" strokeWidth={1.6} />
@@ -404,7 +404,7 @@ export function ConversationMessageList({
 						type="button"
 						onClick={() => setShowExportModal(true)}
 						disabled={!shareableText.trim()}
-						className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-35"
+						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115] disabled:cursor-not-allowed disabled:opacity-35"
 						aria-label="Export conversation"
 						title="Export / Download"
 					>
@@ -414,19 +414,19 @@ export function ConversationMessageList({
 						type="button"
 						onClick={() => void shareConversation()}
 						disabled={!shareableText.trim()}
-						className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-35"
+						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115] disabled:cursor-not-allowed disabled:opacity-35"
 						aria-label="Share conversation"
 					>
 						<Share2 className="size-4" strokeWidth={1.6} />
 					</button>
 					<Link
 						href="/compare"
-						className="ml-1 hidden h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#111827] px-3 text-[10px] font-medium text-content-secondary transition hover:border-accent/25 hover:text-content-primary md:flex"
+						className="ml-1 hidden h-9 items-center gap-2 rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 text-[11px] font-medium text-[#111115] shadow-sm transition hover:border-[#3A0CA3]/30 md:flex"
 						title="Open Model Compare"
 					>
-						<span className="size-1.5 rounded-full bg-accent" />
+						<span className="size-1.5 rounded-full bg-[#3A0CA3]" />
 						AIRA Auto
-						<GitCompareArrows className="size-3.5" strokeWidth={1.6} />
+						<GitCompareArrows className="size-3.5 text-[#3A0CA3]" strokeWidth={1.6} />
 					</Link>
 				</div>
 				{shareFeedback ? <span className="sr-only" role="status" aria-live="polite">{shareFeedback}</span> : null}
@@ -435,31 +435,31 @@ export function ConversationMessageList({
 
 			{/* Export Modal (Gate 105) */}
 			{showExportModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-					<div className="w-full max-w-sm rounded-xl border border-white/[0.1] bg-[#0f1523] p-5 shadow-2xl">
-						<h3 className="text-[14px] font-semibold text-content-primary">Export Conversation</h3>
-						<p className="mt-1 text-[11px] text-content-tertiary">Select your preferred export format:</p>
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-sm rounded-xl border border-[rgba(17,17,21,0.1)] bg-white p-5 shadow-2xl">
+						<h3 className="text-[14px] font-semibold text-[#111115]">Export Conversation</h3>
+						<p className="mt-1 text-[11px] text-[#6B6A75]">Select your preferred export format:</p>
 						<div className="mt-4 space-y-2">
 							<button
 								type="button"
 								onClick={() => handleDownloadExport("markdown")}
-								className="flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-[#141b2e] p-2.5 text-left text-[12px] text-content-primary hover:bg-white/[0.08]"
+								className="flex w-full items-center gap-2.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] p-2.5 text-left text-[12px] text-[#111115] hover:bg-[#F2F0E8] transition"
 							>
-								<FileText className="size-4 text-accent" />
+								<FileText className="size-4 text-[#3A0CA3]" />
 								<div>
 									<span className="font-medium">Markdown (.md)</span>
-									<p className="text-[10px] text-content-tertiary">Plain text formatted with code and citations</p>
+									<p className="text-[10px] text-[#6B6A75]">Plain text formatted with code and citations</p>
 								</div>
 							</button>
 							<button
 								type="button"
 								onClick={() => handleDownloadExport("json")}
-								className="flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-[#141b2e] p-2.5 text-left text-[12px] text-content-primary hover:bg-white/[0.08]"
+								className="flex w-full items-center gap-2.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] p-2.5 text-left text-[12px] text-[#111115] hover:bg-[#F2F0E8] transition"
 							>
-								<FileJson className="size-4 text-accent" />
+								<FileJson className="size-4 text-[#3A0CA3]" />
 								<div>
 									<span className="font-medium">JSON Data (.json)</span>
-									<p className="text-[10px] text-content-tertiary">Structured data payload with timestamps & metadata</p>
+									<p className="text-[10px] text-[#6B6A75]">Structured data payload with timestamps & metadata</p>
 								</div>
 							</button>
 							<button
@@ -468,12 +468,12 @@ export function ConversationMessageList({
 									setShowExportModal(false);
 									window.print();
 								}}
-								className="flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-[#141b2e] p-2.5 text-left text-[12px] text-content-primary hover:bg-white/[0.08]"
+								className="flex w-full items-center gap-2.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] p-2.5 text-left text-[12px] text-[#111115] hover:bg-[#F2F0E8] transition"
 							>
-								<FileDown className="size-4 text-accent" />
+								<FileDown className="size-4 text-[#3A0CA3]" />
 								<div>
 									<span className="font-medium">PDF Document</span>
-									<p className="text-[10px] text-content-tertiary">Formatted printable document</p>
+									<p className="text-[10px] text-[#6B6A75]">Formatted printable document</p>
 								</div>
 							</button>
 						</div>
@@ -481,7 +481,7 @@ export function ConversationMessageList({
 							<button
 								type="button"
 								onClick={() => setShowExportModal(false)}
-								className="rounded-lg px-3 py-1.5 text-[11px] font-medium text-content-tertiary hover:text-content-primary"
+								className="rounded-lg px-3 py-1.5 text-[11px] font-medium text-[#6B6A75] hover:text-[#111115]"
 							>
 								Cancel
 							</button>
@@ -494,177 +494,101 @@ export function ConversationMessageList({
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
 					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-[960px]")}>
 						{showEmptyHint ? (
-							<div className="aira-enter py-4 sm:py-6 space-y-6">
+							<div className="aira-enter py-8 sm:py-12 space-y-6 max-w-2xl mx-auto text-center">
 								{/* Command Hero Header */}
-								<div className="flex flex-col items-start text-left space-y-3">
-									<div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-[11px] font-medium text-sky-400">
-										<span className="size-1.5 rounded-full bg-sky-400 animate-pulse" aria-hidden />
-										<span>AIRA Intelligence OS · Sovereign Multi-Provider Grid</span>
+								<div className="flex flex-col items-center space-y-3">
+									<div className="inline-flex items-center gap-2 rounded-full border border-[#3A0CA3]/20 bg-[#3A0CA3]/[0.06] px-3.5 py-1 text-[11.5px] font-medium text-[#3A0CA3]">
+										<span className="size-1.5 rounded-full bg-[#3A0CA3] animate-pulse" aria-hidden />
+										<span>Aira AI · One workspace. Every intelligence.</span>
 									</div>
-									<h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.035em] text-[#F8FAFC]">
-										Where Autonomous Research Meets Verified Truth.
+									<h2 className="text-2xl sm:text-4xl font-semibold tracking-[-0.03em] text-[#111115] leading-[1.18] break-words">
+										Where Autonomous Research Meets Grounded Truth.
 									</h2>
-									<p className="max-w-2xl text-[13px] leading-relaxed text-[#94A3B8]">
-										Orchestrate multi-model reasoning, deep web investigation, and autonomous agent missions with source-grounded proof.
+									<p className="max-w-xl text-[14px] leading-relaxed text-[#6B6A75]">
+										Search the live web with citations, triangulate multiple models, or run deep sovereign investigations.
 									</p>
 								</div>
 
 								{/* Center-Stage Hero Composer */}
 								{composerSlot ? (
-									<div className="w-full my-2">
+									<div className="w-full my-2 text-left">
 										{composerSlot}
 									</div>
 								) : null}
 
-								{/* Asymmetric Bento Capabilities Grid */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-									{/* Dominant Hero Bento Tile (2 cols wide) */}
-									<div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_32px_rgba(0,0,0,0.4)] transition hover:border-sky-500/30">
-										<div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3.5">
-											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/20 text-sky-400">
-													<Globe2 className="size-4" />
-												</span>
-												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Autonomous Deep Investigation</h3>
-													<p className="text-[11px] text-[#94A3B8]">Multi-hop source triangulation & fail-closed isolation.</p>
-												</div>
-											</div>
-											<span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-400">
-												48+ Live Indices
-											</span>
-										</div>
-										<p className="mt-3.5 text-[12px] leading-5 text-[#CBD5E1]">
-											Launch exhaustive research sweeps synthesizing authoritative market documents, technical specifications, and regulatory frameworks.
-										</p>
-										<div className="mt-4 flex flex-wrap gap-2">
-											<button
-												type="button"
-												onClick={() => onPickExample?.("Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.")}
-												className="group inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-left text-[11.5px] font-medium text-[#E2E8F0] transition hover:border-sky-500/40 hover:bg-sky-500/[0.08] hover:text-white"
-											>
-												<Sparkles className="size-3.5 text-sky-400" />
-												<span>Run Competitive AI Due Diligence</span>
-												<span className="text-sky-400 transition group-hover:translate-x-0.5">→</span>
-											</button>
-											<button
-												type="button"
-												onClick={() => onPickExample?.("Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.")}
-												className="group inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-left text-[11.5px] font-medium text-[#E2E8F0] transition hover:border-sky-500/40 hover:bg-sky-500/[0.08] hover:text-white"
-											>
-												<ShieldCheck className="size-3.5 text-sky-400" />
-												<span>Security & Threat Model Audit</span>
-												<span className="text-sky-400 transition group-hover:translate-x-0.5">→</span>
-											</button>
-										</div>
-									</div>
-
-									{/* Bento Tile 2: AIRA Neural Grid */}
-									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
+								{/* At Most Three Curated Starter Prompts */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-left">
+									<button
+										type="button"
+										onClick={() => onPickExample?.("Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.")}
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.04)] transition hover:border-[#3A0CA3]/35 hover:shadow-[0_4px_16px_rgba(58,12,163,0.08)]"
+									>
 										<div>
-											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
-													<Network className="size-4" />
+											<div className="flex items-center justify-between gap-2 mb-2">
+												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+													Market Research
 												</span>
-												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">AIRA Neural Grid</h3>
-													<p className="text-[10.5px] text-[#94A3B8]">Autonomous multi-tier routing</p>
-												</div>
+												<Sparkles className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<div className="mt-3.5 space-y-1.5">
-												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
-													<span>AIRA Cortex-9</span>
-													<span className="text-sky-400">Frontier Logic</span>
-												</div>
-												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
-													<span>AIRA DeepDeliberate</span>
-													<span className="text-emerald-400">Deep Reasoning</span>
-												</div>
-												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8]">
-													<span>AIRA Ultra-Fast</span>
-													<span className="text-[#CBD5E1]">Sub-100ms Synthesis</span>
-												</div>
-											</div>
-										</div>
-										<button
-											type="button"
-											onClick={() => onPickExample?.("Benchmark AIRA Cortex-9 reasoning depth against standard synthesis latency")}
-											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
-										>
-											<span>Benchmark Neural Architecture</span>
-											<span className="text-sky-400">→</span>
-										</button>
-									</div>
-
-									{/* Bento Tile 3: Work Mode Swarms */}
-									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
-										<div>
-											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
-													<Sparkles className="size-4" />
-												</span>
-												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Work Mode Swarms</h3>
-													<p className="text-[10.5px] text-[#94A3B8]">Autonomous missions</p>
-												</div>
-											</div>
-											<p className="mt-3 text-[11.5px] leading-relaxed text-[#94A3B8]">
-												State target business outcomes and delegate execution to resilient autonomous agents with verified artifacts.
+											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+												Competitive AI Infrastructure Due Diligence
+											</h3>
+											<p className="mt-1.5 text-[11.5px] leading-relaxed text-[#6B6A75]">
+												Evaluate fail-closed security, SLA guarantees, and enterprise pricing models across providers.
 											</p>
 										</div>
-										<Link
-											href="/work"
-											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
-										>
-											<span>Explore Managed Work</span>
-											<span className="text-sky-400">→</span>
-										</Link>
-									</div>
+										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
+											Explore prompt <span className="transition group-hover:translate-x-0.5">→</span>
+										</span>
+									</button>
 
-									{/* Bento Tile 4: Knowledge Vault (Spans 2 cols) */}
-									<div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-										<div className="space-y-1">
-											<div className="flex items-center gap-2">
-												<FileText className="size-4 text-sky-400" />
-												<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Private Context & Knowledge Vault</h3>
+									<button
+										type="button"
+										onClick={() => onPickExample?.("Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.")}
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.04)] transition hover:border-[#3A0CA3]/35 hover:shadow-[0_4px_16px_rgba(58,12,163,0.08)]"
+									>
+										<div>
+											<div className="flex items-center justify-between gap-2 mb-2">
+												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+													Security Audit
+												</span>
+												<ShieldCheck className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<p className="text-[11.5px] text-[#94A3B8]">
-												Zero-data-retention document ingestion. Query PDFs, codebases, and financial reports with citation grounding.
+											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+												Sovereign Multi-Tenant Security & IDOR
+											</h3>
+											<p className="mt-1.5 text-[11.5px] leading-relaxed text-[#6B6A75]">
+												Verify row-level policies, signed storage tokens, and memory namespaces fail closed.
 											</p>
 										</div>
-										<Link
-											href="/knowledge"
-											className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2 text-[11.5px] font-medium text-sky-400 transition hover:bg-sky-500/20 hover:text-sky-300"
-										>
-											<span>Upload Context</span>
-											<span>↗</span>
-										</Link>
-									</div>
-								</div>
+										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
+											Explore prompt <span className="transition group-hover:translate-x-0.5">→</span>
+										</span>
+									</button>
 
-								{/* Quick Workspaces Row */}
-								<div className="pt-2">
-									<p className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] mb-2.5">
-										Quick Workspaces
-									</p>
-									<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-										{STARTERS.map((item) => {
-											const Icon = item.icon;
-											return (
-												<Link
-													key={item.href}
-													href={item.href}
-													className="group flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left transition hover:border-sky-500/30 hover:bg-white/[0.04]"
-												>
-													<Icon className="size-4 shrink-0 text-[#94A3B8] transition group-hover:text-sky-400" strokeWidth={1.8} aria-hidden />
-													<div className="min-w-0">
-														<strong className="block truncate text-[11.5px] font-medium text-[#CBD5E1] group-hover:text-white">{item.title}</strong>
-														<small className="block truncate text-[10px] text-[#64748B]">{item.description}</small>
-													</div>
-												</Link>
-											);
-										})}
-									</div>
+									<button
+										type="button"
+										onClick={() => onPickExample?.("Benchmark AIRA Cortex-9 reasoning depth against standard synthesis latency and analyze sub-100ms inference topologies.")}
+										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-[0_2px_8px_rgba(17,17,21,0.04)] transition hover:border-[#3A0CA3]/35 hover:shadow-[0_4px_16px_rgba(58,12,163,0.08)]"
+									>
+										<div>
+											<div className="flex items-center justify-between gap-2 mb-2">
+												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+													Architecture
+												</span>
+												<Network className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+											</div>
+											<h3 className="text-[12.5px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+												Sub-100ms Inference Topologies & Routing
+											</h3>
+											<p className="mt-1.5 text-[11.5px] leading-relaxed text-[#6B6A75]">
+												Benchmark reasoning depth against standard synthesis latency with dynamic failover.
+											</p>
+										</div>
+										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
+											Explore prompt <span className="transition group-hover:translate-x-0.5">→</span>
+										</span>
+									</button>
 								</div>
 							</div>
 						) : null}
@@ -673,7 +597,7 @@ export function ConversationMessageList({
 							message.role === "USER" ? (
 								<div key={message.id} className="aira-enter group flex w-full justify-end py-3">
 									<div className="max-w-[86%] sm:max-w-[78%]">
-										<div className="rounded-2xl border border-accent/20 bg-accent/15 px-4 py-3 text-[14px] leading-6 text-blue-50">
+										<div className="rounded-2xl border border-[#3A0CA3]/15 bg-[#F0EEF8] px-4 py-3 text-[14px] leading-6 text-[#111115]">
 											{message.content}
 										</div>
 										<div className="mt-1 flex justify-end gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
@@ -699,7 +623,7 @@ export function ConversationMessageList({
 
 						{streamingUserQuery ? (
 							<div className="flex w-full justify-end py-3" aria-label="Streaming user message">
-								<div className="max-w-[86%] rounded-2xl border border-accent/20 bg-accent/15 px-4 py-3 text-[14px] leading-6 text-blue-50 sm:max-w-[78%]">
+								<div className="max-w-[86%] rounded-2xl border border-[#3A0CA3]/15 bg-[#F0EEF8] px-4 py-3 text-[14px] leading-6 text-[#111115] sm:max-w-[78%]">
 									{streamingUserQuery}
 								</div>
 							</div>
@@ -712,7 +636,7 @@ export function ConversationMessageList({
 				</section>
 
 				{!showEmptyHint && (
-				<aside className="aira-live-inspector hidden border-l border-white/[0.07] bg-[#0d1320]/72 p-3 xl:block" aria-label="Conversation inspector">
+				<aside className="aira-live-inspector hidden border-l border-[rgba(17,17,21,0.08)] bg-white/70 backdrop-blur-sm p-3 xl:block" aria-label="Conversation inspector">
 					<div className="sticky top-20 space-y-3">
 						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
 							<p className="text-[11px] font-semibold text-content-primary">Routing & Policy</p>

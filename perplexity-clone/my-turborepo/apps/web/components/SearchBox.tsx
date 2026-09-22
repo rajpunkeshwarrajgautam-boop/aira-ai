@@ -273,9 +273,9 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 
 			{/* Quick Slash Commands Popover */}
 			{showCommandMenu ? (
-				<div id={commandMenuId} aria-label="Composer commands" className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-xl border border-white/[0.09] bg-[#111827] shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
-					<div className="flex items-center gap-2 border-b border-white/[0.07] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[#8e95a2]">
-						<Command className="size-3.5" aria-hidden />Commands
+				<div id={commandMenuId} aria-label="Composer commands" className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-xl border border-[rgba(17,17,21,0.12)] bg-white shadow-[0_18px_50px_rgba(17,17,21,0.12)]">
+					<div className="flex items-center gap-2 border-b border-[rgba(17,17,21,0.07)] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[#6B6A75]">
+						<Command className="size-3.5 text-[#3A0CA3]" aria-hidden />Commands
 					</div>
 					<div className="p-1.5">
 						{commandMatches.map((item) => (
@@ -291,12 +291,12 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									onChange(item.command);
 									requestAnimationFrame(() => taRef.current?.focus());
 								}}
-								className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"
+								className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-[#F9F8F6]"
 							>
-								<span className="w-14 shrink-0 font-mono text-[11px] text-[#c9a84c]">{item.command.trim()}</span>
+								<span className="w-14 shrink-0 font-mono text-[11px] font-semibold text-[#3A0CA3]">{item.command.trim()}</span>
 								<span className="min-w-0">
-									<strong className="block text-[12px] font-medium text-[#f0f0ed]">{item.label}</strong>
-									<small className="mt-0.5 block truncate text-[11px] text-[#8e95a2]">{item.description}</small>
+									<strong className="block text-[12px] font-medium text-[#111115]">{item.label}</strong>
+									<small className="mt-0.5 block truncate text-[11px] text-[#6B6A75]">{item.description}</small>
 								</span>
 							</button>
 						))}
@@ -304,7 +304,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 				</div>
 			) : null}
 
-			<div className={cn("aira-enterprise-composer overflow-visible rounded-2xl border border-white/[0.1] bg-[#0d1423] shadow-[0_18px_50px_rgba(0,0,0,0.24)]", busy && "opacity-95")}>
+			<div className={cn("aira-enterprise-composer overflow-visible rounded-2xl border border-[rgba(17,17,21,0.12)] bg-white shadow-[0_12px_36px_rgba(17,17,21,0.06),0_2px_8px_rgba(17,17,21,0.04)] transition focus-within:border-[#3A0CA3]/40 focus-within:shadow-[0_16px_44px_rgba(58,12,163,0.1)]", busy && "opacity-95")}>
 				<label htmlFor="search-query" className="sr-only">Message AIRA AI</label>
 				<textarea
 					ref={taRef}
@@ -337,7 +337,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						}
 					}}
 					placeholder={placeholder}
-					className="min-h-[76px] w-full resize-none rounded-t-2xl bg-transparent px-4 pb-2 pt-4 text-[14px] leading-6 text-[#f0f0ed] outline-none placeholder:text-[#6e747f] disabled:cursor-not-allowed sm:px-5 sm:text-[15px]"
+					className="min-h-[76px] w-full resize-none rounded-t-2xl bg-transparent px-4 pb-2 pt-4 text-[14px] leading-6 text-[#111115] outline-none placeholder:text-[#8F8E98] disabled:cursor-not-allowed sm:px-5 sm:text-[15px]"
 				/>
 
 				{/* In-Composer Attachment Preview Chips */}
@@ -346,15 +346,15 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						{attachments.map((att) => (
 							<div
 								key={att.id}
-								className="inline-flex items-center gap-2 rounded-lg border border-white/[0.12] bg-[#141b2b] px-3 py-1.5 text-xs text-[#cfd2d8] shadow-sm"
+								className="inline-flex items-center gap-2 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] px-3 py-1.5 text-xs text-[#111115] shadow-sm"
 							>
-								<FileText className="size-3.5 text-sky-400" />
-								<span className="max-w-[160px] truncate text-[11px] font-medium text-[#f0f0ed]">{att.name}</span>
-								<span className="text-[10px] text-[#8e95a2]">({(att.size / 1024).toFixed(0)} KB)</span>
+								<FileText className="size-3.5 text-[#3A0CA3]" />
+								<span className="max-w-[160px] truncate text-[11px] font-medium text-[#111115]">{att.name}</span>
+								<span className="text-[10px] text-[#8F8E98]">({(att.size / 1024).toFixed(0)} KB)</span>
 								<button
 									type="button"
 									onClick={() => removeAttachment(att.id)}
-									className="rounded p-0.5 text-[#8e95a2] transition hover:bg-white/[0.08] hover:text-red-300"
+									className="rounded p-0.5 text-[#8F8E98] transition hover:bg-[#111115]/[0.06] hover:text-[#FF6B6B]"
 									aria-label={`Remove ${att.name}`}
 								>
 									<X className="size-3" />
@@ -374,8 +374,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								setContextMenuOpen((open) => !open);
 							}}
 							className={cn(
-								"flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#8e95a2] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]",
-								contextMenuOpen && "bg-white/[0.06] text-[#f0f0ed]",
+								"flex size-8 shrink-0 items-center justify-center rounded-lg border border-[rgba(17,17,21,0.1)] bg-[#F9F8F6] text-[#6B6A75] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8] hover:text-[#111115]",
+								contextMenuOpen && "border-[#3A0CA3]/40 bg-[#F0EEF8] text-[#3A0CA3]",
 							)}
 							aria-label="Add context or attach document"
 							aria-controls={contextMenuId}
@@ -389,9 +389,9 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							<div
 								id={contextMenuId}
 								aria-label="Add context"
-								className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(245,244,239,0.1)] bg-[#121418] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
+								className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(17,17,21,0.12)] bg-white p-2 shadow-[0_18px_50px_rgba(17,17,21,0.12)]"
 							>
-								<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
+								<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8F8E98]">
 									Add In-Context Research
 								</p>
 
@@ -399,15 +399,15 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								<button
 									type="button"
 									onClick={() => fileInputRef.current?.click()}
-									className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-[#cfd2d8] transition hover:bg-white/[0.06] hover:text-[#f0f0ed]"
+									className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-[#111115] transition hover:bg-[#F9F8F6]"
 								>
-									<Paperclip className="size-4 text-sky-400" strokeWidth={1.7} aria-hidden />
+									<Paperclip className="size-4 text-[#3A0CA3]" strokeWidth={1.7} aria-hidden />
 									<span>Attach local document</span>
 								</button>
 
-								<div className="my-1.5 border-t border-white/[0.07]" />
+								<div className="my-1.5 border-t border-[rgba(17,17,21,0.07)]" />
 
-								<p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
+								<p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#8F8E98]">
 									Workspace Libraries
 								</p>
 
@@ -416,42 +416,42 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									href="/knowledge"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#cfd2d8] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]"
+									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#111115] transition hover:bg-[#F9F8F6]"
 									onClick={() => setContextMenuOpen(false)}
 								>
 									<span className="flex items-center gap-2">
-										<FileText className="size-3.5 text-[#8e95a2]" strokeWidth={1.7} aria-hidden />
+										<FileText className="size-3.5 text-[#3A0CA3]" strokeWidth={1.7} aria-hidden />
 										Knowledge Library
 									</span>
-									<ExternalLink className="size-3 text-[#6e747f]" />
+									<ExternalLink className="size-3 text-[#8F8E98]" />
 								</Link>
 
 								<Link
 									href="/agents"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#cfd2d8] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]"
+									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#111115] transition hover:bg-[#F9F8F6]"
 									onClick={() => setContextMenuOpen(false)}
 								>
 									<span className="flex items-center gap-2">
-										<Bot className="size-3.5 text-[#8e95a2]" strokeWidth={1.7} aria-hidden />
+										<Bot className="size-3.5 text-[#3A0CA3]" strokeWidth={1.7} aria-hidden />
 										Agent Missions
 									</span>
-									<ExternalLink className="size-3 text-[#6e747f]" />
+									<ExternalLink className="size-3 text-[#8F8E98]" />
 								</Link>
 
 								<Link
 									href="/omniroute"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#cfd2d8] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]"
+									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#111115] transition hover:bg-[#F9F8F6]"
 									onClick={() => setContextMenuOpen(false)}
 								>
 									<span className="flex items-center gap-2">
-										<Network className="size-3.5 text-[#8e95a2]" strokeWidth={1.7} aria-hidden />
+										<Network className="size-3.5 text-[#3A0CA3]" strokeWidth={1.7} aria-hidden />
 										OmniRoute Status
 									</span>
-									<ExternalLink className="size-3 text-[#6e747f]" />
+									<ExternalLink className="size-3 text-[#8F8E98]" />
 								</Link>
 							</div>
 						) : null}
@@ -465,16 +465,16 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									setModelMenuOpen((open) => !open);
 								}}
 								className={cn(
-									"flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 text-xs text-[#cfd2d8] transition hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-[#f0f0ed]",
-									modelMenuOpen && "border-sky-500/40 bg-sky-500/[0.08] text-[#f0f0ed]",
+									"flex h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.1)] bg-[#F9F8F6] px-2.5 text-xs text-[#111115] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8]",
+									modelMenuOpen && "border-[#3A0CA3]/40 bg-[#F0EEF8] text-[#3A0CA3]",
 								)}
 								aria-label={`Select model: currently ${activeModelOption.label}`}
 								aria-controls={modelMenuId}
 								aria-expanded={modelMenuOpen}
 							>
-								<Sparkles className="size-3 text-sky-400" />
-								<span className="text-[11px] font-medium">{activeModelOption.label}</span>
-								<ChevronDown className="size-3 text-[#8e95a2]" />
+								<Sparkles className="size-3 text-[#3A0CA3]" />
+								<span className="text-[11.5px] font-medium">{activeModelOption.label}</span>
+								<ChevronDown className="size-3 text-[#8F8E98]" />
 							</button>
 
 							{/* Model Selector Popover */}
@@ -482,9 +482,9 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								<div
 									id={modelMenuId}
 									aria-label="Select AI Model"
-									className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(245,244,239,0.1)] bg-[#121418] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
+									className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(17,17,21,0.12)] bg-white p-1.5 shadow-[0_18px_50px_rgba(17,17,21,0.12)]"
 								>
-									<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
+									<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8F8E98]">
 										Active Routing Mode
 									</p>
 									<div className="space-y-1">
@@ -503,20 +503,20 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 														requestAnimationFrame(() => taRef.current?.focus());
 													}}
 													className={cn(
-														"flex w-full items-start justify-between rounded-lg px-2.5 py-2 text-left transition hover:bg-white/[0.05]",
-														isSelected && "bg-white/[0.06]",
+														"flex w-full items-start justify-between rounded-lg px-2.5 py-2 text-left transition hover:bg-[#F9F8F6]",
+														isSelected && "bg-[#F0EEF8]",
 													)}
 												>
 													<div>
-														<p className="text-xs font-semibold text-[#f0f0ed]">{opt.label}</p>
-														<p className="mt-0.5 text-[11px] text-[#8e95a2]">{opt.description}</p>
+														<p className="text-xs font-semibold text-[#111115]">{opt.label}</p>
+														<p className="mt-0.5 text-[11px] text-[#6B6A75]">{opt.description}</p>
 													</div>
 													<span
 														className={cn(
 															"rounded px-1.5 py-0.5 text-[9px] font-semibold",
 															isSelected
-																? "bg-sky-500/20 text-sky-300"
-																: "bg-white/[0.06] text-[#8e95a2]",
+																? "bg-[#3A0CA3]/10 text-[#3A0CA3]"
+																: "bg-[#F9F8F6] text-[#8F8E98]",
 														)}
 													>
 														{opt.badge}
@@ -541,8 +541,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							}}
 							disabled={busy}
 							className={cn(
-								"hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-sky-500/30 hover:bg-sky-500/[0.08] hover:text-sky-300 sm:flex",
-								value.startsWith("/deep ") && "border-sky-500/40 bg-sky-500/10 text-sky-300",
+								"hidden h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] px-2.5 text-[11px] font-medium text-[#6B6A75] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8] hover:text-[#3A0CA3] sm:flex",
+								value.startsWith("/deep ") && "border-[#3A0CA3]/40 bg-[#3A0CA3]/10 text-[#3A0CA3]",
 							)}
 						>
 							<Globe2 className="size-3.5" strokeWidth={1.6} />
@@ -551,23 +551,23 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 
 						<Link
 							href="/agents"
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-white/[0.18] hover:bg-white/[0.05] hover:text-[#f0f0ed] md:flex"
+							className="hidden h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] px-2.5 text-[11px] font-medium text-[#6B6A75] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8] hover:text-[#111115] md:flex"
 						>
-							<WandSparkles className="size-3.5" strokeWidth={1.6} />
+							<WandSparkles className="size-3.5 text-[#3A0CA3]" strokeWidth={1.6} />
 							Swarms
 						</Link>
 						<Link
 							href="/omniroute"
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-white/[0.18] hover:bg-white/[0.05] hover:text-[#f0f0ed] lg:flex"
+							className="hidden h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] px-2.5 text-[11px] font-medium text-[#6B6A75] transition hover:border-[#3A0CA3]/30 hover:bg-[#F0EEF8] hover:text-[#111115] lg:flex"
 						>
-							<Network className="size-3.5" strokeWidth={1.6} />
+							<Network className="size-3.5 text-[#3A0CA3]" strokeWidth={1.6} />
 							Cortex Engine
 						</Link>
 
 						<button
 							type="button"
 							onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 px-2.5 text-[11px] font-medium text-sky-400 transition hover:bg-sky-500/20 sm:flex"
+							className="hidden h-8 items-center gap-1.5 rounded-lg border border-[#3A0CA3]/25 bg-[#3A0CA3]/[0.07] px-2.5 text-[11px] font-medium text-[#3A0CA3] transition hover:bg-[#3A0CA3]/15 sm:flex"
 							aria-label="Toggle AIRA Deliverables Stage"
 						>
 							<Layers className="size-3.5" />
@@ -582,8 +582,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								onClick={toggleVoice}
 								disabled={busy}
 								className={cn(
-									"grid size-9 place-items-center rounded-xl border border-white/[0.07] text-[#8e95a2] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]",
-									listening && "border-sky-500/40 bg-sky-500/10 text-sky-300",
+									"grid size-9 place-items-center rounded-xl border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] text-[#6B6A75] transition hover:bg-[#F0EEF8] hover:text-[#111115]",
+									listening && "border-[#FF6B6B]/40 bg-[#FF6B6B]/10 text-[#FF6B6B]",
 								)}
 								aria-label={listening ? "Stop voice input" : "Start voice input"}
 							>
@@ -595,7 +595,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								type="button"
 								onClick={onCancel}
 								size="icon"
-								className="size-9 rounded-xl border border-white/[0.08] bg-white/[0.05] text-[#f0f0ed] shadow-none hover:bg-white/[0.08]"
+								className="size-9 rounded-xl border border-[rgba(17,17,21,0.12)] bg-[#F9F8F6] text-[#111115] shadow-none hover:bg-[#F0EEF8]"
 								aria-label="Stop generating"
 							>
 								<Square className="size-3.5 fill-current" strokeWidth={1.8} aria-hidden />
@@ -605,7 +605,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								type="submit"
 								disabled={!canSubmit}
 								size="icon"
-								className="size-9 rounded-xl border-0 bg-sky-400 text-[#08090C] shadow-[0_0_18px_rgba(56,189,248,0.3)] transition hover:bg-sky-300 active:scale-[0.98] disabled:pointer-events-none disabled:bg-white/[0.06] disabled:text-[#6e747f] disabled:shadow-none"
+								className="size-9 rounded-xl border-0 bg-[#3A0CA3] text-white shadow-[0_4px_14px_rgba(58,12,163,0.3)] transition hover:bg-[#2D0A82] active:scale-[0.98] disabled:pointer-events-none disabled:bg-[rgba(17,17,21,0.06)] disabled:text-[#8F8E98] disabled:shadow-none"
 								aria-label="Send to AIRA AI"
 							>
 								<ArrowUp className="size-4" strokeWidth={2.4} aria-hidden />
@@ -614,7 +614,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 					</div>
 				</div>
 			</div>
-			<div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-[#8e95a2]">
+			<div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-[#8F8E98]">
 				<span>AIRA can make mistakes. Verify important information.</span>
 			</div>
 		</form>

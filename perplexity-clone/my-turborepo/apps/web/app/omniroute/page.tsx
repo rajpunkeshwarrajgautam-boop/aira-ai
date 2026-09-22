@@ -211,8 +211,8 @@ export default function OmniRoutePage() {
 										<button
 											key={preset.id}
 											type="button"
-											disabled={!isSelectable}
-											onClick={() => { if (isSelectable) setSelectedModel(preset.id); }}
+											disabled={!preset.validated}
+											onClick={() => { if (preset.validated) setSelectedModel(preset.id); }}
 											title={!status?.connected ? "Connect OmniRoute gateway to enable routing presets" : preset.validated ? `Use ${preset.label} routing` : "Blocked in AIRA because this OmniRoute profile failed live validation"}
 											className={`rounded-xl border px-3 py-3 text-left transition ${isSelectable ? (selectedModel === preset.id ? "border-[#c9a84c]/45 bg-[#c9a84c]/[0.08]" : "border-white/[0.08] bg-[#12151a] hover:border-white/[0.14]") : "cursor-not-allowed border-white/[0.06] bg-[#101318] opacity-55"}`}
 										>

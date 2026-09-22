@@ -1,8 +1,7 @@
 /* ============================================================
-   AIRA Visual Redesign — Sovereign Intelligence OS (Taste Edition)
-   Design System: Cold Luxury / Sovereign Titanium Tech
-   Skill: taste-skill (high-contrast sans, asymmetric bento,
-   honest web glassmorphism, disciplined electric cyan accent)
+   AIRA Visual Redesign — Oatmeal & Ink 2.0 (Authoritative)
+   Design System: Oatmeal Canvas, Ink Typography, Royal Iris Accent
+   60% Oatmeal Canvas (#F9F8F6), 30% Crisp White (#FFFFFF), 10% Royal Iris (#3A0CA3) / Warm Coral (#FF6B6B)
    ============================================================ */
 
 /* ============================================================
@@ -10,31 +9,49 @@
    ============================================================ */
 
 :root,
+.aira-home.aira-home,
+.aira-v2-page.aira-v2-page,
 .aira-intelligence-os {
-  --aira-canvas:        #08090C;
-  --aira-surface-0:     #0D0F16;
-  --aira-surface-1:     #131622;
-  --aira-surface-2:     #191E2E;
-  --aira-surface-glass: rgba(13, 15, 22, 0.82);
+  --aira-canvas:        #F9F8F6;
+  --aira-surface-0:     #FFFFFF;
+  --aira-surface-1:     #FAF9F6;
+  --aira-surface-2:     #F3F1EC;
+  --aira-surface-glass: rgba(255, 255, 255, 0.92);
 
-  --aira-border-subtle: rgba(255, 255, 255, 0.07);
-  --aira-border-mid:    rgba(255, 255, 255, 0.12);
-  --aira-border-strong: rgba(255, 255, 255, 0.22);
-  --aira-border-active: rgba(56, 189, 248, 0.45);
+  --aira-border-subtle: rgba(17, 17, 21, 0.08);
+  --aira-border-mid:    rgba(17, 17, 21, 0.14);
+  --aira-border-strong: rgba(17, 17, 21, 0.22);
+  --aira-border-active: rgba(58, 12, 163, 0.45);
 
-  --aira-text-0: #F8FAFC;
-  --aira-text-1: #CBD5E1;
-  --aira-text-2: #94A3B8;
-  --aira-text-3: #64748B;
+  --aira-text-0: #111115;
+  --aira-text-1: #1E1E24;
+  --aira-text-2: #6B6A75;
+  --aira-text-3: #8F8E98;
 
-  --aira-accent:        #38BDF8;
-  --aira-accent-hover:  #0284C7;
-  --aira-accent-soft:   rgba(56, 189, 248, 0.10);
-  --aira-accent-glow:   rgba(56, 189, 248, 0.20);
-  --aira-accent-ring:   rgba(56, 189, 248, 0.35);
+  --aira-accent:        #3A0CA3;
+  --aira-accent-hover:  #2D0A82;
+  --aira-accent-soft:   rgba(58, 12, 163, 0.08);
+  --aira-accent-glow:   rgba(58, 12, 163, 0.16);
+  --aira-accent-ring:   rgba(58, 12, 163, 0.30);
+
+  --aira-warm-coral:    #FF6B6B;
+  --aira-warm-coral-soft: rgba(255, 107, 107, 0.10);
 
   --aira-emerald:       #10B981;
-  --aira-emerald-soft:  rgba(16, 185, 129, 0.12);
+  --aira-emerald-soft:  rgba(16, 185, 129, 0.10);
+
+  /* Tailwind CSS Token overrides for Oatmeal & Ink 2.0 */
+  --surface: 40 14% 97% !important;
+  --surface-elevated: 0 0% 100% !important;
+  --surface-inset: 40 10% 94% !important;
+  --border-subtle: 240 10% 91% !important;
+  --border: 240 10% 86% !important;
+  --content-primary: 240 11% 7% !important;
+  --content-secondary: 245 5% 44% !important;
+  --content-tertiary: 240 4% 58% !important;
+  --accent: 259 86% 35% !important;
+  --accent-muted: 259 70% 45% !important;
+  color-scheme: light !important;
 
   --font-display: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
   --font-body:    var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
@@ -48,7 +65,7 @@
   --radius-full: 9999px;
 
   --rail-width: 240px;
-  --topbar-height: 52px;
+  --topbar-height: 56px;
 
   --spring-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --smooth-ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -60,6 +77,35 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Oatmeal & Ink Scrollbars */
+html,
+body,
+:root,
+.aira-intelligence-os,
+.aira-v2-frame,
+.aira-v2-main,
+.aira-v2-workspace-stage,
+.aira-home.aira-home,
+.aira-v2-page.aira-v2-page {
+  color-scheme: light !important;
+  scrollbar-color: rgba(17, 17, 21, 0.15) transparent !important;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(17, 17, 21, 0.15);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 17, 21, 0.28);
+}
+
 /* ============================================================
    2. GLOBAL SHELL & ATMOSPHERE
    ============================================================ */
@@ -68,10 +114,7 @@
   display: grid !important;
   grid-template-columns: var(--rail-width) minmax(0, 1fr) !important;
   min-height: 100dvh !important;
-  background:
-    radial-gradient(ellipse 65% 35% at 50% 0%, rgba(56, 189, 248, 0.04) 0%, transparent 65%),
-    radial-gradient(ellipse 45% 55% at 95% 100%, rgba(37, 99, 235, 0.03) 0%, transparent 70%),
-    var(--aira-canvas) !important;
+  background: var(--aira-canvas) !important;
 }
 
 .aira-v2-main {
@@ -79,7 +122,108 @@
   flex-direction: column !important;
   min-width: 0 !important;
   min-height: 100dvh !important;
+  background: var(--aira-canvas) !important;
+}
+
+.aira-home.aira-home,
+.aira-home.aira-home main,
+.aira-home.aira-home .aira-thread-columns,
+.aira-home.aira-home .aira-thread-columns > section,
+.aira-home.aira-home .aira-thread-layout,
+.aira-v2-page.aira-v2-page,
+.aira-v2-workspace-stage.aira-v2-workspace-stage,
+.aira-v2-workspace-stage.aira-v2-workspace-stage > main,
+.aira-v2-workspace-stage.aira-v2-workspace-stage .aira-shell {
+  background: var(--aira-canvas) !important;
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home main > header {
   background: transparent !important;
+  border-bottom: 1px solid var(--aira-border-subtle) !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar {
+  background: var(--aira-surface-0) !important;
+  border: 1px solid var(--aira-border-subtle) !important;
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar h2 {
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home .aira-thread-toolbar p {
+  color: var(--aira-text-2) !important;
+}
+
+.aira-home.aira-home .aira-live-inspector {
+  background: var(--aira-surface-0) !important;
+  border: 1px solid var(--aira-border-subtle) !important;
+  color: var(--aira-text-0) !important;
+  box-shadow: 0 1px 3px rgba(17, 17, 21, 0.04) !important;
+}
+
+.aira-home.aira-home .aira-live-inspector section {
+  background: var(--aira-surface-1) !important;
+  border: 1px solid var(--aira-border-subtle) !important;
+}
+
+.aira-home.aira-home .aira-live-inspector strong {
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home .aira-live-inspector small,
+.aira-home.aira-home .aira-live-inspector p,
+.aira-home.aira-home .aira-live-inspector dt {
+  color: var(--aira-text-2) !important;
+}
+
+.aira-home.aira-home .aira-live-inspector dd {
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home aside[aria-label="Conversation sidebar"],
+.aira-home.aira-home div:has(> aside[aria-label="Conversation sidebar"]) {
+  background: var(--aira-surface-1) !important;
+  border-right: 1px solid var(--aira-border-subtle) !important;
+}
+
+.aira-home.aira-home .aira-assistant-response {
+  background: var(--aira-surface-0) !important;
+  border: 1px solid var(--aira-border-subtle) !important;
+  color: var(--aira-text-0) !important;
+  box-shadow: 0 1px 3px rgba(17, 17, 21, 0.04) !important;
+}
+
+.aira-home.aira-home .answer-markdown {
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer,
+.aira-enterprise-composer {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(17, 17, 21, 0.12) !important;
+  box-shadow: 0 4px 20px rgba(17, 17, 21, 0.05), 0 1px 3px rgba(17, 17, 21, 0.03) !important;
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer:focus-within,
+.aira-enterprise-composer:focus-within {
+  background: #FFFFFF !important;
+  border-color: var(--aira-accent) !important;
+  box-shadow: 0 6px 24px rgba(58, 12, 163, 0.08), 0 0 0 2px var(--aira-accent-ring) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer textarea,
+.aira-enterprise-composer textarea {
+  background: transparent !important;
+  color: var(--aira-text-0) !important;
+}
+
+.aira-home.aira-home .aira-enterprise-composer textarea::placeholder,
+.aira-enterprise-composer textarea::placeholder {
+  color: var(--aira-text-3) !important;
 }
 
 /* ============================================================
@@ -94,7 +238,7 @@
   min-width: var(--rail-width) !important;
   padding: 0 !important;
   border-right: 1px solid var(--aira-border-subtle) !important;
-  background: var(--aira-surface-0) !important;
+  background: #F7F6F2 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   box-shadow: 1px 0 0 0 var(--aira-border-subtle) !important;
@@ -118,7 +262,7 @@
   align-items: center !important;
   gap: 12px !important;
   border-bottom: 1px solid var(--aira-border-subtle) !important;
-  background: rgba(255, 255, 255, 0.015) !important;
+  background: transparent !important;
 }
 
 .aira-intelligence-os .aira-v2-brand-copy {
@@ -166,7 +310,7 @@
   font-weight: 600 !important;
   letter-spacing: 0.09em !important;
   text-transform: uppercase !important;
-  color: var(--aira-text-3) !important;
+  color: var(--aira-text-2) !important;
   padding: 4px 10px 6px !important;
 }
 
@@ -184,14 +328,14 @@
 }
 
 .aira-intelligence-os .aira-v2-nav-item:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: #ECE9E0 !important;
+  border-color: rgba(17, 17, 21, 0.06) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-item.is-active {
-  background: var(--aira-surface-1) !important;
-  border-color: var(--aira-border-mid) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  background: #FFFFFF !important;
+  border-color: rgba(58, 12, 163, 0.14) !important;
+  box-shadow: 0 1px 3px rgba(17, 17, 21, 0.04) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-item.is-active::before {
@@ -203,7 +347,7 @@
   width: 2.5px !important;
   border-radius: 2px !important;
   background: var(--aira-accent) !important;
-  box-shadow: 0 0 8px var(--aira-accent-glow) !important;
+  box-shadow: 0 0 6px var(--aira-accent-soft) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-icon {
@@ -217,7 +361,7 @@
 }
 
 .aira-intelligence-os .aira-v2-nav-item:hover .aira-v2-nav-icon {
-  color: var(--aira-text-1) !important;
+  color: var(--aira-text-0) !important;
 }
 
 .aira-intelligence-os .aira-v2-nav-item.is-active .aira-v2-nav-icon {
@@ -234,7 +378,7 @@
   font-family: var(--font-display) !important;
   font-size: 12px !important;
   font-weight: 500 !important;
-  color: var(--aira-text-1) !important;
+  color: var(--aira-text-0) !important;
   line-height: 1.3 !important;
   transition: color 160ms var(--smooth-ease) !important;
 }
@@ -250,7 +394,7 @@
 
 .aira-intelligence-os .aira-v2-nav-copy small {
   font-size: 10px !important;
-  color: var(--aira-text-3) !important;
+  color: var(--aira-text-2) !important;
   line-height: 1.2 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -267,17 +411,18 @@
   justify-content: space-between !important;
   border-radius: var(--radius-sm) !important;
   border: 1px solid var(--aira-border-subtle) !important;
-  background: var(--aira-surface-1) !important;
+  background: #FFFFFF !important;
   color: var(--aira-text-2) !important;
   font-size: 11.5px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
+  box-shadow: 0 1px 2px rgba(17, 17, 21, 0.03) !important;
   transition: all 160ms var(--smooth-ease) !important;
 }
 
 .aira-intelligence-os .aira-v2-command-trigger:hover {
-  background: var(--aira-surface-2) !important;
-  border-color: var(--aira-border-mid) !important;
+  background: #FAF9F6 !important;
+  border-color: rgba(58, 12, 163, 0.25) !important;
   color: var(--aira-text-0) !important;
 }
 
@@ -287,8 +432,8 @@
   padding: 2px 5px !important;
   border-radius: 4px !important;
   border: 1px solid var(--aira-border-subtle) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
-  color: var(--aira-text-3) !important;
+  background: var(--aira-surface-2) !important;
+  color: var(--aira-text-2) !important;
 }
 
 /* ============================================================
@@ -306,9 +451,9 @@
   justify-content: space-between !important;
   gap: 16px !important;
   border-bottom: 1px solid var(--aira-border-subtle) !important;
-  background: var(--aira-surface-glass) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  background: rgba(249, 248, 246, 0.92) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
   z-index: 30 !important;
 }
 
@@ -316,6 +461,18 @@
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
+}
+
+.aira-intelligence-os .aira-v2-topbar-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--aira-border-subtle) !important;
+  background: #FFFFFF !important;
+  color: var(--aira-accent) !important;
+  box-shadow: 0 1px 2px rgba(17, 17, 21, 0.04) !important;
 }
 
 .aira-intelligence-os .aira-v2-topbar-title strong {
@@ -327,7 +484,7 @@
 
 .aira-intelligence-os .aira-v2-topbar-title small {
   font-size: 11px !important;
-  color: var(--aira-text-3) !important;
+  color: var(--aira-text-2) !important;
   margin-left: 6px !important;
 }
 
@@ -342,7 +499,7 @@
   font-family: var(--font-telemetry) !important;
   font-size: 10.5px !important;
   font-weight: 500 !important;
-  color: var(--aira-emerald) !important;
+  color: #059669 !important;
 }
 
 .aira-intelligence-os .aira-v2-status-dot {
@@ -350,7 +507,7 @@
   height: 5px !important;
   border-radius: 50% !important;
   background: var(--aira-emerald) !important;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8) !important;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6) !important;
   animation: pulse-dot 2s infinite !important;
 }
 
@@ -370,16 +527,17 @@
   gap: 8px !important;
   border-radius: var(--radius-sm) !important;
   border: 1px solid var(--aira-border-subtle) !important;
-  background: var(--aira-surface-1) !important;
+  background: #FFFFFF !important;
   color: var(--aira-text-2) !important;
   font-size: 11px !important;
   cursor: pointer !important;
+  box-shadow: 0 1px 2px rgba(17, 17, 21, 0.04) !important;
   transition: all 160ms var(--smooth-ease) !important;
 }
 
 .aira-intelligence-os .aira-v2-topbar-command:hover {
-  background: var(--aira-surface-2) !important;
-  border-color: var(--aira-border-mid) !important;
+  background: #FAF9F6 !important;
+  border-color: rgba(58, 12, 163, 0.25) !important;
   color: var(--aira-text-0) !important;
 }
 
@@ -388,65 +546,13 @@
   font-size: 9.5px !important;
   padding: 2px 4px !important;
   border-radius: 3px !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: var(--aira-text-3) !important;
+  background: var(--aira-surface-2) !important;
+  color: var(--aira-text-2) !important;
 }
 
 /* ============================================================
-   5. BENTO CAPABILITY GRID (THE ANTI-BASIC WORKSPACE)
+   5. STARTERS & CARDS (OATMEAL & INK)
    ============================================================ */
-
-.aira-bento-hero {
-  position: relative !important;
-  border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--aira-border-subtle) !important;
-  background:
-    radial-gradient(ellipse 70% 50% at 0% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.005) 100%),
-    var(--aira-surface-0) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 16px 40px rgba(0, 0, 0, 0.35) !important;
-  padding: 24px !important;
-  transition: all 220ms var(--spring-ease) !important;
-  overflow: hidden !important;
-}
-
-.aira-bento-hero:hover {
-  border-color: var(--aira-border-mid) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 20px 48px rgba(0, 0, 0, 0.45) !important;
-}
-
-.aira-bento-card {
-  position: relative !important;
-  border-radius: var(--radius-lg) !important;
-  border: 1px solid var(--aira-border-subtle) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.005) 100%),
-    var(--aira-surface-0) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.25) !important;
-  padding: 18px !important;
-  transition: all 200ms var(--spring-ease) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: space-between !important;
-  text-decoration: none !important;
-}
-
-.aira-bento-card:hover {
-  border-color: var(--aira-border-active) !important;
-  background:
-    linear-gradient(180deg, rgba(56, 189, 248, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%),
-    var(--aira-surface-1) !important;
-  transform: translateY(-2px) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 14px 32px rgba(0, 0, 0, 0.35) !important;
-}
 
 .aira-pill-starter {
   display: inline-flex !important;
@@ -455,25 +561,26 @@
   padding: 8px 14px !important;
   border-radius: var(--radius-full) !important;
   border: 1px solid var(--aira-border-subtle) !important;
-  background: var(--aira-surface-0) !important;
+  background: #FFFFFF !important;
   color: var(--aira-text-1) !important;
   font-size: 11.5px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
+  box-shadow: 0 1px 2px rgba(17, 17, 21, 0.03) !important;
   transition: all 160ms var(--spring-ease) !important;
   white-space: nowrap !important;
 }
 
 .aira-pill-starter:hover {
   border-color: var(--aira-accent) !important;
-  background: var(--aira-surface-1) !important;
+  background: #FAF9F6 !important;
   color: var(--aira-text-0) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.12) !important;
+  box-shadow: 0 3px 8px rgba(17, 17, 21, 0.06) !important;
 }
 
 /* ============================================================
-   6. SEARCH COMPOSER (COMMAND CONSOLE)
+   6. SEARCH COMPOSER (OATMEAL & INK CONSOLE)
    ============================================================ */
 
 .aira-composer-dock {
@@ -481,7 +588,7 @@
   bottom: 0 !important;
   width: 100% !important;
   padding: 12px 16px 20px !important;
-  background: linear-gradient(180deg, transparent 0%, rgba(8, 9, 12, 0.85) 30%, var(--aira-canvas) 100%) !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(249, 248, 246, 0.85) 30%, var(--aira-canvas) 100%) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   z-index: 25 !important;
@@ -490,41 +597,34 @@
 .aira-search-box-shell {
   border-radius: var(--radius-xl) !important;
   border: 1px solid var(--aira-border-mid) !important;
-  background: var(--aira-surface-glass) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 16px 40px rgba(0, 0, 0, 0.5) !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 8px 30px rgba(17, 17, 21, 0.06) !important;
   transition: border-color 180ms var(--smooth-ease), box-shadow 180ms var(--smooth-ease) !important;
 }
 
 .aira-search-box-shell:focus-within {
-  border-color: var(--aira-border-active) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 0 0 3px var(--aira-accent-soft),
-    0 20px 48px rgba(0, 0, 0, 0.6) !important;
+  border-color: var(--aira-accent) !important;
+  box-shadow: 0 0 0 3px var(--aira-accent-soft), 0 12px 36px rgba(17, 17, 21, 0.08) !important;
 }
 
 /* Send button tactile response */
 .aira-composer-send-btn {
   background: var(--aira-accent) !important;
-  color: #08090C !important;
-  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
   border-radius: var(--radius-md) !important;
-  box-shadow: 0 4px 14px var(--aira-accent-glow) !important;
+  box-shadow: 0 2px 8px var(--aira-accent-glow) !important;
   transition: all 160ms var(--spring-ease) !important;
 }
 
 .aira-composer-send-btn:hover {
-  background: #7dd3fc !important;
-  transform: scale(1.03) !important;
-  box-shadow: 0 6px 20px var(--aira-accent-ring) !important;
+  background: var(--aira-accent-hover) !important;
+  transform: scale(1.02) !important;
+  box-shadow: 0 4px 14px var(--aira-accent-ring) !important;
 }
 
 .aira-composer-send-btn:active {
-  transform: scale(0.97) !important;
+  transform: scale(0.98) !important;
 }
 
 /* ============================================================
@@ -534,9 +634,9 @@
 .aira-v2-palette-backdrop {
   position: fixed !important;
   inset: 0 !important;
-  background: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+  background: rgba(17, 17, 21, 0.45) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
   z-index: 100 !important;
   display: grid !important;
   place-items: center !important;
@@ -553,11 +653,9 @@
   width: 100% !important;
   max-width: 580px !important;
   border-radius: var(--radius-lg) !important;
-  border: 1px solid var(--aira-border-strong) !important;
-  background: var(--aira-surface-0) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 32px 80px rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid var(--aira-border-mid) !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 24px 60px rgba(17, 17, 21, 0.16) !important;
   overflow: hidden !important;
   animation: palette-sheet 220ms var(--spring-ease) both !important;
 }
@@ -614,8 +712,8 @@
 
 .aira-v2-palette-item:hover,
 .aira-v2-palette-item:focus-visible {
-  background: var(--aira-surface-1) !important;
-  border-color: var(--aira-border-mid) !important;
+  background: #FAF9F6 !important;
+  border-color: var(--aira-border-subtle) !important;
 }
 
 .aira-v2-palette-item strong {
@@ -626,7 +724,7 @@
 
 .aira-v2-palette-item small {
   font-size: 11px !important;
-  color: var(--aira-text-3) !important;
+  color: var(--aira-text-2) !important;
   margin-left: 8px !important;
 }
 
@@ -636,10 +734,10 @@
   justify-content: space-between !important;
   padding: 10px 18px !important;
   border-top: 1px solid var(--aira-border-subtle) !important;
-  background: rgba(255, 255, 255, 0.015) !important;
+  background: #F7F6F2 !important;
   font-family: var(--font-telemetry) !important;
   font-size: 10px !important;
-  color: var(--aira-text-3) !important;
+  color: var(--aira-text-2) !important;
 }
 
 /* ============================================================
@@ -648,7 +746,9 @@
 
 .aira-deliverables-canvas {
   animation: canvas-slide-in 240ms var(--spring-ease) both !important;
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.65), inset 1px 0 0 rgba(255, 255, 255, 0.08) !important;
+  background: #FFFFFF !important;
+  border-left: 1px solid var(--aira-border-subtle) !important;
+  box-shadow: -8px 0 32px rgba(17, 17, 21, 0.08) !important;
 }
 
 @keyframes canvas-slide-in {
@@ -657,7 +757,7 @@
 }
 
 .aira-deliverables-canvas .prose pre {
-  background: var(--aira-surface-0) !important;
+  background: var(--aira-surface-2) !important;
   border: 1px solid var(--aira-border-subtle) !important;
   border-radius: var(--radius-sm) !important;
   padding: 12px !important;
@@ -684,7 +784,7 @@
 }
 
 .aira-deliverables-canvas .prose th {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--aira-surface-1) !important;
   color: var(--aira-text-0) !important;
   font-weight: 600 !important;
 }
@@ -694,31 +794,61 @@
    ============================================================ */
 
 @media (max-width: 1023px) {
-  .aira-v2-frame.aira-intelligence-os {
-    grid-template-columns: 1fr !important;
+  .aira-v2-frame.aira-v2-frame.aira-intelligence-os {
+    display: block !important;
+    grid-template-columns: 100% !important;
+    padding-bottom: 0 !important;
   }
 
-  .aira-intelligence-os .aira-v2-rail {
+  .aira-intelligence-os .aira-v2-rail.aira-v2-rail {
     position: fixed !important;
-    left: -280px !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
     width: 280px !important;
+    max-width: 82vw !important;
+    height: 100dvh !important;
+    transform: translateX(-100%) !important;
     transition: transform 260ms var(--spring-ease) !important;
+    z-index: 90 !important;
+    box-shadow: 4px 0 24px rgba(17, 17, 21, 0.12) !important;
+    background: #FFFFFF !important;
+    border-right: 1px solid var(--aira-border-subtle) !important;
   }
 
-  .aira-intelligence-os .aira-v2-rail.is-mobile-open {
-    transform: translateX(280px) !important;
+  .aira-intelligence-os .aira-v2-rail.aira-v2-rail.is-mobile-open {
+    transform: translateX(0) !important;
   }
 
   .aira-intelligence-os .aira-v2-mobile-backdrop {
     position: fixed !important;
     inset: 0 !important;
-    background: rgba(0, 0, 0, 0.6) !important;
+    background: rgba(17, 17, 21, 0.45) !important;
     backdrop-filter: blur(4px) !important;
-    z-index: 39 !important;
+    z-index: 85 !important;
   }
 }
 
 @media (max-width: 767px) {
+  .aira-v2-frame.aira-v2-frame.aira-intelligence-os {
+    padding-bottom: 0 !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .aira-v2-main,
+  .aira-home.aira-home,
+  .aira-v2-workspace-stage {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .aira-home.aira-home main {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    max-width: 100% !important;
+  }
+
   .aira-intelligence-os .aira-v2-mobile-menu {
     min-width: 44px !important;
     min-height: 44px !important;
@@ -737,10 +867,6 @@
     min-height: 44px !important;
     min-width: 44px !important;
     height: 44px !important;
-  }
-
-  .aira-bento-hero {
-    padding: 16px !important;
   }
 }
 
