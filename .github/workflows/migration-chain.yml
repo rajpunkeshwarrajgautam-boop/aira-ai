@@ -2,16 +2,6 @@ name: PostgreSQL Migration Chain
 
 on:
   pull_request:
-    paths:
-      - "prisma/**"
-      - "prisma.config.ts"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/migration-chain.yml"
-      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/recovery.ts"
-      - "perplexity-clone/my-turborepo/apps/web/lib/agent-platform/orchestrator.ts"
-      - "perplexity-clone/my-turborepo/apps/web/lib/autogpt/**"
-      - "perplexity-clone/my-turborepo/apps/web/test/agent-platform-recovery-real-db*"
   workflow_dispatch:
 
 permissions:
@@ -52,23 +42,46 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check for relevant migration file changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch origin ${{ github.base_ref }} --depth=1
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          if echo "$CHANGED_FILES" | grep -qE '^(prisma/|prisma\.config\.ts|package\.json|pnpm-lock\.yaml|\.github/workflows/migration-chain\.yml|perplexity-clone/my-turborepo/apps/web/lib/agent-platform/recovery\.ts|perplexity-clone/my-turborepo/apps/web/lib/agent-platform/orchestrator\.ts|perplexity-clone/my-turborepo/apps/web/lib/autogpt/|perplexity-clone/my-turborepo/apps/web/test/agent-platform-recovery-real-db)'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "No database migration files changed. Skipping migration chain execution."
+          fi
+
       - name: Set up Node.js
+        if: steps.changes.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Enable pnpm
+        if: steps.changes.outputs.should_run == 'true'
         run: corepack enable
 
       - name: Install dependencies
+        if: steps.changes.outputs.should_run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Install PostgreSQL client
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
       - name: Assert disposable database starts without application tables
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           table_count="$(psql "$PSQL_URL" -Atc "select count(*) from pg_tables where schemaname = 'public';")"
           test "$table_count" = "0" || {
@@ -77,6 +90,7 @@ jobs:
           }
 
       - name: Prepare Supabase-compatible migration principals
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
           create schema if not exists extensions;
@@ -96,6 +110,7 @@ jobs:
           SQL
 
       - name: Materialize the historical baseline as a CI-only first migration
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           test ! -e prisma/migrations/20260429_initial_schema || {
             echo "::error::The historical baseline must not be committed into prisma/migrations; existing deployments must never see it as a pending production migration."
@@ -106,9 +121,11 @@ jobs:
             prisma/migrations/20260429_initial_schema/migration.sql
 
       - name: Apply historical baseline and every recorded Prisma migration
+        if: steps.changes.outputs.should_run == 'true'
         run: pnpm exec prisma migrate deploy
 
       - name: Verify migration ledger is complete
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           expected="$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
           applied="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
@@ -120,6 +137,7 @@ jobs:
           pnpm exec prisma migrate status
 
       - name: Verify representative schema milestones
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
           do $$
@@ -151,6 +169,7 @@ jobs:
           SQL
 
       - name: Prove migrate deploy is restart-idempotent
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           before="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
           pnpm exec prisma migrate deploy
@@ -161,6 +180,7 @@ jobs:
           }
 
       - name: Prove blocked recovery semantics against real PostgreSQL
+        if: steps.changes.outputs.should_run == 'true'
         env:
           AIRA_REAL_DB_RECOVERY_TESTS: "1"
           DATABASE_POOL_MAX: "4"
@@ -170,6 +190,7 @@ jobs:
           pnpm --filter web exec node --import ./test/resolver.mjs --test ./test/agent-platform-recovery-real-db.test.ts
 
       - name: Simulate an existing deployment before the additive ordering repair
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           psql "$PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
           delete from "_prisma_migrations"
@@ -210,6 +231,7 @@ jobs:
           }
 
       - name: Prove an existing deployment can apply the additive repair out of historical order
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           before="$(psql "$PSQL_URL" -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null;')"
           pnpm exec prisma migrate deploy
@@ -242,3 +264,7 @@ jobs:
           end
           $$;
           SQL
+
+      - name: Report skip summary
+        if: steps.changes.outputs.should_run != 'true'
+        run: echo "PostgreSQL migration chain validation skipped because no database migration files were modified in this pull request."
