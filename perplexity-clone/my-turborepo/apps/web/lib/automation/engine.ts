@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { globalArtifactEngine } from "../artifacts/engine";
@@ -221,6 +221,10 @@ export class AutomationEngine {
 					for (const r of parsed) this.routines.set(r.id, r);
 				}
 			}
+		} catch {
+			// fail-safe read
+		}
+		try {
 			if (existsSync(this.runsPath)) {
 				const raw = readFileSync(this.runsPath, "utf8");
 				const parsed = JSON.parse(raw);
@@ -228,6 +232,10 @@ export class AutomationEngine {
 					this.executionHistory = parsed;
 				}
 			}
+		} catch {
+			// fail-safe read
+		}
+		try {
 			if (existsSync(this.notificationsPath)) {
 				const raw = readFileSync(this.notificationsPath, "utf8");
 				const parsed = JSON.parse(raw);
@@ -243,21 +251,63 @@ export class AutomationEngine {
 	}
 
 	private persistToDisk(): void {
+		this.ensureStorageDir();
+
+		// 1. Routines (merge from disk to prevent clobbering concurrent routine writes)
 		try {
-			this.ensureStorageDir();
+			if (existsSync(this.routinesPath)) {
+				try {
+					const diskRaw = readFileSync(this.routinesPath, "utf8");
+					const diskParsed = JSON.parse(diskRaw);
+					if (Array.isArray(diskParsed)) {
+						for (const r of diskParsed) {
+							if (!this.routines.has(r.id)) {
+								this.routines.set(r.id, r);
+							}
+						}
+					}
+				} catch {
+					// ignore
+				}
+			}
 			const routinesArr = [...this.routines.values()];
 			const tempR = `${this.routinesPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-			writeFileSync(tempR, JSON.stringify(routinesArr, null, 2), "utf8");
-			renameSync(tempR, this.routinesPath);
+			try {
+				writeFileSync(tempR, JSON.stringify(routinesArr, null, 2), "utf8");
+				renameSync(tempR, this.routinesPath);
+			} catch {
+				writeFileSync(this.routinesPath, JSON.stringify(routinesArr, null, 2), "utf8");
+				try { unlinkSync(tempR); } catch { void 0; }
+			}
+		} catch {
+			// fail-safe write
+		}
 
+		// 2. Runs
+		try {
 			const tempRuns = `${this.runsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-			writeFileSync(tempRuns, JSON.stringify(this.executionHistory, null, 2), "utf8");
-			renameSync(tempRuns, this.runsPath);
+			try {
+				writeFileSync(tempRuns, JSON.stringify(this.executionHistory, null, 2), "utf8");
+				renameSync(tempRuns, this.runsPath);
+			} catch {
+				writeFileSync(this.runsPath, JSON.stringify(this.executionHistory, null, 2), "utf8");
+				try { unlinkSync(tempRuns); } catch { void 0; }
+			}
+		} catch {
+			// fail-safe write
+		}
 
+		// 3. Notifications
+		try {
 			const notifsObj = Object.fromEntries(this.notifications.entries());
 			const tempN = `${this.notificationsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-			writeFileSync(tempN, JSON.stringify(notifsObj, null, 2), "utf8");
-			renameSync(tempN, this.notificationsPath);
+			try {
+				writeFileSync(tempN, JSON.stringify(notifsObj, null, 2), "utf8");
+				renameSync(tempN, this.notificationsPath);
+			} catch {
+				writeFileSync(this.notificationsPath, JSON.stringify(notifsObj, null, 2), "utf8");
+				try { unlinkSync(tempN); } catch { void 0; }
+			}
 		} catch {
 			// fail-safe write
 		}
