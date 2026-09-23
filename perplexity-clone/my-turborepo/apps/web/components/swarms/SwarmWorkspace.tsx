@@ -72,12 +72,59 @@ export function SwarmWorkspace() {
   }
 
   return (
-    <main className="min-h-[calc(100dvh-58px)] bg-[#090b0e] px-4 py-6 text-[#ecece8] md:px-8">
+    <main className="min-h-[calc(100dvh-58px)] bg-[var(--aira-canvas,#F9F8F6)] px-4 py-6 text-[#111115] md:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
-        <header><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b89a51]">Swarm orchestration</p><h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] md:text-3xl">Real AGENT_SWARM managed runs</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#858b94]">This surface dispatches through the persisted Agent Platform. It does not synthesize council members or fixed confidence scores in the browser.</p></header>
-        {error ? <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">{error}</div> : null}
-        <section className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><textarea value={objective} onChange={(e) => setObjective(e.target.value.slice(0, 8000))} rows={5} placeholder="Describe a mission that benefits from multiple specialist roles…" className="w-full rounded-xl border border-white/[0.09] bg-[#0a0d11] px-4 py-3 text-sm leading-6 outline-none placeholder:text-[#616771] focus:border-[#c9a84c]/45" /><button type="button" onClick={() => void startSwarm()} disabled={busy || objective.trim().length < 3} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#d0ae55] px-4 py-2.5 text-sm font-semibold text-[#111214] disabled:opacity-40">{busy ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}Start swarm mission</button></section>
-        {detail ? <section className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]"><aside className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><div className="flex items-center gap-2"><Network className="size-4 text-[#d0ae55]" /><h2 className="text-sm font-semibold">Run state</h2></div><p className="mt-4 text-xs text-[#777d85]">Runtime</p><p className="text-sm">{detail.run.runtime ?? "AGENT_SWARM"}</p><p className="mt-3 text-xs text-[#777d85]">Status</p><p className="text-sm text-[#d0ae55]">{detail.run.status}</p><p className="mt-3 break-all text-[10px] text-[#666d75]">{detail.run.id}</p><button type="button" onClick={() => void refresh(detail.run.id)} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><RefreshCw className="size-3.5" />Refresh</button></aside><div className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5"><h2 className="text-sm font-semibold">Delegated specialist tasks · {detail.tasks.length}</h2><div className="mt-4 grid gap-2 sm:grid-cols-2">{detail.tasks.map((task) => <article key={task.id} className="rounded-xl border border-white/[0.06] p-3"><div className="flex items-center justify-between gap-2"><span className="inline-flex items-center gap-2 text-xs font-semibold"><Bot className="size-3.5 text-[#d0ae55]" />{task.agentRole}</span><span className="text-[10px] text-[#858b94]">{task.status}</span></div><p className="mt-2 text-sm text-[#e0e0dc]">{task.title}</p><p className="mt-1 line-clamp-3 text-xs leading-5 text-[#727982]">{task.objective}</p><p className="mt-2 text-[10px] text-[#616771]">{task.modelTier}</p></article>)}</div>{detail.tasks.length < 2 ? <p className="mt-4 text-xs text-amber-200">The current runtime produced fewer than two specialist tasks; this run does not prove multi-worker participation.</p> : null}</div></section> : null}
+        <header>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#3A0CA3]">Swarm orchestration</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#111115] md:text-3xl">Real AGENT_SWARM managed runs</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6B6A75]">This surface dispatches through the persisted Agent Platform. It does not synthesize council members or fixed confidence scores in the browser.</p>
+        </header>
+        {error ? <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
+        <section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
+          <textarea value={objective} onChange={(e) => setObjective(e.target.value.slice(0, 8000))} rows={5} placeholder="Describe a mission that benefits from multiple specialist roles…" className="w-full rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-4 py-3 text-sm leading-6 text-[#111115] outline-none placeholder:text-[#8F8E98] focus:border-[#3A0CA3]" />
+          <button type="button" onClick={() => void startSwarm()} disabled={busy || objective.trim().length < 3} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] hover:bg-[#2D0A82] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition disabled:opacity-40">
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}Start swarm mission
+          </button>
+        </section>
+        {detail ? (
+          <section className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <aside className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Network className="size-4 text-[#3A0CA3]" />
+                <h2 className="text-sm font-semibold text-[#111115]">Run state</h2>
+              </div>
+              <p className="mt-4 text-xs text-[#6B6A75]">Runtime</p>
+              <p className="text-sm font-semibold text-[#111115]">{detail.run.runtime ?? "AGENT_SWARM"}</p>
+              <p className="mt-3 text-xs text-[#6B6A75]">Status</p>
+              <p className="text-sm font-semibold text-[#3A0CA3]">{detail.run.status}</p>
+              <p className="mt-3 break-all text-[10px] text-[#8F8E98]">{detail.run.id}</p>
+              <button type="button" onClick={() => void refresh(detail.run.id)} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] shadow-xs hover:bg-[#FAF9F6]">
+                <RefreshCw className="size-3.5" />Refresh
+              </button>
+            </aside>
+            <div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
+              <h2 className="text-sm font-semibold text-[#111115]">Delegated specialist tasks · {detail.tasks.length}</h2>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {detail.tasks.map((task) => (
+                  <article key={task.id} className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#111115]">
+                        <Bot className="size-3.5 text-[#3A0CA3]" />{task.agentRole}
+                      </span>
+                      <span className="text-[10px] text-[#6B6A75]">{task.status}</span>
+                    </div>
+                    <p className="mt-2 text-sm font-medium text-[#111115]">{task.title}</p>
+                    <p className="mt-1 line-clamp-3 text-xs leading-5 text-[#6B6A75]">{task.objective}</p>
+                    <p className="mt-2 text-[10px] text-[#8F8E98]">{task.modelTier}</p>
+                  </article>
+                ))}
+              </div>
+              {detail.tasks.length < 2 ? (
+                <p className="mt-4 text-xs text-amber-700">The current runtime produced fewer than two specialist tasks; this run does not prove multi-worker participation.</p>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

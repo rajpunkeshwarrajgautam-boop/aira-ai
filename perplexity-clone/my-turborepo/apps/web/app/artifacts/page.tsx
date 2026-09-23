@@ -14,7 +14,7 @@ export default function ArtifactsPage() {
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <Suspense fallback={<div className="min-h-[calc(100dvh-58px)] bg-[#090b0e]" aria-hidden />}>
+        <Suspense fallback={<div className="min-h-[calc(100dvh-58px)] bg-[var(--aira-canvas,#F9F8F6)]" aria-hidden />}>
           <VerifiedArtifactWorkspace />
         </Suspense>
       </AiraV2Frame>

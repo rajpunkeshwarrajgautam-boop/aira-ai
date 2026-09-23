@@ -278,17 +278,17 @@ export function ArtifactWorkspace() {
 	}, [selectedArtifact, activeVersionObj]);
 
 	return (
-		<div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+		<div className="mx-auto max-w-7xl space-y-6 p-4 text-[#111115] sm:p-6 lg:p-8">
 			{/* Top Header */}
 			<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<div className="flex items-center gap-2">
-						<h1 className="text-xl font-semibold tracking-tight text-content-primary">Artifact Workspace</h1>
-						<span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-300">
+						<h1 className="text-xl font-semibold tracking-tight text-[#111115]">Artifact Workspace</h1>
+						<span className="rounded-full border border-[rgba(58,12,163,0.18)] bg-[rgba(58,12,163,0.08)] px-2.5 py-0.5 text-[11px] font-semibold text-[#3A0CA3]">
 							Gate 65 & 66 Certified
 						</span>
 					</div>
-					<p className="text-[13px] text-content-tertiary">
+					<p className="text-[13px] text-[#6B6A75]">
 						Inspect, validate, preview, and track the cryptographic provenance of generated deliverables.
 					</p>
 				</div>
@@ -297,16 +297,16 @@ export function ArtifactWorkspace() {
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
 				{/* Left Sidebar: Artifacts Library */}
 				<div className="space-y-4 lg:col-span-4">
-					<div className="rounded-xl border border-white/[0.08] bg-[#0e1424]/80 p-4 backdrop-blur">
+					<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
 						{/* Search & Filter */}
 						<div className="relative">
-							<Search className="absolute left-2.5 top-2.5 size-3.5 text-content-tertiary" />
+							<Search className="absolute left-2.5 top-2.5 size-3.5 text-[#8F8E98]" />
 							<input
 								type="text"
 								placeholder="Search deliverables…"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								className="w-full rounded-lg border border-white/[0.1] bg-[#090d16] py-1.5 pl-8 pr-3 text-[12px] text-content-primary placeholder-content-tertiary focus:border-amber-400/50 focus:outline-none"
+								className="w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white py-1.5 pl-8 pr-3 text-[12px] text-[#111115] placeholder:text-[#8F8E98] focus:border-[#3A0CA3] focus:outline-none"
 							/>
 						</div>
 
@@ -317,7 +317,7 @@ export function ArtifactWorkspace() {
 									type="button"
 									onClick={() => setFilterFormat(fmt)}
 									className={`rounded px-2 py-0.5 whitespace-nowrap transition ${
-										filterFormat === fmt ? "bg-amber-400/20 text-amber-300 font-medium" : "text-content-tertiary hover:text-content-secondary"
+										filterFormat === fmt ? "bg-[rgba(58,12,163,0.1)] text-[#3A0CA3] font-semibold" : "text-[#6B6A75] hover:text-[#111115]"
 									}`}
 								>
 									{fmt}
@@ -339,19 +339,19 @@ export function ArtifactWorkspace() {
 										}}
 										className={`w-full rounded-lg border p-2.5 text-left transition ${
 											isSelected
-												? "border-amber-400/40 bg-amber-400/[0.08]"
-												: "border-white/[0.05] bg-[#090d16]/50 hover:border-white/[0.1] hover:bg-[#090d16]"
+												? "border-[#3A0CA3] bg-[rgba(58,12,163,0.05)] shadow-2xs"
+												: "border-[rgba(17,17,21,0.06)] bg-white hover:border-[rgba(17,17,21,0.12)] hover:bg-[#FAF9F6]"
 										}`}
 									>
 										<div className="flex items-center justify-between">
-											<span className="truncate text-[12px] font-medium text-content-primary">
+											<span className="truncate text-[12px] font-medium text-[#111115]">
 												{art.name}
 											</span>
-											<span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-content-tertiary">
+											<span className="rounded bg-[#F3F1EC] px-1.5 py-0.5 text-[9px] font-semibold text-[#6B6A75]">
 												v{art.currentVersion}
 											</span>
 										</div>
-										<div className="mt-1 flex items-center gap-2 text-[10px] text-content-tertiary">
+										<div className="mt-1 flex items-center gap-2 text-[10px] text-[#6B6A75]">
 											<span>{art.format}</span>
 											<span>·</span>
 											<span>{art.tags.join(", ") || "deliverable"}</span>
@@ -366,27 +366,27 @@ export function ArtifactWorkspace() {
 				{/* Right Panel: Interactive Viewer & Workspaces */}
 				<div className="space-y-4 lg:col-span-8">
 					{selectedArtifact && activeVersionObj ? (
-						<div className="rounded-xl border border-white/[0.08] bg-[#0e1424]/90 p-5 shadow-sm backdrop-blur">
+						<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
 							{/* Artifact Control Bar */}
-							<div className="flex flex-col gap-3 border-b border-white/[0.08] pb-4 sm:flex-row sm:items-center sm:justify-between">
+							<div className="flex flex-col gap-3 border-b border-[rgba(17,17,21,0.08)] pb-4 sm:flex-row sm:items-center sm:justify-between">
 								<div>
 									<div className="flex items-center gap-2">
-										<h2 className="text-[14px] font-semibold text-content-primary">{selectedArtifact.name}</h2>
-										<span className="rounded bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+										<h2 className="text-[14px] font-semibold text-[#111115]">{selectedArtifact.name}</h2>
+										<span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
 											Score: {activeVersionObj.validation.score}/100
 										</span>
 									</div>
-									<p className="text-[11px] text-content-tertiary">
+									<p className="text-[11px] text-[#6B6A75]">
 										Generated by {activeVersionObj.provenance.generator} · {activeVersionObj.sizeBytes} bytes
 									</p>
 								</div>
 
 								{/* Navigation Tabs */}
-								<div className="flex items-center gap-1 rounded-lg border border-white/[0.1] bg-[#090d16] p-1 text-[11px]">
+								<div className="flex items-center gap-1 rounded-lg border border-[rgba(17,17,21,0.1)] bg-[#F7F6F2] p-1 text-[11px]">
 									<button
 										type="button"
 										onClick={() => setActiveTab("PREVIEW")}
-										className={`rounded px-2.5 py-1 transition ${activeTab === "PREVIEW" ? "bg-amber-400/20 text-amber-300 font-medium" : "text-content-tertiary hover:text-content-primary"}`}
+										className={`rounded px-2.5 py-1 transition ${activeTab === "PREVIEW" ? "bg-white text-[#3A0CA3] font-semibold shadow-2xs" : "text-[#6B6A75] hover:text-[#111115]"}`}
 									>
 										Preview
 									</button>
@@ -394,7 +394,7 @@ export function ArtifactWorkspace() {
 										<button
 											type="button"
 											onClick={() => setActiveTab("TABLE_STATS")}
-											className={`rounded px-2.5 py-1 transition ${activeTab === "TABLE_STATS" ? "bg-amber-400/20 text-amber-300 font-medium" : "text-content-tertiary hover:text-content-primary"}`}
+											className={`rounded px-2.5 py-1 transition ${activeTab === "TABLE_STATS" ? "bg-white text-[#3A0CA3] font-semibold shadow-2xs" : "text-[#6B6A75] hover:text-[#111115]"}`}
 										>
 											Table Stats
 										</button>
@@ -402,14 +402,14 @@ export function ArtifactWorkspace() {
 									<button
 										type="button"
 										onClick={() => setActiveTab("PROVENANCE")}
-										className={`rounded px-2.5 py-1 transition ${activeTab === "PROVENANCE" ? "bg-amber-400/20 text-amber-300 font-medium" : "text-content-tertiary hover:text-content-primary"}`}
+										className={`rounded px-2.5 py-1 transition ${activeTab === "PROVENANCE" ? "bg-white text-[#3A0CA3] font-semibold shadow-2xs" : "text-[#6B6A75] hover:text-[#111115]"}`}
 									>
 										Lineage Graph
 									</button>
 									<button
 										type="button"
 										onClick={() => setActiveTab("VERSIONS")}
-										className={`rounded px-2.5 py-1 transition ${activeTab === "VERSIONS" ? "bg-amber-400/20 text-amber-300 font-medium" : "text-content-tertiary hover:text-content-primary"}`}
+										className={`rounded px-2.5 py-1 transition ${activeTab === "VERSIONS" ? "bg-white text-[#3A0CA3] font-semibold shadow-2xs" : "text-[#6B6A75] hover:text-[#111115]"}`}
 									>
 										Versions ({selectedArtifact.versions.length})
 									</button>
@@ -419,9 +419,9 @@ export function ArtifactWorkspace() {
 									<button
 										type="button"
 										onClick={handleDownload}
-										className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.1] bg-white/[0.05] px-3 py-1.5 text-[11px] font-medium text-content-primary transition hover:bg-white/[0.1]"
+										className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.1)] bg-white px-3 py-1.5 text-[11px] font-medium text-[#111115] shadow-2xs transition hover:bg-[#FAF9F6]"
 									>
-										<Download className="size-3" /> Download
+										<Download className="size-3 text-[#3A0CA3]" /> Download
 									</button>
 								</div>
 							</div>
@@ -432,7 +432,7 @@ export function ArtifactWorkspace() {
 								{activeTab === "PREVIEW" && (
 									<div>
 										{selectedArtifact.format === "MARKDOWN" && (
-											<div className="prose prose-invert max-w-none text-[13px] leading-relaxed">
+											<div className="prose max-w-none text-[13px] leading-relaxed text-[#111115]">
 												<ReactMarkdown remarkPlugins={[remarkGfm]}>
 													{activeVersionObj.content}
 												</ReactMarkdown>
@@ -442,7 +442,7 @@ export function ArtifactWorkspace() {
 										{selectedArtifact.format === "CSV" && tableData && (
 											<div className="overflow-x-auto">
 												<table className="w-full text-left text-[11px]">
-													<thead className="border-b border-white/[0.1] text-content-tertiary">
+													<thead className="border-b border-[rgba(17,17,21,0.08)] text-[#6B6A75]">
 														<tr>
 															{tableData.columns.map((c: string) => (
 																<th key={c} className="p-2 font-medium">
@@ -451,15 +451,15 @@ export function ArtifactWorkspace() {
 															))}
 														</tr>
 													</thead>
-													<tbody className="divide-y divide-white/[0.05]">
+													<tbody className="divide-y divide-[rgba(17,17,21,0.06)]">
 														{activeVersionObj.content
 															.trim()
 															.split(/\r?\n/)
 															.slice(1)
 															.map((line, idx) => (
-																<tr key={idx} className="hover:bg-white/[0.02]">
+																<tr key={idx} className="hover:bg-[#FAF9F6]">
 																	{line.split(",").map((val, cIdx) => (
-																		<td key={cIdx} className="p-2 text-content-secondary">
+																		<td key={cIdx} className="p-2 text-[#111115]">
 																			{val.trim()}
 																		</td>
 																	))}
@@ -473,30 +473,30 @@ export function ArtifactWorkspace() {
 										{selectedArtifact.format === "PPTX_DECK" && parsedDeck && (
 											<div className="space-y-4">
 												{/* Slide Carousel */}
-												<div className="flex min-h-64 flex-col justify-between rounded-xl border border-white/[0.1] bg-[#090d16] p-6">
+												<div className="flex min-h-64 flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-6">
 													<div>
-														<div className="flex items-center justify-between text-[11px] text-content-tertiary">
+														<div className="flex items-center justify-between text-[11px] text-[#6B6A75]">
 															<span>{parsedDeck.title}</span>
 															<span>
 																Slide {slideIndex + 1} of {parsedDeck.slides.length}
 															</span>
 														</div>
-														<h3 className="mt-4 text-lg font-semibold text-content-primary">
+														<h3 className="mt-4 text-lg font-semibold text-[#111115]">
 															{parsedDeck.slides[slideIndex]?.title}
 														</h3>
-														<ul className="mt-4 space-y-2 text-[13px] text-content-secondary">
+														<ul className="mt-4 space-y-2 text-[13px] text-[#6B6A75]">
 															{parsedDeck.slides[slideIndex]?.bullets.map((b, i) => (
 																<li key={i} className="flex items-start gap-2">
-																	<span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-400" />
-																	<span>{b}</span>
+																	<span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[#3A0CA3]" />
+																	<span className="text-[#111115]">{b}</span>
 																</li>
 															))}
 														</ul>
 													</div>
 
 													{parsedDeck.slides[slideIndex]?.speakerNotes && (
-														<div className="mt-6 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px] text-content-tertiary">
-															<strong className="block text-content-secondary">Speaker Notes:</strong>
+														<div className="mt-6 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white p-3 text-[11px] text-[#6B6A75] shadow-2xs">
+															<strong className="block text-[#111115]">Speaker Notes:</strong>
 															{parsedDeck.slides[slideIndex]?.speakerNotes}
 														</div>
 													)}
@@ -507,7 +507,7 @@ export function ArtifactWorkspace() {
 														type="button"
 														disabled={slideIndex === 0}
 														onClick={() => setSlideIndex((i) => Math.max(0, i - 1))}
-														className="inline-flex items-center gap-1 rounded-lg border border-white/[0.1] px-3 py-1.5 text-[11px] text-content-secondary disabled:opacity-30"
+														className="inline-flex items-center gap-1 rounded-lg border border-[rgba(17,17,21,0.1)] bg-white px-3 py-1.5 text-[11px] text-[#111115] shadow-2xs hover:bg-[#FAF9F6] disabled:opacity-30"
 													>
 														<ChevronLeft className="size-3.5" /> Previous Slide
 													</button>
@@ -515,7 +515,7 @@ export function ArtifactWorkspace() {
 														type="button"
 														disabled={slideIndex === parsedDeck.slides.length - 1}
 														onClick={() => setSlideIndex((i) => Math.min(parsedDeck.slides.length - 1, i + 1))}
-														className="inline-flex items-center gap-1 rounded-lg border border-white/[0.1] px-3 py-1.5 text-[11px] text-content-secondary disabled:opacity-30"
+														className="inline-flex items-center gap-1 rounded-lg border border-[rgba(17,17,21,0.1)] bg-white px-3 py-1.5 text-[11px] text-[#111115] shadow-2xs hover:bg-[#FAF9F6] disabled:opacity-30"
 													>
 														Next Slide <ChevronRight className="size-3.5" />
 													</button>
@@ -529,36 +529,36 @@ export function ArtifactWorkspace() {
 								{activeTab === "TABLE_STATS" && tableData && (
 									<div className="space-y-4">
 										<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-											<div className="rounded-lg border border-white/[0.08] bg-[#090d16] p-3">
-												<span className="text-[10px] text-content-tertiary">Total Rows</span>
-												<p className="mt-0.5 text-base font-semibold text-content-primary">
+											<div className="rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3">
+												<span className="text-[10px] text-[#6B6A75]">Total Rows</span>
+												<p className="mt-0.5 text-base font-semibold text-[#111115]">
 													{tableData.rowCount}
 												</p>
 											</div>
-											<div className="rounded-lg border border-white/[0.08] bg-[#090d16] p-3">
-												<span className="text-[10px] text-content-tertiary">Total Columns</span>
-												<p className="mt-0.5 text-base font-semibold text-content-primary">
+											<div className="rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3">
+												<span className="text-[10px] text-[#6B6A75]">Total Columns</span>
+												<p className="mt-0.5 text-base font-semibold text-[#111115]">
 													{tableData.columns.length}
 												</p>
 											</div>
 										</div>
 
-										<h4 className="text-[12px] font-semibold text-content-primary">Column Metrics & Statistics</h4>
+										<h4 className="text-[12px] font-semibold text-[#111115]">Column Metrics & Statistics</h4>
 										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 											{tableData.columns.map((col: string) => {
 												const stat = tableData.stats[col];
 												return (
 													<div
 														key={col}
-														className="rounded-lg border border-white/[0.06] bg-[#090d16] p-3 text-[11px]"
+														className="rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3 text-[11px]"
 													>
-														<div className="flex items-center justify-between font-medium text-content-primary">
+														<div className="flex items-center justify-between font-medium text-[#111115]">
 															<span>{col}</span>
-															<span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-amber-300">
+															<span className="rounded bg-[rgba(58,12,163,0.08)] px-1.5 py-0.5 text-[9px] font-semibold text-[#3A0CA3]">
 																{stat?.isNumeric ? "Numeric" : "Categorical"}
 															</span>
 														</div>
-														<div className="mt-2 space-y-1 text-content-tertiary">
+														<div className="mt-2 space-y-1 text-[#6B6A75]">
 															<div>Distinct Values: {stat?.distinct}</div>
 															{stat?.isNumeric && (
 																<>
@@ -577,22 +577,22 @@ export function ArtifactWorkspace() {
 								{/* 3. PROVENANCE LINEAGE TAB (Gate 123) */}
 								{activeTab === "PROVENANCE" && (
 									<div className="space-y-4">
-										<h4 className="text-[12px] font-semibold text-content-primary">
+										<h4 className="text-[12px] font-semibold text-[#111115]">
 											Cryptographic Provenance Lineage Graph
 										</h4>
 										<div className="space-y-3">
-											{lineage.map((node: ProvenanceLineageNode, index: number) => (
+											{lineage.map((node: ProvenanceLineageNode) => (
 												<div
 													key={node.artifactId}
-													className="relative rounded-lg border border-white/[0.08] bg-[#090d16] p-3.5 text-[12px]"
+													className="relative rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3.5 text-[12px]"
 												>
 													<div className="flex items-center justify-between">
-														<span className="font-semibold text-content-primary">{node.name}</span>
-														<span className="rounded bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+														<span className="font-semibold text-[#111115]">{node.name}</span>
+														<span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
 															v{node.version}
 														</span>
 													</div>
-													<div className="mt-2 grid grid-cols-1 gap-1 text-[10px] text-content-tertiary sm:grid-cols-2">
+													<div className="mt-2 grid grid-cols-1 gap-1 text-[10px] text-[#6B6A75] sm:grid-cols-2">
 														<div>Generator: {node.generator}</div>
 														<div>Generated: {new Date(node.generatedAt).toLocaleTimeString()}</div>
 														<div className="truncate font-mono sm:col-span-2">SHA-256: {node.checksum}</div>
@@ -613,17 +613,17 @@ export function ArtifactWorkspace() {
 												onClick={() => setSelectedVersion(v.version)}
 												className={`flex w-full items-center justify-between rounded-lg border p-3 text-left text-[12px] transition ${
 													v.version === selectedVersion
-														? "border-amber-400/30 bg-amber-400/10"
-														: "border-white/[0.06] bg-[#090d16] hover:bg-white/[0.04]"
+														? "border-[#3A0CA3] bg-[rgba(58,12,163,0.05)] shadow-2xs"
+														: "border-[rgba(17,17,21,0.06)] bg-white hover:bg-[#FAF9F6]"
 												}`}
 											>
 												<div>
-													<span className="font-semibold text-content-primary">Version {v.version}</span>
-													<p className="mt-0.5 text-[10px] text-content-tertiary">
+													<span className="font-semibold text-[#111115]">Version {v.version}</span>
+													<p className="mt-0.5 text-[10px] text-[#6B6A75]">
 														{new Date(v.createdAt).toLocaleString()} · {v.sizeBytes} bytes
 													</p>
 												</div>
-												<span className="font-mono text-[10px] text-content-tertiary">
+												<span className="font-mono text-[10px] text-[#6B6A75]">
 													{v.checksum.substring(0, 12)}…
 												</span>
 											</button>
@@ -633,8 +633,8 @@ export function ArtifactWorkspace() {
 							</div>
 						</div>
 					) : (
-						<div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.08] p-6 text-center text-content-tertiary">
-							<Layers className="size-8 text-content-tertiary/40" />
+						<div className="flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[rgba(17,17,21,0.15)] bg-white/50 p-6 text-center text-[#6B6A75]">
+							<Layers className="size-8 text-[#8F8E98]" />
 							<p className="mt-2 text-[12px]">Select an artifact from the library to inspect.</p>
 						</div>
 					)}

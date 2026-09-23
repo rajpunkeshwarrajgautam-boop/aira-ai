@@ -203,39 +203,113 @@ export function BrowserWorkspace() {
 	}
 
 	if (sessionStatus !== "authenticated" || loading) {
-		return <div className="grid min-h-[calc(100dvh-58px)] place-items-center bg-[#090b0e] text-[#8f949c]"><Loader2 className="size-5 animate-spin" /></div>;
+		return <div className="grid min-h-[calc(100dvh-58px)] place-items-center bg-[var(--aira-canvas,#F9F8F6)] text-[#6B6A75]"><Loader2 className="size-5 animate-spin text-[#3A0CA3]" /></div>;
 	}
 
 	return (
-		<main className="min-h-[calc(100dvh-58px)] bg-[#090b0e] px-4 py-5 text-[#ecece8] md:px-6">
+		<main className="min-h-[calc(100dvh-58px)] bg-[var(--aira-canvas,#F9F8F6)] px-4 py-5 text-[#111115] md:px-6">
 			<div className="mx-auto max-w-[1600px]">
-				<div className="mb-5 flex flex-wrap items-end justify-between gap-4"><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b89a51]">AIRA Browser</p><h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] md:text-3xl">Browser operator</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#858b94]">Isolated Chromium sessions with domain scope, audited actions and screenshot-driven human takeover.</p></div><div className={cn("rounded-full border px-3 py-1.5 text-xs", runtime?.ready ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.06] text-amber-100")}>{runtime?.ready ? "Browser runtime ready" : "Browser runtime not configured"}</div></div>
-				{error ? <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">{error}</div> : null}
+				<div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+					<div>
+						<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#3A0CA3]">AIRA Browser</p>
+						<h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#111115] md:text-3xl">Browser operator</h1>
+						<p className="mt-2 max-w-3xl text-sm leading-6 text-[#6B6A75]">Isolated Chromium sessions with domain scope, audited actions and screenshot-driven human takeover.</p>
+					</div>
+					<div className={cn("rounded-full border px-3 py-1.5 text-xs font-medium", runtime?.ready ? "border-emerald-600/20 bg-emerald-50 text-emerald-700" : "border-amber-600/20 bg-amber-50 text-amber-800")}>
+						{runtime?.ready ? "Browser runtime ready" : "Browser runtime not configured"}
+					</div>
+				</div>
+				{error ? <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
 				<div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
 					<aside className="space-y-4">
-						<div className="rounded-2xl border border-white/[0.07] bg-[#0f1216] p-4"><h2 className="text-sm font-semibold">New session</h2><input value={startUrl} onChange={(e) => setStartUrl(e.target.value)} placeholder="https://example.com" className="mt-3 w-full rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/><input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="example.com, auth.example.com" className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/><select value={mode} onChange={(e) => setMode(e.target.value as BrowserSession["mode"])} className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs"><option value="OBSERVE">Observe</option><option value="ASSISTED">Assisted</option><option value="AUTONOMOUS">Autonomous scope</option></select><button type="button" onClick={() => void createSession()} disabled={!runtime?.ready || busy !== null} className="mt-3 w-full rounded-lg bg-[#d0ae55] px-3 py-2 text-sm font-semibold text-[#111214] disabled:opacity-35">{busy === "create" ? "Starting…" : "Start browser"}</button></div>
-						<div className="rounded-2xl border border-white/[0.07] bg-[#0f1216] p-4"><div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Sessions</h2><button type="button" onClick={() => void loadSessions()} className="text-[#858b94]"><RefreshCw className="size-3.5"/></button></div><div className="mt-3 space-y-2">{sessions.map((item) => <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={cn("w-full rounded-xl border px-3 py-2.5 text-left", selectedId === item.id ? "border-[#c5a34e]/25 bg-[#c5a34e]/[0.06]" : "border-white/[0.06] bg-[#0a0d11]")}><span className="flex items-center justify-between gap-2"><strong className="truncate text-xs">{item.allowedDomains[0] ?? "Browser"}</strong><span className="text-[9px] text-[#777d86]">{item.status.replaceAll("_", " ")}</span></span><span className="mt-1 block truncate text-[10px] text-[#626872]">{item.currentUrl ?? item.mode}</span></button>)}</div></div>
+						<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+							<h2 className="text-sm font-semibold text-[#111115]">New session</h2>
+							<input value={startUrl} onChange={(e) => setStartUrl(e.target.value)} placeholder="https://example.com" className="mt-3 w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] placeholder:text-[#8F8E98] outline-none focus:border-[#3A0CA3]"/>
+							<input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="example.com, auth.example.com" className="mt-2 w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] placeholder:text-[#8F8E98] outline-none focus:border-[#3A0CA3]"/>
+							<select value={mode} onChange={(e) => setMode(e.target.value as BrowserSession["mode"])} className="mt-2 w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] outline-none focus:border-[#3A0CA3]">
+								<option value="OBSERVE">Observe</option>
+								<option value="ASSISTED">Assisted</option>
+								<option value="AUTONOMOUS">Autonomous scope</option>
+							</select>
+							<button type="button" onClick={() => void createSession()} disabled={!runtime?.ready || busy !== null} className="mt-3 w-full rounded-lg bg-[#3A0CA3] hover:bg-[#2D0A82] px-3 py-2 text-sm font-semibold text-white transition shadow-xs disabled:opacity-35">
+								{busy === "create" ? "Starting…" : "Start browser"}
+							</button>
+						</div>
+						<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+							<div className="flex items-center justify-between">
+								<h2 className="text-sm font-semibold text-[#111115]">Sessions</h2>
+								<button type="button" onClick={() => void loadSessions()} className="text-[#6B6A75] hover:text-[#111115]"><RefreshCw className="size-3.5"/></button>
+							</div>
+							<div className="mt-3 space-y-2">
+								{sessions.map((item) => (
+									<button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={cn("w-full rounded-xl border px-3 py-2.5 text-left transition", selectedId === item.id ? "border-[#3A0CA3]/30 bg-[#3A0CA3]/[0.06]" : "border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] hover:bg-[#F2F0EB]")}>
+										<span className="flex items-center justify-between gap-2">
+											<strong className="truncate text-xs text-[#111115]">{item.allowedDomains[0] ?? "Browser"}</strong>
+											<span className="text-[9px] font-medium text-[#6B6A75]">{item.status.replaceAll("_", " ")}</span>
+										</span>
+										<span className="mt-1 block truncate text-[10px] text-[#6B6A75]">{item.currentUrl ?? item.mode}</span>
+									</button>
+								))}
+							</div>
+						</div>
 					</aside>
 
-					<section className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0f1216]">
-						<div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] p-3">
-							<button type="button" onClick={() => void action({ action: "back" })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0] hover:text-white disabled:opacity-30" aria-label="Go back"><ArrowLeft className="size-4"/></button>
-							<button type="button" onClick={() => void action({ action: "forward" })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0] hover:text-white disabled:opacity-30" aria-label="Go forward"><ArrowRight className="size-4"/></button>
-							<input value={navigationUrl} onChange={(e) => setNavigationUrl(e.target.value)} placeholder={selected?.currentUrl ?? "https://…"} className="min-w-[200px] flex-1 rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/>
-							<button type="button" onClick={() => void action({ action: "navigate", url: navigationUrl })} disabled={!selected || busy !== null} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs">Go</button>
-							{busy ? <button type="button" onClick={() => void cancelAction()} className="inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/[0.1] px-2.5 py-2 text-xs text-amber-200"><Ban className="size-3.5"/>Cancel</button> : null}
-							<button type="button" onClick={() => setShotRevision((value) => value + 1)} className="rounded-lg border border-white/[0.08] p-2 text-[#9298a0]" aria-label="Refresh screenshot"><Camera className="size-4"/></button>
+					<section className="min-w-0 overflow-hidden rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white shadow-xs">
+						<div className="flex flex-wrap items-center gap-2 border-b border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3">
+							<button type="button" onClick={() => void action({ action: "back" })} disabled={!selected || busy !== null} className="rounded-lg border border-[rgba(17,17,21,0.12)] bg-white p-2 text-[#6B6A75] hover:text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30" aria-label="Go back"><ArrowLeft className="size-4"/></button>
+							<button type="button" onClick={() => void action({ action: "forward" })} disabled={!selected || busy !== null} className="rounded-lg border border-[rgba(17,17,21,0.12)] bg-white p-2 text-[#6B6A75] hover:text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30" aria-label="Go forward"><ArrowRight className="size-4"/></button>
+							<input value={navigationUrl} onChange={(e) => setNavigationUrl(e.target.value)} placeholder={selected?.currentUrl ?? "https://…"} className="min-w-[200px] flex-1 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] placeholder:text-[#8F8E98] outline-none focus:border-[#3A0CA3]"/>
+							<button type="button" onClick={() => void action({ action: "navigate", url: navigationUrl })} disabled={!selected || busy !== null} className="rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30">Go</button>
+							{busy ? <button type="button" onClick={() => void cancelAction()} className="inline-flex items-center gap-1 rounded-lg border border-amber-600/20 bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800"><Ban className="size-3.5"/>Cancel</button> : null}
+							<button type="button" onClick={() => setShotRevision((value) => value + 1)} className="rounded-lg border border-[rgba(17,17,21,0.12)] bg-white p-2 text-[#6B6A75] hover:text-[#111115] hover:bg-[#FAF9F6]" aria-label="Refresh screenshot"><Camera className="size-4"/></button>
 						</div>
-						<div className="relative aspect-[16/10] w-full bg-black">{screenshotUrl ? <Image key={screenshotUrl} src={screenshotUrl} alt="Live AIRA browser session" fill unoptimized sizes="(max-width: 1280px) 100vw, 900px" onClick={clickScreenshot} className={cn("object-contain", humanControl && "cursor-crosshair")}/> : <div className="grid h-full place-items-center text-sm text-[#666c75]">Create or select a browser session.</div>}{humanControl ? <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-emerald-300/20 bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-emerald-200">YOU HAVE CONTROL · click the screenshot</div> : null}</div>
-						<div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] p-3">{selected && selected.status !== "HUMAN_CONTROL" ? <button type="button" onClick={() => void control("human")} className="inline-flex items-center gap-2 rounded-lg bg-[#d0ae55] px-3 py-2 text-xs font-semibold text-[#111214]"><MousePointer2 className="size-3.5"/>Take control</button> : selected ? <button type="button" onClick={() => void control("agent")} className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-2 text-xs text-emerald-100"><ArrowLeftRight className="size-3.5"/>Return to AIRA</button> : null}{selected?.status === "PAUSED" ? <button type="button" onClick={() => void control("resume")} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><Play className="size-3.5"/>Resume</button> : selected ? <button type="button" onClick={() => void control("pause")} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><Pause className="size-3.5"/>Pause</button> : null}{selected ? <button type="button" onClick={() => void endSession()} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-red-300/15 px-3 py-2 text-xs text-red-200"><Square className="size-3.5"/>End</button> : null}</div>
+						<div className="relative aspect-[16/10] w-full bg-[#111115]">{screenshotUrl ? <Image key={screenshotUrl} src={screenshotUrl} alt="Live AIRA browser session" fill unoptimized sizes="(max-width: 1280px) 100vw, 900px" onClick={clickScreenshot} className={cn("object-contain", humanControl && "cursor-crosshair")}/> : <div className="grid h-full place-items-center text-sm text-[#8F8E98]">Create or select a browser session.</div>}{humanControl ? <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-emerald-300/20 bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-emerald-200">YOU HAVE CONTROL · click the screenshot</div> : null}</div>
+						<div className="flex flex-wrap items-center gap-2 border-t border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] p-3">{selected && selected.status !== "HUMAN_CONTROL" ? <button type="button" onClick={() => void control("human")} className="inline-flex items-center gap-2 rounded-lg bg-[#3A0CA3] hover:bg-[#2D0A82] px-3 py-2 text-xs font-semibold text-white shadow-xs transition"><MousePointer2 className="size-3.5"/>Take control</button> : selected ? <button type="button" onClick={() => void control("agent")} className="inline-flex items-center gap-2 rounded-lg border border-emerald-600/20 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800"><ArrowLeftRight className="size-3.5"/>Return to AIRA</button> : null}{selected?.status === "PAUSED" ? <button type="button" onClick={() => void control("resume")} className="inline-flex items-center gap-2 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6]"><Play className="size-3.5"/>Resume</button> : selected ? <button type="button" onClick={() => void control("pause")} className="inline-flex items-center gap-2 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6]"><Pause className="size-3.5"/>Pause</button> : null}{selected ? <button type="button" onClick={() => void endSession()} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"><Square className="size-3.5"/>End</button> : null}</div>
 					</section>
 
 					<aside className="space-y-4">
-						<div className="rounded-2xl border border-white/[0.07] bg-[#0f1216] p-4"><h2 className="text-sm font-semibold">Operator input</h2><p className="mt-1 text-xs leading-5 text-[#717780]">In human control, click a field in the screenshot, then fill the focused element with <code>:focus</code>.</p><input value={selector} onChange={(e) => setSelector(e.target.value)} placeholder="CSS selector, e.g. :focus" className="mt-3 w-full rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/><textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Text to fill" className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs outline-none"/><div className="mt-2 flex gap-2"><button type="button" onClick={() => void action({ action: "fill", selector: selector || ":focus", text })} disabled={!selected || busy !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><Keyboard className="size-3.5"/>Fill</button><button type="button" onClick={() => void action({ action: "click", selector })} disabled={!selected || !selector || busy !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-xs"><MousePointer2 className="size-3.5"/>Click</button></div><div className="mt-2 flex gap-2"><input value={key} onChange={(e) => setKey(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-[#090b0e] px-3 py-2 text-xs"/><button type="button" onClick={() => void action({ action: "press", key, ...(selector ? { selector } : {}) })} disabled={!selected || !key || busy !== null} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs">Press</button></div><button type="button" onClick={() => void action({ action: "inspect" })} disabled={!selected || busy !== null} className="mt-2 w-full rounded-lg border border-white/[0.08] px-3 py-2 text-xs">Inspect page state</button></div>
+						<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+							<h2 className="text-sm font-semibold text-[#111115]">Operator input</h2>
+							<p className="mt-1 text-xs leading-5 text-[#6B6A75]">In human control, click a field in the screenshot, then fill the focused element with <code>:focus</code>.</p>
+							<input value={selector} onChange={(e) => setSelector(e.target.value)} placeholder="CSS selector, e.g. :focus" className="mt-3 w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] placeholder:text-[#8F8E98] outline-none focus:border-[#3A0CA3]"/>
+							<textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Text to fill" className="mt-2 w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] placeholder:text-[#8F8E98] outline-none focus:border-[#3A0CA3]"/>
+							<div className="mt-2 flex gap-2">
+								<button type="button" onClick={() => void action({ action: "fill", selector: selector || ":focus", text })} disabled={!selected || busy !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30"><Keyboard className="size-3.5"/>Fill</button>
+								<button type="button" onClick={() => void action({ action: "click", selector })} disabled={!selected || !selector || busy !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30"><MousePointer2 className="size-3.5"/>Click</button>
+							</div>
+							<div className="mt-2 flex gap-2">
+								<input value={key} onChange={(e) => setKey(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs text-[#111115] outline-none focus:border-[#3A0CA3]"/>
+								<button type="button" onClick={() => void action({ action: "press", key, ...(selector ? { selector } : {}) })} disabled={!selected || !key || busy !== null} className="rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30">Press</button>
+							</div>
+							<button type="button" onClick={() => void action({ action: "inspect" })} disabled={!selected || busy !== null} className="mt-2 w-full rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-2 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6] disabled:opacity-30">Inspect page state</button>
+						</div>
 
-						<div className="rounded-2xl border border-white/[0.07] bg-[#0f1216] p-4"><h2 className="text-sm font-semibold">Session policy</h2>{selected ? <div className="mt-3 space-y-2 text-xs"><div className="flex justify-between"><span className="text-[#707680]">Mode</span><span>{selected.mode}</span></div><div className="flex justify-between"><span className="text-[#707680]">Control</span><span>{selected.status}</span></div><div><span className="text-[#707680]">Domains</span><div className="mt-1 flex flex-wrap gap-1">{selected.allowedDomains.map((domain) => <span key={domain} className="rounded border border-white/[0.07] bg-[#090b0e] px-1.5 py-0.5 text-[10px]">{domain}</span>)}</div></div>{selected.currentUrl ? <a href={selected.currentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#c4a651]">Current URL <ExternalLink className="size-3"/></a> : null}</div> : <p className="mt-3 text-xs text-[#707680]">No session selected.</p>}</div>
+						<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+							<h2 className="text-sm font-semibold text-[#111115]">Session policy</h2>
+							{selected ? (
+								<div className="mt-3 space-y-2 text-xs">
+									<div className="flex justify-between"><span className="text-[#6B6A75]">Mode</span><span className="font-medium text-[#111115]">{selected.mode}</span></div>
+									<div className="flex justify-between"><span className="text-[#6B6A75]">Control</span><span className="font-medium text-[#111115]">{selected.status}</span></div>
+									<div><span className="text-[#6B6A75]">Domains</span><div className="mt-1 flex flex-wrap gap-1">{selected.allowedDomains.map((domain) => <span key={domain} className="rounded border border-[rgba(17,17,21,0.08)] bg-[#FAF9F6] px-1.5 py-0.5 text-[10px] text-[#111115]">{domain}</span>)}</div></div>
+									{selected.currentUrl ? <a href={selected.currentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#3A0CA3] hover:underline">Current URL <ExternalLink className="size-3"/></a> : null}
+								</div>
+							) : <p className="mt-3 text-xs text-[#6B6A75]">No session selected.</p>}
+						</div>
 
-						<div className="rounded-2xl border border-white/[0.07] bg-[#0f1216] p-4"><h2 className="text-sm font-semibold">Audit trail</h2><div className="mt-3 max-h-72 space-y-2 overflow-auto">{detail?.actions.map((item) => <div key={item.id} className="border-l border-white/[0.08] pl-3"><div className="flex items-center justify-between gap-2"><p className="text-xs font-medium">{item.action}</p><span className="text-[9px] text-[#676d75]">{item.source}</span></div><p className="mt-0.5 truncate text-[10px] text-[#676d75]">{item.target ?? item.risk}</p></div>) ?? <p className="text-xs text-[#707680]">No actions recorded.</p>}</div></div>
+						<div className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+							<h2 className="text-sm font-semibold text-[#111115]">Audit trail</h2>
+							<div className="mt-3 max-h-72 space-y-2 overflow-auto">
+								{detail?.actions.map((item) => (
+									<div key={item.id} className="border-l border-[rgba(17,17,21,0.12)] pl-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-xs font-medium text-[#111115]">{item.action}</p>
+											<span className="text-[9px] text-[#6B6A75]">{item.source}</span>
+										</div>
+										<p className="mt-0.5 truncate text-[10px] text-[#6B6A75]">{item.target ?? item.risk}</p>
+									</div>
+								)) ?? <p className="text-xs text-[#6B6A75]">No actions recorded.</p>}
+							</div>
+						</div>
 					</aside>
 				</div>
 			</div>

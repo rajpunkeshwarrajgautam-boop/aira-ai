@@ -306,12 +306,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			{ method: "GET" },
 		);
 		setConversations(rows.conversations);
-		setSelectedConversationId((prev) =>
-			prev && rows.conversations.some((conversation) => conversation.id === prev)
-				? prev
-				: null,
-		);
-	}, [apiFetchJson]);
+		setSelectedConversationId((prev) => {
+			const convParam = searchParams.get("conversation")?.trim() || searchParams.get("thread")?.trim();
+			const target = prev || convParam;
+			return target && rows.conversations.some((conversation) => conversation.id === target)
+				? target
+				: target || null;
+		});
+	}, [apiFetchJson, searchParams]);
 
 	const fetchMessagesForConversation = useCallback(
 		async (conversationId: string) => {
@@ -324,6 +326,30 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			setParentMessageId(lastAssistant?.id);
 		},
 		[apiFetchJson],
+	);
+
+	const onSelectConversation = useCallback(
+		async (id: string) => {
+			if (busy) return;
+			if (sessionStatus !== "authenticated") return;
+			setSelectedConversationId(id);
+			setShareContext(null);
+			try {
+				const meta = await apiFetchJson<{
+					readonly conversation: { readonly id: string; readonly title: string };
+				}>(`/api/conversations/${encodeURIComponent(id)}`, { method: "GET" });
+				setSelectedConversationTitle(meta.conversation.title);
+			} catch {
+				setSelectedConversationTitle(null);
+			}
+			setStreamingUserQuery(null);
+			setStreamingAssistantMarkdown(null);
+			setStreamingCitations([]);
+			await fetchMessagesForConversation(id);
+			setErrorMessage(null);
+			setPhase("idle");
+		},
+		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
 	);
 
 	const createConversation = useCallback(
@@ -382,6 +408,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		}, 0);
 		return () => window.clearTimeout(id);
 	}, [sessionStatus, searchParams, busy]);
+
+	useEffect(() => {
+		if (sessionStatus !== "authenticated" || busy) return;
+		const convParam = searchParams.get("conversation")?.trim() || searchParams.get("thread")?.trim();
+		if (!convParam) return;
+		if (convParam === selectedConversationId && messages.length > 0) return;
+
+		void onSelectConversation(convParam);
+	}, [busy, messages.length, onSelectConversation, searchParams, selectedConversationId, sessionStatus]);
 
 	useEffect(() => {
 		if (sessionStatus !== "authenticated") return;
@@ -981,134 +1016,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		phase,
 	]);
 
-	const onSelectConversation = useCallback(
-		async (id: string) => {
-			if (busy) return;
-			if (sessionStatus !== "authenticated") return;
-			setSelectedConversationId(id);
-			setShareContext(null);
-			try {
-				const meta = await apiFetchJson<{
-					readonly conversation: { readonly id: string; readonly title: string };
-				}>(`/api/conversations/${encodeURIComponent(id)}`, { method: "GET" });
-				setSelectedConversationTitle(meta.conversation.title);
-			} catch {
-				setSelectedConversationTitle(null);
-			}
-			setStreamingUserQuery(null);
-			setStreamingAssistantMarkdown(null);
-			setStreamingCitations([]);
-			await fetchMessagesForConversation(id);
-			setErrorMessage(null);
-			setPhase("idle");
-		},
-		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
-	);
 
 	const isProviderAvailabilityError = errorCode?.startsWith("UPSTREAM_") ?? false;
 	const currentErrorTitle = searchErrorTitle(errorCode, limitErrorAction, isAuthed);
 
 	const composerBlock = (
-		<div className="flex flex-col gap-3">
-			<div className="flex flex-col sm:flex-row gap-2.5">
-				<div
-					className={cn(
-						"flex w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#141b2e]/85 shadow-sm backdrop-blur-md ring-1 ring-white/10 sm:max-w-[180px]",
-					)}
-				>
-					<select
-						className="w-full bg-transparent px-3 py-2 text-xs font-medium text-content-primary focus:outline-none"
-						value={selectedPresetId}
-						onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
-						disabled={busy}
-						aria-label="Research focus"
-					>
-						{Object.values(RESEARCH_PRESETS).map((p) => (
-							<option key={p.id} value={p.id} className="bg-[#10141e] text-white">
-								{p.label}
-							</option>
-						))}
-					</select>
-				</div>
-
-				{isAuthed ? (
-					<div
-						className={cn(
-							"flex w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#141b2e]/85 p-0.5 shadow-sm backdrop-blur-md ring-1 ring-white/10 sm:max-w-[280px]",
-						)}
-						role="group"
-						aria-label="Search mode"
-					>
-						<button
-							type="button"
-							onClick={() => setResearchMode("standard")}
-							disabled={busy}
-							className={cn(
-								"flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-								researchMode === "standard"
-									? "bg-accent/25 text-sky-300 font-semibold"
-									: "bg-transparent text-content-secondary hover:text-content-primary",
-								"disabled:opacity-40 disabled:pointer-events-none",
-							)}
-						>
-							Standard Search
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								try {
-									logProductEvent({
-										event: "deep_research_clicked",
-										surface: "deep_research",
-										userType: "signed_in",
-									});
-								} catch {
-									// ignore analytics
-								}
-								setResearchMode("deep");
-							}}
-							disabled={busy}
-							className={cn(
-								"flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-								"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-								researchMode === "deep"
-									? "bg-sky-500 text-white font-semibold shadow-sm"
-									: "bg-transparent text-content-secondary hover:text-content-primary",
-								"disabled:opacity-40 disabled:pointer-events-none",
-							)}
-						>
-							Deep Research
-						</button>
-					</div>
-				) : (
-					<button
-						type="button"
-						disabled={busy}
-						onClick={() => {
-							try {
-								logProductEvent({
-									event: "deep_research_clicked",
-									surface: "deep_research",
-									userType: "guest",
-								});
-							} catch {
-								// ignore analytics
-							}
-							router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
-						}}
-						className={cn(
-							"flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-[#141b2e]/85 px-3 py-2 text-xs font-medium text-content-secondary shadow-sm backdrop-blur-md ring-1 ring-white/10",
-							"hover:border-accent/35 hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-							"sm:max-w-[280px]",
-							"disabled:opacity-40 disabled:pointer-events-none",
-						)}
-						aria-label="Deep Research requires a signed-in account"
-					>
-						Deep Research · Sign in
-					</button>
-				)}
-			</div>
+		<div className="flex flex-col gap-2.5">
 			{!isAuthed ? (
 				<p className="text-center text-xs leading-relaxed text-content-tertiary">
 					<span className="text-content-secondary">
@@ -1158,15 +1071,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							: "Ask anything or delegate an autonomous mission..."
 				}
 			/>
-			{isAuthed ? (
-				<div className="text-xs text-content-tertiary px-1 flex items-center gap-2">
-					<span>Quick commands:</span>
-					<span className="font-mono text-content-secondary">/deep</span>
-					<span className="font-mono text-content-secondary">/new</span>
-					<span className="font-mono text-content-secondary">/history</span>
-					<span className="font-mono text-content-secondary">/share</span>
-				</div>
-			) : null}
 
 			{phase === "error" && errorMessage ? (
 				<div
@@ -1317,88 +1221,75 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					</div>
 				) : null}
 
-				<main className="flex min-h-dvh flex-1 flex-col md:py-3 md:px-4">
-					<header className={cn(
-						"mx-auto flex w-full max-w-5xl flex-col gap-2.5 px-4 transition-all duration-300",
-						showConversationEmpty ? "py-2 md:py-3" : "py-3 md:py-4"
-					)}>
-						{billing && sessionStatus === "authenticated" ? (
-							<div
-								className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border-subtle bg-surface-elevated/75 px-4 py-2 text-xs sm:text-sm shadow-panel backdrop-blur-sm md:backdrop-blur-md"
-								aria-label="Plan and usage"
-							>
-								<span className="font-semibold text-content-primary">
-									{planDisplayName(billing.billingPlan)} plan
-								</span>
-								<span className="text-content-secondary">
-									<span className="tabular-nums font-medium text-content-primary">
-										{billing.searchesRemaining}
+				<main className="flex min-h-dvh flex-1 flex-col md:py-2 md:px-4">
+					{showConversationEmpty ? (
+						<header className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-2 transition-all duration-300">
+							{billing && sessionStatus === "authenticated" && (billing.searchesRemaining <= 10 || billing.searchesRemaining === 0) ? (
+								<div
+									className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-amber-500/20 bg-amber-50/60 px-4 py-2 text-xs shadow-xs text-amber-900"
+									aria-label="Plan and usage warning"
+								>
+									<span className="font-semibold">
+										{planDisplayName(billing.billingPlan)} plan
 									</span>
-									{" / "}
-									<span className="tabular-nums">{billing.monthlySearchLimit}</span>
-									<span className="text-content-tertiary"> searches left this month</span>
-								</span>
-								{billing.billingPlan === "FREE" ? (
-									<Link
-										href="/upgrade"
-										className="ml-auto inline-flex items-center rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-									>
-										Upgrade
-									</Link>
-								) : null}
-							</div>
-						) : null}
-						<div className="flex items-center justify-between gap-3">
-							<div className="flex min-w-0 flex-1 items-center gap-3">
-								{isAuthed ? (
-									<>
-										<button
-											type="button"
-											onClick={() => setMobileSidebarOpen(true)}
-											className="flex h-9 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface-elevated/80 px-2.5 text-content-primary shadow-sm backdrop-blur-sm md:hidden hover:bg-surface-elevated active:scale-95 transition-transform"
-											aria-label="Open conversation list"
+									<span className="text-amber-800/80">
+										<span className="tabular-nums font-semibold">{billing.searchesRemaining}</span>
+										{" / "}
+										<span className="tabular-nums">{billing.monthlySearchLimit}</span>
+										<span> searches remaining</span>
+									</span>
+									{billing.billingPlan === "FREE" ? (
+										<Link
+											href="/upgrade"
+											className="ml-auto inline-flex items-center rounded-lg bg-[#09090B] px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-[#18181B]"
 										>
-											<History className="size-4 text-accent" />
-											<span className="text-xs font-medium">Chats</span>
-										</button>
-										<button
-											type="button"
-											onClick={() => setDesktopSidebarOpen((open) => !open)}
-											className="hidden md:flex h-8 items-center gap-1.5 rounded-xl border border-white/[0.08] bg-[#141b2e]/80 px-2.5 text-content-primary shadow-sm backdrop-blur-sm hover:bg-white/[0.12] active:scale-95 transition"
-											aria-label={desktopSidebarOpen ? "Hide conversation history" : "Open conversation history"}
-											title={desktopSidebarOpen ? "Hide history (⌘H)" : "Show history (⌘H)"}
+											Upgrade
+										</Link>
+									) : null}
+								</div>
+							) : null}
+							<div className="flex items-center justify-between gap-3">
+								<div className="flex min-w-0 flex-1 items-center gap-3">
+									{isAuthed ? (
+										<>
+											<button
+												type="button"
+												onClick={() => setMobileSidebarOpen(true)}
+												className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--aira-border-subtle)] bg-white px-2.5 text-[var(--aira-text-2)] shadow-sm md:hidden hover:border-[#09090B]/30 hover:text-[var(--aira-text-0)] transition"
+												aria-label="Open conversation list"
+											>
+												<History className="size-3.5 text-[#09090B]" />
+												<span className="text-[11px] font-medium">Chats</span>
+											</button>
+											<button
+												type="button"
+												onClick={() => setDesktopSidebarOpen((open) => !open)}
+												className="hidden md:flex h-8 items-center gap-1.5 rounded-lg border border-[var(--aira-border-subtle)] bg-white px-2.5 text-[var(--aira-text-2)] shadow-sm hover:border-[#09090B]/30 hover:text-[var(--aira-text-0)] transition"
+												aria-label={desktopSidebarOpen ? "Hide conversation history" : "Open conversation history"}
+												title={desktopSidebarOpen ? "Hide history (⌘H)" : "Show history (⌘H)"}
+											>
+												<History className="size-3.5 text-[#09090B]" />
+												<span className="text-[11px] font-medium">{desktopSidebarOpen ? "Hide History" : "History"}</span>
+											</button>
+										</>
+									) : null}
+								</div>
+								<div className="flex shrink-0 items-center gap-2">
+									{FEEDBACK_MAILTO_HREF ? (
+										<a
+											href={FEEDBACK_MAILTO_HREF}
+											onClick={() =>
+												logProductEvent({ event: "feedback_clicked", surface: "header" })
+											}
+											className="text-xs font-medium text-[var(--aira-text-3)] underline-offset-2 hover:text-[var(--aira-text-0)] hover:underline"
 										>
-											<History className="size-3.5 text-sky-400" />
-											<span className="text-[11px] font-medium">{desktopSidebarOpen ? "Hide History" : "History"}</span>
-										</button>
-									</>
-								) : null}
-								{!showConversationEmpty ? (
-									<div className="min-w-0">
-										<h1 className="truncate text-base md:text-lg font-semibold tracking-tight text-content-primary">
-											{selectedConversationTitle ?? "Research"}
-										</h1>
-										<p className="mt-0.5 text-xs leading-relaxed text-content-secondary sm:text-[13px]">
-											{showAssistantSkeleton ? statusText : "Persistent thread with live web citations."}
-										</p>
-									</div>
-								) : null}
+											Feedback
+										</a>
+									) : null}
+								</div>
 							</div>
-							<div className="flex shrink-0 items-center gap-2">
-								{FEEDBACK_MAILTO_HREF ? (
-									<a
-										href={FEEDBACK_MAILTO_HREF}
-										onClick={() =>
-											logProductEvent({ event: "feedback_clicked", surface: "header" })
-										}
-										className="text-xs font-medium text-content-tertiary underline-offset-2 hover:text-accent hover:underline sm:text-[13px]"
-									>
-										Feedback
-									</a>
-								) : null}
-							</div>
-						</div>
-					</header>
+						</header>
+					) : null}
 
 					<div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6">
 						{isAuthed && showConversationEmpty ? (
@@ -1407,12 +1298,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 						{showConversationPanel ? <div
 							className={cn(
-								"flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border-subtle/80 bg-surface-elevated/45 shadow-glass backdrop-blur-sm md:bg-surface-elevated/40 md:backdrop-blur-xl",
-								showConversationEmpty ? "order-4 md:order-none" : "order-1 md:order-none"
+								"flex min-h-0 flex-1 flex-col",
+								!showConversationEmpty && "overflow-hidden",
+								showConversationEmpty
+									? "border-0 bg-transparent shadow-none order-4 md:order-none"
+									: "rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white shadow-sm order-1 md:order-none"
 							)}
 							aria-busy={busy}
 						>
-							<div className="min-h-0 flex-1 overflow-y-auto">
+							<div className={cn("min-h-0 flex-1", !showConversationEmpty && "overflow-y-auto")}>
 								<ConversationMessageList
 									messages={messages}
 									streamingUserQuery={streamingUserQuery}

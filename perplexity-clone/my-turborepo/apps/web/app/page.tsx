@@ -1,21 +1,20 @@
 import { Suspense } from "react";
 
-import "./aira-reference.css";
 import "./impeccable-polish.css";
 import "./impeccable-chat-v2.css";
 import "./aira-v2.css";
-import { AiraPreloader } from "../components/AiraPreloader";
+import "./aira-visual-redesign.css";
 import { AiraV2Frame } from "../components/AiraV2Frame";
 import { SearchLayout } from "../components/SearchLayout";
 
 function HomeSkeleton() {
   return (
-    <div className="min-h-[calc(100dvh-52px)] w-full bg-[#0b0c0f]" aria-hidden>
+    <div className="min-h-[calc(100dvh-52px)] w-full bg-white" aria-hidden>
       <div className="flex min-h-[calc(100dvh-52px)]">
         <div className="flex flex-1 flex-col px-5 py-5 md:px-8">
           <div className="mx-auto flex w-full max-w-[820px] flex-1 flex-col justify-center gap-4">
-            <div className="mx-auto h-7 w-52 animate-pulse rounded-md bg-[#16191f]" />
-            <div className="mx-auto h-28 w-full max-w-[780px] animate-pulse rounded-2xl border border-white/[0.06] bg-[#111418]" />
+            <div className="mx-auto h-7 w-52 animate-pulse rounded-md bg-[#F4F4F5]" />
+            <div className="mx-auto h-28 w-full max-w-[780px] animate-pulse rounded-2xl border border-black/5 bg-[#FAFAFA]" />
           </div>
         </div>
       </div>
@@ -26,7 +25,6 @@ function HomeSkeleton() {
 export default function Home() {
   return (
     <div className="aira-home aira-v2-page min-h-dvh">
-      <AiraPreloader />
       <AiraV2Frame>
         <Suspense fallback={<HomeSkeleton />}>
           <SearchLayout />

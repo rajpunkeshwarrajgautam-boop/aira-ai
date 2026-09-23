@@ -102,21 +102,21 @@ function statusColor(status: string): { bg: string; text: string; border: string
 	switch (status) {
 		case "COMPLETED":
 		case "SUCCEEDED":
-			return { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" };
+			return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-600/20" };
 		case "RUNNING":
 		case "PLANNING":
-			return { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" };
+			return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-600/20" };
 		case "APPROVAL_REQUIRED":
 		case "WAITING":
-			return { bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/30" };
+			return { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-600/20" };
 		case "FAILED":
-			return { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30" };
+			return { bg: "bg-red-50", text: "text-red-700", border: "border-red-600/20" };
 		case "CANCELLED":
-			return { bg: "bg-zinc-500/10", text: "text-zinc-400", border: "border-zinc-500/30" };
+			return { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-300" };
 		case "BLOCKED":
-			return { bg: "bg-rose-500/10", text: "text-rose-400", border: "border-rose-500/30" };
+			return { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-600/20" };
 		default:
-			return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/30" };
+			return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-600/20" };
 	}
 }
 
@@ -223,9 +223,9 @@ export function WorkRunMissionControl() {
 
 	if (loading && !data) {
 		return (
-			<main className="flex min-h-[calc(100dvh-58px)] items-center justify-center bg-[#090b0e] text-[#ecece8]">
-				<div className="flex items-center gap-3 text-sm text-[#858b94]">
-					<Loader2 className="size-5 animate-spin text-[#d0ae55]" />
+			<main className="flex min-h-[calc(100dvh-58px)] items-center justify-center bg-[var(--aira-canvas,#F9F8F6)] text-[#111115]">
+				<div className="flex items-center gap-3 text-sm text-[#6B6A75]">
+					<Loader2 className="size-5 animate-spin text-[#3A0CA3]" />
 					<span>Loading Work Mission Control…</span>
 				</div>
 			</main>
@@ -234,17 +234,17 @@ export function WorkRunMissionControl() {
 
 	if (error && !data) {
 		return (
-			<main className="min-h-[calc(100dvh-58px)] bg-[#090b0e] px-4 py-8 text-[#ecece8] md:px-8">
+			<main className="min-h-[calc(100dvh-58px)] bg-[var(--aira-canvas,#F9F8F6)] px-4 py-8 text-[#111115] md:px-8">
 				<div className="mx-auto max-w-4xl space-y-4">
-					<Link href="/work" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#858b94] hover:text-[#d0ae55]">
+					<Link href="/work" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6B6A75] hover:text-[#3A0CA3]">
 						<ArrowLeft className="size-3.5" /> Back to Work
 					</Link>
-					<div role="alert" className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-6">
+					<div role="alert" className="rounded-2xl border border-red-500/20 bg-red-50 p-6">
 						<div className="flex items-start gap-3">
-							<AlertCircle className="size-5 text-red-400 mt-0.5" />
+							<AlertCircle className="size-5 text-red-600 mt-0.5" />
 							<div>
-								<h1 className="text-base font-semibold text-red-200">Execution Error</h1>
-								<p className="mt-1 text-sm text-[#858b94]">{error}</p>
+								<h1 className="text-base font-semibold text-red-900">Execution Error</h1>
+								<p className="mt-1 text-sm text-red-700">{error}</p>
 							</div>
 						</div>
 					</div>
@@ -264,19 +264,19 @@ export function WorkRunMissionControl() {
 	const maxCost = Number(run.budgets?.maxCostUsd ?? 5);
 
 	return (
-		<main className="min-h-[calc(100dvh-58px)] bg-[#090b0e] px-4 py-6 text-[#ecece8] md:px-8">
+		<main className="min-h-[calc(100dvh-58px)] bg-[var(--aira-canvas,#F9F8F6)] px-4 py-6 text-[#111115] md:px-8">
 			<div className="mx-auto max-w-6xl space-y-6">
 				{/* Navigation & Header */}
 				<header className="space-y-3">
 					<div className="flex flex-wrap items-center justify-between gap-3">
-						<Link href="/work" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#858b94] hover:text-[#d0ae55]">
+						<Link href="/work" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6B6A75] hover:text-[#3A0CA3]">
 							<ArrowLeft className="size-3.5" /> Back to Work
 						</Link>
 						<div className="flex items-center gap-2">
 							<button
 								type="button"
 								onClick={() => void fetchData(false)}
-								className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#14181d] px-3 py-1.5 text-xs font-medium text-[#d8d8d4] hover:bg-[#1a2026]"
+								className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.12)] bg-white px-3 py-1.5 text-xs font-medium text-[#111115] hover:bg-[#FAF9F6] shadow-xs"
 							>
 								<RefreshCw className="size-3" /> Refresh
 							</button>
@@ -285,7 +285,7 @@ export function WorkRunMissionControl() {
 									type="button"
 									onClick={() => void handleCancel()}
 									disabled={actionPending === "cancel"}
-									className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-500/20 disabled:opacity-40"
+									className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-40 shadow-xs"
 								>
 									{actionPending === "cancel" ? <Loader2 className="size-3 animate-spin" /> : <StopCircle className="size-3" />}
 									Cancel Run
@@ -297,21 +297,21 @@ export function WorkRunMissionControl() {
 					<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
 						<div>
 							<div className="flex items-center gap-2.5">
-								<span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b89a51]">Work Mission</span>
+								<span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#3A0CA3]">Work Mission</span>
 								<span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${colors.bg} ${colors.text} ${colors.border}`}>
 									{run.status}
 								</span>
 							</div>
-							<h1 className="mt-1 text-xl font-semibold tracking-[-0.02em] md:text-2xl text-[#f3f3ee]">
+							<h1 className="mt-1 text-xl font-semibold tracking-[-0.02em] md:text-2xl text-[#111115]">
 								{project?.name ?? `Run · ${run.id.slice(0, 8)}`}
 							</h1>
-							<p className="mt-1 text-xs text-[#747a82] font-mono break-all">ID: {run.id}</p>
+							<p className="mt-1 text-xs text-[#6B6A75] font-mono break-all">ID: {run.id}</p>
 						</div>
 					</div>
 
 					{project?.objective && (
-						<div className="rounded-xl border border-white/[0.06] bg-[#0c0f13] p-4 text-xs leading-5 text-[#c4c7cc]">
-							<span className="font-semibold text-[#deded9]">Objective: </span>
+						<div className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 text-xs leading-5 text-[#4A4954] shadow-xs">
+							<span className="font-semibold text-[#111115]">Objective: </span>
 							{project.objective}
 						</div>
 					)}
@@ -319,44 +319,44 @@ export function WorkRunMissionControl() {
 
 				{/* Top Metrics Cards */}
 				<section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-					<div className="rounded-xl border border-white/[0.08] bg-[#0f1216] p-4">
-						<div className="flex items-center gap-2 text-xs text-[#858b94]">
-							<DollarSign className="size-3.5 text-[#d0ae55]" />
+					<div className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+						<div className="flex items-center gap-2 text-xs text-[#6B6A75]">
+							<DollarSign className="size-3.5 text-[#3A0CA3]" />
 							<span>Cost / Budget</span>
 						</div>
-						<p className="mt-1 text-base font-semibold text-[#f0f0eb]">
+						<p className="mt-1 text-base font-semibold text-[#111115]">
 							${totalCost.toFixed(3)}{" "}
-							<span className="text-xs font-normal text-[#747a82]">/ ${maxCost.toFixed(2)}</span>
+							<span className="text-xs font-normal text-[#6B6A75]">/ ${maxCost.toFixed(2)}</span>
 						</p>
 					</div>
 
-					<div className="rounded-xl border border-white/[0.08] bg-[#0f1216] p-4">
-						<div className="flex items-center gap-2 text-xs text-[#858b94]">
-							<FileCheck className="size-3.5 text-[#d0ae55]" />
+					<div className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+						<div className="flex items-center gap-2 text-xs text-[#6B6A75]">
+							<FileCheck className="size-3.5 text-[#3A0CA3]" />
 							<span>Tasks Completed</span>
 						</div>
-						<p className="mt-1 text-base font-semibold text-[#f0f0eb]">
+						<p className="mt-1 text-base font-semibold text-[#111115]">
 							{completedCount}{" "}
-							<span className="text-xs font-normal text-[#747a82]">/ {tasks.length}</span>
+							<span className="text-xs font-normal text-[#6B6A75]">/ {tasks.length}</span>
 						</p>
 					</div>
 
-					<div className="rounded-xl border border-white/[0.08] bg-[#0f1216] p-4">
-						<div className="flex items-center gap-2 text-xs text-[#858b94]">
-							<Clock className="size-3.5 text-[#d0ae55]" />
+					<div className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+						<div className="flex items-center gap-2 text-xs text-[#6B6A75]">
+							<Clock className="size-3.5 text-[#3A0CA3]" />
 							<span>Started</span>
 						</div>
-						<p className="mt-1 text-xs font-medium text-[#c4c7cc] truncate">
+						<p className="mt-1 text-xs font-medium text-[#111115] truncate">
 							{run.startedAt ? new Date(run.startedAt).toLocaleTimeString() : "Pending"}
 						</p>
 					</div>
 
-					<div className="rounded-xl border border-white/[0.08] bg-[#0f1216] p-4">
-						<div className="flex items-center gap-2 text-xs text-[#858b94]">
-							<Shield className="size-3.5 text-[#d0ae55]" />
+					<div className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs">
+						<div className="flex items-center gap-2 text-xs text-[#6B6A75]">
+							<Shield className="size-3.5 text-[#3A0CA3]" />
 							<span>Runtime</span>
 						</div>
-						<p className="mt-1 text-xs font-medium text-[#c4c7cc]">
+						<p className="mt-1 text-xs font-medium text-[#111115]">
 							{run.runtime ?? "AIRA_AGENT"}
 						</p>
 					</div>
@@ -364,27 +364,27 @@ export function WorkRunMissionControl() {
 
 				{/* Pending Approvals (Gate 19, 20) */}
 				{pendingApprovals.length > 0 && (
-					<section className="rounded-2xl border border-purple-500/30 bg-purple-500/[0.07] p-5 space-y-4">
+					<section className="rounded-2xl border border-purple-500/30 bg-purple-50/50 p-5 space-y-4">
 						<div className="flex items-center gap-2">
-							<ShieldAlert className="size-5 text-purple-400" />
-							<h2 className="text-sm font-semibold text-purple-200">Human Approval Required</h2>
+							<ShieldAlert className="size-5 text-purple-600" />
+							<h2 className="text-sm font-semibold text-purple-900">Human Approval Required</h2>
 						</div>
-						<p className="text-xs leading-5 text-[#b0b4ba]">
+						<p className="text-xs leading-5 text-[#4A4954]">
 							Consequential or elevated-risk operations require explicit user approval before managed execution proceeds.
 						</p>
 						<div className="space-y-3">
 							{pendingApprovals.map((approval) => (
-								<div key={approval.id} className="flex flex-col gap-3 rounded-xl border border-purple-500/20 bg-[#120f18] p-4 md:flex-row md:items-center md:justify-between">
+								<div key={approval.id} className="flex flex-col gap-3 rounded-xl border border-purple-500/20 bg-white p-4 md:flex-row md:items-center md:justify-between shadow-xs">
 									<div>
-										<p className="text-xs font-semibold text-[#f0f0eb]">{approval.action}</p>
-										<p className="mt-0.5 text-[11px] text-[#8d929b]">Risk Level: <span className="text-purple-300 font-medium">{approval.risk}</span></p>
+										<p className="text-xs font-semibold text-[#111115]">{approval.action}</p>
+										<p className="mt-0.5 text-[11px] text-[#6B6A75]">Risk Level: <span className="text-purple-700 font-medium">{approval.risk}</span></p>
 									</div>
 									<div className="flex items-center gap-2">
 										<button
 											type="button"
 											onClick={() => void handleApproval(approval.id, "reject")}
 											disabled={actionPending === approval.id}
-											className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/20"
+											className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
 										>
 											<XCircle className="size-3.5" /> Reject
 										</button>
@@ -392,7 +392,7 @@ export function WorkRunMissionControl() {
 											type="button"
 											onClick={() => void handleApproval(approval.id, "approve")}
 											disabled={actionPending === approval.id}
-											className="inline-flex items-center gap-1.5 rounded-lg bg-[#d0ae55] px-3 py-1.5 text-xs font-semibold text-[#111214] hover:bg-[#d8b65e]"
+											className="inline-flex items-center gap-1.5 rounded-lg bg-[#3A0CA3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2D0A82] shadow-xs"
 										>
 											{actionPending === approval.id ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
 											Approve & Proceed
@@ -409,25 +409,25 @@ export function WorkRunMissionControl() {
 					{/* Left: Task Graph & Deliverables */}
 					<div className="space-y-6">
 						{/* Persisted Deliverables (Gate 27) */}
-						<section className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
-							<h2 className="text-sm font-semibold text-[#f0f0eb]">Persisted Deliverables</h2>
-							<p className="mt-1 text-xs text-[#747a82]">Durable outputs and evidence created by completed tasks.</p>
+						<section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
+							<h2 className="text-sm font-semibold text-[#111115]">Persisted Deliverables</h2>
+							<p className="mt-1 text-xs text-[#6B6A75]">Durable outputs and evidence created by completed tasks.</p>
 							{artifacts.length === 0 ? (
-								<p className="mt-4 text-xs italic text-[#5f656d]">
+								<p className="mt-4 text-xs italic text-[#8F8E98]">
 									{isActive ? "Deliverables will appear here as tasks finish." : "No durable deliverables recorded for this run."}
 								</p>
 							) : (
 								<div className="mt-4 space-y-2">
 									{artifacts.map((artifact) => (
-										<div key={artifact.id} className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#0c0f13] px-3.5 py-2.5">
+										<div key={artifact.id} className="flex items-center justify-between rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] px-3.5 py-2.5">
 											<div className="flex items-center gap-2 min-w-0">
-												<FileCheck className="size-4 text-[#d0ae55] shrink-0" />
+												<FileCheck className="size-4 text-[#3A0CA3] shrink-0" />
 												<div className="min-w-0">
-													<p className="text-xs font-medium text-[#e4e4df] truncate">{artifact.name}</p>
-													<p className="text-[10px] text-[#747a82]">{artifact.kind} · {new Date(artifact.createdAt).toLocaleTimeString()}</p>
+													<p className="text-xs font-medium text-[#111115] truncate">{artifact.name}</p>
+													<p className="text-[10px] text-[#6B6A75]">{artifact.kind} · {new Date(artifact.createdAt).toLocaleTimeString()}</p>
 												</div>
 											</div>
-											<span className="shrink-0 text-[10px] font-mono text-[#858b94]">{artifact.uri}</span>
+											<span className="shrink-0 text-[10px] font-mono text-[#6B6A75]">{artifact.uri}</span>
 										</div>
 									))}
 								</div>
@@ -435,19 +435,19 @@ export function WorkRunMissionControl() {
 						</section>
 
 						{/* Task Graph */}
-						<section className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
-							<h2 className="text-sm font-semibold text-[#f0f0eb]">Managed Task Graph</h2>
-							<p className="mt-1 text-xs text-[#747a82]">Sequential and parallel tasks executed by specialist agents.</p>
+						<section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
+							<h2 className="text-sm font-semibold text-[#111115]">Managed Task Graph</h2>
+							<p className="mt-1 text-xs text-[#6B6A75]">Sequential and parallel tasks executed by specialist agents.</p>
 							<div className="mt-4 space-y-3">
 								{tasks.map((task) => {
 									const taskColors = statusColor(task.status);
 									return (
-										<div key={task.id} className="rounded-xl border border-white/[0.06] bg-[#0c0f13] p-4 space-y-2">
+										<div key={task.id} className="rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] p-4 space-y-2">
 											<div className="flex items-start justify-between gap-2">
 												<div>
-													<p className="text-xs font-semibold text-[#deded9]">{task.title}</p>
-													<p className="mt-0.5 text-[11px] text-[#747a82]">
-														Role: <span className="text-[#a4a9b2]">{task.agentRole}</span> · Tier: {task.modelTier} · Priority: {task.priority}
+													<p className="text-xs font-semibold text-[#111115]">{task.title}</p>
+													<p className="mt-0.5 text-[11px] text-[#6B6A75]">
+														Role: <span className="text-[#111115] font-medium">{task.agentRole}</span> · Tier: {task.modelTier} · Priority: {task.priority}
 													</p>
 												</div>
 												<span className={`inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold border ${taskColors.bg} ${taskColors.text} ${taskColors.border}`}>
@@ -456,13 +456,13 @@ export function WorkRunMissionControl() {
 											</div>
 
 											{task.dependencies.length > 0 && (
-												<p className="text-[11px] text-[#6b7280]">
+												<p className="text-[11px] text-[#6B6A75]">
 													Depends on: {task.dependencies.join(", ")}
 												</p>
 											)}
 
 											{task.lastError && (
-												<div className="rounded-lg border border-red-500/20 bg-red-500/[0.05] p-2 text-[11px] text-red-300">
+												<div className="rounded-lg border border-red-500/20 bg-red-50 p-2 text-[11px] text-red-700">
 													{task.lastError}
 												</div>
 											)}
@@ -475,30 +475,30 @@ export function WorkRunMissionControl() {
 
 					{/* Right: Execution Evidence & Timeline (Gate 29) */}
 					<div className="space-y-6">
-						<section className="rounded-2xl border border-white/[0.08] bg-[#0f1216] p-5">
+						<section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
 							<div className="flex items-center justify-between">
-								<h2 className="text-sm font-semibold text-[#f0f0eb]">Execution Evidence Stream</h2>
+								<h2 className="text-sm font-semibold text-[#111115]">Execution Evidence Stream</h2>
 								{isActive && (
-									<span className="flex items-center gap-1.5 text-[11px] text-amber-400">
-										<span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+									<span className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
+										<span className="size-1.5 rounded-full bg-amber-600 animate-pulse" />
 										Live
 									</span>
 								)}
 							</div>
-							<p className="mt-1 text-xs text-[#747a82]">Immutable log of state transitions, claims, and tool interactions.</p>
+							<p className="mt-1 text-xs text-[#6B6A75]">Immutable log of state transitions, claims, and tool interactions.</p>
 
 							<div className="mt-4 max-h-[520px] overflow-y-auto space-y-2.5 pr-1">
 								{events.length === 0 ? (
-									<p className="text-xs italic text-[#5f656d]">No events recorded yet.</p>
+									<p className="text-xs italic text-[#8F8E98]">No events recorded yet.</p>
 								) : (
 									events.map((event) => (
-										<div key={event.id} className="rounded-xl border border-white/[0.04] bg-[#0c0f13] p-3 text-xs">
+										<div key={event.id} className="rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] p-3 text-xs">
 											<div className="flex items-center justify-between text-[11px]">
-												<span className="font-semibold text-[#b89a51]">{event.type}</span>
-												<span className="text-[#626871]">{new Date(event.createdAt).toLocaleTimeString()}</span>
+												<span className="font-semibold text-[#3A0CA3]">{event.type}</span>
+												<span className="text-[#6B6A75]">{new Date(event.createdAt).toLocaleTimeString()}</span>
 											</div>
 											{event.payload && Object.keys(event.payload).length > 0 && (
-												<pre className="mt-1.5 max-h-24 overflow-x-auto rounded bg-[#07090c] p-2 text-[10px] text-[#9ba0a8] font-mono">
+												<pre className="mt-1.5 max-h-24 overflow-x-auto rounded bg-white border border-[rgba(17,17,21,0.08)] p-2 text-[10px] text-[#4A4954] font-mono">
 													{JSON.stringify(event.payload, null, 2)}
 												</pre>
 											)}

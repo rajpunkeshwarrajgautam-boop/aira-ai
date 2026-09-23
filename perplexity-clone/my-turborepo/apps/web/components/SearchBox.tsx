@@ -103,6 +103,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 ) {
 	const taRef = useRef<HTMLTextAreaElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const modelTriggerRef = useRef<HTMLButtonElement>(null);
 	const pendingCommandRef = useRef<string | null>(null);
 	const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 	const contextMenuId = useId();
@@ -121,7 +122,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		const el = taRef.current;
 		if (!el) return;
 		el.style.height = "auto";
-		el.style.height = `${Math.min(Math.max(el.scrollHeight, 58), 190)}px`;
+		el.style.height = `${Math.min(el.scrollHeight, 190)}px`;
 	}, []);
 
 	useEffect(() => {
@@ -130,7 +131,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 
 	useEffect(() => {
 		const speechWindow = window as SpeechWindow;
-		setVoiceAvailable(Boolean(speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition));
+		setVoiceAvailable(Boolean(speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition));
 		return () => recognitionRef.current?.stop();
 	}, []);
 
@@ -230,7 +231,11 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		recognition.onerror = () => setListening(false);
 		recognitionRef.current = recognition;
 		setListening(true);
-		recognition.start();
+		try {
+			recognition.start();
+		} catch {
+			setListening(false);
+		}
 	}, [busy, listening, onChange, value, voiceAvailable]);
 
 	const handleFileSelect = useCallback((file: File) => {
@@ -273,11 +278,11 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 
 			{/* Quick Slash Commands Popover */}
 			{showCommandMenu ? (
-				<div id={commandMenuId} aria-label="Composer commands" className="absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-xl border border-white/[0.09] bg-[#111827] shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
-					<div className="flex items-center gap-2 border-b border-white/[0.07] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[#8e95a2]">
-						<Command className="size-3.5" aria-hidden />Commands
+				<div id={commandMenuId} aria-label="Composer commands" className="absolute bottom-[calc(100%+16px)] left-0 z-40 w-full overflow-hidden rounded-2xl border border-white/40 bg-white/90 shadow-2xl backdrop-blur-xl">
+					<div className="flex items-center gap-2 border-b border-[#0F172A]/10 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#0F172A]/50">
+						<Command className="size-3.5 text-[#0F172A]" aria-hidden /> Commands
 					</div>
-					<div className="p-1.5">
+					<div className="p-2">
 						{commandMatches.map((item) => (
 							<button
 								key={item.command}
@@ -291,12 +296,12 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									onChange(item.command);
 									requestAnimationFrame(() => taRef.current?.focus());
 								}}
-								className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.045]"
+								className="flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition hover:bg-[#0F172A]/5"
 							>
-								<span className="w-14 shrink-0 font-mono text-[11px] text-[#c9a84c]">{item.command.trim()}</span>
+								<span className="w-16 shrink-0 font-mono text-[12px] font-semibold text-[#8B7CFF]">{item.command.trim()}</span>
 								<span className="min-w-0">
-									<strong className="block text-[12px] font-medium text-[#f0f0ed]">{item.label}</strong>
-									<small className="mt-0.5 block truncate text-[11px] text-[#8e95a2]">{item.description}</small>
+									<strong className="block text-[13px] font-semibold text-[#0F172A]">{item.label}</strong>
+									<small className="mt-0.5 block truncate text-[12px] font-medium text-[#0F172A]/60">{item.description}</small>
 								</span>
 							</button>
 						))}
@@ -304,69 +309,65 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 				</div>
 			) : null}
 
-			<div className={cn("aira-enterprise-composer overflow-visible rounded-2xl border border-white/[0.1] bg-[#0d1423] shadow-[0_18px_50px_rgba(0,0,0,0.24)]", busy && "opacity-95")}>
-				<label htmlFor="search-query" className="sr-only">Message AIRA AI</label>
-				<textarea
-					ref={taRef}
-					id="search-query"
-					name="query"
-					rows={1}
-					value={value}
-					disabled={busy}
-					aria-controls={showCommandMenu ? commandMenuId : undefined}
-					aria-expanded={showCommandMenu}
-					onChange={(event) => {
-						setCommandMenuDismissedValue(null);
-						onChange(event.target.value);
-						resize();
-					}}
-					onInput={resize}
-					onKeyDown={(event) => {
-						if (event.key === "Escape" && (contextMenuOpen || modelMenuOpen)) {
-							setContextMenuOpen(false);
-							setModelMenuOpen(false);
-							return;
-						}
-						if (event.key === "Escape" && showCommandMenu) {
-							setCommandMenuDismissedValue(value);
-							return;
-						}
-						if (event.key === "Enter" && !event.shiftKey) {
-							event.preventDefault();
-							handleSubmit();
-						}
-					}}
-					placeholder={placeholder}
-					className="min-h-[76px] w-full resize-none rounded-t-2xl bg-transparent px-4 pb-2 pt-4 text-[14px] leading-6 text-[#f0f0ed] outline-none placeholder:text-[#6e747f] disabled:cursor-not-allowed sm:px-5 sm:text-[15px]"
-				/>
+			<div className={cn("relative flex w-full flex-col gap-2 rounded-xl border border-[#EAEAEA] bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition focus-within:border-[#111111] focus-within:ring-1 focus-within:ring-[#111111]", busy && "opacity-95")}>
+				
+				<div className="flex w-full flex-col">
+					{attachments.length > 0 ? (
+						<div className="flex flex-wrap items-center gap-2 pb-2 px-1">
+							{attachments.map((att) => (
+								<div key={att.id} className="inline-flex items-center gap-2 rounded-[6px] border border-[#EAEAEA] bg-[#F4F4F5] px-3 py-1.5 shadow-sm">
+									<FileText className="size-3.5 text-[#111111]" />
+									<span className="max-w-[140px] truncate text-[12px] font-bold text-[#111111]">{att.name}</span>
+									<button
+										type="button"
+										onClick={() => removeAttachment(att.id)}
+										className="ml-1 rounded-sm p-0.5 text-[#525252] transition hover:bg-[#EAEAEA] hover:text-[#111111]"
+									>
+										<X className="size-3.5" strokeWidth={3} />
+									</button>
+								</div>
+							))}
+						</div>
+					) : null}
+					
+					<label htmlFor="search-query" className="sr-only">Message AIRA AI</label>
+					<textarea
+						ref={taRef}
+						id="search-query"
+						name="query"
+						rows={1}
+						value={value}
+						disabled={busy}
+						aria-controls={showCommandMenu ? commandMenuId : undefined}
+						aria-expanded={showCommandMenu}
+						onChange={(event) => {
+							setCommandMenuDismissedValue(null);
+							onChange(event.target.value);
+							resize();
+						}}
+						onInput={resize}
+						onKeyDown={(event) => {
+							if (event.key === "Escape" && (contextMenuOpen || modelMenuOpen)) {
+								setContextMenuOpen(false);
+								setModelMenuOpen(false);
+								return;
+							}
+							if (event.key === "Escape" && showCommandMenu) {
+								setCommandMenuDismissedValue(value);
+								return;
+							}
+							if (event.key === "Enter" && !event.shiftKey) {
+								event.preventDefault();
+								handleSubmit();
+							}
+						}}
+						placeholder={placeholder || "Ask AIRA..."}
+						className="aira-composer-textarea max-h-[200px] min-h-[44px] w-full resize-none bg-transparent px-2 py-2 text-[15px] font-medium leading-relaxed text-[#111111] outline-none placeholder:font-medium placeholder:text-[#A3A3A3] disabled:cursor-not-allowed"
+					/>
+				</div>
 
-				{/* In-Composer Attachment Preview Chips */}
-				{attachments.length > 0 ? (
-					<div className="flex flex-wrap items-center gap-2 px-4 pb-2.5 sm:px-5">
-						{attachments.map((att) => (
-							<div
-								key={att.id}
-								className="inline-flex items-center gap-2 rounded-lg border border-white/[0.12] bg-[#141b2b] px-3 py-1.5 text-xs text-[#cfd2d8] shadow-sm"
-							>
-								<FileText className="size-3.5 text-sky-400" />
-								<span className="max-w-[160px] truncate text-[11px] font-medium text-[#f0f0ed]">{att.name}</span>
-								<span className="text-[10px] text-[#8e95a2]">({(att.size / 1024).toFixed(0)} KB)</span>
-								<button
-									type="button"
-									onClick={() => removeAttachment(att.id)}
-									className="rounded p-0.5 text-[#8e95a2] transition hover:bg-white/[0.08] hover:text-red-300"
-									aria-label={`Remove ${att.name}`}
-								>
-									<X className="size-3" />
-								</button>
-							</div>
-						))}
-					</div>
-				) : null}
-
-				<div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 sm:px-4">
-					<div className="relative flex min-w-0 flex-wrap items-center gap-1.5">
-						{/* Context / Attachment Popover Trigger */}
+				<div className="flex w-full items-center justify-between pt-1">
+					<div className="flex items-center gap-2 pl-1">
 						<button
 							type="button"
 							onClick={() => {
@@ -374,248 +375,169 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								setContextMenuOpen((open) => !open);
 							}}
 							className={cn(
-								"flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#8e95a2] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]",
-								contextMenuOpen && "bg-white/[0.06] text-[#f0f0ed]",
+								"flex size-8 items-center justify-center rounded-[6px] transition",
+								contextMenuOpen ? "bg-[#111111] text-white" : "bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]"
 							)}
 							aria-label="Add context or attach document"
 							aria-controls={contextMenuId}
 							aria-expanded={contextMenuOpen}
 						>
-							{contextMenuOpen ? <X className="size-4" aria-hidden /> : <Plus className="size-4" strokeWidth={1.8} aria-hidden />}
+							{contextMenuOpen ? <X className="size-4" /> : <Plus className="size-4" strokeWidth={2.5} />}
 						</button>
 
-						{/* In-Composer Context Popover (Keeps Prompt Preserved) */}
-						{contextMenuOpen ? (
-							<div
-								id={contextMenuId}
-								aria-label="Add context"
-								className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(245,244,239,0.1)] bg-[#121418] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
-							>
-								<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
-									Add In-Context Research
-								</p>
+					{/* In-Composer Context Popover */}
+					{contextMenuOpen ? (
+						<div
+							id={contextMenuId}
+							className="absolute bottom-[calc(100%+16px)] left-0 z-50 w-72 overflow-hidden rounded-2xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl"
+						>
+							<p className="px-3 pb-2 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0F172A]/50">
+								Research Sources
+							</p>
 
-								{/* Direct File Attachment (No Navigation) */}
-								<button
-									type="button"
-									onClick={() => fileInputRef.current?.click()}
-									className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-[#cfd2d8] transition hover:bg-white/[0.06] hover:text-[#f0f0ed]"
-								>
-									<Paperclip className="size-4 text-sky-400" strokeWidth={1.7} aria-hidden />
-									<span>Attach local document</span>
-								</button>
-
-								<div className="my-1.5 border-t border-white/[0.07]" />
-
-								<p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
-									Workspace Libraries
-								</p>
-
-								{/* Retained Links for Test & Cross-Surface Compatibility */}
-								<Link
-									href="/knowledge"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#cfd2d8] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]"
-									onClick={() => setContextMenuOpen(false)}
-								>
-									<span className="flex items-center gap-2">
-										<FileText className="size-3.5 text-[#8e95a2]" strokeWidth={1.7} aria-hidden />
-										Knowledge Library
-									</span>
-									<ExternalLink className="size-3 text-[#6e747f]" />
-								</Link>
-
-								<Link
-									href="/agents"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#cfd2d8] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]"
-									onClick={() => setContextMenuOpen(false)}
-								>
-									<span className="flex items-center gap-2">
-										<Bot className="size-3.5 text-[#8e95a2]" strokeWidth={1.7} aria-hidden />
-										Agent Missions
-									</span>
-									<ExternalLink className="size-3 text-[#6e747f]" />
-								</Link>
-
-								<Link
-									href="/omniroute"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex min-h-9 items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-[#cfd2d8] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]"
-									onClick={() => setContextMenuOpen(false)}
-								>
-									<span className="flex items-center gap-2">
-										<Network className="size-3.5 text-[#8e95a2]" strokeWidth={1.7} aria-hidden />
-										OmniRoute Status
-									</span>
-									<ExternalLink className="size-3 text-[#6e747f]" />
-								</Link>
-							</div>
-						) : null}
-
-						{/* Model Selector Pill */}
-						<div className="relative">
 							<button
 								type="button"
-								onClick={() => {
-									setContextMenuOpen(false);
-									setModelMenuOpen((open) => !open);
-								}}
-								className={cn(
-									"flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 text-xs text-[#cfd2d8] transition hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-[#f0f0ed]",
-									modelMenuOpen && "border-sky-500/40 bg-sky-500/[0.08] text-[#f0f0ed]",
-								)}
-								aria-label={`Select model: currently ${activeModelOption.label}`}
-								aria-controls={modelMenuId}
-								aria-expanded={modelMenuOpen}
+								onClick={() => fileInputRef.current?.click()}
+								className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5"
 							>
-								<Sparkles className="size-3 text-sky-400" />
-								<span className="text-[11px] font-medium">{activeModelOption.label}</span>
-								<ChevronDown className="size-3 text-[#8e95a2]" />
+								<Paperclip className="size-4 text-[#8B7CFF]" strokeWidth={2.5} />
+								<span>Attach local document</span>
 							</button>
 
-							{/* Model Selector Popover */}
-							{modelMenuOpen ? (
-								<div
-									id={modelMenuId}
-									aria-label="Select AI Model"
-									className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-72 overflow-hidden rounded-xl border border-[rgba(245,244,239,0.1)] bg-[#121418] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
-								>
-									<p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[#8e95a2]">
-										Active Routing Mode
-									</p>
-									<div className="space-y-1">
-										{MODEL_OPTIONS.map((opt) => {
-											const isSelected = opt.id === selectedModel;
-											return (
-												<button
-													key={opt.id}
-													type="button"
-													onClick={() => {
-														setSelectedModel(opt.id);
-														if (opt.id === "deep" && !value.startsWith("/deep ")) {
-															onChange(`/deep ${value.trim()}`);
-														}
-														setModelMenuOpen(false);
-														requestAnimationFrame(() => taRef.current?.focus());
-													}}
-													className={cn(
-														"flex w-full items-start justify-between rounded-lg px-2.5 py-2 text-left transition hover:bg-white/[0.05]",
-														isSelected && "bg-white/[0.06]",
-													)}
-												>
-													<div>
-														<p className="text-xs font-semibold text-[#f0f0ed]">{opt.label}</p>
-														<p className="mt-0.5 text-[11px] text-[#8e95a2]">{opt.description}</p>
-													</div>
-													<span
-														className={cn(
-															"rounded px-1.5 py-0.5 text-[9px] font-semibold",
-															isSelected
-																? "bg-sky-500/20 text-sky-300"
-																: "bg-white/[0.06] text-[#8e95a2]",
-														)}
-													>
-														{opt.badge}
-													</span>
-												</button>
-											);
-										})}
-									</div>
-								</div>
-							) : null}
-						</div>
+							<div className="my-2 border-t border-[#0F172A]/10" />
 
-						{/* Quick Mode Buttons */}
+							<p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-[#0F172A]/50">
+								Sovereign Integrations
+							</p>
+
+							<Link href="/knowledge" target="_blank" className="flex min-h-10 items-center justify-between rounded-xl px-3 py-2 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5" onClick={() => setContextMenuOpen(false)}>
+								<span className="flex items-center gap-3"><FileText className="size-4 text-[#8B7CFF]" strokeWidth={2.5} /> Knowledge Library</span>
+							</Link>
+							<Link href="/agents" target="_blank" className="flex min-h-10 items-center justify-between rounded-xl px-3 py-2 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5" onClick={() => setContextMenuOpen(false)}>
+								<span className="flex items-center gap-3"><Bot className="size-4 text-[#8B7CFF]" strokeWidth={2.5} /> Agent Missions</span>
+							</Link>
+							<Link href="/omniroute" target="_blank" className="flex min-h-10 items-center justify-between rounded-[8px] px-3 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#F4F4F5]" onClick={() => setContextMenuOpen(false)}>
+								<span className="flex items-center gap-3"><Network className="size-4 text-[#525252]" strokeWidth={2.5} /> OmniRoute Status</span>
+							</Link>
+						</div>
+					) : null}
+
+					<div className="relative">
 						<button
+							ref={modelTriggerRef}
 							type="button"
+							id={`${modelMenuId}-trigger`}
+							aria-label={`Select intelligence model. Current: ${activeModelOption.label}`}
+							aria-haspopup="listbox"
+							aria-expanded={modelMenuOpen}
+							aria-controls={modelMenuOpen ? modelMenuId : undefined}
 							onClick={() => {
-								if (value.startsWith("/deep ")) {
-									onChange(value.replace(/^\/deep\s*/, ""));
-								} else {
-									onChange(`/deep ${value.trim()}`);
-								}
+								setContextMenuOpen(false);
+								setModelMenuOpen((open) => !open);
 							}}
-							disabled={busy}
 							className={cn(
-								"hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-sky-500/30 hover:bg-sky-500/[0.08] hover:text-sky-300 sm:flex",
-								value.startsWith("/deep ") && "border-sky-500/40 bg-sky-500/10 text-sky-300",
+								"flex h-8 items-center gap-2 rounded-[6px] border px-2.5 text-[11px] font-bold transition",
+								modelMenuOpen ? "border-[#111111] bg-[#111111] text-white" : "border-transparent bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]"
 							)}
 						>
-							<Globe2 className="size-3.5" strokeWidth={1.6} />
-							HyperResearch™
+							<Sparkles className={cn("size-3.5", modelMenuOpen ? "text-[#D4D4D4]" : "text-[#525252]")} aria-hidden />
+							<span aria-hidden>{activeModelOption.label.replace("AIRA ", "")}</span>
 						</button>
 
-						<Link
-							href="/agents"
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-white/[0.18] hover:bg-white/[0.05] hover:text-[#f0f0ed] md:flex"
-						>
-							<WandSparkles className="size-3.5" strokeWidth={1.6} />
-							Swarms
-						</Link>
-						<Link
-							href="/omniroute"
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-white/[0.07] px-2.5 text-[11px] font-medium text-[#cfd2d8] transition hover:border-white/[0.18] hover:bg-white/[0.05] hover:text-[#f0f0ed] lg:flex"
-						>
-							<Network className="size-3.5" strokeWidth={1.6} />
-							Cortex Engine
-						</Link>
-
-						<button
-							type="button"
-							onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}
-							className="hidden h-8 items-center gap-1.5 rounded-lg border border-sky-500/25 bg-sky-500/10 px-2.5 text-[11px] font-medium text-sky-400 transition hover:bg-sky-500/20 sm:flex"
-							aria-label="Toggle AIRA Deliverables Stage"
-						>
-							<Layers className="size-3.5" />
-							<span>Canvas Stage</span>
-						</button>
+						{modelMenuOpen ? (
+							<div
+								id={modelMenuId}
+								role="listbox"
+								aria-label="Intelligence model"
+								aria-labelledby={`${modelMenuId}-trigger`}
+								className="absolute bottom-[calc(100%+16px)] right-0 z-50 max-w-[calc(100vw-2rem)] w-72 overflow-hidden rounded-2xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl"
+							>
+								<p className="px-3 pb-2 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0F172A]/50" aria-hidden>
+									Intelligence Core
+								</p>
+								<div className="space-y-1">
+									{MODEL_OPTIONS.map((opt) => {
+										const isSelected = opt.id === selectedModel;
+										return (
+											<button
+												key={opt.id}
+												type="button"
+												role="option"
+												aria-selected={isSelected}
+												onClick={() => {
+													setSelectedModel(opt.id);
+													if (opt.id === "deep" && !value.startsWith("/deep ")) {
+														onChange(`/deep ${value.trim()}`);
+													}
+													setModelMenuOpen(false);
+													// Restore focus to trigger, then textarea after a tick
+													requestAnimationFrame(() => {
+														modelTriggerRef.current?.focus();
+														window.setTimeout(() => taRef.current?.focus(), 100);
+													});
+												}}
+												className={cn(
+													"flex w-full items-start justify-between rounded-xl px-3 py-2.5 text-left transition",
+													isSelected ? "bg-[#0F172A]/5" : "hover:bg-[#0F172A]/5",
+												)}
+											>
+												<div>
+													<p className="text-[13px] font-bold text-[#0F172A]">{opt.label}</p>
+													<p className="mt-1 text-[11px] font-medium text-[#0F172A]/60">{opt.description}</p>
+												</div>
+												{isSelected && <div className="mt-1 size-2 rounded-full bg-[#8B7CFF]" aria-hidden />}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+						) : null}
 					</div>
 
-					<div className="flex items-center gap-2">
-						{voiceAvailable ? (
-							<button
-								type="button"
-								onClick={toggleVoice}
-								disabled={busy}
-								className={cn(
-									"grid size-9 place-items-center rounded-xl border border-white/[0.07] text-[#8e95a2] transition hover:bg-white/[0.05] hover:text-[#f0f0ed]",
-									listening && "border-sky-500/40 bg-sky-500/10 text-sky-300",
-								)}
-								aria-label={listening ? "Stop voice input" : "Start voice input"}
-							>
-								{listening ? <MicOff className="size-4" strokeWidth={1.7} /> : <Mic className="size-4" strokeWidth={1.7} />}
-							</button>
-						) : null}
+					{/* MICROPHONE DEFERRED: Speech-to-text deferred to a post-launch update.
+					     Implementation preserved below (voiceAvailable, toggleVoice, SpeechRecognition).
+					     Re-enable by replacing `false` with `voiceAvailable` below. */}
+					{false && voiceAvailable ? (
+						<button
+							type="button"
+							aria-label={listening ? "Stop voice input" : "Start voice input"}
+							onClick={toggleVoice}
+							disabled={busy}
+							className={cn(
+								"flex size-8 items-center justify-center rounded-[6px] transition",
+								listening ? "bg-red-500 text-white" : "bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]"
+							)}
+						>
+							{listening ? <MicOff className="size-3.5" strokeWidth={2.5} /> : <Mic className="size-3.5" strokeWidth={2.5} />}
+						</button>
+					) : null}
+					</div>
+					
+					<div>
 						{isBusy && onCancel ? (
 							<Button
 								type="button"
 								onClick={onCancel}
 								size="icon"
-								className="size-9 rounded-xl border border-white/[0.08] bg-white/[0.05] text-[#f0f0ed] shadow-none hover:bg-white/[0.08]"
-								aria-label="Stop generating"
+								className="size-8 rounded-[6px] border-0 bg-[#111111] text-white transition hover:bg-[#2B2B2B]"
 							>
-								<Square className="size-3.5 fill-current" strokeWidth={1.8} aria-hidden />
+								<Square className="size-3.5 fill-current" />
 							</Button>
 						) : (
 							<Button
 								type="submit"
 								disabled={!canSubmit}
 								size="icon"
-								className="size-9 rounded-xl border-0 bg-sky-400 text-[#08090C] shadow-[0_0_18px_rgba(56,189,248,0.3)] transition hover:bg-sky-300 active:scale-[0.98] disabled:pointer-events-none disabled:bg-white/[0.06] disabled:text-[#6e747f] disabled:shadow-none"
-								aria-label="Send to AIRA AI"
+								className="size-8 rounded-[6px] border-0 bg-[#111111] text-white transition hover:bg-[#2B2B2B] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30 disabled:shadow-none"
 							>
-								<ArrowUp className="size-4" strokeWidth={2.4} aria-hidden />
+								<ArrowUp className="size-4" strokeWidth={2.5} />
 							</Button>
 						)}
 					</div>
 				</div>
 			</div>
-			<div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-[#8e95a2]">
-				<span>AIRA can make mistakes. Verify important information.</span>
+			<div className="mt-4 flex items-center justify-center gap-4 text-[11px] font-semibold tracking-wide text-[#0F172A]/40">
+				<span>AIRA CAN MAKE MISTAKES. VERIFY IMPORTANT INFO.</span>
 			</div>
 		</form>
 	);

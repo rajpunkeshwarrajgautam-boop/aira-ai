@@ -1,21 +1,35 @@
-/* Impeccable memory workspace refinements. Scoped to avoid cross-page regressions. */
+/* Impeccable memory workspace refinements.
+ * Oatmeal & Ink 2.1 direction: Warm canvas, crisp white panels, Royal Iris accents.
+ */
 
 .aira-memory-workspace {
-  --memory-canvas: #090909;
-  --memory-panel: #111111;
-  --memory-panel-hover: #171717;
-  --memory-line: rgba(255,255,255,.075);
-  --memory-line-strong: rgba(255,255,255,.14);
-  --memory-text: #f1f1ef;
-  --memory-text-2: #aaa8a3;
-  --memory-text-3: #706e69;
-  --memory-accent: #c9a84c;
+  --memory-canvas: #F9F8F6;
+  --memory-panel: #FFFFFF;
+  --memory-panel-hover: #FAF9F6;
+  --memory-line: rgba(17, 17, 21, 0.08);
+  --memory-line-strong: rgba(17, 17, 21, 0.14);
+  --memory-text: #111115;
+  --memory-text-2: #6B6A75;
+  --memory-text-3: #8F8E98;
+  --memory-accent: #3A0CA3;
+  --surface: 40 14% 97% !important;
+  --surface-elevated: 0 0% 100% !important;
+  --surface-inset: 40 10% 94% !important;
+  --border-subtle: 240 10% 91% !important;
+  --border: 240 10% 86% !important;
+  --content-primary: 240 11% 7% !important;
+  --content-secondary: 245 5% 44% !important;
+  --content-tertiary: 240 4% 58% !important;
+  --accent: 259 86% 35% !important;
+  --accent-muted: 259 70% 45% !important;
+  color-scheme: light !important;
   min-height: 100dvh;
-  background: var(--memory-canvas);
-  color: var(--memory-text);
+  background: var(--memory-canvas) !important;
+  color: var(--memory-text) !important;
 }
 
-.aira-memory-workspace > main {
+.aira-memory-workspace > main,
+.aira-memory-workspace main {
   background: var(--memory-canvas) !important;
   color: var(--memory-text) !important;
 }
@@ -35,14 +49,14 @@
 
 .aira-memory-workspace .aira-gradient-text {
   background: none !important;
-  color: #d3b965 !important;
+  color: var(--memory-accent) !important;
   -webkit-text-fill-color: currentColor !important;
 }
 
 .aira-memory-workspace .aira-icon-pop {
-  background: #151515 !important;
+  background: #F3F1EC !important;
   border: 1px solid var(--memory-line) !important;
-  color: #d3b965 !important;
+  color: var(--memory-accent) !important;
   box-shadow: none !important;
 }
 
@@ -50,14 +64,13 @@
 .aira-memory-workspace .aira-glass,
 .aira-memory-workspace .aira-card-hover {
   background: var(--memory-panel) !important;
-  border-color: var(--memory-line) !important;
-  box-shadow: none !important;
+  border: 1px solid var(--memory-line) !important;
+  box-shadow: 0 1px 3px rgba(17, 17, 21, 0.04) !important;
   backdrop-filter: none !important;
 }
 
 .aira-memory-workspace .aira-premium-card,
 .aira-memory-workspace .aira-glass {
-  border: 1px solid var(--memory-line) !important;
   border-radius: 16px !important;
 }
 
@@ -66,8 +79,8 @@
 }
 
 .aira-memory-workspace form .rounded-2xl.border.border-border-subtle {
-  background: #0d0d0d !important;
-  border-color: var(--memory-line-strong) !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(17, 17, 21, 0.12) !important;
   box-shadow: none !important;
 }
 
@@ -77,27 +90,27 @@
 }
 
 .aira-memory-workspace select {
-  background: #121212 !important;
+  background: #FAF9F6 !important;
   border: 1px solid var(--memory-line) !important;
 }
 
 .aira-memory-workspace select option {
-  background: #121212;
+  background: #FFFFFF;
   color: var(--memory-text);
 }
 
 .aira-memory-workspace textarea {
-  caret-color: #d3b965;
+  caret-color: var(--memory-accent);
 }
 
 .aira-memory-workspace textarea::placeholder {
-  color: #6f6d68 !important;
+  color: var(--memory-text-3) !important;
 }
 
 .aira-memory-workspace .aira-shine-button {
-  background: #ecebe7 !important;
-  color: #111 !important;
-  box-shadow: none !important;
+  background: #3A0CA3 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(58, 12, 163, 0.25) !important;
   border-radius: 10px !important;
 }
 
@@ -107,7 +120,7 @@
 }
 
 .aira-memory-workspace .aira-shine-button:hover:not(:disabled) {
-  background: white !important;
+  background: #2D0A82 !important;
   transform: translateY(-1px);
 }
 
@@ -119,45 +132,46 @@
 .aira-memory-workspace article.aira-card-hover:hover {
   background: var(--memory-panel-hover) !important;
   border-color: var(--memory-line-strong) !important;
+  box-shadow: 0 4px 12px rgba(17, 17, 21, 0.06) !important;
   transform: translateY(-1px);
 }
 
 .aira-memory-workspace article[class*="border-accent"] {
-  border-color: rgba(201,168,76,.22) !important;
-  background: rgba(201,168,76,.045) !important;
+  border-color: rgba(58, 12, 163, 0.25) !important;
+  background: rgba(58, 12, 163, 0.04) !important;
 }
 
 .aira-memory-workspace [class*="bg-accent/"] {
-  background: rgba(201,168,76,.09) !important;
+  background: rgba(58, 12, 163, 0.08) !important;
 }
 
 .aira-memory-workspace [class*="text-emerald-700"] {
-  color: #81bd8c !important;
+  color: #059669 !important;
 }
 
 .aira-memory-workspace [class*="bg-emerald-500"] {
-  background: rgba(88,168,106,.10) !important;
+  background: rgba(16, 185, 129, 0.10) !important;
 }
 
 .aira-memory-workspace [class*="bg-red-50"] {
-  background: #160f0f !important;
+  background: #FEF2F2 !important;
 }
 
 .aira-memory-workspace [class*="border-red-200"] {
-  border-color: rgba(216,137,137,.25) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
 }
 
 .aira-memory-workspace [class*="text-red-700"],
 .aira-memory-workspace [class*="text-red-500"] {
-  color: #d88989 !important;
+  color: #DC2626 !important;
 }
 
 .aira-memory-workspace button:hover[class*="hover:bg-red-50"] {
-  background: rgba(216,137,137,.08) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
 }
 
 .aira-memory-workspace :where(button, a, textarea, select):focus-visible {
-  outline: 2px solid rgba(201,168,76,.72) !important;
+  outline: 2px solid rgba(58, 12, 163, 0.72) !important;
   outline-offset: 2px !important;
 }
 

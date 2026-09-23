@@ -1,9 +1,11 @@
 "use client";
 
 import {
+	BookOpen,
 	Check,
 	ChevronLeft,
 	ChevronRight,
+	Compass,
 	Copy,
 	Download,
 	ExternalLink,
@@ -18,6 +20,7 @@ import {
 	MessageSquarePlus,
 	Network,
 	PencilLine,
+	PenTool,
 	RotateCcw,
 	Share2,
 	ShieldCheck,
@@ -249,30 +252,36 @@ export function ConversationMessageList({
 		const citedIndices = parseCitationIndicesFromAnswer(message.content);
 		const linkedContent = linkifyCitations(message.content, effectiveCitations.length);
 		const finalText = linkedContent.trim() || (effectiveCitations.length > 0 ? "AIRA found sources but did not generate a text response." : "No response generated.");
-		const confidence = message.confidence ?? (effectiveCitations.length > 0 ? 0.94 : 0.88);
+		const hasCalibratedConfidence = typeof message.confidence === "number" && message.confidence > 0;
 
 		return (
-			<div className="aira-enter group flex gap-3 py-5">
-				<div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-[11px] font-semibold text-accent">A</div>
-				<div className="aira-assistant-response min-w-0 flex-1 border-b border-white/[0.07] pb-5">
-					<div className="mb-2 flex min-h-7 items-center justify-between gap-3">
-						<div className="flex min-w-0 items-center gap-2">
-							<p className="text-[12px] font-semibold text-content-primary">AIRA AI</p>
+			<div className="aira-enter group flex gap-4 py-4 sm:py-6">
+				<div className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-[#EAEAEA] bg-[#F9F8F6] text-[10px] font-bold text-[#111111]">A</div>
+				<div className="aira-assistant-response min-w-0 flex-1 pb-8">
+					<div className="mb-2 flex min-h-7 flex-wrap items-center justify-between gap-2">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<p className="shrink-0 whitespace-nowrap text-[12px] font-semibold text-[#111115]">AIRA AI</p>
 							{effectiveCitations.length > 0 ? (
-								<span className="inline-flex items-center gap-1 text-[10px] text-content-tertiary">
-									<Globe2 className="size-3" aria-hidden /> {effectiveCitations.length} sources
+								<span className="inline-flex shrink-0 items-center gap-1 text-[10.5px] text-[#6B6A75]">
+									<Globe2 className="size-3 text-[#3A0CA3]" aria-hidden /> {effectiveCitations.length} sources
 								</span>
 							) : null}
-							{/* Confidence Badge (Gate 61) */}
-							<span className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-emerald-400">
-								<ShieldCheck className="size-2.5" /> {Math.round(confidence * 100)}% Calibrated
-							</span>
+							{/* Evidence / Confidence Badge */}
+							{hasCalibratedConfidence ? (
+								<span className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-emerald-500/20 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700">
+									<ShieldCheck className="size-2.5" /> {Math.round(message.confidence! * 100)}% Calibrated
+								</span>
+							) : effectiveCitations.length > 0 ? (
+								<span className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-[#EAEAEA] bg-[#F4F4F5] px-1.5 py-0.5 text-[9px] font-medium text-[#111111]">
+									<ShieldCheck className="size-2.5" /> Source-Grounded
+								</span>
+							) : null}
 							{/* Branching indicator if present (Gate 103) */}
 							{message.branchCount && message.branchCount > 1 ? (
-								<span className="inline-flex items-center gap-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-content-secondary">
-									<ChevronLeft className="size-2.5 cursor-pointer hover:text-accent" />
+								<span className="inline-flex items-center gap-1 rounded border border-[rgba(17,17,21,0.08)] bg-white px-1.5 py-0.5 text-[9px] text-[#6B6A75]">
+									<ChevronLeft className="size-2.5 cursor-pointer hover:text-[#3A0CA3]" />
 									{message.branchIndex ?? 1} / {message.branchCount}
-									<ChevronRight className="size-2.5 cursor-pointer hover:text-accent" />
+									<ChevronRight className="size-2.5 cursor-pointer hover:text-[#3A0CA3]" />
 								</span>
 							) : null}
 						</div>
@@ -284,20 +293,20 @@ export function ConversationMessageList({
 										<button
 											type="button"
 											onClick={() => setRetryMenuOpenId(retryMenuOpenId === message.id ? null : (message.id ?? null))}
-											className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] text-content-tertiary hover:bg-white/[0.05] hover:text-content-primary"
+											className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 											title="Retry response"
 										>
 											<RotateCcw className="size-3" /> Retry
 										</button>
 										{retryMenuOpenId === message.id && (
-											<div className="absolute right-0 top-8 z-30 w-44 rounded-lg border border-white/[0.1] bg-[#111728] p-1 shadow-xl">
+											<div className="absolute right-0 top-8 z-30 w-44 rounded-lg border border-[rgba(17,17,21,0.1)] bg-white p-1 shadow-lg">
 												<button
 													type="button"
 													onClick={() => {
 														onRetry("same", message.id!);
 														setRetryMenuOpenId(null);
 													}}
-													className="w-full rounded px-2 py-1 text-left text-[11px] text-content-secondary hover:bg-white/[0.08] hover:text-content-primary"
+													className="w-full rounded px-2 py-1 text-left text-[11px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 												>
 													Same model
 												</button>
@@ -307,7 +316,7 @@ export function ConversationMessageList({
 														onRetry("alternate_model", message.id!);
 														setRetryMenuOpenId(null);
 													}}
-													className="w-full rounded px-2 py-1 text-left text-[11px] text-content-secondary hover:bg-white/[0.08] hover:text-content-primary"
+													className="w-full rounded px-2 py-1 text-left text-[11px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 												>
 													Alternate model
 												</button>
@@ -317,7 +326,7 @@ export function ConversationMessageList({
 														onRetry("deep_reasoning", message.id!);
 														setRetryMenuOpenId(null);
 													}}
-													className="w-full rounded px-2 py-1 text-left text-[11px] text-content-secondary hover:bg-white/[0.08] hover:text-content-primary"
+													className="w-full rounded px-2 py-1 text-left text-[11px] text-[#6B6A75] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 												>
 													Deeper reasoning
 												</button>
@@ -328,7 +337,7 @@ export function ConversationMessageList({
 								<button
 									type="button"
 									onClick={() => window.dispatchEvent(new CustomEvent("aira:toggle-canvas"))}
-									className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-sky-400 transition hover:bg-sky-500/10"
+									className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-[#3A0CA3] transition hover:bg-[#3A0CA3]/[0.08]"
 									title="Open in AIRA Deliverables Canvas"
 								>
 									<Layers className="size-3" /> Canvas
@@ -337,14 +346,9 @@ export function ConversationMessageList({
 							</div>
 						) : null}
 					</div>
-					<div className="whitespace-pre-wrap text-[14px] leading-7 text-content-secondary">
+					<div className="whitespace-pre-wrap text-[15px] leading-8 text-content-secondary">
 						<MarkdownContent markdown={finalText} citations={effectiveCitations} />
 					</div>
-					{effectiveCitations.length > 0 ? (
-						<div className="mt-6">
-							<CitationCards citations={effectiveCitations} citedIndices={citedIndices} />
-						</div>
-					) : null}
 				</div>
 			</div>
 		);
@@ -363,21 +367,21 @@ export function ConversationMessageList({
 			)}
 
 			{!showEmptyHint && (
-				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(245,244,239,0.07)] bg-[#0d0e12]/95 px-4 backdrop-blur-xl sm:px-5">
+				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(17,17,21,0.08)] bg-[#F9F8F6]/95 px-4 backdrop-blur-xl sm:px-5">
 				<div className="min-w-0">
-					<h2 className="truncate text-[13px] font-semibold text-content-primary">{title}</h2>
-					<p className="mt-0.5 text-[9px] text-content-tertiary">AIRA workspace</p>
+					<h2 className="truncate text-[13px] font-semibold text-[#111115]">{title}</h2>
+					<p className="mt-0.5 text-[10px] text-[#6B6A75]">AIRA workspace</p>
 				</div>
 
 				{/* Effort Selector in Toolbar (Gate 102) */}
-				<div className="hidden items-center rounded-lg border border-[rgba(245,244,239,0.08)] bg-[#13151b] p-0.5 sm:flex" aria-label="Effort Control">
+				<div className="hidden items-center rounded-lg border border-[rgba(17,17,21,0.08)] bg-white p-0.5 sm:flex" aria-label="Effort Control">
 					{(["LOW", "MEDIUM", "HIGH", "MAXIMUM"] as const).map((lvl) => (
 						<button
 							key={lvl}
 							type="button"
 							onClick={() => onEffortChange?.(lvl)}
 							className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition ${
-								effort === lvl ? "bg-[rgba(212,175,55,0.15)] text-[#d4af37]" : "text-content-tertiary hover:text-content-primary"
+								effort === lvl ? "bg-[#3A0CA3]/10 text-[#3A0CA3] font-semibold" : "text-[#6B6A75] hover:text-[#111115]"
 							}`}
 							title={`Set effort to ${lvl}`}
 						>
@@ -389,7 +393,7 @@ export function ConversationMessageList({
 				<div className="flex items-center gap-1.5">
 					<Link
 						href="/workspace-search"
-						className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary"
+						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115]"
 						aria-label="Search conversation history"
 					>
 						<History className="size-4" strokeWidth={1.6} />
@@ -398,7 +402,7 @@ export function ConversationMessageList({
 						type="button"
 						onClick={() => setShowExportModal(true)}
 						disabled={!shareableText.trim()}
-						className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-35"
+						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115] disabled:cursor-not-allowed disabled:opacity-35"
 						aria-label="Export conversation"
 						title="Export / Download"
 					>
@@ -408,19 +412,19 @@ export function ConversationMessageList({
 						type="button"
 						onClick={() => void shareConversation()}
 						disabled={!shareableText.trim()}
-						className="grid size-8 place-items-center rounded-lg text-content-tertiary transition hover:bg-white/[0.05] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-35"
+						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115] disabled:cursor-not-allowed disabled:opacity-35"
 						aria-label="Share conversation"
 					>
 						<Share2 className="size-4" strokeWidth={1.6} />
 					</button>
 					<Link
 						href="/compare"
-						className="ml-1 hidden h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#111827] px-3 text-[10px] font-medium text-content-secondary transition hover:border-accent/25 hover:text-content-primary md:flex"
+						className="ml-1 hidden h-9 items-center gap-2 rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 text-[11px] font-medium text-[#111115] shadow-sm transition hover:border-[#3A0CA3]/30 md:flex"
 						title="Open Model Compare"
 					>
-						<span className="size-1.5 rounded-full bg-accent" />
+						<span className="size-1.5 rounded-full bg-[#3A0CA3]" />
 						AIRA Auto
-						<GitCompareArrows className="size-3.5" strokeWidth={1.6} />
+						<GitCompareArrows className="size-3.5 text-[#3A0CA3]" strokeWidth={1.6} />
 					</Link>
 				</div>
 				{shareFeedback ? <span className="sr-only" role="status" aria-live="polite">{shareFeedback}</span> : null}
@@ -429,31 +433,31 @@ export function ConversationMessageList({
 
 			{/* Export Modal (Gate 105) */}
 			{showExportModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-					<div className="w-full max-w-sm rounded-xl border border-white/[0.1] bg-[#0f1523] p-5 shadow-2xl">
-						<h3 className="text-[14px] font-semibold text-content-primary">Export Conversation</h3>
-						<p className="mt-1 text-[11px] text-content-tertiary">Select your preferred export format:</p>
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+					<div className="w-full max-w-sm rounded-xl border border-[rgba(17,17,21,0.1)] bg-white p-5 shadow-2xl">
+						<h3 className="text-[14px] font-semibold text-[#111115]">Export Conversation</h3>
+						<p className="mt-1 text-[11px] text-[#6B6A75]">Select your preferred export format:</p>
 						<div className="mt-4 space-y-2">
 							<button
 								type="button"
 								onClick={() => handleDownloadExport("markdown")}
-								className="flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-[#141b2e] p-2.5 text-left text-[12px] text-content-primary hover:bg-white/[0.08]"
+								className="flex w-full items-center gap-2.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] p-2.5 text-left text-[12px] text-[#111115] hover:bg-[#F2F0E8] transition"
 							>
-								<FileText className="size-4 text-accent" />
+								<FileText className="size-4 text-[#3A0CA3]" />
 								<div>
 									<span className="font-medium">Markdown (.md)</span>
-									<p className="text-[10px] text-content-tertiary">Plain text formatted with code and citations</p>
+									<p className="text-[10px] text-[#6B6A75]">Plain text formatted with code and citations</p>
 								</div>
 							</button>
 							<button
 								type="button"
 								onClick={() => handleDownloadExport("json")}
-								className="flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-[#141b2e] p-2.5 text-left text-[12px] text-content-primary hover:bg-white/[0.08]"
+								className="flex w-full items-center gap-2.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] p-2.5 text-left text-[12px] text-[#111115] hover:bg-[#F2F0E8] transition"
 							>
-								<FileJson className="size-4 text-accent" />
+								<FileJson className="size-4 text-[#3A0CA3]" />
 								<div>
 									<span className="font-medium">JSON Data (.json)</span>
-									<p className="text-[10px] text-content-tertiary">Structured data payload with timestamps & metadata</p>
+									<p className="text-[10px] text-[#6B6A75]">Structured data payload with timestamps & metadata</p>
 								</div>
 							</button>
 							<button
@@ -462,12 +466,12 @@ export function ConversationMessageList({
 									setShowExportModal(false);
 									window.print();
 								}}
-								className="flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-[#141b2e] p-2.5 text-left text-[12px] text-content-primary hover:bg-white/[0.08]"
+								className="flex w-full items-center gap-2.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-[#F9F8F6] p-2.5 text-left text-[12px] text-[#111115] hover:bg-[#F2F0E8] transition"
 							>
-								<FileDown className="size-4 text-accent" />
+								<FileDown className="size-4 text-[#3A0CA3]" />
 								<div>
 									<span className="font-medium">PDF Document</span>
-									<p className="text-[10px] text-content-tertiary">Formatted printable document</p>
+									<p className="text-[10px] text-[#6B6A75]">Formatted printable document</p>
 								</div>
 							</button>
 						</div>
@@ -475,7 +479,7 @@ export function ConversationMessageList({
 							<button
 								type="button"
 								onClick={() => setShowExportModal(false)}
-								className="rounded-lg px-3 py-1.5 text-[11px] font-medium text-content-tertiary hover:text-content-primary"
+								className="rounded-lg px-3 py-1.5 text-[11px] font-medium text-[#6B6A75] hover:text-[#111115]"
 							>
 								Cancel
 							</button>
@@ -484,193 +488,113 @@ export function ConversationMessageList({
 				</div>
 			)}
 
-			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1", !showEmptyHint && "xl:grid-cols-[minmax(0,1fr)_280px]")}>
+			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1", !showEmptyHint && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
-					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-[960px]")}>
+					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-4xl")}>
 						{showEmptyHint ? (
-							<div className="aira-enter py-4 sm:py-6 space-y-6">
-								{/* Command Hero Header */}
-								<div className="flex flex-col items-start text-left space-y-3">
-									<div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-[11px] font-medium text-sky-400">
-										<span className="size-1.5 rounded-full bg-sky-400 animate-pulse" aria-hidden />
-										<span>AIRA Intelligence OS · Sovereign Multi-Provider Grid</span>
-									</div>
-									<h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.035em] text-[#F8FAFC]">
-										Where Autonomous Research Meets Verified Truth.
-									</h2>
-									<p className="max-w-2xl text-[13px] leading-relaxed text-[#94A3B8]">
-										Orchestrate multi-model reasoning, deep web investigation, and autonomous agent missions with source-grounded proof.
+							<div className="aira-enter mx-auto max-w-4xl py-8 sm:py-12 space-y-6 text-center">
+								{/* Approved Aira Greeting */}
+								<div className="flex flex-col items-center space-y-2">
+									<h1 className="font-sans text-3xl sm:text-[40px] font-medium tracking-tight text-[#111111] leading-tight">
+										Where would you like to begin?
+									</h1>
+									<p className="text-[14px] text-[var(--aira-text-2)]">
+										Ask anything. Explore further with Aira.
 									</p>
 								</div>
 
 								{/* Center-Stage Hero Composer */}
 								{composerSlot ? (
-									<div className="w-full my-2">
+									<div className="w-full my-1 text-left">
 										{composerSlot}
 									</div>
 								) : null}
 
-								{/* Asymmetric Bento Capabilities Grid */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-									{/* Dominant Hero Bento Tile (2 cols wide) */}
-									<div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_32px_rgba(0,0,0,0.4)] transition hover:border-sky-500/30">
-										<div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3.5">
-											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/20 text-sky-400">
-													<Globe2 className="size-4" />
-												</span>
-												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Autonomous Deep Investigation</h3>
-													<p className="text-[11px] text-[#94A3B8]">Multi-hop source triangulation & fail-closed isolation.</p>
-												</div>
-											</div>
-											<span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-400">
-												48+ Live Indices
-											</span>
-										</div>
-										<p className="mt-3.5 text-[12px] leading-5 text-[#CBD5E1]">
-											Launch exhaustive research sweeps synthesizing authoritative market documents, technical specifications, and regulatory frameworks.
-										</p>
-										<div className="mt-4 flex flex-wrap gap-2">
-											<button
-												type="button"
-												onClick={() => onPickExample?.("Conduct a comprehensive due diligence investigation into competitive AI infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.")}
-												className="group inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-left text-[11.5px] font-medium text-[#E2E8F0] transition hover:border-sky-500/40 hover:bg-sky-500/[0.08] hover:text-white"
-											>
-												<Sparkles className="size-3.5 text-sky-400" />
-												<span>Run Competitive AI Due Diligence</span>
-												<span className="text-sky-400 transition group-hover:translate-x-0.5">→</span>
-											</button>
-											<button
-												type="button"
-												onClick={() => onPickExample?.("Perform an end-to-end security architecture audit for cross-tenant data isolation, verifying that row-level policies, signed storage tokens, and memory namespaces fail closed under attack.")}
-												className="group inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3.5 py-2 text-left text-[11.5px] font-medium text-[#E2E8F0] transition hover:border-sky-500/40 hover:bg-sky-500/[0.08] hover:text-white"
-											>
-												<ShieldCheck className="size-3.5 text-sky-400" />
-												<span>Security & Threat Model Audit</span>
-												<span className="text-sky-400 transition group-hover:translate-x-0.5">→</span>
-											</button>
-										</div>
-									</div>
-
-									{/* Bento Tile 2: AIRA Neural Grid */}
-									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
+								{/* Exactly Three Curated Starter Prompts: Explore, Understand, Create */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 text-left">
+									<button
+										type="button"
+										onClick={() => onPickExample?.("Investigate how renewable energy grids and geothermal sources are evolving to power gigawatt-scale AI computing clusters.")}
+										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
+									>
 										<div>
-											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
-													<Network className="size-4" />
+											<div className="flex items-center justify-between gap-2 mb-4">
+												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
+													Explore
 												</span>
-												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">AIRA Neural Grid</h3>
-													<p className="text-[10.5px] text-[#94A3B8]">Autonomous multi-tier routing</p>
-												</div>
+												<Compass className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<div className="mt-3.5 space-y-1.5">
-												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
-													<span>AIRA Cortex-9</span>
-													<span className="text-sky-400">Frontier Logic</span>
-												</div>
-												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8] border-b border-white/[0.04] pb-1.5">
-													<span>AIRA DeepDeliberate</span>
-													<span className="text-emerald-400">Deep Reasoning</span>
-												</div>
-												<div className="flex items-center justify-between text-[10.5px] font-mono text-[#94A3B8]">
-													<span>AIRA Ultra-Fast</span>
-													<span className="text-[#CBD5E1]">Sub-100ms Synthesis</span>
-												</div>
-											</div>
-										</div>
-										<button
-											type="button"
-											onClick={() => onPickExample?.("Benchmark AIRA Cortex-9 reasoning depth against standard synthesis latency")}
-											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
-										>
-											<span>Benchmark Neural Architecture</span>
-											<span className="text-sky-400">→</span>
-										</button>
-									</div>
-
-									{/* Bento Tile 3: Work Mode Swarms */}
-									<div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col justify-between">
-										<div>
-											<div className="flex items-center gap-2.5">
-												<span className="grid size-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
-													<Sparkles className="size-4" />
-												</span>
-												<div>
-													<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Work Mode Swarms</h3>
-													<p className="text-[10.5px] text-[#94A3B8]">Autonomous missions</p>
-												</div>
-											</div>
-											<p className="mt-3 text-[11.5px] leading-relaxed text-[#94A3B8]">
-												State target business outcomes and delegate execution to resilient autonomous agents with verified artifacts.
+											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
+												Frontier Energy & Compute
+											</h2>
+											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
+												Renewable grids and geothermal sources powering gigawatt-scale AI clusters.
 											</p>
 										</div>
-										<Link
-											href="/work"
-											className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-medium text-[#CBD5E1] transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-white"
-										>
-											<span>Explore Managed Work</span>
-											<span className="text-sky-400">→</span>
-										</Link>
-									</div>
+										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
+											Start research <span className="transition group-hover:translate-x-0.5">→</span>
+										</span>
+									</button>
 
-									{/* Bento Tile 4: Knowledge Vault (Spans 2 cols) */}
-									<div className="md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.3)] transition hover:border-sky-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-										<div className="space-y-1">
-											<div className="flex items-center gap-2">
-												<FileText className="size-4 text-sky-400" />
-												<h3 className="text-xs font-semibold uppercase tracking-wider text-[#F8FAFC]">Private Context & Knowledge Vault</h3>
+									<button
+										type="button"
+										onClick={() => onPickExample?.("Break down the architectural differences and latency trade-offs between test-time compute scaling and standard inference.")}
+										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
+									>
+										<div>
+											<div className="flex items-center justify-between gap-2 mb-4">
+												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
+													Understand
+												</span>
+												<BookOpen className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<p className="text-[11.5px] text-[#94A3B8]">
-												Zero-data-retention document ingestion. Query PDFs, codebases, and financial reports with citation grounding.
+											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
+												Test-Time Reasoning Models
+											</h2>
+											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
+												Latency trade-offs between test-time compute search depth and standard inference.
 											</p>
 										</div>
-										<Link
-											href="/knowledge"
-											className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2 text-[11.5px] font-medium text-sky-400 transition hover:bg-sky-500/20 hover:text-sky-300"
-										>
-											<span>Upload Context</span>
-											<span>↗</span>
-										</Link>
-									</div>
-								</div>
+										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
+											Start research <span className="transition group-hover:translate-x-0.5">→</span>
+										</span>
+									</button>
 
-								{/* Quick Workspaces Row */}
-								<div className="pt-2">
-									<p className="text-[10px] font-mono uppercase tracking-wider text-[#64748B] mb-2.5">
-										Quick Workspaces
-									</p>
-									<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-										{STARTERS.map((item) => {
-											const Icon = item.icon;
-											return (
-												<Link
-													key={item.href}
-													href={item.href}
-													className="group flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left transition hover:border-sky-500/30 hover:bg-white/[0.04]"
-												>
-													<Icon className="size-4 shrink-0 text-[#94A3B8] transition group-hover:text-sky-400" strokeWidth={1.8} aria-hidden />
-													<div className="min-w-0">
-														<strong className="block truncate text-[11.5px] font-medium text-[#CBD5E1] group-hover:text-white">{item.title}</strong>
-														<small className="block truncate text-[10px] text-[#64748B]">{item.description}</small>
-													</div>
-												</Link>
-											);
-										})}
-									</div>
+									<button
+										type="button"
+										onClick={() => onPickExample?.("Synthesize an executive briefing comparing row-level tenant isolation, signed storage tokens, and private inference deployments.")}
+										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
+									>
+										<div>
+											<div className="flex items-center justify-between gap-2 mb-4">
+												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
+													Create
+												</span>
+												<PenTool className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
+											</div>
+											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
+												Sovereign AI Architecture
+											</h2>
+											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
+												Executive briefing on row-level security, signed tokens, and private infrastructure.
+											</p>
+										</div>
+										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
+											Start research <span className="transition group-hover:translate-x-0.5">→</span>
+										</span>
+									</button>
 								</div>
 							</div>
 						) : null}
 
 						{messages.map((message) =>
 							message.role === "USER" ? (
-								<div key={message.id} className="aira-enter group flex w-full justify-end py-3">
-									<div className="max-w-[86%] sm:max-w-[78%]">
-										<div className="rounded-2xl border border-accent/20 bg-accent/15 px-4 py-3 text-[14px] leading-6 text-blue-50">
+								<div key={message.id} className="aira-enter group flex w-full py-8 border-b border-[#EAEAEA] mb-6">
+									<div className="w-full">
+										<h2 className="font-sans text-[24px] sm:text-[32px] font-medium leading-[1.2] tracking-tight text-[#111111]">
 											{message.content}
-										</div>
-										<div className="mt-1 flex justify-end gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+										</h2>
+										<div className="mt-4 flex gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
 											<ReusePromptButton text={message.content} />
 											<MessageCopyButton text={message.content} />
 										</div>
@@ -692,9 +616,11 @@ export function ConversationMessageList({
 						)}
 
 						{streamingUserQuery ? (
-							<div className="flex w-full justify-end py-3" aria-label="Streaming user message">
-								<div className="max-w-[86%] rounded-2xl border border-accent/20 bg-accent/15 px-4 py-3 text-[14px] leading-6 text-blue-50 sm:max-w-[78%]">
-									{streamingUserQuery}
+							<div className="flex w-full py-8 border-b border-[#EAEAEA] mb-6" aria-label="Streaming user message">
+								<div className="w-full">
+									<h2 className="font-sans text-[24px] sm:text-[32px] font-medium leading-[1.2] tracking-tight text-[#111111]">
+										{streamingUserQuery}
+									</h2>
 								</div>
 							</div>
 						) : null}
@@ -706,77 +632,57 @@ export function ConversationMessageList({
 				</section>
 
 				{!showEmptyHint && (
-				<aside className="aira-live-inspector hidden border-l border-white/[0.07] bg-[#0d1320]/72 p-3 xl:block" aria-label="Conversation inspector">
-					<div className="sticky top-20 space-y-3">
-						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
-							<p className="text-[11px] font-semibold text-content-primary">Routing & Policy</p>
-							<Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-lg px-1 py-2 transition hover:bg-white/[0.035]">
+				<aside className="aira-live-inspector hidden border-l border-[var(--aira-border-subtle)] bg-[#F9F8F6]/80 backdrop-blur-sm p-4 xl:block" aria-label="Focus your research">
+					<div className="sticky top-20 space-y-6">
+						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
+							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Routing & Policy</p>
+							<Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-lg px-2 py-2 transition hover:bg-[#09090B]/5">
 								<span>
-									<strong className="block text-[11px] font-semibold text-content-primary">AIRA Auto</strong>
-									<small className="mt-0.5 block text-[9px] text-content-tertiary">Provider routing follows workspace policy (Effort: {effort})</small>
+									<strong className="block text-[11px] font-semibold text-[var(--aira-text-0)]">AIRA Auto</strong>
+									<small className="mt-0.5 block text-[10px] text-[var(--aira-text-2)]">Provider routing follows workspace policy (Effort: {effort})</small>
 								</span>
-								<Network className="size-4 text-accent" strokeWidth={1.6} />
+								<Network className="size-4 text-[#09090B]" strokeWidth={1.6} />
 							</Link>
 						</section>
 
-						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
-							<div className="flex items-center justify-between">
-								<p className="text-[11px] font-semibold text-content-primary">Sources</p>
-								<span className="text-[10px] tabular-nums text-content-tertiary">{inspectorCitations.length || 0}</span>
+						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
+							<div className="flex items-center justify-between mb-4">
+								<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Focus your research</p>
 							</div>
-							<div className="mt-2 space-y-1">
+							<div className="mt-2">
 								{inspectorCitations.length === 0 ? (
-									<p className="border-t border-dashed border-white/[0.07] py-3 text-[10px] leading-4 text-content-tertiary">
+									<p className="py-3 text-[11px] leading-relaxed text-[var(--aira-text-2)]">
 										Sources appear here when AIRA grounds an answer on the web.
 									</p>
 								) : (
-									inspectorCitations.slice(0, 6).map((citation) => (
-										<a
-											key={`${citation.index}-${citation.url}`}
-											href={citation.url}
-											target="_blank"
-											rel="noreferrer"
-											className="group flex gap-2 rounded-lg px-1 py-2 transition hover:bg-white/[0.035]"
-										>
-											<span className="w-4 shrink-0 text-[10px] text-accent">{citation.index}</span>
-											<span className="min-w-0 flex-1">
-												<strong className="block truncate text-[10px] font-medium text-content-secondary group-hover:text-content-primary">
-													{citation.title}
-												</strong>
-												<small className="mt-0.5 flex items-center gap-1 truncate text-[9px] text-content-tertiary">
-													{hostnameFromUrl(citation.url)}
-													<ExternalLink className="size-2.5" aria-hidden />
-												</small>
-											</span>
-										</a>
-									))
+									<CitationCards citations={inspectorCitations} />
 								)}
 							</div>
 						</section>
 
-						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
-							<p className="text-[11px] font-semibold text-content-primary">Conversation</p>
-							<dl className="mt-2 space-y-2 text-[10px]">
+						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
+							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Conversation</p>
+							<dl className="mt-2 space-y-2 text-[11px]">
 								<div className="flex items-center justify-between gap-3">
-									<dt className="text-content-tertiary">Created</dt>
-									<dd className="truncate text-content-secondary">
+									<dt className="text-[var(--aira-text-2)]">Created</dt>
+									<dd className="truncate text-[var(--aira-text-0)] font-medium">
 										{createdAt && !Number.isNaN(createdAt.getTime())
 											? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(createdAt)
 											: "New thread"}
 									</dd>
 								</div>
 								<div className="flex items-center justify-between">
-									<dt className="text-content-tertiary">Messages</dt>
-									<dd className="tabular-nums text-content-secondary">{messages.length}</dd>
+									<dt className="text-[var(--aira-text-2)]">Messages</dt>
+									<dd className="tabular-nums text-[var(--aira-text-0)] font-medium">{messages.length}</dd>
 								</div>
 								<div className="flex items-center justify-between">
-									<dt className="text-content-tertiary">Sources</dt>
-									<dd className="tabular-nums text-content-secondary">{inspectorCitations.length}</dd>
+									<dt className="text-[var(--aira-text-2)]">Sources</dt>
+									<dd className="tabular-nums text-[var(--aira-text-0)] font-medium">{inspectorCitations.length}</dd>
 								</div>
 								<div className="flex items-center justify-between">
-									<dt className="text-content-tertiary">Mode</dt>
-									<dd className="inline-flex items-center gap-1 text-content-secondary">
-										<span className="size-1.5 rounded-full bg-accent" />
+									<dt className="text-[var(--aira-text-2)]">Mode</dt>
+									<dd className="inline-flex items-center gap-1 text-[var(--aira-text-0)] font-medium">
+										<span className="size-1.5 rounded-full bg-[#09090B]" />
 										{isTemporary ? "Temporary" : "Persistent"}
 									</dd>
 								</div>
@@ -784,13 +690,13 @@ export function ConversationMessageList({
 						</section>
 
 						<section className="aira-inspector-section">
-							<p className="text-[11px] font-semibold text-content-primary">Actions</p>
+							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Actions</p>
 							<div className="mt-2 space-y-0.5">
 								<button
 									type="button"
 									disabled={!copyAll}
 									onClick={() => void navigator.clipboard.writeText(copyAll)}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary disabled:opacity-40"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)] disabled:opacity-40"
 								>
 									<Copy className="size-3.5" strokeWidth={1.6} />
 									Copy conversation
@@ -799,7 +705,7 @@ export function ConversationMessageList({
 									type="button"
 									disabled={!shareableText.trim()}
 									onClick={() => void shareConversation()}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-40"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)] disabled:cursor-not-allowed disabled:opacity-40"
 								>
 									<Share2 className="size-3.5" strokeWidth={1.6} />
 									Share conversation
@@ -807,7 +713,7 @@ export function ConversationMessageList({
 								<button
 									type="button"
 									onClick={() => setShowExportModal(true)}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)]"
 								>
 									<Download className="size-3.5" strokeWidth={1.6} />
 									Export (.md, .json, .pdf)
@@ -815,14 +721,14 @@ export function ConversationMessageList({
 								<button
 									type="button"
 									onClick={() => emitComposerCommand("/new")}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)]"
 								>
 									<MessageSquarePlus className="size-3.5" strokeWidth={1.6} />
 									New conversation
 								</button>
 							</div>
 							{shareFeedback ? (
-								<p className="mt-2 rounded-lg bg-white/[0.035] px-2 py-1.5 text-[10px] text-content-tertiary" role="status">
+								<p className="mt-2 rounded-lg bg-white/[0.035] px-2 py-1.5 text-[10px] text-[var(--aira-text-2)]" role="status">
 									{shareFeedback}
 								</p>
 							) : null}
