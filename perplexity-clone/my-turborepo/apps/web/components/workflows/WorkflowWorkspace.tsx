@@ -2,6 +2,7 @@
 
 import { Braces, Loader2, Play, RefreshCw, Workflow } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type Node = { id: string; type: string; name: string; config: Record<string, unknown>; inputBindings: Record<string, string>; failurePolicy?: string };
 type Edge = { id: string; sourceNodeId: string; targetNodeId: string; condition?: string };
@@ -16,6 +17,9 @@ async function readError(response: Response): Promise<Error> {
 }
 
 export function WorkflowWorkspace() {
+  const searchParams = useSearchParams();
+  const templateParam = searchParams.get("template");
+
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [templates, setTemplates] = useState<Dag[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -35,10 +39,19 @@ export function WorkflowWorkspace() {
     const body = (await response.json()) as { routines: Routine[]; templates: Dag[] };
     setRoutines(body.routines); setTemplates(body.templates);
     setSelectedId((current) => current && body.routines.some((routine) => routine.id === current) ? current : body.routines[0]?.id ?? null);
-    setDagText((current) => current || JSON.stringify(body.templates[0] ?? {
-      id: `dag-${crypto.randomUUID()}`, name: "Manual workflow", version: 1, description: "Manual workflow", nodes: [{ id: "trigger", type: "trigger", name: "Manual trigger", config: {}, inputBindings: {} }], edges: [],
-    }, null, 2));
-  }, []);
+
+    const matchedTemplate = templateParam ? body.templates.find((t) => t.id === templateParam) : null;
+    const activeTemplate = matchedTemplate ?? body.templates[0];
+    if (activeTemplate) {
+      setDagText(JSON.stringify({ ...activeTemplate, id: `${activeTemplate.id}-${crypto.randomUUID()}`, version: 1 }, null, 2));
+      setName(activeTemplate.name);
+      setDescription(activeTemplate.description);
+    } else {
+      setDagText((current) => current || JSON.stringify({
+        id: `dag-${crypto.randomUUID()}`, name: "Manual workflow", version: 1, description: "Manual workflow", nodes: [{ id: "trigger", type: "trigger", name: "Manual trigger", config: {}, inputBindings: {} }], edges: [],
+      }, null, 2));
+    }
+  }, [templateParam]);
 
   useEffect(() => { void load().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Workflows could not be loaded.")); }, [load]);
 

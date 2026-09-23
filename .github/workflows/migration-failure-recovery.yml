@@ -2,12 +2,6 @@ name: PostgreSQL Migration Failure Recovery
 
 on:
   pull_request:
-    paths:
-      - "prisma/**"
-      - "prisma.config.ts"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/migration-failure-recovery.yml"
   workflow_dispatch:
 
 permissions:
@@ -47,24 +41,48 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check for relevant migration file changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          if echo "$CHANGED_FILES" | grep -qE '^(prisma/|prisma\.config\.ts|package\.json|pnpm-lock\.yaml|\.github/workflows/migration-failure-recovery\.yml)'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "No database migration files changed. Skipping failure recovery suite."
+          fi
 
       - name: Set up Node.js
+        if: steps.changes.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Enable pnpm
+        if: steps.changes.outputs.should_run == 'true'
         run: corepack enable
 
       - name: Install dependencies
+        if: steps.changes.outputs.should_run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Install PostgreSQL client
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
       - name: Create isolated recovery database
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           createdb -h 127.0.0.1 -U postgres aira_migration_recovery_ci
           psql "$RECOVERY_PSQL_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -85,6 +103,7 @@ jobs:
           SQL
 
       - name: Materialize CI-only historical baseline
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           test ! -e prisma/migrations/20260429_initial_schema || {
             echo "::error::Historical baseline must remain outside committed Prisma migrations."
@@ -94,9 +113,11 @@ jobs:
           cp prisma/baseline/20260429_initial_schema.sql prisma/migrations/20260429_initial_schema/migration.sql
 
       - name: Bring recovery database to the real current schema
+        if: steps.changes.outputs.should_run == 'true'
         run: DATABASE_URL="$RECOVERY_DB_URL" pnpm exec prisma migrate deploy
 
       - name: Prove failed migration detection, explicit rollback resolution, repair, and restart idempotency
+        if: steps.changes.outputs.should_run == 'true'
         run: |
           set -euo pipefail
           probe="99999999_ci_failure_recovery_probe"
@@ -175,3 +196,7 @@ jobs:
             echo "::error::Restart after repaired migration changed the successful migration count ($before -> $after)."
             exit 1
           }
+
+      - name: Report skip summary
+        if: steps.changes.outputs.should_run != 'true'
+        run: echo "PostgreSQL migration failure recovery validation skipped because no database migration files were modified in this pull request."

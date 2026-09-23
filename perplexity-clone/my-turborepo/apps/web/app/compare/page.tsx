@@ -4,6 +4,7 @@ import { Check, Copy, Loader2, Play, Scale } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import "../aira-v2.css";
+import Link from "next/link";
 import { AiraV2Frame } from "@/components/AiraV2Frame";
 
 type ProviderId = "openai" | "nvidia" | "omniroute";
@@ -87,6 +88,8 @@ export default function ComparePage() {
 	const [results, setResults] = useState<Result[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [initializing, setInitializing] = useState(true);
+	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+	const [isEntitled, setIsEntitled] = useState<boolean | null>(null);
 	const [message, setMessage] = useState<string | null>(null);
 	const [registryWarning, setRegistryWarning] = useState<string | null>(null);
 	const [copiedTargetId, setCopiedTargetId] = useState<string | null>(null);
@@ -96,12 +99,16 @@ export default function ComparePage() {
 			try {
 				const response = await fetch("/api/compare", { cache: "no-store" });
 				const body = (await response.json()) as {
+					authenticated?: boolean;
+					entitled?: boolean;
 					providers?: Provider[];
 					error?: { message?: string };
 				};
 				if (!response.ok) {
 					throw new Error(body.error?.message ?? "Could not load model providers.");
 				}
+				setIsAuthenticated(body.authenticated ?? false);
+				setIsEntitled(body.entitled ?? false);
 				const loadedProviders = body.providers ?? [];
 				setProviders(loadedProviders);
 
@@ -353,6 +360,25 @@ export default function ComparePage() {
 							</div>
 						</div>
 
+						{isEntitled === false ? (
+							<div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-[#EAEAEA] bg-white p-4 shadow-xs sm:flex-row sm:items-center">
+								<div>
+									<p className="text-[13px] font-semibold text-[#111115]">
+										Aira Pro Evaluation Lab
+									</p>
+									<p className="mt-0.5 text-[12px] text-[#71717A]">
+										Side-by-side model benchmarking and streaming comparison require a Pro or Team plan.
+									</p>
+								</div>
+								<Link
+									href="/pricing"
+									className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#111111] px-3.5 py-1.5 text-[12px] font-medium text-white transition hover:bg-[#2B2B2B]"
+								>
+									View Plans & Upgrade
+								</Link>
+							</div>
+						) : null}
+
 						<section className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-4 shadow-xs md:p-5">
 							<div className="grid gap-3 lg:grid-cols-3">
 								{[0, 1, 2].map((index) => (
@@ -411,6 +437,7 @@ export default function ComparePage() {
 									onClick={() => void runComparison()}
 									disabled={
 										loading ||
+										isEntitled === false ||
 										selectedChoices.length < 2 ||
 										uniqueSelectionCount !== selectedChoices.length ||
 										prompt.trim().length < 2
@@ -422,7 +449,7 @@ export default function ComparePage() {
 									) : (
 										<Play className="size-4" />
 									)}
-									{loading ? "Comparing…" : "Compare"}
+									{loading ? "Comparing…" : isEntitled === false ? "Pro Required" : "Compare"}
 								</button>
 							</div>
 							{message ? (
@@ -515,8 +542,12 @@ export default function ComparePage() {
 										{choices.length < 2 ? "Additional model targets required" : "No active comparison"}
 									</p>
 									<p className="mx-auto mt-1 max-w-md text-xs leading-5 text-[#6B6A75]">
-										{choices.length < 2
-											? `Only ${choices.length} model target is configured in this deployment (${choices[0]?.label ?? "AIRA"}). Side-by-side comparison requires at least two distinct targets. Configure additional provider API keys in Settings to unlock multi-model benchmarking.`
+										{choices.length === 0
+											? "No model targets are currently configured on this deployment. Configure provider API keys in Settings to unlock multi-model benchmarking."
+											: choices.length === 1
+											? `Only 1 model target is configured in this deployment (${choices[0]?.label}). Side-by-side comparison requires at least two distinct targets. Configure additional provider API keys in Settings to unlock multi-model benchmarking.`
+											: isEntitled === false
+											? "Configure your comparison targets above. Note: Execution requires an active Pro subscription."
 											: "Select two or three model targets above and enter a prompt to compare latency, streaming tokens, and reasoning quality side by side."}
 									</p>
 								</div>

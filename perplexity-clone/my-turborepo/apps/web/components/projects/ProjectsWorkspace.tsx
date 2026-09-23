@@ -36,11 +36,15 @@ export function ProjectsWorkspace() {
 
   const loadProjects = useCallback(async () => {
     const response = await fetch("/api/agent-platform/projects", { cache: "no-store" });
+    if (response.status === 401) {
+      router.replace(`/signin?callbackUrl=${encodeURIComponent("/projects")}`);
+      return;
+    }
     if (!response.ok) throw await readError(response);
     const body = (await response.json()) as { projects: Project[] };
     setProjects(body.projects);
     setSelectedId((current) => current && body.projects.some((item) => item.id === current) ? current : body.projects[0]?.id ?? null);
-  }, []);
+  }, [router]);
 
   const loadSelected = useCallback(async (projectId: string) => {
     const [runResponse, artifactResponse] = await Promise.all([
@@ -59,10 +63,17 @@ export function ProjectsWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (sessionStatus === "unauthenticated") { router.replace(`/signin?callbackUrl=${encodeURIComponent("/projects")}`); return; }
-    if (sessionStatus !== "authenticated") return;
-    void loadProjects().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Projects could not be loaded.")).finally(() => setLoading(false));
-  }, [loadProjects, router, sessionStatus]);
+    if (sessionStatus === "unauthenticated") {
+      router.replace(`/signin?callbackUrl=${encodeURIComponent("/projects")}`);
+      return;
+    }
+  }, [router, sessionStatus]);
+
+  useEffect(() => {
+    void loadProjects()
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Projects could not be loaded."))
+      .finally(() => setLoading(false));
+  }, [loadProjects]);
 
   useEffect(() => {
     if (!selected) { setRuns([]); setArtifacts([]); setEditName(""); setEditObjective(""); return; }

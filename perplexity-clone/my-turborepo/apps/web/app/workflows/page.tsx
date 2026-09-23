@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import "../aira-v2.css";
@@ -13,7 +14,9 @@ export default function WorkflowsPage() {
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <WorkflowWorkspace />
+        <Suspense fallback={<div className="p-8 text-sm text-[#71717A]">Loading workflows…</div>}>
+          <WorkflowWorkspace />
+        </Suspense>
       </AiraV2Frame>
     </div>
   );

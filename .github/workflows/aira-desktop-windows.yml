@@ -3,9 +3,6 @@ name: AIRA Desktop Windows
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - "desktop-agent/**"
-      - ".github/workflows/aira-desktop-windows.yml"
   push:
     branches:
       - main
@@ -35,8 +32,30 @@ jobs:
           # PR/application code must never inherit a persisted write-capable
           # repository credential through git configuration.
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check for relevant desktop agent file changes
+        id: changes
+        working-directory: .
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -or "${{ github.event_name }}" -eq "push") {
+            "should_run=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          git fetch origin ${{ github.base_ref }}
+          $changed = git diff --name-only origin/${{ github.base_ref }}...HEAD
+          Write-Host "Changed files:"
+          Write-Host $changed
+          if ($changed -match "(^|/)desktop-agent/" -or $changed -match "(^|/)\.github/workflows/aira-desktop-windows\.yml") {
+            "should_run=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            "should_run=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "No desktop agent files changed. Skipping Windows desktop build."
+          }
 
       - name: Set up Node.js
+        if: steps.changes.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -44,20 +63,23 @@ jobs:
           cache-dependency-path: desktop-agent/package.json
 
       - name: Install dependencies
+        if: steps.changes.outputs.should_run == 'true'
         run: npm install
 
       - name: Audit production dependencies
+        if: steps.changes.outputs.should_run == 'true'
         run: npm audit --omit=dev --audit-level=high
 
       - name: Typecheck, policy tests, and build
+        if: steps.changes.outputs.should_run == 'true'
         run: npm run build
 
       - name: Package Windows installer
-        if: ${{ !startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        if: ${{ steps.changes.outputs.should_run == 'true' && !startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         run: npx electron-builder --win nsis --publish never
 
       - name: Require signing credentials for tagged release
-        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        if: ${{ steps.changes.outputs.should_run == 'true' && startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.AIRA_WINDOWS_CSC_LINK }}
@@ -77,14 +99,14 @@ jobs:
           }
 
       - name: Package signed tagged release
-        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        if: ${{ steps.changes.outputs.should_run == 'true' && startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         env:
           CSC_LINK: ${{ secrets.AIRA_WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.AIRA_WINDOWS_CSC_PASSWORD }}
         run: npx electron-builder --win nsis --publish never
 
       - name: Verify tagged installer Authenticode signature
-        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        if: ${{ steps.changes.outputs.should_run == 'true' && startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         shell: pwsh
         run: |
           $installers = @(Get-ChildItem -Path dist -Filter "*.exe" -File)
@@ -101,6 +123,7 @@ jobs:
           }
 
       - name: Upload Windows installer
+        if: steps.changes.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: aira-desktop-windows-${{ github.sha }}
@@ -109,7 +132,7 @@ jobs:
           retention-days: 14
 
       - name: Publish explicitly tagged Windows release
-        if: ${{ startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
+        if: ${{ steps.changes.outputs.should_run == 'true' && startsWith(github.ref, 'refs/tags/aira-desktop-v') }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -140,3 +163,9 @@ jobs:
             --title "AIRA Desktop $($package.version)" `
             --notes-file $notesPath `
             $assets
+
+      - name: Report skip summary
+        if: steps.changes.outputs.should_run != 'true'
+        working-directory: .
+        shell: pwsh
+        run: Write-Host "Windows desktop build skipped because no desktop agent files were modified in this pull request."
