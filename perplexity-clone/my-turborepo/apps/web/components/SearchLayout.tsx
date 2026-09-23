@@ -1022,99 +1022,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const composerBlock = (
 		<div className="flex flex-col gap-2.5">
-			<div className="flex items-center justify-between gap-2 px-1">
-				<div className="flex items-center gap-2">
-					<div className="relative inline-flex items-center">
-						<select
-							className="h-8 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-2.5 text-[11.5px] font-medium text-[#6B6A75] hover:text-[#111115] focus:outline-none focus:border-[#3A0CA3]/40 cursor-pointer transition shadow-[0_1px_2px_rgba(17,17,21,0.02)]"
-							value={selectedPresetId}
-							onChange={(e) => setSelectedPresetId(e.target.value as ResearchPresetId)}
-							disabled={busy}
-							aria-label="Research focus"
-						>
-							{Object.values(RESEARCH_PRESETS).map((p) => (
-								<option key={p.id} value={p.id} className="bg-white text-[#111115]">
-									{p.label}
-								</option>
-							))}
-						</select>
-					</div>
-
-					{isAuthed ? (
-						<div
-							className="inline-flex items-center rounded-lg border border-[rgba(17,17,21,0.08)] bg-white p-0.5 shadow-[0_1px_2px_rgba(17,17,21,0.02)]"
-							role="group"
-							aria-label="Search mode"
-						>
-							<button
-								type="button"
-								onClick={() => setResearchMode("standard")}
-								disabled={busy}
-								className={cn(
-									"rounded-md px-2.5 py-1 text-[11px] font-medium transition",
-									researchMode === "standard"
-										? "bg-[#3A0CA3] text-white font-semibold shadow-sm"
-										: "text-[#6B6A75] hover:text-[#111115]",
-									"disabled:opacity-40 disabled:pointer-events-none",
-								)}
-							>
-								Standard
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									try {
-										logProductEvent({
-											event: "deep_research_clicked",
-											surface: "deep_research",
-											userType: "signed_in",
-										});
-									} catch {
-										// ignore analytics
-									}
-									setResearchMode("deep");
-								}}
-								disabled={busy}
-								className={cn(
-									"rounded-md px-2.5 py-1 text-[11px] font-medium transition",
-									researchMode === "deep"
-										? "bg-[#3A0CA3] text-white font-semibold shadow-sm"
-										: "text-[#6B6A75] hover:text-[#111115]",
-									"disabled:opacity-40 disabled:pointer-events-none",
-								)}
-							>
-								Deep Research
-							</button>
-						</div>
-					) : (
-						<button
-							type="button"
-							disabled={busy}
-							onClick={() => {
-								try {
-									logProductEvent({
-										event: "deep_research_clicked",
-										surface: "deep_research",
-										userType: "guest",
-									});
-								} catch {
-									// ignore analytics
-								}
-								router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
-							}}
-							className={cn(
-								"inline-flex h-8 items-center gap-1 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-2.5 text-[11px] font-medium text-[#6B6A75] shadow-[0_1px_2px_rgba(17,17,21,0.02)]",
-								"hover:border-[#3A0CA3]/30 hover:text-[#3A0CA3] transition",
-								"disabled:opacity-40 disabled:pointer-events-none",
-							)}
-							aria-label="Deep Research requires a signed-in account"
-						>
-							<span>Deep Research</span>
-							<span className="text-[10px] text-[#8F8E98]">· Sign in</span>
-						</button>
-					)}
-				</div>
-			</div>
 			{!isAuthed ? (
 				<p className="text-center text-xs leading-relaxed text-content-tertiary">
 					<span className="text-content-secondary">
@@ -1164,15 +1071,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							: "Ask anything or delegate an autonomous mission..."
 				}
 			/>
-			{isAuthed ? (
-				<div className="text-xs text-content-tertiary px-1 flex items-center gap-2">
-					<span>Quick commands:</span>
-					<span className="font-mono text-content-secondary">/deep</span>
-					<span className="font-mono text-content-secondary">/new</span>
-					<span className="font-mono text-content-secondary">/history</span>
-					<span className="font-mono text-content-secondary">/share</span>
-				</div>
-			) : null}
 
 			{phase === "error" && errorMessage ? (
 				<div
@@ -1343,7 +1241,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									{billing.billingPlan === "FREE" ? (
 										<Link
 											href="/upgrade"
-											className="ml-auto inline-flex items-center rounded-lg bg-[#3A0CA3] px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-[#2D0A82]"
+											className="ml-auto inline-flex items-center rounded-lg bg-[#09090B] px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-[#18181B]"
 										>
 											Upgrade
 										</Link>
@@ -1357,20 +1255,20 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											<button
 												type="button"
 												onClick={() => setMobileSidebarOpen(true)}
-												className="flex h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-2.5 text-[#6B6A75] shadow-[0_1px_2px_rgba(17,17,21,0.02)] md:hidden hover:border-[#3A0CA3]/30 hover:text-[#111115] transition"
+												className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--aira-border-subtle)] bg-white px-2.5 text-[var(--aira-text-2)] shadow-sm md:hidden hover:border-[#09090B]/30 hover:text-[var(--aira-text-0)] transition"
 												aria-label="Open conversation list"
 											>
-												<History className="size-3.5 text-[#3A0CA3]" />
+												<History className="size-3.5 text-[#09090B]" />
 												<span className="text-[11px] font-medium">Chats</span>
 											</button>
 											<button
 												type="button"
 												onClick={() => setDesktopSidebarOpen((open) => !open)}
-												className="hidden md:flex h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-2.5 text-[#6B6A75] shadow-[0_1px_2px_rgba(17,17,21,0.02)] hover:border-[#3A0CA3]/30 hover:text-[#111115] transition"
+												className="hidden md:flex h-8 items-center gap-1.5 rounded-lg border border-[var(--aira-border-subtle)] bg-white px-2.5 text-[var(--aira-text-2)] shadow-sm hover:border-[#09090B]/30 hover:text-[var(--aira-text-0)] transition"
 												aria-label={desktopSidebarOpen ? "Hide conversation history" : "Open conversation history"}
 												title={desktopSidebarOpen ? "Hide history (⌘H)" : "Show history (⌘H)"}
 											>
-												<History className="size-3.5 text-[#3A0CA3]" />
+												<History className="size-3.5 text-[#09090B]" />
 												<span className="text-[11px] font-medium">{desktopSidebarOpen ? "Hide History" : "History"}</span>
 											</button>
 										</>
@@ -1383,7 +1281,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											onClick={() =>
 												logProductEvent({ event: "feedback_clicked", surface: "header" })
 											}
-											className="text-xs font-medium text-[#8F8E98] underline-offset-2 hover:text-[#3A0CA3] hover:underline"
+											className="text-xs font-medium text-[var(--aira-text-3)] underline-offset-2 hover:text-[var(--aira-text-0)] hover:underline"
 										>
 											Feedback
 										</a>
@@ -1400,14 +1298,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 						{showConversationPanel ? <div
 							className={cn(
-								"flex min-h-0 flex-1 flex-col overflow-hidden",
+								"flex min-h-0 flex-1 flex-col",
+								!showConversationEmpty && "overflow-hidden",
 								showConversationEmpty
 									? "border-0 bg-transparent shadow-none order-4 md:order-none"
 									: "rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white shadow-sm order-1 md:order-none"
 							)}
 							aria-busy={busy}
 						>
-							<div className="min-h-0 flex-1 overflow-y-auto">
+							<div className={cn("min-h-0 flex-1", !showConversationEmpty && "overflow-y-auto")}>
 								<ConversationMessageList
 									messages={messages}
 									streamingUserQuery={streamingUserQuery}

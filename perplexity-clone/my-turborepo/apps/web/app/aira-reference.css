@@ -93,7 +93,7 @@
 
 .aira-home main > header p { display: none !important; }
 .aira-home main > header h1 {
-	font-family: var(--font-geist-sans), Inter, system-ui, sans-serif !important;
+	font-family: var(--font-geist-sans), system-ui, sans-serif !important;
 	font-size: 13px !important;
 	font-weight: 500 !important;
 	line-height: 1 !important;

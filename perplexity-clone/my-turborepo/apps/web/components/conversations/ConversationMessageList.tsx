@@ -255,9 +255,9 @@ export function ConversationMessageList({
 		const hasCalibratedConfidence = typeof message.confidence === "number" && message.confidence > 0;
 
 		return (
-			<div className="aira-enter group flex gap-3 py-4 sm:py-5">
-				<div className="mt-0.5 flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg border border-[#3A0CA3]/25 bg-[#3A0CA3]/10 text-[11px] font-semibold text-[#3A0CA3]">A</div>
-				<div className="aira-assistant-response min-w-0 flex-1 border-b border-[rgba(17,17,21,0.08)] pb-5">
+			<div className="aira-enter group flex gap-4 py-4 sm:py-6">
+				<div className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-[#EAEAEA] bg-[#F9F8F6] text-[10px] font-bold text-[#111111]">A</div>
+				<div className="aira-assistant-response min-w-0 flex-1 pb-8">
 					<div className="mb-2 flex min-h-7 flex-wrap items-center justify-between gap-2">
 						<div className="flex min-w-0 flex-wrap items-center gap-2">
 							<p className="shrink-0 whitespace-nowrap text-[12px] font-semibold text-[#111115]">AIRA AI</p>
@@ -268,11 +268,11 @@ export function ConversationMessageList({
 							) : null}
 							{/* Evidence / Confidence Badge */}
 							{hasCalibratedConfidence ? (
-								<span className="inline-flex shrink-0 items-center gap-1 rounded border border-emerald-500/20 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700">
+								<span className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-emerald-500/20 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700">
 									<ShieldCheck className="size-2.5" /> {Math.round(message.confidence! * 100)}% Calibrated
 								</span>
 							) : effectiveCitations.length > 0 ? (
-								<span className="inline-flex shrink-0 items-center gap-1 rounded border border-[#3A0CA3]/15 bg-[#3A0CA3]/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-[#3A0CA3]">
+								<span className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-[#EAEAEA] bg-[#F4F4F5] px-1.5 py-0.5 text-[9px] font-medium text-[#111111]">
 									<ShieldCheck className="size-2.5" /> Source-Grounded
 								</span>
 							) : null}
@@ -346,14 +346,9 @@ export function ConversationMessageList({
 							</div>
 						) : null}
 					</div>
-					<div className="whitespace-pre-wrap text-[14px] leading-7 text-content-secondary">
+					<div className="whitespace-pre-wrap text-[15px] leading-8 text-content-secondary">
 						<MarkdownContent markdown={finalText} citations={effectiveCitations} />
 					</div>
-					{effectiveCitations.length > 0 ? (
-						<div className="mt-6">
-							<CitationCards citations={effectiveCitations} citedIndices={citedIndices} />
-						</div>
-					) : null}
 				</div>
 			</div>
 		);
@@ -493,17 +488,17 @@ export function ConversationMessageList({
 				</div>
 			)}
 
-			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1", !showEmptyHint && "xl:grid-cols-[minmax(0,1fr)_280px]")}>
+			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1", !showEmptyHint && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
-					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-[960px]")}>
+					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-4xl")}>
 						{showEmptyHint ? (
-							<div className="aira-enter mx-auto max-w-2xl py-8 sm:py-12 space-y-6 text-center">
+							<div className="aira-enter mx-auto max-w-4xl py-8 sm:py-12 space-y-6 text-center">
 								{/* Approved Aira Greeting */}
-								<div className="flex flex-col items-center space-y-1.5">
-									<h1 className="text-2xl sm:text-[32px] font-semibold tracking-[-0.025em] text-[#111115] leading-tight">
+								<div className="flex flex-col items-center space-y-2">
+									<h1 className="font-sans text-3xl sm:text-[40px] font-medium tracking-tight text-[#111111] leading-tight">
 										Where would you like to begin?
 									</h1>
-									<p className="text-[14px] text-[#6B6A75]">
+									<p className="text-[14px] text-[var(--aira-text-2)]">
 										Ask anything. Explore further with Aira.
 									</p>
 								</div>
@@ -516,27 +511,27 @@ export function ConversationMessageList({
 								) : null}
 
 								{/* Exactly Three Curated Starter Prompts: Explore, Understand, Create */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-left">
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 text-left">
 									<button
 										type="button"
 										onClick={() => onPickExample?.("Investigate how renewable energy grids and geothermal sources are evolving to power gigawatt-scale AI computing clusters.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3.5 shadow-[0_1px_3px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:bg-[#FAF9F6] hover:shadow-[0_4px_14px_rgba(58,12,163,0.06)]"
+										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
 									>
 										<div>
-											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+											<div className="flex items-center justify-between gap-2 mb-4">
+												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
 													Explore
 												</span>
-												<Compass className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+												<Compass className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<h2 className="text-[13px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
 												Frontier Energy & Compute
 											</h2>
-											<p className="mt-1 text-[11.5px] leading-relaxed text-[#6B6A75]">
+											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
 												Renewable grids and geothermal sources powering gigawatt-scale AI clusters.
 											</p>
 										</div>
-										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
+										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
 											Start research <span className="transition group-hover:translate-x-0.5">→</span>
 										</span>
 									</button>
@@ -544,23 +539,23 @@ export function ConversationMessageList({
 									<button
 										type="button"
 										onClick={() => onPickExample?.("Break down the architectural differences and latency trade-offs between test-time compute scaling and standard inference.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3.5 shadow-[0_1px_3px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:bg-[#FAF9F6] hover:shadow-[0_4px_14px_rgba(58,12,163,0.06)]"
+										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
 									>
 										<div>
-											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+											<div className="flex items-center justify-between gap-2 mb-4">
+												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
 													Understand
 												</span>
-												<BookOpen className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+												<BookOpen className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<h2 className="text-[13px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
 												Test-Time Reasoning Models
 											</h2>
-											<p className="mt-1 text-[11.5px] leading-relaxed text-[#6B6A75]">
+											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
 												Latency trade-offs between test-time compute search depth and standard inference.
 											</p>
 										</div>
-										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
+										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
 											Start research <span className="transition group-hover:translate-x-0.5">→</span>
 										</span>
 									</button>
@@ -568,23 +563,23 @@ export function ConversationMessageList({
 									<button
 										type="button"
 										onClick={() => onPickExample?.("Synthesize an executive briefing comparing row-level tenant isolation, signed storage tokens, and private inference deployments.")}
-										className="group flex flex-col justify-between rounded-xl border border-[rgba(17,17,21,0.08)] bg-white p-3.5 shadow-[0_1px_3px_rgba(17,17,21,0.03)] transition hover:border-[#3A0CA3]/30 hover:bg-[#FAF9F6] hover:shadow-[0_4px_14px_rgba(58,12,163,0.06)]"
+										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
 									>
 										<div>
-											<div className="flex items-center justify-between gap-2 mb-2">
-												<span className="text-[10px] font-semibold uppercase tracking-wider text-[#3A0CA3] bg-[#3A0CA3]/[0.07] px-2 py-0.5 rounded">
+											<div className="flex items-center justify-between gap-2 mb-4">
+												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
 													Create
 												</span>
-												<PenTool className="size-3.5 text-[#3A0CA3] opacity-60 group-hover:opacity-100 transition" />
+												<PenTool className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
 											</div>
-											<h2 className="text-[13px] font-semibold text-[#111115] leading-snug group-hover:text-[#3A0CA3] transition">
+											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
 												Sovereign AI Architecture
 											</h2>
-											<p className="mt-1 text-[11.5px] leading-relaxed text-[#6B6A75]">
+											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
 												Executive briefing on row-level security, signed tokens, and private infrastructure.
 											</p>
 										</div>
-										<span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#3A0CA3]">
+										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
 											Start research <span className="transition group-hover:translate-x-0.5">→</span>
 										</span>
 									</button>
@@ -594,12 +589,12 @@ export function ConversationMessageList({
 
 						{messages.map((message) =>
 							message.role === "USER" ? (
-								<div key={message.id} className="aira-enter group flex w-full justify-end py-3">
-									<div className="max-w-[86%] sm:max-w-[78%]">
-										<div className="rounded-2xl border border-[#3A0CA3]/15 bg-[#F0EEF8] px-4 py-3 text-[14px] leading-6 text-[#111115]">
+								<div key={message.id} className="aira-enter group flex w-full py-8 border-b border-[#EAEAEA] mb-6">
+									<div className="w-full">
+										<h2 className="font-sans text-[24px] sm:text-[32px] font-medium leading-[1.2] tracking-tight text-[#111111]">
 											{message.content}
-										</div>
-										<div className="mt-1 flex justify-end gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+										</h2>
+										<div className="mt-4 flex gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
 											<ReusePromptButton text={message.content} />
 											<MessageCopyButton text={message.content} />
 										</div>
@@ -621,9 +616,11 @@ export function ConversationMessageList({
 						)}
 
 						{streamingUserQuery ? (
-							<div className="flex w-full justify-end py-3" aria-label="Streaming user message">
-								<div className="max-w-[86%] rounded-2xl border border-[#3A0CA3]/15 bg-[#F0EEF8] px-4 py-3 text-[14px] leading-6 text-[#111115] sm:max-w-[78%]">
-									{streamingUserQuery}
+							<div className="flex w-full py-8 border-b border-[#EAEAEA] mb-6" aria-label="Streaming user message">
+								<div className="w-full">
+									<h2 className="font-sans text-[24px] sm:text-[32px] font-medium leading-[1.2] tracking-tight text-[#111111]">
+										{streamingUserQuery}
+									</h2>
 								</div>
 							</div>
 						) : null}
@@ -635,77 +632,57 @@ export function ConversationMessageList({
 				</section>
 
 				{!showEmptyHint && (
-				<aside className="aira-live-inspector hidden border-l border-[rgba(17,17,21,0.08)] bg-white/70 backdrop-blur-sm p-3 xl:block" aria-label="Conversation inspector">
-					<div className="sticky top-20 space-y-3">
-						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
-							<p className="text-[11px] font-semibold text-content-primary">Routing & Policy</p>
-							<Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-lg px-1 py-2 transition hover:bg-white/[0.035]">
+				<aside className="aira-live-inspector hidden border-l border-[var(--aira-border-subtle)] bg-[#F9F8F6]/80 backdrop-blur-sm p-4 xl:block" aria-label="Focus your research">
+					<div className="sticky top-20 space-y-6">
+						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
+							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Routing & Policy</p>
+							<Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-lg px-2 py-2 transition hover:bg-[#09090B]/5">
 								<span>
-									<strong className="block text-[11px] font-semibold text-content-primary">AIRA Auto</strong>
-									<small className="mt-0.5 block text-[9px] text-content-tertiary">Provider routing follows workspace policy (Effort: {effort})</small>
+									<strong className="block text-[11px] font-semibold text-[var(--aira-text-0)]">AIRA Auto</strong>
+									<small className="mt-0.5 block text-[10px] text-[var(--aira-text-2)]">Provider routing follows workspace policy (Effort: {effort})</small>
 								</span>
-								<Network className="size-4 text-accent" strokeWidth={1.6} />
+								<Network className="size-4 text-[#09090B]" strokeWidth={1.6} />
 							</Link>
 						</section>
 
-						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
-							<div className="flex items-center justify-between">
-								<p className="text-[11px] font-semibold text-content-primary">Sources</p>
-								<span className="text-[10px] tabular-nums text-content-tertiary">{inspectorCitations.length || 0}</span>
+						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
+							<div className="flex items-center justify-between mb-4">
+								<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Focus your research</p>
 							</div>
-							<div className="mt-2 space-y-1">
+							<div className="mt-2">
 								{inspectorCitations.length === 0 ? (
-									<p className="border-t border-dashed border-white/[0.07] py-3 text-[10px] leading-4 text-content-tertiary">
+									<p className="py-3 text-[11px] leading-relaxed text-[var(--aira-text-2)]">
 										Sources appear here when AIRA grounds an answer on the web.
 									</p>
 								) : (
-									inspectorCitations.slice(0, 6).map((citation) => (
-										<a
-											key={`${citation.index}-${citation.url}`}
-											href={citation.url}
-											target="_blank"
-											rel="noreferrer"
-											className="group flex gap-2 rounded-lg px-1 py-2 transition hover:bg-white/[0.035]"
-										>
-											<span className="w-4 shrink-0 text-[10px] text-accent">{citation.index}</span>
-											<span className="min-w-0 flex-1">
-												<strong className="block truncate text-[10px] font-medium text-content-secondary group-hover:text-content-primary">
-													{citation.title}
-												</strong>
-												<small className="mt-0.5 flex items-center gap-1 truncate text-[9px] text-content-tertiary">
-													{hostnameFromUrl(citation.url)}
-													<ExternalLink className="size-2.5" aria-hidden />
-												</small>
-											</span>
-										</a>
-									))
+									<CitationCards citations={inspectorCitations} />
 								)}
 							</div>
 						</section>
 
-						<section className="aira-inspector-section border-b border-white/[0.07] pb-3">
-							<p className="text-[11px] font-semibold text-content-primary">Conversation</p>
-							<dl className="mt-2 space-y-2 text-[10px]">
+						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
+							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Conversation</p>
+							<dl className="mt-2 space-y-2 text-[11px]">
 								<div className="flex items-center justify-between gap-3">
-									<dt className="text-content-tertiary">Created</dt>
-									<dd className="truncate text-content-secondary">
+									<dt className="text-[var(--aira-text-2)]">Created</dt>
+									<dd className="truncate text-[var(--aira-text-0)] font-medium">
 										{createdAt && !Number.isNaN(createdAt.getTime())
 											? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(createdAt)
 											: "New thread"}
 									</dd>
 								</div>
 								<div className="flex items-center justify-between">
-									<dt className="text-content-tertiary">Messages</dt>
-									<dd className="tabular-nums text-content-secondary">{messages.length}</dd>
+									<dt className="text-[var(--aira-text-2)]">Messages</dt>
+									<dd className="tabular-nums text-[var(--aira-text-0)] font-medium">{messages.length}</dd>
 								</div>
 								<div className="flex items-center justify-between">
-									<dt className="text-content-tertiary">Sources</dt>
-									<dd className="tabular-nums text-content-secondary">{inspectorCitations.length}</dd>
+									<dt className="text-[var(--aira-text-2)]">Sources</dt>
+									<dd className="tabular-nums text-[var(--aira-text-0)] font-medium">{inspectorCitations.length}</dd>
 								</div>
 								<div className="flex items-center justify-between">
-									<dt className="text-content-tertiary">Mode</dt>
-									<dd className="inline-flex items-center gap-1 text-content-secondary">
-										<span className="size-1.5 rounded-full bg-accent" />
+									<dt className="text-[var(--aira-text-2)]">Mode</dt>
+									<dd className="inline-flex items-center gap-1 text-[var(--aira-text-0)] font-medium">
+										<span className="size-1.5 rounded-full bg-[#09090B]" />
 										{isTemporary ? "Temporary" : "Persistent"}
 									</dd>
 								</div>
@@ -713,13 +690,13 @@ export function ConversationMessageList({
 						</section>
 
 						<section className="aira-inspector-section">
-							<p className="text-[11px] font-semibold text-content-primary">Actions</p>
+							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Actions</p>
 							<div className="mt-2 space-y-0.5">
 								<button
 									type="button"
 									disabled={!copyAll}
 									onClick={() => void navigator.clipboard.writeText(copyAll)}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary disabled:opacity-40"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)] disabled:opacity-40"
 								>
 									<Copy className="size-3.5" strokeWidth={1.6} />
 									Copy conversation
@@ -728,7 +705,7 @@ export function ConversationMessageList({
 									type="button"
 									disabled={!shareableText.trim()}
 									onClick={() => void shareConversation()}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-40"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)] disabled:cursor-not-allowed disabled:opacity-40"
 								>
 									<Share2 className="size-3.5" strokeWidth={1.6} />
 									Share conversation
@@ -736,7 +713,7 @@ export function ConversationMessageList({
 								<button
 									type="button"
 									onClick={() => setShowExportModal(true)}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)]"
 								>
 									<Download className="size-3.5" strokeWidth={1.6} />
 									Export (.md, .json, .pdf)
@@ -744,14 +721,14 @@ export function ConversationMessageList({
 								<button
 									type="button"
 									onClick={() => emitComposerCommand("/new")}
-									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-[10px] text-content-secondary transition hover:bg-white/[0.035] hover:text-content-primary"
+									className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] text-[var(--aira-text-2)] transition hover:bg-[#09090B]/5 hover:text-[var(--aira-text-0)]"
 								>
 									<MessageSquarePlus className="size-3.5" strokeWidth={1.6} />
 									New conversation
 								</button>
 							</div>
 							{shareFeedback ? (
-								<p className="mt-2 rounded-lg bg-white/[0.035] px-2 py-1.5 text-[10px] text-content-tertiary" role="status">
+								<p className="mt-2 rounded-lg bg-white/[0.035] px-2 py-1.5 text-[10px] text-[var(--aira-text-2)]" role="status">
 									{shareFeedback}
 								</p>
 							) : null}

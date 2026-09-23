@@ -317,7 +317,7 @@ test("P0 Proof 10: NVIDIAProvider tries next model on 503 service overload befor
 				create: async () => {
 					callCount++;
 					if (callCount === 1) {
-						const err: any = new Error("Service temporarily overloaded");
+						const err = new Error("Service temporarily overloaded") as Error & { code?: number; status?: number };
 						err.code = 503;
 						err.status = 503;
 						throw err;

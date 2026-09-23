@@ -79,7 +79,9 @@ export function runtimeTrustedAuthOrigins(env: AuthEnvironment = process.env): r
 				} else if (!u.hostname.endsWith(".vercel.app")) {
 					add(`${u.protocol}//www.${u.hostname}`);
 				}
-			} catch {}
+			} catch {
+				// Ignore invalid URLs
+			}
 		}
 		add("https://aira-ai-live.vercel.app");
 	}

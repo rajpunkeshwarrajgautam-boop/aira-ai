@@ -144,7 +144,7 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 					{citations.length} retrieved
 				</span>
 			</header>
-			<ul className="aira-source-grid grid gap-x-5 lg:grid-cols-2">
+			<ul className="aira-source-grid flex flex-col gap-4 mt-3">
 				{citations.map((c) => {
 					const host = hostnameFromUrl(c.url);
 					const favicon = `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(host)}`;
@@ -172,9 +172,9 @@ export function CitationCards({ citations, className, citedIndices }: CitationCa
 								}}
 								className="group grid min-h-[144px] grid-cols-[32px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-4 text-left transition-colors duration-150 hover:bg-white/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
 							>
-								<Image src={favicon} alt="" width={32} height={32} className="row-span-2 size-8 rounded-lg bg-surface-elevated object-contain p-1 ring-1 ring-border-subtle/70" unoptimized />
+								<Image src={favicon} alt="" width={24} height={24} className="row-span-2 size-6 rounded-md bg-surface-elevated object-contain p-0.5 ring-1 ring-border-subtle/70" unoptimized />
 								<div className="min-w-0">
-									<p className="line-clamp-2 text-[13px] font-semibold leading-5 text-content-primary transition-colors group-hover:text-accent">
+									<p className="line-clamp-2 text-[12px] font-semibold leading-4 text-content-primary transition-colors group-hover:text-accent">
 										{cleanTitle(c.title, c.url, snippet)}
 									</p>
 									<p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-content-tertiary">

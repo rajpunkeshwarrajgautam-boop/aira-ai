@@ -6,18 +6,18 @@
 
 :root {
 	color-scheme: light;
-	--surface: 216 33% 98%;
+	--surface: 0 0% 100%;
 	--surface-elevated: 0 0% 100%;
-	--surface-inset: 216 28% 96%;
-	--border-subtle: 216 24% 91%;
-	--border: 216 18% 84%;
-	--accent: 220 92% 56%;
-	--accent-muted: 220 76% 48%;
-	--content-primary: 224 43% 12%;
-	--content-secondary: 219 14% 39%;
-	--content-tertiary: 218 11% 56%;
-	--page-glow: 220 100% 97%;
-	--page-mid: 216 55% 98%;
+	--surface-inset: 240 24% 96%;
+	--border-subtle: 214 32% 91%;
+	--border: 214 32% 80%;
+	--accent: 247 100% 74%;
+	--accent-muted: 247 100% 64%;
+	--content-primary: 222 47% 11%;
+	--content-secondary: 215 19% 35%;
+	--content-tertiary: 215 14% 65%;
+	--page-glow: 0 0% 100%;
+	--page-mid: 0 0% 100%;
 }
 
 html,
@@ -34,9 +34,6 @@ body {
 	font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	color: hsl(var(--content-primary));
 	background-color: hsl(var(--surface));
-	background-image:
-		radial-gradient(80% 55% at 50% -10%, hsl(var(--page-glow) / 0.95) 0%, transparent 72%),
-		linear-gradient(180deg, hsl(var(--page-mid)) 0%, hsl(var(--surface)) 42%, hsl(216 28% 98%) 100%);
 	background-attachment: fixed;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
@@ -108,4 +105,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 	html { scroll-behavior: auto; }
 	.aira-enter, .aira-fade, .aira-soft-pulse { animation: none !important; }
 	.aira-card-hover { transition: none !important; }
+}
+
+.skip-preloader .aira-preloader-container {
+  display: none !important;
 }
