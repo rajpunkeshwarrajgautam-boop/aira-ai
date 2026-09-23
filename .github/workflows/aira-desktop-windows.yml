@@ -32,6 +32,7 @@ jobs:
           # PR/application code must never inherit a persisted write-capable
           # repository credential through git configuration.
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Check for relevant desktop agent file changes
         id: changes
@@ -42,7 +43,7 @@ jobs:
             "should_run=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
           }
-          git fetch origin ${{ github.base_ref }} --depth=1
+          git fetch origin ${{ github.base_ref }}
           $changed = git diff --name-only origin/${{ github.base_ref }}...HEAD
           Write-Host "Changed files:"
           Write-Host $changed
