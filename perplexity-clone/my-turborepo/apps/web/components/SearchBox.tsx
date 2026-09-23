@@ -497,6 +497,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 					{/* MICROPHONE DEFERRED: Speech-to-text deferred to a post-launch update.
 					     Implementation preserved below (voiceAvailable, toggleVoice, SpeechRecognition).
 					     Re-enable by replacing `false` with `voiceAvailable` below. */}
+					{/* eslint-disable-next-line no-constant-condition, no-constant-binary-expression */}
 					{false && voiceAvailable ? (
 						<button
 							type="button"
