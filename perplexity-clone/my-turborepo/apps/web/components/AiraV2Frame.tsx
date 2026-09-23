@@ -137,14 +137,17 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           </button>
         </div>
         
-        <div className="flex flex-1 items-center justify-center px-4">
+        <div className="flex flex-1 items-center justify-center px-2 sm:px-4 min-w-0">
           <button 
             type="button" 
             onClick={() => setPaletteOpen(true)}
-            className="flex w-full max-w-[480px] items-center gap-3 rounded-[6px] border border-[#EAEAEA] bg-[#F4F4F5] px-4 py-2 text-[13px] text-[#525252] transition hover:border-[#D4D4D4] hover:bg-white focus:outline-none focus:ring-1 focus:ring-[#111111]"
+            className="flex w-full max-w-[480px] items-center gap-2 sm:gap-3 rounded-[6px] border border-[#EAEAEA] bg-[#F4F4F5] px-2.5 sm:px-4 py-2 text-[13px] text-[#525252] transition hover:border-[#D4D4D4] hover:bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] min-w-0"
           >
-            <Search className="size-[16px] text-[#A3A3A3]" />
-            <span className="flex-1 text-left">Search your research, files, and chats...</span>
+            <Search className="size-[16px] shrink-0 text-[#A3A3A3]" />
+            <span className="flex-1 text-left truncate">
+              <span className="hidden sm:inline">Search your research, files, and chats...</span>
+              <span className="sm:hidden">Search...</span>
+            </span>
             <kbd className="hidden rounded bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#525252] shadow-[0_1px_2px_rgba(0,0,0,0.02)] border border-[#EAEAEA] sm:inline-block">⌘K</kbd>
           </button>
         </div>

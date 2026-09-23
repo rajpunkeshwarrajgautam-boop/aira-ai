@@ -416,7 +416,7 @@ export default function TemplatesPage() {
 															</button>
 
 															<Link
-																href={`/?prompt=${encodeURIComponent(recipe.prompt)}&mode=${recipe.mode}`}
+																href={`/?q=${encodeURIComponent(recipe.prompt)}`}
 																className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#18181B] hover:underline"
 															>
 																<span>Run in Research</span>

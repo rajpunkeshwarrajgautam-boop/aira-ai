@@ -179,7 +179,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const searchParams = useSearchParams();
 	useEffect(() => {
-		const q = searchParams.get("q");
+		const q = searchParams.get("q") ?? searchParams.get("prompt");
 		if (!q) return;
 		setQuery((prev) => (prev.trim().length > 0 ? prev : q));
 	}, [searchParams]);

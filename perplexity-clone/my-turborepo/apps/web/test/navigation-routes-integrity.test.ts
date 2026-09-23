@@ -78,3 +78,11 @@ test("Library and Templates routes exist as authentic pages under Concept 7", ()
 		"Templates must fetch real automation routine templates",
 	);
 });
+
+test("AiraV2Frame topbar search button maintains mobile responsiveness invariants", () => {
+	const framePath = path.join(WEB_ROOT, "components", "AiraV2Frame.tsx");
+	const frameContent = readFileSync(framePath, "utf8");
+	assert.ok(frameContent.includes("truncate"), "Topbar search label must truncate on narrow viewports");
+	assert.ok(frameContent.includes("hidden sm:inline"), "Topbar search must conditionally collapse long placeholder text on mobile");
+	assert.ok(frameContent.includes("sm:hidden"), "Topbar search must have short label for mobile viewports");
+});
