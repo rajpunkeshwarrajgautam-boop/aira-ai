@@ -51,7 +51,7 @@ test.after(async () => {
 	await prisma.$executeRaw`delete from "User" where "id"=${testUserId}`.catch(() => undefined);
 });
 
-test("Phase 5 & 19: Exclusive claim prevents duplicate execution between concurrent workers", async () => {
+test("Phase 5 & 19: Exclusive claim prevents duplicate execution between concurrent workers", { skip: !HAS_DB }, async () => {
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -99,7 +99,7 @@ test("Phase 5 & 19: Exclusive claim prevents duplicate execution between concurr
 	assert.equal(claim3, null, "Third worker must be rejected while lease is held");
 });
 
-test("Phase 7 & 19: Heartbeat extends lease expiration for active worker", async () => {
+test("Phase 7 & 19: Heartbeat extends lease expiration for active worker", { skip: !HAS_DB }, async () => {
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -135,7 +135,7 @@ test("Phase 7 & 19: Heartbeat extends lease expiration for active worker", async
 	assert.equal(impostorRenewed, false, "Impostor must not be able to extend lease");
 });
 
-test("Phase 7, 8, 21: Crashed worker recovery reclaims abandoned RUNNING task for retry", async () => {
+test("Phase 7, 8, 21: Crashed worker recovery reclaims abandoned RUNNING task for retry", { skip: !HAS_DB }, async () => {
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -235,7 +235,7 @@ test("Phase 7, 8, 21: Crashed worker recovery reclaims abandoned RUNNING task fo
 	assert.equal(finalTask.leaseOwner, null);
 });
 
-test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", async () => {
+test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", { skip: !HAS_DB }, async () => {
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
@@ -290,7 +290,7 @@ test("Phase 8: Bounded retries mark task as FAILED when maxAttempts exceeded", a
 	assert.ok(failedTask.completedAt, "CompletedAt must be populated");
 });
 
-test("Phase 9: Cooperative cancellation terminates active work and records cancellation event", async () => {
+test("Phase 9: Cooperative cancellation terminates active work and records cancellation event", { skip: !HAS_DB }, async () => {
 	const run = await createPlatformRun({
 		userId: testUserId,
 		projectId: testProjectId,
