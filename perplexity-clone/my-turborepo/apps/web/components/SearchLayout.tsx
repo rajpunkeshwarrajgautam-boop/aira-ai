@@ -174,6 +174,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const answerStreamStartedLoggedRef = useRef(false);
 	/** Avoid duplicate auto-submit for the same `?q=` after OAuth return. */
 	const hasAutoRunUrlQueryRef = useRef<string | null>(null);
+	/**
+	 * Holds a ?q= value that has been written into `query` state but not yet
+	 * submitted. The companion effect below fires after React commits the state
+	 * update and calls runSearch() with the now-settled value, avoiding the
+	 * stale-closure race that occurred when submit() was called before React
+	 * re-rendered SearchBox with the new value prop.
+	 */
+	const pendingAutoRunQueryRef = useRef<string | null>(null);
 	/** Last submitted question (state is cleared at search start; used for sign-in callback URLs). */
 	const lastSubmittedQueryRef = useRef("");
 
@@ -396,18 +404,51 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setResearchMode("standard");
 	}, [sessionStatus]);
 
+	// Deep-link pre-fill: write the ?q= value into composer state.
+	// We intentionally do NOT auto-submit here; submission is handled by the
+	// companion effect below, which fires after React commits this state update.
 	useEffect(() => {
 		if (sessionStatus === "loading" || busy) return;
 		const qParam = searchParams.get("q")?.trim();
 		if (!qParam) return;
 		if (hasAutoRunUrlQueryRef.current === qParam) return;
 		hasAutoRunUrlQueryRef.current = qParam;
-		setQuery(qParam);
-		const id = window.setTimeout(() => {
-			searchBoxRef.current?.submit();
-		}, 0);
-		return () => window.clearTimeout(id);
-	}, [sessionStatus, searchParams, busy]);
+		// Preserve user edits: only pre-fill when composer is empty.
+		// We read `query` from the effect's closure (the committed value at the
+		// time this effect runs) to decide whether to pre-fill. This is safe
+		// because effects always run after React commits state.
+		setQuery((prev) => {
+			// Pure updater — no side effects. Returns the new state value only.
+			if (prev.trim().length > 0) return prev;
+			return qParam;
+		});
+		// Set the pending auto-run ref in the effect body (not inside the updater)
+		// so it is never subject to React's double-invocation in Strict Mode or
+		// concurrent-mode render abandonment. We only arm the auto-run when the
+		// current committed query is empty (same condition as the updater).
+		if (!query.trim()) {
+			pendingAutoRunQueryRef.current = qParam;
+		}
+	}, [sessionStatus, searchParams, busy, query]);
+
+
+	// Deep-link auto-run: fires after React has committed the ?q= value into
+	// the SearchBox value prop, preventing the stale-state race where submit()
+	// would read an empty string before the prop update landed.
+	useEffect(() => {
+		if (!pendingAutoRunQueryRef.current) return;
+		if (query.trim() !== pendingAutoRunQueryRef.current) return;
+		if (busy) return;
+		const settledQuery = pendingAutoRunQueryRef.current;
+		pendingAutoRunQueryRef.current = null;
+		// runSearch reads `query` state; because this effect only runs after
+		// React commits the new value, `query` is now equal to settledQuery.
+		void runSearch();
+		// We intentionally do not include runSearch in deps — it is stable
+		// (useCallback) but its identity changes each render; listing it would
+		// cause the effect to re-fire on every render after the first submit.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [query, busy]);
 
 	useEffect(() => {
 		if (sessionStatus !== "authenticated" || busy) return;
@@ -631,13 +672,12 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setErrorCode(null);
 		setLimitErrorAction(null);
 		setQuery("");
-			setQuery("");
-			setStreamingUserQuery(q);
-			setStreamingAssistantMarkdown("");
-			setStreamingCitations([]);
-			setShareContext(null);
-			setPhase("connecting");
-			answerStreamStartedLoggedRef.current = false;
+		setStreamingUserQuery(q);
+		setStreamingAssistantMarkdown("");
+		setStreamingCitations([]);
+		setShareContext(null);
+		setPhase("connecting");
+		answerStreamStartedLoggedRef.current = false;
 
 			try {
 				logProductEvent({
