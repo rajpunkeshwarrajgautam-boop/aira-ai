@@ -195,7 +195,11 @@ export async function submitAiraAgentRun(
 		type: "SUBMITTED",
 		status: AgentRunStatus.RUNNING,
 		message: `Managed execution launched via ${PROVIDER}`,
-		metadata: { provider: PROVIDER, clientRequestId: input.clientRequestId },
+		metadata: {
+			provider: PROVIDER,
+			clientRequestId: input.clientRequestId,
+			...(input.agentExecutionOptions?.projectId ? { projectId: input.agentExecutionOptions.projectId } : {}),
+		},
 	});
 
 	const abortController = new AbortController();
