@@ -365,6 +365,10 @@ export class ProviderRouter {
 		this.providers.set(provider.providerId, provider);
 	}
 
+	getProvider(providerId: string): AIProvider | undefined {
+		return this.providers.get(providerId);
+	}
+
 	static async createDefault(): Promise<ProviderRouter> {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
