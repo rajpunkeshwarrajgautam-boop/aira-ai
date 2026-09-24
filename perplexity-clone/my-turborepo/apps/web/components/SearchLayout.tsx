@@ -414,14 +414,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		if (hasAutoRunUrlQueryRef.current === qParam) return;
 		hasAutoRunUrlQueryRef.current = qParam;
 		// Preserve user edits: only pre-fill when composer is empty.
+		// We read `query` from the effect's closure (the committed value at the
+		// time this effect runs) to decide whether to pre-fill. This is safe
+		// because effects always run after React commits state.
 		setQuery((prev) => {
+			// Pure updater — no side effects. Returns the new state value only.
 			if (prev.trim().length > 0) return prev;
-			// Record the pending auto-run so the effect below can submit it
-			// after React has committed this value as the SearchBox value prop.
-			pendingAutoRunQueryRef.current = qParam;
 			return qParam;
 		});
-	}, [sessionStatus, searchParams, busy]);
+		// Set the pending auto-run ref in the effect body (not inside the updater)
+		// so it is never subject to React's double-invocation in Strict Mode or
+		// concurrent-mode render abandonment. We only arm the auto-run when the
+		// current committed query is empty (same condition as the updater).
+		if (!query.trim()) {
+			pendingAutoRunQueryRef.current = qParam;
+		}
+	}, [sessionStatus, searchParams, busy, query]);
+
 
 	// Deep-link auto-run: fires after React has committed the ?q= value into
 	// the SearchBox value prop, preventing the stale-state race where submit()

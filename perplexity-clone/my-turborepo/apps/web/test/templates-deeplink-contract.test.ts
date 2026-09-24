@@ -308,3 +308,61 @@ test("SearchLayout: SearchBox onSubmit prop delegates to runSearch", () => {
 	);
 });
 
+
+// ---------------------------------------------------------------------------
+// React Strict Mode / Concurrent Mode safety
+// ---------------------------------------------------------------------------
+
+test("SearchLayout: setQuery updater is pure -- no ref mutations inside updater body", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	const updaterStart = src.indexOf("setQuery((prev) => {");
+	assert.ok(updaterStart !== -1, "setQuery functional updater must exist");
+	let depth = 0;
+	let inUpdater = false;
+	let updaterEnd = updaterStart;
+	for (let i = updaterStart; i < src.length; i++) {
+		if (src[i] === "{") { depth++; inUpdater = true; }
+		if (src[i] === "}") { depth--; }
+		if (inUpdater && depth === 0) { updaterEnd = i; break; }
+	}
+	const updaterBody = src.slice(updaterStart, updaterEnd + 1);
+	assert.ok(
+		!updaterBody.includes("pendingAutoRunQueryRef.current ="),
+		"setQuery updater must be pure -- pendingAutoRunQueryRef mutation must not be inside the updater body",
+	);
+	assert.ok(
+		!updaterBody.includes("hasAutoRunUrlQueryRef.current ="),
+		"setQuery updater must be pure -- hasAutoRunUrlQueryRef mutation must not be inside the updater body",
+	);
+});
+
+test("SearchLayout: pendingAutoRunQueryRef is set in effect body not updater (Strict Mode safe)", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	const preFillSection = src.slice(
+		src.indexOf("// Deep-link pre-fill"),
+		src.indexOf("// Deep-link auto-run"),
+	);
+	assert.ok(preFillSection.length > 0, "Pre-fill section must exist");
+	const setQueryPos = preFillSection.indexOf("setQuery((prev)");
+	const refSetPos = preFillSection.indexOf("pendingAutoRunQueryRef.current = qParam");
+	assert.ok(setQueryPos !== -1, "setQuery call must exist in pre-fill section");
+	assert.ok(refSetPos !== -1, "pendingAutoRunQueryRef.current = qParam must exist in pre-fill section");
+	assert.ok(
+		refSetPos > setQueryPos,
+		"pendingAutoRunQueryRef must be set AFTER the setQuery call (in effect body), not inside the updater",
+	);
+});
+
+test("SearchLayout: pre-fill effect includes query in dependency array", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	const preFillSection = src.slice(
+		src.indexOf("// Deep-link pre-fill"),
+		src.indexOf("// Deep-link auto-run"),
+	);
+	const hasQueryDep =
+		preFillSection.includes("busy, query]") ||
+		preFillSection.includes("query, busy]") ||
+		preFillSection.includes("query]\n") ||
+		preFillSection.includes("query])");
+	assert.ok(hasQueryDep, "Pre-fill effect dependency array must include query for correct empty-check evaluation");
+});
