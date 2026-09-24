@@ -7,7 +7,7 @@ interface ProgressPayload {
 	readonly elapsedMs: number;
 }
 
-import { Sparkles, RotateCw, Menu, X, History } from "lucide-react";
+import { Sparkles, RotateCw, Menu, X, History, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -216,7 +216,55 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
+	const [desktopSourcesOpen, setDesktopSourcesOpen] = useState(true);
+	const [mobileSourcesOpen, setMobileSourcesOpen] = useState(false);
+	const [elapsedMs, setElapsedMs] = useState(0);
+	const [showScrollBottom, setShowScrollBottom] = useState(false);
+	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+	const isNearBottomRef = useRef(true);
 	const [canvasOpen, setCanvasOpen] = useState(false);
+
+	useEffect(() => {
+		if (!busy) {
+			setElapsedMs(0);
+			return;
+		}
+		const startTime = Date.now();
+		const interval = setInterval(() => {
+			setElapsedMs(Date.now() - startTime);
+		}, 100);
+		return () => clearInterval(interval);
+	}, [busy]);
+
+	const handleScroll = useCallback(() => {
+		const el = scrollContainerRef.current;
+		if (!el) return;
+		const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+		const nearBottom = distanceFromBottom < 100;
+		isNearBottomRef.current = nearBottom;
+		setShowScrollBottom(distanceFromBottom > 150);
+	}, []);
+
+	const activeCitations = useMemo<readonly CitationItem[]>(() => {
+		if (streamingCitations.length > 0) return streamingCitations;
+		for (let i = messages.length - 1; i >= 0; i--) {
+			const m = messages[i];
+			if (m && m.role === "ASSISTANT" && Array.isArray(m.citations) && m.citations.length > 0) {
+				return m.citations as readonly CitationItem[];
+			}
+		}
+		return [];
+	}, [streamingCitations, messages]);
+
+	const scrollToBottom = useCallback(() => {
+		const el = scrollContainerRef.current;
+		if (el) {
+			const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+			el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion ? "auto" : "smooth" });
+			isNearBottomRef.current = true;
+			setShowScrollBottom(false);
+		}
+	}, []);
 
 	useEffect(() => {
 		const onToggle = () => setCanvasOpen((prev) => !prev);
@@ -241,6 +289,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			!(streamingAssistantMarkdown && streamingAssistantMarkdown.length > 0),
 		[busy, streamingUserQuery, streamingAssistantMarkdown],
 	);
+
+	useEffect(() => {
+		if (!busy || !isNearBottomRef.current) return;
+		const el = scrollContainerRef.current;
+		if (el) {
+			el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+		}
+	}, [busy, streamingAssistantMarkdown, showAssistantSkeleton]);
 
 	const showConversationEmpty = useMemo(
 		() =>
@@ -338,7 +394,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const onSelectConversation = useCallback(
 		async (id: string) => {
-			if (busy) return;
+			if (busy) {
+				abortRef.current?.abort();
+			}
 			if (sessionStatus !== "authenticated") return;
 			setSelectedConversationId(id);
 			setShareContext(null);
@@ -530,11 +588,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	}, [sessionStatus, refreshBilling]);
 
 	const onCreateConversation = useCallback(async () => {
-		if (busy) return;
-		if (sessionStatus !== "authenticated") {
-			router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
-			return;
-		}
 		abortRef.current?.abort();
 		setSelectedConversationId(null);
 		setSelectedConversationTitle(null);
@@ -551,8 +604,20 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setLimitErrorAction(null);
 		setResearchMode("standard");
 		setPhase("idle");
+		setMobileSourcesOpen(false);
+		if (typeof window !== "undefined" && window.location.search) {
+			router.replace("/");
+		}
 		requestAnimationFrame(() => searchBoxRef.current?.focus());
-	}, [busy, router, sessionStatus]);
+	}, [router]);
+
+	useEffect(() => {
+		const handleNewChat = () => {
+			void onCreateConversation();
+		};
+		window.addEventListener("aira:new-chat", handleNewChat);
+		return () => window.removeEventListener("aira:new-chat", handleNewChat);
+	}, [onCreateConversation]);
 
 	const runSearch = useCallback(async (searchContext?: { model?: string; attachments?: readonly unknown[] }) => {
 		let q = query.trim();
@@ -1101,8 +1166,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				value={query}
 				onChange={setQuery}
 				onSubmit={(ctx) => void runSearch(ctx)}
-				disabled={busy}
+				disabled={false}
 				isBusy={busy}
+				onCancel={() => abortRef.current?.abort()}
 				placeholder={
 					!isAuthed
 						? "Ask anything or delegate an autonomous mission..."
@@ -1331,7 +1397,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</header>
 					) : null}
 
-					<div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6">
+					<div className="mx-auto flex w-full max-w-5xl xl:max-w-6xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6 transition-all duration-300">
 						{isAuthed && showConversationEmpty ? (
 							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
@@ -1346,7 +1412,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							)}
 							aria-busy={busy}
 						>
-							<div className={cn("min-h-0 flex-1", !showConversationEmpty && "overflow-y-auto")}>
+							<div ref={scrollContainerRef} onScroll={handleScroll} className={cn("min-h-0 flex-1 relative", !showConversationEmpty && "overflow-y-auto")}>
 								<ConversationMessageList
 									messages={messages}
 									streamingUserQuery={streamingUserQuery}
@@ -1374,7 +1440,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										requestAnimationFrame(() => searchBoxRef.current?.focus());
 									}}
 									statusText={statusText}
+									elapsedMs={elapsedMs}
+									onCancel={() => abortRef.current?.abort()}
+									desktopSourcesOpen={desktopSourcesOpen}
+									onToggleDesktopSources={() => setDesktopSourcesOpen((o) => !o)}
+									onOpenMobileSources={() => setMobileSourcesOpen(true)}
 								/>
+								{showScrollBottom ? (
+									<button
+										type="button"
+										onClick={scrollToBottom}
+										className="fixed bottom-24 right-6 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/95 text-zinc-700 shadow-lg backdrop-blur-md transition-all hover:bg-zinc-100 hover:text-zinc-950 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black md:bottom-28 md:right-10"
+										aria-label="Scroll to latest message"
+										title="Scroll to bottom"
+									>
+										<ArrowDown className="size-4" />
+									</button>
+								) : null}
 							</div>
 							{(shareContext || (!isAuthed && phase === "complete" && messages.length > 0)) && !busy ? (
 								<ShareResultBar
@@ -1437,7 +1519,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</p>
 
 						{!showConversationEmpty ? (
-							<div className="order-2 md:order-none sticky bottom-0 z-20 -mx-4 bg-surface/95 px-4 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none">
+							<div className="order-2 md:order-none sticky bottom-0 z-20 w-full max-w-full bg-surface/95 px-2 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none">
 								{composerBlock}
 							</div>
 						) : null}
@@ -1493,6 +1575,67 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								}}
 								disabled={busy}
 							/>
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{mobileSourcesOpen ? (
+				<div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Research sources">
+					<div
+						className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+						onClick={() => setMobileSourcesOpen(false)}
+					/>
+					<div className="relative ml-auto flex h-full w-full max-w-sm flex-col bg-white shadow-2xl animate-in slide-in-from-right duration-200">
+						<div className="flex h-14 items-center justify-between border-b border-black/[0.08] px-4">
+							<div className="flex items-center gap-2">
+								<span className="font-semibold text-zinc-900 text-sm">Sources & References</span>
+								<span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+									{activeCitations.length}
+								</span>
+							</div>
+							<button
+								type="button"
+								onClick={() => setMobileSourcesOpen(false)}
+								className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 active:scale-95 transition"
+								aria-label="Close sources sheet"
+							>
+								<X className="size-5" />
+							</button>
+						</div>
+						<div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+							{activeCitations.length === 0 ? (
+								<div className="py-8 text-center text-xs text-zinc-400">
+									No sources retrieved yet for this conversation.
+								</div>
+							) : (
+								activeCitations.map((citation, idx) => (
+									<a
+										key={citation.url ?? idx}
+										href={citation.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="group flex flex-col gap-1 rounded-xl border border-black/[0.08] bg-zinc-50/50 p-3 hover:bg-zinc-100/70 hover:border-black/15 transition"
+									>
+										<div className="flex items-center gap-2 text-xs font-semibold text-zinc-900">
+											<span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-bold text-zinc-700 shadow-2xs border border-black/5">
+												{citation.index ?? idx + 1}
+											</span>
+											<span className="truncate group-hover:underline">
+												{citation.title || "External Source"}
+											</span>
+										</div>
+										{citation.excerpt ? (
+											<p className="line-clamp-2 text-[11px] leading-relaxed text-zinc-500 pl-7">
+												{citation.excerpt}
+											</p>
+										) : null}
+										<div className="flex items-center gap-1 text-[10px] text-zinc-400 pl-7">
+											<span className="truncate">{citation.url ? new URL(citation.url).hostname : ""}</span>
+										</div>
+									</a>
+								))
+							)}
 						</div>
 					</div>
 				</div>

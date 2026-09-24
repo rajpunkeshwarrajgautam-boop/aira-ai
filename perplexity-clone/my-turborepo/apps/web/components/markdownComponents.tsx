@@ -218,5 +218,19 @@ export function getMarkdownComponents(citations: readonly CitationItem[] = []): 
 				</a>
 			);
 		},
+		table: ({ children, ...props }) => (
+			<div className="my-4 w-full max-w-full overflow-x-auto rounded-lg border border-[var(--aira-border-subtle,#EAEAEA)] bg-white shadow-xs">
+				<table className="w-full min-w-full text-left text-[13px] border-collapse" {...props}>
+					{children}
+				</table>
+			</div>
+		),
+		pre: ({ children, ...props }) => (
+			<div className="my-3 w-full max-w-full overflow-x-auto rounded-xl border border-[#EAEAEA] bg-[#111115] p-3.5 text-xs text-[#F5F5F7] shadow-xs">
+				<pre className="font-mono leading-relaxed overflow-x-auto" {...props}>
+					{children}
+				</pre>
+			</div>
+		),
 	};
 }

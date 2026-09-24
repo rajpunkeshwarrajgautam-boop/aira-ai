@@ -130,8 +130,7 @@ export function ConversationSidebar({
 					<button
 						type="button"
 						onClick={onCreateConversation}
-						disabled={disabled}
-						className="aira-new-chat flex h-10 w-full items-center justify-between rounded-xl bg-[#3A0CA3] px-3 text-[12px] font-medium text-white shadow-sm transition hover:bg-[#2D0A82] disabled:opacity-50"
+						className="aira-new-chat flex h-10 w-full items-center justify-between rounded-xl bg-[#3A0CA3] px-3 text-[12px] font-medium text-white shadow-sm transition hover:bg-[#2D0A82] active:scale-[0.98]"
 					>
 						<span className="flex items-center gap-2"><Plus className="size-4" strokeWidth={1.8} aria-hidden />New conversation</span>
 						<span className="rounded-md bg-white/20 px-1.5 py-0.5 font-mono text-[9px] text-white">⌘⇧O</span>

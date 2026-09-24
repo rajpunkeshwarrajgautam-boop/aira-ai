@@ -26,6 +26,7 @@ import {
 	ShieldCheck,
 	Sparkles,
 	WandSparkles,
+	X,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -81,6 +82,11 @@ export interface ConversationMessageListProps {
 	readonly onEffortChange?: (effort: "LOW" | "MEDIUM" | "HIGH" | "MAXIMUM") => void;
 	readonly onRetry?: (mode: "same" | "alternate_model" | "deep_reasoning", messageId: string) => void;
 	readonly composerSlot?: React.ReactNode;
+	readonly elapsedMs?: number;
+	readonly onCancel?: () => void;
+	readonly desktopSourcesOpen?: boolean;
+	readonly onToggleDesktopSources?: () => void;
+	readonly onOpenMobileSources?: () => void;
 }
 
 function MarkdownContent({ markdown, citations }: { readonly markdown: string; readonly citations: readonly CitationItem[] }) {
@@ -125,10 +131,25 @@ function emitComposerCommand(command: string) {
 	window.dispatchEvent(new CustomEvent("aira:command", { detail: { command } }));
 }
 
-function AssistantSkeleton({ statusText, sourceCount }: { readonly statusText?: string; readonly sourceCount: number }) {
+function AssistantSkeleton({
+	statusText,
+	sourceCount,
+	elapsedMs,
+	onCancel,
+}: {
+	readonly statusText?: string;
+	readonly sourceCount: number;
+	readonly elapsedMs?: number;
+	readonly onCancel?: () => void;
+}) {
 	return (
 		<div className="py-2" aria-busy="true" aria-label="Researching" aria-live="polite">
-			<AiraNeuralDeliberation isDeliberating={true} sourceCount={sourceCount} />
+			<AiraNeuralDeliberation
+				isDeliberating={true}
+				sourceCount={sourceCount}
+				elapsedMs={elapsedMs}
+				onCancel={onCancel}
+			/>
 		</div>
 	);
 }
@@ -166,6 +187,11 @@ export function ConversationMessageList({
 	onEffortChange,
 	onRetry,
 	composerSlot,
+	elapsedMs,
+	onCancel,
+	desktopSourcesOpen = true,
+	onToggleDesktopSources,
+	onOpenMobileSources,
 }: ConversationMessageListProps) {
 	const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 	const [retryMenuOpenId, setRetryMenuOpenId] = useState<string | null>(null);
@@ -391,6 +417,28 @@ export function ConversationMessageList({
 				</div>
 
 				<div className="flex items-center gap-1.5">
+					<button
+						type="button"
+						onClick={() => {
+							if (typeof window !== "undefined" && window.innerWidth >= 1280) {
+								onToggleDesktopSources?.();
+							} else {
+								onOpenMobileSources?.();
+							}
+						}}
+						className={cn(
+							"flex h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-2.5 text-[11px] font-medium text-[#111115] shadow-xs transition hover:bg-[#F4F4F5]",
+							desktopSourcesOpen && "bg-[#F4F4F5] border-[#D4D4D4]",
+						)}
+						aria-label={`Toggle sources panel (${inspectorCitations.length} sources)`}
+						title={desktopSourcesOpen ? "Collapse sources panel" : "Expand sources panel"}
+					>
+						<Globe2 className="size-3.5 text-[#3A0CA3]" aria-hidden />
+						<span className="hidden sm:inline">Sources</span>
+						<span className="rounded-full bg-[#111115]/[0.08] px-1.5 py-0.2 font-mono text-[9px] font-semibold tabular-nums text-[#111115]">
+							{inspectorCitations.length}
+						</span>
+					</button>
 					<Link
 						href="/workspace-search"
 						className="grid size-8 place-items-center rounded-lg text-[#6B6A75] transition hover:bg-[#111115]/[0.05] hover:text-[#111115]"
@@ -488,9 +536,9 @@ export function ConversationMessageList({
 				</div>
 			)}
 
-			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1", !showEmptyHint && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
+			<div className={cn("aira-thread-columns grid min-h-0 grid-cols-1 transition-all duration-200", !showEmptyHint && (desktopSourcesOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "grid-cols-1"))}>
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
-					<div className={cn("aira-message-stack mx-auto", showEmptyHint ? "max-w-4xl" : "max-w-4xl")}>
+					<div className={cn("aira-message-stack mx-auto transition-all duration-200", showEmptyHint ? "max-w-4xl" : desktopSourcesOpen ? "max-w-3xl" : "max-w-4xl")}>
 						{showEmptyHint ? (
 							<div className="aira-enter mx-auto max-w-4xl py-8 sm:py-12 space-y-6 text-center">
 								{/* Approved Aira Greeting */}
@@ -627,15 +675,35 @@ export function ConversationMessageList({
 						{streamingAssistantMarkdown ? (
 							<div aria-label="Streaming assistant message">{renderAssistant({ content: streamingAssistantMarkdown, citations: [], streaming: true })}</div>
 						) : null}
-						{showAssistantSkeleton ? <AssistantSkeleton statusText={statusText} sourceCount={streamingCitations.length} /> : null}
+						{showAssistantSkeleton ? (
+							<AssistantSkeleton
+								statusText={statusText}
+								sourceCount={streamingCitations.length}
+								elapsedMs={elapsedMs}
+								onCancel={onCancel}
+							/>
+						) : null}
 					</div>
 				</section>
 
-				{!showEmptyHint && (
+				{!showEmptyHint && desktopSourcesOpen && (
 				<aside className="aira-live-inspector hidden border-l border-[var(--aira-border-subtle)] bg-[#F9F8F6]/80 backdrop-blur-sm p-4 xl:block" aria-label="Focus your research">
 					<div className="sticky top-20 space-y-6">
 						<section className="aira-inspector-section border-b border-[var(--aira-border-subtle)] pb-4">
-							<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Routing & Policy</p>
+							<div className="flex items-center justify-between">
+								<p className="text-[12px] font-semibold text-[var(--aira-text-0)]">Routing & Policy</p>
+								{onToggleDesktopSources ? (
+									<button
+										type="button"
+										onClick={onToggleDesktopSources}
+										className="grid size-6 place-items-center rounded text-[#8F8E98] hover:bg-[#111115]/[0.05] hover:text-[#111115]"
+										aria-label="Collapse sources panel"
+										title="Collapse sources panel"
+									>
+										<X className="size-3.5" />
+									</button>
+								) : null}
+							</div>
 							<Link href="/omniroute" className="mt-2 flex items-center justify-between rounded-lg px-2 py-2 transition hover:bg-[#09090B]/5">
 								<span>
 									<strong className="block text-[11px] font-semibold text-[var(--aira-text-0)]">AIRA Auto</strong>

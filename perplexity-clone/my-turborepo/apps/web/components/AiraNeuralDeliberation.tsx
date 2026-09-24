@@ -18,6 +18,7 @@ export interface AiraNeuralDeliberationProps {
 	readonly sourceCount?: number;
 	readonly steps?: readonly DeliberationStep[];
 	readonly className?: string;
+	readonly onCancel?: () => void;
 }
 
 const DEFAULT_DELIBERATION_STEPS: readonly DeliberationStep[] = [
@@ -52,10 +53,11 @@ const DEFAULT_DELIBERATION_STEPS: readonly DeliberationStep[] = [
 
 export function AiraNeuralDeliberation({
 	isDeliberating,
-	elapsedMs = 1200,
+	elapsedMs = 0,
 	sourceCount = 0,
 	steps = DEFAULT_DELIBERATION_STEPS,
 	className,
+	onCancel,
 }: AiraNeuralDeliberationProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -69,45 +71,57 @@ export function AiraNeuralDeliberation({
 				className,
 			)}
 		>
-			<button
-				type="button"
-				onClick={() => setIsOpen((prev) => !prev)}
-				className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs transition hover:bg-white/[0.03]"
-				aria-expanded={isOpen}
-			>
-				<div className="flex items-center gap-2.5">
-					<div
-						className={cn(
-							"grid size-5 place-items-center rounded-md border",
-							isDeliberating
-								? "border-sky-500/40 bg-sky-500/20 text-sky-400"
-								: "border-emerald-500/40 bg-emerald-500/20 text-emerald-400",
-						)}
-					>
-						<Cpu className="size-3" />
+			<div className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs">
+				<button
+					type="button"
+					onClick={() => setIsOpen((prev) => !prev)}
+					className="flex flex-1 items-center justify-between transition hover:opacity-90"
+					aria-expanded={isOpen}
+				>
+					<div className="flex items-center gap-2.5">
+						<div
+							className={cn(
+								"grid size-5 place-items-center rounded-md border",
+								isDeliberating
+									? "border-sky-500/40 bg-sky-500/20 text-sky-400"
+									: "border-emerald-500/40 bg-emerald-500/20 text-emerald-400",
+							)}
+						>
+							<Cpu className="size-3" />
+						</div>
+						<div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+							<span className="font-semibold text-[#F8FAFC]">
+								{isDeliberating ? "Neural Deliberation in progress…" : "Deliberation complete"}
+							</span>
+							<span className="text-[#64748B]">·</span>
+							<span className="text-[#94A3B8]">{elapsedSec}s elapsed</span>
+							{sourceCount > 0 ? (
+								<>
+									<span className="text-[#64748B]">·</span>
+									<span className="text-sky-400">{sourceCount} sources verified</span>
+								</>
+							) : null}
+						</div>
 					</div>
-					<div className="flex items-center gap-2 font-mono text-[11px]">
-						<span className="font-semibold text-[#F8FAFC]">
-							{isDeliberating ? "Neural Deliberation in progress…" : "Deliberation complete"}
-						</span>
-						<span className="text-[#64748B]">·</span>
-						<span className="text-[#94A3B8]">{elapsedSec}s elapsed</span>
-						{sourceCount > 0 ? (
-							<>
-								<span className="text-[#64748B]">·</span>
-								<span className="text-sky-400">{sourceCount} sources verified</span>
-							</>
-						) : null}
-					</div>
-				</div>
 
-				<div className="flex items-center gap-2 text-[#64748B]">
-					<span className="text-[10px] uppercase tracking-wider font-mono">
-						{isOpen ? "Hide Steps" : "Inspect Steps"}
-					</span>
-					{isOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-				</div>
-			</button>
+					<div className="flex items-center gap-2 text-[#64748B]">
+						<span className="text-[10px] uppercase tracking-wider font-mono">
+							{isOpen ? "Hide Steps" : "Inspect Steps"}
+						</span>
+						{isOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+					</div>
+				</button>
+				{isDeliberating && onCancel ? (
+					<button
+						type="button"
+						onClick={onCancel}
+						className="ml-3 inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/20 px-2 py-1 text-[11px] font-medium text-red-300 transition hover:bg-red-500/30"
+						aria-label="Stop research"
+					>
+						Stop
+					</button>
+				) : null}
+			</div>
 
 			{isOpen ? (
 				<div className="border-t border-white/[0.06] bg-black/25 px-4 py-3 text-xs space-y-3">
