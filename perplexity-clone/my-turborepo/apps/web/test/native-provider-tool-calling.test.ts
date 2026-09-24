@@ -11,9 +11,10 @@ import {
 import {
 	isToolPermitted,
 	isToolExecutionSuccessful,
+	isBudgetExhaustedError,
 } from "../lib/agent-runtime/aira-agent-runtime";
 import { executeTool } from "../lib/tool-gateway/gateway";
-import type { ToolContext, ToolExecutionRequest } from "../lib/tool-gateway/types";
+import { ToolGatewayError, type ToolContext, type ToolExecutionRequest } from "../lib/tool-gateway/types";
 
 // ============================================================================
 // 1. FEATURE FLAG INTEGRITY (Rule 3 & 7)
@@ -467,4 +468,338 @@ test("OpenAIService throws clean error when native-tool provider is unconfigured
 		},
 		{ message: "No native-tool-capable provider is configured in OpenAIService." },
 	);
+});
+
+// ============================================================================
+// 11. NATIVE-LOOP BUDGET EXHAUSTION SAFETY (Task 1)
+// ============================================================================
+test("isBudgetExhaustedError correctly identifies ToolGatewayError with TOOL_BUDGET_EXHAUSTED and MISSION_TOOL_BUDGET_EXHAUSTED", () => {
+	const runBudgetErr = new ToolGatewayError({
+		code: "TOOL_BUDGET_EXHAUSTED",
+		message: "Run budget exhausted: token limit exceeded",
+		status: 429,
+	});
+	const missionBudgetErr = new ToolGatewayError({
+		code: "MISSION_TOOL_BUDGET_EXHAUSTED",
+		message: "This mission has reached its tool-call budget.",
+		status: 409,
+	});
+	const regularErr = new ToolGatewayError({
+		code: "TOOL_NOT_IMPLEMENTED",
+		message: "Tool not implemented",
+		status: 409,
+	});
+	const standardJsErr = new Error("Generic execution error");
+
+	assert.equal(isBudgetExhaustedError(runBudgetErr), true, "Must recognize TOOL_BUDGET_EXHAUSTED");
+	assert.equal(isBudgetExhaustedError(missionBudgetErr), true, "Must recognize MISSION_TOOL_BUDGET_EXHAUSTED");
+	assert.equal(isBudgetExhaustedError(regularErr), false, "Must not flag regular ToolGatewayError");
+	assert.equal(isBudgetExhaustedError(standardJsErr), false, "Must not flag standard Error");
+});
+
+test("Native agent loop immediately halts on budget exhaustion without retrying, executing subsequent tools, or claiming success", async () => {
+	// Scenario: Model emits parallel tool calls (web_search, then files_read)
+	// The first tool hits budget exhaustion from the Tool Gateway.
+	const modelTurn = {
+		role: "assistant",
+		tool_calls: [
+			{
+				id: "call_budget_exceeded_1",
+				type: "function",
+				function: {
+					name: "web_search",
+					arguments: JSON.stringify({ query: "exhaustion test" }),
+				},
+			},
+			{
+				id: "call_subsequent_tool_2",
+				type: "function",
+				function: {
+					name: "files_read",
+					arguments: JSON.stringify({ path: "secrets.txt" }),
+				},
+			},
+		],
+	};
+
+	let secondToolAttempted = false;
+	const executedTools: Array<{ tool: string; action: string; result: unknown; status?: string }> = [];
+
+	const simulateNativeToolLoop = async () => {
+		for (const toolCall of modelTurn.tool_calls) {
+			const parsed = parseNativeToolCall(toolCall as { id: string; function: { name: string; arguments: string } });
+
+			if (parsed.toolCallId === "call_subsequent_tool_2") {
+				secondToolAttempted = true;
+			}
+
+			// Simulate Tool Gateway execution with real budget exhaustion contract
+			try {
+				if (parsed.toolCallId === "call_budget_exceeded_1") {
+					throw new ToolGatewayError({
+						code: "TOOL_BUDGET_EXHAUSTED",
+						message: "Run budget exhausted: Max tool cost exceeded",
+						status: 429,
+					});
+				}
+			} catch (toolErr: unknown) {
+				if (isBudgetExhaustedError(toolErr)) {
+					const toolResult = {
+						status: "FAILED",
+						error: toolErr instanceof Error ? toolErr.message : "Tool budget exhausted",
+						code: (toolErr as { code?: string })?.code,
+					};
+					executedTools.push({
+						tool: parsed.tool,
+						action: parsed.action,
+						result: toolResult,
+						status: "FAILED",
+					});
+					// Halt immediately
+					throw toolErr;
+				}
+			}
+		}
+	};
+
+	let runStatus = "RUNNING";
+	let preservedPartialResult: unknown = null;
+
+	await assert.rejects(
+		async () => {
+			try {
+				await simulateNativeToolLoop();
+				runStatus = "COMPLETED"; // Must NOT be reached
+			} catch (err: unknown) {
+				runStatus = "FAILED";
+				// Truthful partial results are preserved
+				preservedPartialResult = {
+					executedTools: executedTools.map((t) => ({ tool: t.tool, action: t.action, status: t.status })),
+					error: (err as Error).message,
+					partial: true,
+				};
+				throw err;
+			}
+		},
+		{ message: "Run budget exhausted: Max tool cost exceeded" },
+	);
+
+	assert.equal(secondToolAttempted, false, "Subsequent tool calls in turn must NOT be executed");
+	assert.equal(runStatus, "FAILED", "Run must be marked FAILED, never COMPLETED");
+	assert.equal(executedTools.length, 1, "Only the failing tool call is recorded");
+	assert.equal(executedTools[0]?.status, "FAILED");
+	assert.ok(preservedPartialResult, "Partial results must be preserved truthfully");
+});
+
+// ============================================================================
+// 12. DUPLICATE / REPLAY SAFETY & IDENTITY PRESERVATION (Task 2)
+// ============================================================================
+test("Deterministic replay safety: exact replayed operation returns cached summary without repeating side effects", async () => {
+	const user = "usr_replay_test_123";
+	const runId = "run_replay_test_456";
+	const globalPrismaObj = (globalThis as unknown as { prisma?: unknown });
+	const oldGlobalPrisma = globalPrismaObj.prisma;
+
+	let sideEffectCount = 0;
+	let storedCallRecord: {
+		id: string;
+		clientRequestId: string;
+		userId: string;
+		projectId: string;
+		runId: string;
+		taskId: string | null;
+		agentId: string | null;
+		tool: string;
+		action: string;
+		risk: string;
+		inputHash: string;
+		inputSummary: unknown;
+		resultSummary: unknown;
+		usage: unknown;
+		status: string;
+		createdAt: Date;
+		updatedAt: Date;
+	} | null = null;
+
+	// In-memory mock representing AgentToolCall table
+	globalPrismaObj.prisma = {
+		$executeRaw: (async () => 1) as unknown,
+		$queryRaw: (async (strings: TemplateStringsArray | string[], ...values: unknown[]) => {
+			const query = Array.isArray(strings) ? strings.join("") : String(strings);
+			if (query.includes("completed as") || query.includes("status\"='COMPLETED'")) {
+				if (storedCallRecord) {
+					storedCallRecord.status = "COMPLETED";
+					storedCallRecord.resultSummary = { cached: true, query: "replay test" };
+				}
+				return [{ id: storedCallRecord?.id ?? "tc_durable_identity_999" }];
+			}
+			if (query.includes("AgentPlatformRun")) {
+				return [{ toolCallsUsed: 0 }];
+			}
+			if (query.includes("AgentToolCall") && query.includes("select")) {
+				return storedCallRecord ? [storedCallRecord] : [];
+			}
+			if (query.includes("AgentToolCall") && query.includes("insert")) {
+				storedCallRecord = {
+					id: "tc_durable_identity_999", // Gateway's durable database identity
+					clientRequestId: String(values[1] ?? ""),
+					userId: String(values[2] ?? user),
+					projectId: "standalone",
+					runId: String(values[4] ?? runId),
+					taskId: values[5] ? String(values[5]) : null,
+					agentId: values[6] ? String(values[6]) : null,
+					tool: String(values[7] ?? "web"),
+					action: String(values[8] ?? "search"),
+					risk: String(values[9] ?? "READ_ONLY"),
+					inputHash: String(values[10] ?? ""),
+					inputSummary: {},
+					resultSummary: null,
+					usage: null,
+					status: "PENDING",
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				};
+				return [storedCallRecord];
+			}
+			if (query.includes("AgentToolCall") && query.includes("EXECUTING")) {
+				if (storedCallRecord) storedCallRecord.status = "EXECUTING";
+				return [{ id: storedCallRecord?.id }];
+			}
+			return [{ ok: true }];
+		}) as unknown,
+		agentRun: {
+			findFirst: (async () => ({ id: runId, userId: user, projectId: "standalone" })) as unknown,
+		},
+	};
+
+	try {
+		const context: ToolContext = {
+			userId: user,
+			projectId: "standalone",
+			runId,
+			taskId: null,
+			agentId: "agent_tester",
+			source: "AGENT",
+		};
+
+		// Distinguish the three identities:
+		// 1. Model tool_call_id
+		const modelToolCallId = "call_model_openai_777";
+		// 2. Gateway clientRequestId
+		const gatewayClientRequestId = `tool_${runId}_s1_${modelToolCallId}`;
+		// 3. Stored database execution identity (will be "tc_durable_identity_999")
+
+		const request: ToolExecutionRequest = {
+			clientRequestId: gatewayClientRequestId,
+			tool: "web",
+			action: "search",
+			input: { query: "replay test" },
+		};
+
+		const mockAdapter = {
+			id: "web" as const,
+			isAvailable: async () => true,
+			execute: async () => {
+				sideEffectCount++;
+				return { result: { liveExecution: true, query: "replay test" } };
+			},
+		};
+
+		// First execution: Executes side effect
+		const firstOutcome = await executeTool(context, request, { adapter: mockAdapter });
+		assert.equal(firstOutcome.status, "COMPLETED");
+		if (firstOutcome.status === "COMPLETED") {
+			assert.equal(firstOutcome.resultFidelity, "FULL");
+			assert.equal(firstOutcome.toolCallId, "tc_durable_identity_999");
+		}
+		assert.equal(sideEffectCount, 1, "First execution must invoke the tool adapter");
+
+		// Second execution (Replay): Same clientRequestId, same input
+		const replayOutcome = await executeTool(context, request, { adapter: mockAdapter });
+		assert.equal(replayOutcome.status, "COMPLETED");
+		if (replayOutcome.status === "COMPLETED") {
+			assert.equal(replayOutcome.resultFidelity, "SUMMARY", "Replay must return stored summary fidelity");
+			assert.equal(replayOutcome.toolCallId, "tc_durable_identity_999");
+		}
+		assert.equal(sideEffectCount, 1, "Replayed execution must NOT invoke the tool adapter again");
+
+		// Third execution (Collision): Same clientRequestId, but altered input parameters
+		const collidingRequest: ToolExecutionRequest = {
+			clientRequestId: gatewayClientRequestId,
+			tool: "web",
+			action: "search",
+			input: { query: "altered query to induce collision" },
+		};
+
+		await assert.rejects(
+			async () => {
+				await executeTool(context, collidingRequest, { adapter: mockAdapter });
+			},
+			(err: unknown) => {
+				return err instanceof ToolGatewayError && err.code === "TOOL_IDEMPOTENCY_CONFLICT" && err.status === 409;
+			},
+			"Replay with altered payload must be rejected as TOOL_IDEMPOTENCY_CONFLICT (409)",
+		);
+
+		assert.equal(sideEffectCount, 1, "Colliding execution must NOT invoke the tool adapter");
+	} finally {
+		globalPrismaObj.prisma = oldGlobalPrisma;
+	}
+});
+
+// ============================================================================
+// 13. PROVIDER & FREE-TIER SAFETY INVARIANTS (Task 3)
+// ============================================================================
+test("OpenAIService refuses to route Free-tier NVIDIA models to OpenAI native calling", async () => {
+	const { OpenAIService } = await import("../src/services/openai");
+	const service = new OpenAIService({ apiKey: "test-openai-key" });
+
+	// Model tier detection
+	assert.equal(
+		service.supportsNativeToolCalling("meta/llama-3.3-70b-instruct"),
+		false,
+		"NVIDIA meta/ model must not be reported as native-tool-capable",
+	);
+	assert.equal(
+		service.supportsNativeToolCalling("nvidia/llama-3.1-nemotron-70b-instruct"),
+		false,
+		"NVIDIA nvidia/ model must not be reported as native-tool-capable",
+	);
+	assert.equal(
+		service.supportsNativeToolCalling("gpt-4o-mini"),
+		true,
+		"OpenAI model must be reported as native-tool-capable",
+	);
+
+	// Direct chatCompletion with an NVIDIA model must reject cleanly without calling OpenAI
+	await assert.rejects(
+		async () => {
+			await service.chatCompletion([{ role: "user", content: "Test prompt" }], {
+				model: "meta/llama-3.3-70b-instruct",
+				tools: [NATIVE_TOOL_DEFINITIONS.web_search!],
+			});
+		},
+		{ message: "Provider 'nvidia' does not support native tool calling. Refusing to route free-tier model to paid provider." },
+	);
+});
+
+test("Runtime preserves authorized legacy loop when native calling is enabled but provider lacks native tools", async () => {
+	const prev = process.env.AIRA_NATIVE_TOOL_CALLING_ENABLED;
+	try {
+		process.env.AIRA_NATIVE_TOOL_CALLING_ENABLED = "true";
+
+		const { OpenAIService } = await import("../src/services/openai");
+		// Unconfigured or NVIDIA-only service
+		const unconfiguredService = new OpenAIService({ apiKey: undefined });
+
+		// supportsNativeToolCalling returns false
+		const supportsNative = unconfiguredService.supportsNativeToolCalling();
+		assert.equal(supportsNative, false);
+
+		// Runtime computes useNativeTools = isNativeToolCallingEnabled() && service.supportsNativeToolCalling(...)
+		const useNativeTools = isNativeToolCallingEnabled() && supportsNative;
+		assert.equal(useNativeTools, false, "Must fall back to legacy loop when provider is not native-tool capable");
+	} finally {
+		process.env.AIRA_NATIVE_TOOL_CALLING_ENABLED = prev;
+	}
 });

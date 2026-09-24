@@ -13,7 +13,7 @@ import { createRunArtifact, listRunArtifacts } from "@/lib/agent-platform/store"
 import { VerificationResultSchema } from "@/lib/agent-platform/verification-schema";
 import type { VerificationResult } from "@/lib/agent-platform/types";
 import { executeTool } from "@/lib/tool-gateway/gateway";
-import type { AiraToolId, ToolContext } from "@/lib/tool-gateway/types";
+import { ToolGatewayError, type AiraToolId, type ToolContext } from "@/lib/tool-gateway/types";
 import { getProviderHealthSnapshot } from "@/src/services/providers/provider-health";
 import { getOpenAIService, OpenAIService } from "@/src/services/openai";
 import type OpenAI from "openai";
@@ -119,6 +119,14 @@ export function isToolExecutionSuccessful(result: unknown): boolean {
 	return status === "COMPLETED";
 }
 
+export function isBudgetExhaustedError(err: unknown): boolean {
+	if (err instanceof ToolGatewayError) {
+		return err.code === "TOOL_BUDGET_EXHAUSTED" || err.code === "MISSION_TOOL_BUDGET_EXHAUSTED";
+	}
+	const code = (err as { code?: string })?.code;
+	return code === "TOOL_BUDGET_EXHAUSTED" || code === "MISSION_TOOL_BUDGET_EXHAUSTED";
+}
+
 export function generateFallbackDeliverable(
 	objective: string,
 	name: string | undefined,
@@ -193,6 +201,10 @@ export async function submitAiraAgentRun(
 	const abortController = new AbortController();
 	activeAbortControllers.set(createdRun.id, abortController);
 
+	let finalOutput = "";
+	let verificationObj: VerificationResult | null = null;
+	const executedTools: Array<{ tool: string; action: string; result: unknown; status?: string }> = [];
+
 	try {
 		const options = input.agentExecutionOptions;
 		const projectId = options?.projectId ?? createdRun.id;
@@ -204,7 +216,8 @@ export async function submitAiraAgentRun(
 		const taskKey = options?.taskKey ?? "investigation";
 
 		const service = getOpenAIService();
-		const useNativeTools = isNativeToolCallingEnabled();
+		const useNativeTools =
+			isNativeToolCallingEnabled() && service.supportsNativeToolCalling(options?.model);
 		const nativeToolDefs = useNativeTools ? toOpenAIToolDefinitions(allowedTools) : [];
 
 		const systemPrompt = useNativeTools
@@ -263,10 +276,6 @@ export async function submitAiraAgentRun(
 		} else if (taskRole === "RESEARCH" || taskKey === "investigation") {
 			maxSteps = Math.min(2, maxSteps);
 		}
-		let finalOutput = "";
-		let verificationObj: VerificationResult | null = null;
-		const executedTools: Array<{ tool: string; action: string; result: unknown; status?: string }> = [];
-
 		while (step < maxSteps) {
 			step += 1;
 			if (abortController.signal.aborted) {
@@ -342,6 +351,20 @@ export async function submitAiraAgentRun(
 						try {
 							toolResult = await executeTool(toolContext, toolReq);
 						} catch (toolErr: unknown) {
+							if (isBudgetExhaustedError(toolErr)) {
+								toolResult = {
+									status: "FAILED",
+									error: toolErr instanceof Error ? toolErr.message : "Tool budget exhausted",
+									code: (toolErr as { code?: string })?.code,
+								};
+								executedTools.push({
+									tool: parsed.tool,
+									action: parsed.action,
+									result: toolResult,
+									status: "FAILED",
+								});
+								throw toolErr;
+							}
 							toolResult = {
 								status: "FAILED",
 								error: toolErr instanceof Error ? toolErr.message : "Tool execution failed",
@@ -421,6 +444,20 @@ export async function submitAiraAgentRun(
 				try {
 					toolResult = await executeTool(toolContext, toolReq);
 				} catch (toolErr: unknown) {
+					if (isBudgetExhaustedError(toolErr)) {
+						toolResult = {
+							status: "FAILED",
+							error: toolErr instanceof Error ? toolErr.message : "Tool budget exhausted",
+							code: (toolErr as { code?: string })?.code,
+						};
+						executedTools.push({
+							tool,
+							action,
+							result: toolResult,
+							status: "FAILED",
+						});
+						throw toolErr;
+					}
 					toolResult = { status: "FAILED", error: toolErr instanceof Error ? toolErr.message : "Tool execution failed" };
 				}
 
@@ -642,11 +679,20 @@ export async function submitAiraAgentRun(
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : "Agent execution failed.";
 
+		const partialResult = executedTools.length > 0 ? {
+			output: finalOutput || errorMessage,
+			provider: PROVIDER,
+			executedTools: executedTools.map((t) => ({ tool: t.tool, action: t.action, status: t.status })),
+			partial: true,
+			error: errorMessage,
+		} : null;
+
 		// Only mark FAILED if status was still RUNNING
 		await prisma.$executeRaw`
 			UPDATE "AgentRun"
 			SET "status" = 'FAILED'::"AgentRunStatus",
 			    "errorMessage" = ${errorMessage.slice(0, 4000)},
+			    "result" = ${partialResult ? JSON.stringify(partialResult) : null}::jsonb,
 			    "completedAt" = current_timestamp,
 			    "updatedAt" = current_timestamp
 			WHERE "id" = ${createdRun.id}
