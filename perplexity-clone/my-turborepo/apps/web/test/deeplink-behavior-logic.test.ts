@@ -1,4 +1,4 @@
-﻿/**
+/**
  * deeplink-behavior-logic.test.ts
  *
  * Behavioral logic tests for the Templates -> Research deep-link auto-run.
@@ -80,7 +80,7 @@ function simulateDeepLinkRenderCycle(opts: {
 	} = opts;
 
 	// ---- RENDER 1 state snapshot ----
-	let committedQuery = initialQuery; // the query state committed in Render 1
+	const committedQuery = initialQuery; // the query state committed in Render 1
 	let pendingAutoRunQueryRef: string | null = null;
 	let hasAutoRunUrlQueryRef: string | null = previouslyRanQParam;
 
