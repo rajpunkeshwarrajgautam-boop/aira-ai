@@ -292,3 +292,68 @@ test("SearchLayout: PR #140 deep-link pre-fill and auto-run refs remain intact",
 		"pendingAutoRunQueryRef must exist for race-free submission",
 	);
 });
+
+// ---------------------------------------------------------------------------
+// 11. Concurrency Safety: Generation Tokens & Race-Condition Guards (Gate 2)
+// ---------------------------------------------------------------------------
+
+test("SearchLayout: monotonic generation tokens guard request and selection lifecycles", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	assert.ok(
+		src.includes("const searchGenerationRef = useRef(0);"),
+		"searchGenerationRef must track active search generation",
+	);
+	assert.ok(
+		src.includes("const conversationSelectionGenerationRef = useRef(0);"),
+		"conversationSelectionGenerationRef must track active conversation selection",
+	);
+});
+
+test("SearchLayout: onCreateConversation invalidates generation tokens and aborts active requests", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	const match = src.match(/const onCreateConversation = useCallback\(async \(\) => {([\s\S]*?)}, \[router\]\);/);
+	assert.ok(match, "onCreateConversation must be defined");
+	const body = match[1] ?? "";
+	assert.ok(
+		body.includes("searchGenerationRef.current += 1;"),
+		"onCreateConversation must advance searchGenerationRef to cancel in-flight search callbacks",
+	);
+	assert.ok(
+		body.includes("conversationSelectionGenerationRef.current += 1;"),
+		"onCreateConversation must advance conversationSelectionGenerationRef",
+	);
+	assert.ok(
+		body.includes("abortRef.current?.abort()"),
+		"onCreateConversation must abort active network fetch",
+	);
+});
+
+test("SearchLayout: runSearch initializes AbortController and generation token before conversation creation", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	const runSearchIdx = src.indexOf("const runSearch = useCallback");
+	const createConvIdx = src.indexOf("await createConversation(q, controller.signal, currentGeneration)", runSearchIdx);
+	const controllerInitIdx = src.indexOf("const controller = new AbortController();", runSearchIdx);
+	const genInitIdx = src.indexOf("const currentGeneration = ++searchGenerationRef.current;", runSearchIdx);
+
+	assert.ok(runSearchIdx > 0, "runSearch must exist");
+	assert.ok(controllerInitIdx > 0, "AbortController must be instantiated in runSearch");
+	assert.ok(genInitIdx > 0, "currentGeneration must be incremented in runSearch");
+	assert.ok(createConvIdx > 0, "createConversation must receive controller.signal and currentGeneration");
+	assert.ok(
+		controllerInitIdx < createConvIdx,
+		"AbortController must be assigned BEFORE createConversation is awaited",
+	);
+	assert.ok(
+		genInitIdx < createConvIdx,
+		"Generation token must be assigned BEFORE createConversation is awaited",
+	);
+});
+
+test("SearchLayout: catch block rejects stale AbortError and errors from previous generations", () => {
+	const src = readWebFile("components/SearchLayout.tsx");
+	assert.ok(
+		/if\s*\(currentGeneration\s*!==\s*searchGenerationRef\.current\)\s*{\s*return;\s*}/.test(src),
+		"Catch block must verify currentGeneration === searchGenerationRef.current before modifying state",
+	);
+});
+

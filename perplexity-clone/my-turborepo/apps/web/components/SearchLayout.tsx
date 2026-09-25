@@ -184,6 +184,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const pendingAutoRunQueryRef = useRef<string | null>(null);
 	/** Last submitted question (state is cleared at search start; used for sign-in callback URLs). */
 	const lastSubmittedQueryRef = useRef("");
+	/** Monotonic generation counter to reject stale async operations (New Chat, Stop, switching) */
+	const searchGenerationRef = useRef(0);
+	/** Monotonic generation counter for conversation selection to prevent race conditions */
+	const conversationSelectionGenerationRef = useRef(0);
 
 	const searchParams = useSearchParams();
 	useEffect(() => {
@@ -394,48 +398,83 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const onSelectConversation = useCallback(
 		async (id: string) => {
-			if (busy) {
-				abortRef.current?.abort();
-			}
+			// Invalidate any active search or previous selection
+			searchGenerationRef.current += 1;
+			const currentSelectionGen = ++conversationSelectionGenerationRef.current;
+			abortRef.current?.abort();
+
 			if (sessionStatus !== "authenticated") return;
 			setSelectedConversationId(id);
 			setShareContext(null);
+			setStreamingUserQuery(null);
+			setStreamingAssistantMarkdown(null);
+			setStreamingCitations([]);
+			setErrorMessage(null);
+			setPhase("idle");
+
 			try {
 				const meta = await apiFetchJson<{
 					readonly conversation: { readonly id: string; readonly title: string };
 				}>(`/api/conversations/${encodeURIComponent(id)}`, { method: "GET" });
+				if (currentSelectionGen !== conversationSelectionGenerationRef.current) return;
 				setSelectedConversationTitle(meta.conversation.title);
 			} catch {
+				if (currentSelectionGen !== conversationSelectionGenerationRef.current) return;
 				setSelectedConversationTitle(null);
 			}
-			setStreamingUserQuery(null);
-			setStreamingAssistantMarkdown(null);
-			setStreamingCitations([]);
-			await fetchMessagesForConversation(id);
-			setErrorMessage(null);
-			setPhase("idle");
+
+			try {
+				const rows = await apiFetchJson<{ readonly messages: readonly ConversationMessageDto[] }>(
+					`/api/conversations/${encodeURIComponent(id)}/messages?limit=500`,
+					{ method: "GET" },
+				);
+				if (currentSelectionGen !== conversationSelectionGenerationRef.current) return;
+				setMessages(rows.messages);
+				const lastAssistant = [...rows.messages].reverse().find((m) => m.role === "ASSISTANT");
+				setParentMessageId(lastAssistant?.id);
+			} catch {
+				// Ignore if navigated away
+			}
 		},
-		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
+		[apiFetchJson, sessionStatus],
 	);
 
 	const createConversation = useCallback(
-		async (initialQuery?: string): Promise<string> => {
+		async (initialQuery?: string, signal?: AbortSignal, expectedGen?: number): Promise<string | null> => {
 			const payload: Record<string, unknown> = {};
 			if (initialQuery && initialQuery.trim().length > 0) {
 				payload.initialQuery = initialQuery.trim();
 			}
 
-			const created = await apiFetchJson<{ readonly conversation: ConversationSummary }>(
-				"/api/conversations",
-				{ method: "POST", body: JSON.stringify(payload) },
-			);
+			const res = await fetch("/api/conversations", {
+				method: "POST",
+				body: JSON.stringify(payload),
+				signal,
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
+
+			if (!res.ok) {
+				const parsed = (await res.json().catch(() => null)) as ApiErrorBody | null;
+				throw new Error(parsed?.error?.message ?? `Request failed (${res.status})`);
+			}
+
+			const created = (await res.json()) as { readonly conversation: ConversationSummary };
+
+			// Concurrency guard: if user navigated away or started a newer search, do NOT set conversation state
+			if (expectedGen !== undefined && expectedGen !== searchGenerationRef.current) {
+				return null;
+			}
+
 			setSelectedConversationId(created.conversation.id);
 			setSelectedConversationTitle(created.conversation.title);
 			setMessages([]);
 			setParentMessageId(undefined);
 			return created.conversation.id;
 		},
-		[apiFetchJson],
+		[],
 	);
 
 	useEffect(() => {
@@ -480,13 +519,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			if (prev.trim().length > 0) return prev;
 			return qParam;
 		});
-		// Set the pending auto-run ref in the effect body (not inside the updater)
-		// so it is never subject to React's double-invocation in Strict Mode or
-		// concurrent-mode render abandonment. We only arm the auto-run when the
-		// current committed query is empty (same condition as the updater).
-		if (!query.trim()) {
-			pendingAutoRunQueryRef.current = qParam;
+		// Arm the auto-run for this URL query
+		pendingAutoRunQueryRef.current = qParam;
+		if (query.trim() === qParam) {
+			pendingAutoRunQueryRef.current = null;
+			void runSearch();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [sessionStatus, searchParams, busy, query]);
 
 
@@ -588,7 +627,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	}, [sessionStatus, refreshBilling]);
 
 	const onCreateConversation = useCallback(async () => {
+		// Invalidate any in-flight search or conversation selection
+		searchGenerationRef.current += 1;
+		conversationSelectionGenerationRef.current += 1;
 		abortRef.current?.abort();
+
 		setSelectedConversationId(null);
 		setSelectedConversationTitle(null);
 		setMessages([]);
@@ -610,6 +653,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		}
 		requestAnimationFrame(() => searchBoxRef.current?.focus());
 	}, [router]);
+
+	const handleStop = useCallback(() => {
+		abortRef.current?.abort();
+	}, []);
 
 	useEffect(() => {
 		const handleNewChat = () => {
@@ -717,21 +764,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			return;
 		}
 
-		let conversationId: string | null = selectedConversationId;
-
-		if (!isGuest) {
-			if (!conversationId) {
-				conversationId = await createConversation(q);
-			}
-		} else {
-			conversationId = null;
-		}
-
-		lastSubmittedQueryRef.current = q;
-
+		// Arm AbortController and monotonic generation token BEFORE any async calls (including conversation creation)
 		abortRef.current?.abort();
 		const controller = new AbortController();
 		abortRef.current = controller;
+		const currentGeneration = ++searchGenerationRef.current;
 
 		setErrorMessage(null);
 		setErrorCode(null);
@@ -744,42 +781,66 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setPhase("connecting");
 		answerStreamStartedLoggedRef.current = false;
 
-			try {
-				logProductEvent({
-					event: "search_submitted",
-					surface: messages.length === 0 ? "home" : "search",
-					userType: isGuest ? "guest" : "signed_in",
-					queryLength: q.length,
-				});
-			} catch {
-				// ignore analytics
-			}
+		let conversationId: string | null = selectedConversationId;
 
-			try {
-				const response = await fetch("/api/search", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(
-						isGuest
-							? {
-									query: q,
-									mode: "standard",
-									presetId: selectedPresetId,
-									model: chosenModel,
-								}
-							: {
-									query: q,
-									conversationId,
-									parentMessageId,
-									continueResearch: Boolean(parentMessageId),
-									mode: currentMode,
-									presetId: selectedPresetId,
-									model: chosenModel,
-								},
-					),
-					signal: controller.signal,
-					credentials: "include",
-				});
+		if (!isGuest) {
+			if (!conversationId) {
+				try {
+					conversationId = await createConversation(q, controller.signal, currentGeneration);
+				} catch (e) {
+					if (currentGeneration !== searchGenerationRef.current) return;
+					if (controller.signal.aborted) return;
+					throw e;
+				}
+				// If user clicked New Chat, Stop, or switched conversations while createConversation was awaiting:
+				if (currentGeneration !== searchGenerationRef.current) return;
+			}
+		} else {
+			conversationId = null;
+		}
+
+		lastSubmittedQueryRef.current = q;
+
+		try {
+			logProductEvent({
+				event: "search_submitted",
+				surface: messages.length === 0 ? "home" : "search",
+				userType: isGuest ? "guest" : "signed_in",
+				queryLength: q.length,
+			});
+		} catch {
+			// ignore analytics
+		}
+
+		let streamedAnswer = "";
+
+		try {
+			if (currentGeneration !== searchGenerationRef.current) return;
+			const response = await fetch("/api/search", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(
+					isGuest
+						? {
+								query: q,
+								mode: "standard",
+								presetId: selectedPresetId,
+								model: chosenModel,
+							}
+						: {
+								query: q,
+								conversationId,
+								parentMessageId,
+								continueResearch: Boolean(parentMessageId),
+								mode: currentMode,
+								presetId: selectedPresetId,
+								model: chosenModel,
+							},
+				),
+				signal: controller.signal,
+				credentials: "include",
+			});
+			if (currentGeneration !== searchGenerationRef.current) return;
 
 			if (!response.ok) {
 				const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
@@ -879,10 +940,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			let sawDone = false;
 			let doneConversationId: string | undefined;
 			let doneMessageId: string | undefined;
-			let streamedAnswer = "";
+			streamedAnswer = "";
 			let finalCitations: CitationItem[] = [];
 
 			const processBlock = (raw: string) => {
+				if (currentGeneration !== searchGenerationRef.current) return;
 				try {
 					const block = parseSseBlock(raw);
 					if (!block) return;
@@ -987,7 +1049,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			};
 
 			while (true) {
+				if (currentGeneration !== searchGenerationRef.current) {
+					reader.cancel().catch(() => {});
+					return;
+				}
 				const { done, value } = await reader.read();
+				if (currentGeneration !== searchGenerationRef.current) {
+					reader.cancel().catch(() => {});
+					return;
+				}
 				if (done) {
 					if (buffer.trim().length > 0) {
 						processBlock(buffer);
@@ -997,6 +1067,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				buffer += decoder.decode(value, { stream: true });
 
 				while (true) {
+					if (currentGeneration !== searchGenerationRef.current) {
+						reader.cancel().catch(() => {});
+						return;
+					}
 					const match = buffer.match(/\r?\n\r?\n/);
 					if (!match) break;
 
@@ -1007,6 +1081,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					processBlock(raw);
 				}
 			}
+
+			if (currentGeneration !== searchGenerationRef.current) return;
 
 			if (!sawDone) {
 				setPhase((p) => (p === "streaming" || p === "connecting" ? "complete" : p));
@@ -1054,23 +1130,31 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			// Refetch persisted full history inside the selected thread.
 			if (!isGuest && sawDone && (doneConversationId ?? conversationId)) {
 				const finalId = doneConversationId ?? conversationId!;
+				if (currentGeneration !== searchGenerationRef.current) return;
 				await fetchMessagesForConversation(finalId);
+				if (currentGeneration !== searchGenerationRef.current) return;
 				void refreshBilling();
 			}
 
-			setStreamingUserQuery(null);
-			setStreamingAssistantMarkdown(null);
-			setStreamingCitations([]);
-		} catch (e: unknown) {
-			if (e instanceof DOMException && e.name === "AbortError") {
-				// A client-side abort (user navigated away, submitted new query, etc)
-				// is an expected cancellation, NOT a system failure. Do not log search_failed.
-				setPhase("idle");
-				setErrorMessage(null);
-				setErrorCode(null);
+			if (currentGeneration === searchGenerationRef.current) {
 				setStreamingUserQuery(null);
 				setStreamingAssistantMarkdown(null);
 				setStreamingCitations([]);
+			}
+		} catch (e: unknown) {
+			if (currentGeneration !== searchGenerationRef.current) {
+				return;
+			}
+			if (e instanceof DOMException && e.name === "AbortError") {
+				// A client-side abort (user pressed Stop).
+				setPhase("idle");
+				setErrorMessage(null);
+				setErrorCode(null);
+				if (streamedAnswer.trim().length === 0) {
+					setStreamingUserQuery(null);
+					setStreamingAssistantMarkdown(null);
+					setStreamingCitations([]);
+				}
 				return;
 			}
 			const raw = e instanceof Error ? e.message : "Unexpected error.";
@@ -1168,7 +1252,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				onSubmit={(ctx) => void runSearch(ctx)}
 				disabled={false}
 				isBusy={busy}
-				onCancel={() => abortRef.current?.abort()}
+				onCancel={handleStop}
 				placeholder={
 					!isAuthed
 						? "Ask anything or delegate an autonomous mission..."
@@ -1441,7 +1525,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									}}
 									statusText={statusText}
 									elapsedMs={elapsedMs}
-									onCancel={() => abortRef.current?.abort()}
+									onCancel={handleStop}
 									desktopSourcesOpen={desktopSourcesOpen}
 									onToggleDesktopSources={() => setDesktopSourcesOpen((o) => !o)}
 									onOpenMobileSources={() => setMobileSourcesOpen(true)}

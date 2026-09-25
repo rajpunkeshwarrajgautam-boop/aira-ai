@@ -515,7 +515,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									role="listbox"
 									aria-label="Intelligence model"
 									aria-labelledby={`${modelMenuId}-trigger`}
-									className="hidden sm:block absolute bottom-[calc(100%+12px)] left-0 z-50 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[rgba(17,17,21,0.1)] bg-white/95 p-2 shadow-2xl backdrop-blur-xl"
+									className="hidden sm:block absolute bottom-[calc(100%+12px)] left-0 z-50 w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto rounded-2xl border border-[rgba(17,17,21,0.1)] bg-white/95 p-2 shadow-2xl backdrop-blur-xl"
 								>
 									<p className="px-3 pb-2 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-[#111111]/60" aria-hidden>
 										Intelligence Core
