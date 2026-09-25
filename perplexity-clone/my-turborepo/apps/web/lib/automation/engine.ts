@@ -283,9 +283,29 @@ export class AutomationEngine {
 			// fail-safe write
 		}
 
-		// 2. Runs
+		// 2. Runs (merge from disk to prevent clobbering concurrent run writes)
 		try {
-			const tempRuns = `${this.runsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			if (existsSync(this.runsPath)) {
+				try {
+					const diskRaw = readFileSync(this.runsPath, "utf8");
+					const diskParsed = JSON.parse(diskRaw);
+					if (Array.isArray(diskParsed)) {
+						const runMap = new Map(this.executionHistory.map((r) => [r.id, r]));
+						for (const r of diskParsed) {
+							const inMem = runMap.get(r.id);
+							if (!inMem) {
+								runMap.set(r.id, r);
+							} else if (inMem.status === "RUNNING" && r.status !== "RUNNING") {
+								runMap.set(r.id, r);
+							}
+						}
+						this.executionHistory = Array.from(runMap.values());
+					}
+				} catch {
+					// ignore
+				}
+			}
+			const tempRuns = `${this.runsPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
 			try {
 				writeFileSync(tempRuns, JSON.stringify(this.executionHistory, null, 2), "utf8");
 				renameSync(tempRuns, this.runsPath);
@@ -297,8 +317,32 @@ export class AutomationEngine {
 			// fail-safe write
 		}
 
-		// 3. Notifications
+		// 3. Notifications (merge from disk to prevent clobbering concurrent notification writes)
 		try {
+			if (existsSync(this.notificationsPath)) {
+				try {
+					const diskRaw = readFileSync(this.notificationsPath, "utf8");
+					const diskParsed = JSON.parse(diskRaw);
+					if (typeof diskParsed === "object" && diskParsed !== null) {
+						for (const [k, v] of Object.entries(diskParsed)) {
+							if (Array.isArray(v)) {
+								const existing = this.notifications.get(k) ?? [];
+								const existingIds = new Set(existing.map((n) => n.id));
+								const merged = [...existing];
+								for (const n of v as NotificationItem[]) {
+									if (!existingIds.has(n.id)) {
+										merged.push(n);
+										existingIds.add(n.id);
+									}
+								}
+								this.notifications.set(k, merged);
+							}
+						}
+					}
+				} catch {
+					// ignore
+				}
+			}
 			const notifsObj = Object.fromEntries(this.notifications.entries());
 			const tempN = `${this.notificationsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
 			try {
@@ -682,6 +726,24 @@ export class AutomationEngine {
 					};
 				}
 			} else {
+				if (existsSync(this.runsPath)) {
+					try {
+						const diskRaw = readFileSync(this.runsPath, "utf8");
+						const diskParsed = JSON.parse(diskRaw);
+						if (Array.isArray(diskParsed)) {
+							const runMap = new Map(this.executionHistory.map((r) => [r.id, r]));
+							for (const r of diskParsed) {
+								const inMem = runMap.get(r.id);
+								if (!inMem || (inMem.status === "RUNNING" && r.status !== "RUNNING")) {
+									runMap.set(r.id, r);
+								}
+							}
+							this.executionHistory = Array.from(runMap.values());
+						}
+					} catch {
+						// ignore
+					}
+				}
 				const existing = this.executionHistory.find(
 					(e) => e.idempotencyKey === options.idempotencyKey && e.userId === userId && (e.status === "COMPLETED" || e.status === "SUCCEEDED"),
 				);
@@ -1241,6 +1303,17 @@ export class AutomationEngine {
 	}
 
 	getUserNotifications(userId: string): readonly NotificationItem[] {
+		try {
+			if (existsSync(this.notificationsPath)) {
+				const raw = readFileSync(this.notificationsPath, "utf8");
+				const parsed = JSON.parse(raw);
+				if (typeof parsed === "object" && parsed !== null && Array.isArray(parsed[userId])) {
+					return parsed[userId] as readonly NotificationItem[];
+				}
+			}
+		} catch {
+			// fallback
+		}
 		return this.notifications.get(userId) ?? [];
 	}
 
