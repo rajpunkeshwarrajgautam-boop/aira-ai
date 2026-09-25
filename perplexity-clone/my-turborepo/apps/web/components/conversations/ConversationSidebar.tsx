@@ -11,8 +11,8 @@ import { UsageIndicator } from "../UsageIndicator";
 export interface ConversationSummary {
 	readonly id: string;
 	readonly title: string;
-	readonly lastMessageAt: string;
-	readonly createdAt: string;
+	readonly lastMessageAt?: string;
+	readonly createdAt?: string;
 }
 
 export interface ConversationSidebarProps {
@@ -24,14 +24,21 @@ export interface ConversationSidebarProps {
 	readonly className?: string;
 }
 
-function relativeDays(iso: string): number {
+function parseValidDate(iso?: string | null): Date | null {
+	if (!iso) return null;
 	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) return 999;
+	return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function relativeDays(iso?: string | null): number {
+	const date = parseValidDate(iso);
+	if (!date) return 999;
 	return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
 }
 
-function formatRelative(iso: string): string {
-	const date = new Date(iso);
+function formatRelative(iso?: string | null): string {
+	const date = parseValidDate(iso);
+	if (!date) return "";
 	const days = relativeDays(iso);
 	if (days === 0) return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
 	if (days === 1) return "Yesterday";
@@ -39,7 +46,7 @@ function formatRelative(iso: string): string {
 	return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
 }
 
-function groupLabel(iso: string): "Today" | "Previous 7 Days" | "Older" {
+function groupLabel(iso?: string | null): "Today" | "Previous 7 Days" | "Older" {
 	const days = relativeDays(iso);
 	if (days === 0) return "Today";
 	if (days < 7) return "Previous 7 Days";
@@ -60,7 +67,11 @@ export function ConversationSidebar({
 	const deepLinkInFlightRef = useRef<string | null>(null);
 	const [filter, setFilter] = useState("");
 	const sorted = useMemo(
-		() => [...conversations].sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1)),
+		() => [...conversations].sort((a, b) => {
+			const timeA = a.lastMessageAt || a.createdAt || "";
+			const timeB = b.lastMessageAt || b.createdAt || "";
+			return timeA < timeB ? 1 : -1;
+		}),
 		[conversations],
 	);
 	const filtered = useMemo(() => {
@@ -71,7 +82,7 @@ export function ConversationSidebar({
 	const groups = useMemo(() => {
 		const result = new Map<string, ConversationSummary[]>();
 		for (const conversation of filtered) {
-			const label = groupLabel(conversation.lastMessageAt);
+			const label = groupLabel(conversation.lastMessageAt || conversation.createdAt);
 			const current = result.get(label) ?? [];
 			current.push(conversation);
 			result.set(label, current);
@@ -130,8 +141,7 @@ export function ConversationSidebar({
 					<button
 						type="button"
 						onClick={onCreateConversation}
-						disabled={disabled}
-						className="aira-new-chat flex h-10 w-full items-center justify-between rounded-xl bg-[#3A0CA3] px-3 text-[12px] font-medium text-white shadow-sm transition hover:bg-[#2D0A82] disabled:opacity-50"
+						className="aira-new-chat flex h-10 w-full items-center justify-between rounded-xl bg-[#3A0CA3] px-3 text-[12px] font-medium text-white shadow-sm transition hover:bg-[#2D0A82] active:scale-[0.98]"
 					>
 						<span className="flex items-center gap-2"><Plus className="size-4" strokeWidth={1.8} aria-hidden />New conversation</span>
 						<span className="rounded-md bg-white/20 px-1.5 py-0.5 font-mono text-[9px] text-white">⌘⇧O</span>
@@ -185,7 +195,7 @@ export function ConversationSidebar({
 														)}
 													>
 														<span className="min-w-0 flex-1 truncate text-[12px]">{conversation.title}</span>
-														<span className="shrink-0 text-[10px] tabular-nums text-[#8F8E98]">{formatRelative(conversation.lastMessageAt)}</span>
+														<span className="shrink-0 text-[10px] tabular-nums text-[#8F8E98]">{formatRelative(conversation.lastMessageAt || conversation.createdAt)}</span>
 													</button>
 												</li>
 											);

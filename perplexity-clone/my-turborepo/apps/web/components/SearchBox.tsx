@@ -337,7 +337,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						name="query"
 						rows={1}
 						value={value}
-						disabled={busy}
+						disabled={disabled}
 						aria-controls={showCommandMenu ? commandMenuId : undefined}
 						aria-expanded={showCommandMenu}
 						onChange={(event) => {
@@ -389,7 +389,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 					{contextMenuOpen ? (
 						<div
 							id={contextMenuId}
-							className="absolute bottom-[calc(100%+16px)] left-0 z-50 w-72 overflow-hidden rounded-2xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl"
+							className="absolute bottom-[calc(100%+16px)] left-0 z-50 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl"
 						>
 							<p className="px-3 pb-2 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0F172A]/50">
 								Research Sources
@@ -445,52 +445,120 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						</button>
 
 						{modelMenuOpen ? (
-							<div
-								id={modelMenuId}
-								role="listbox"
-								aria-label="Intelligence model"
-								aria-labelledby={`${modelMenuId}-trigger`}
-								className="absolute bottom-[calc(100%+16px)] right-0 z-50 max-w-[calc(100vw-2rem)] w-72 overflow-hidden rounded-2xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl"
-							>
-								<p className="px-3 pb-2 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0F172A]/50" aria-hidden>
-									Intelligence Core
-								</p>
-								<div className="space-y-1">
-									{MODEL_OPTIONS.map((opt) => {
-										const isSelected = opt.id === selectedModel;
-										return (
+							<>
+								{/* Mobile Drawer/Modal (sm:hidden) */}
+								<div
+									className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm sm:hidden"
+									onClick={() => setModelMenuOpen(false)}
+								>
+									<div
+										id={modelMenuId}
+										role="listbox"
+										aria-label="Intelligence model"
+										aria-labelledby={`${modelMenuId}-trigger`}
+										onClick={(e) => e.stopPropagation()}
+										className="w-full max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-[#EAEAEA] bg-white p-4 shadow-2xl animate-in slide-in-from-bottom duration-200"
+									>
+										<div className="flex items-center justify-between pb-3 border-b border-[#EAEAEA]">
+											<p className="text-[11px] font-bold uppercase tracking-widest text-[#111111]/70" aria-hidden>
+												Select Intelligence Core
+											</p>
 											<button
-												key={opt.id}
 												type="button"
-												role="option"
-												aria-selected={isSelected}
-												onClick={() => {
-													setSelectedModel(opt.id);
-													if (opt.id === "deep" && !value.startsWith("/deep ")) {
-														onChange(`/deep ${value.trim()}`);
-													}
-													setModelMenuOpen(false);
-													// Restore focus to trigger, then textarea after a tick
-													requestAnimationFrame(() => {
-														modelTriggerRef.current?.focus();
-														window.setTimeout(() => taRef.current?.focus(), 100);
-													});
-												}}
-												className={cn(
-													"flex w-full items-start justify-between rounded-xl px-3 py-2.5 text-left transition",
-													isSelected ? "bg-[#0F172A]/5" : "hover:bg-[#0F172A]/5",
-												)}
+												onClick={() => setModelMenuOpen(false)}
+												className="grid size-7 place-items-center rounded-md text-[#525252] hover:bg-[#F4F4F5]"
+												aria-label="Close model selector"
 											>
-												<div>
-													<p className="text-[13px] font-bold text-[#0F172A]">{opt.label}</p>
-													<p className="mt-1 text-[11px] font-medium text-[#0F172A]/60">{opt.description}</p>
-												</div>
-												{isSelected && <div className="mt-1 size-2 rounded-full bg-[#8B7CFF]" aria-hidden />}
+												<X className="size-4" />
 											</button>
-										);
-									})}
+										</div>
+										<div className="space-y-1.5 pt-3">
+											{MODEL_OPTIONS.map((opt) => {
+												const isSelected = opt.id === selectedModel;
+												return (
+													<button
+														key={opt.id}
+														type="button"
+														role="option"
+														aria-selected={isSelected}
+														onClick={() => {
+															setSelectedModel(opt.id);
+															if (opt.id === "deep" && !value.startsWith("/deep ")) {
+																onChange(`/deep ${value.trim()}`);
+															}
+															setModelMenuOpen(false);
+															requestAnimationFrame(() => taRef.current?.focus());
+														}}
+														className={cn(
+															"flex w-full items-start justify-between rounded-xl p-3 text-left transition border",
+															isSelected ? "border-[#111111] bg-[#F4F4F5]" : "border-transparent hover:bg-[#F4F4F5]",
+														)}
+													>
+														<div>
+															<div className="flex items-center gap-2">
+																<p className="text-[13px] font-bold text-[#111111]">{opt.label}</p>
+																<span className="rounded-md bg-[#111111]/5 px-1.5 py-0.5 text-[9px] font-semibold text-[#525252]">{opt.badge}</span>
+															</div>
+															<p className="mt-1 text-[11px] font-medium text-[#525252]">{opt.description}</p>
+														</div>
+														{isSelected && <div className="mt-1 size-2 rounded-full bg-[#111111]" aria-hidden />}
+													</button>
+												);
+											})}
+										</div>
+									</div>
 								</div>
-							</div>
+
+								{/* Desktop Popover (hidden sm:block) */}
+								<div
+									id={`${modelMenuId}-desktop`}
+									role="listbox"
+									aria-label="Intelligence model"
+									aria-labelledby={`${modelMenuId}-trigger`}
+									className="hidden sm:block absolute bottom-[calc(100%+12px)] left-0 z-50 w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto rounded-2xl border border-[rgba(17,17,21,0.1)] bg-white/95 p-2 shadow-2xl backdrop-blur-xl"
+								>
+									<p className="px-3 pb-2 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-[#111111]/60" aria-hidden>
+										Intelligence Core
+									</p>
+									<div className="space-y-1">
+										{MODEL_OPTIONS.map((opt) => {
+											const isSelected = opt.id === selectedModel;
+											return (
+												<button
+													key={opt.id}
+													type="button"
+													role="option"
+													aria-selected={isSelected}
+													onClick={() => {
+														setSelectedModel(opt.id);
+														if (opt.id === "deep" && !value.startsWith("/deep ")) {
+															onChange(`/deep ${value.trim()}`);
+														}
+														setModelMenuOpen(false);
+														requestAnimationFrame(() => {
+															modelTriggerRef.current?.focus();
+															window.setTimeout(() => taRef.current?.focus(), 100);
+														});
+													}}
+													className={cn(
+														"flex w-full items-start justify-between rounded-xl px-3 py-2.5 text-left transition",
+														isSelected ? "bg-[#111111]/5" : "hover:bg-[#111111]/5",
+													)}
+												>
+													<div>
+														<div className="flex items-center gap-1.5">
+															<p className="text-[13px] font-bold text-[#111111]">{opt.label}</p>
+															<span className="rounded bg-[#111111]/5 px-1 py-0.2 text-[9px] font-medium text-[#525252]">{opt.badge}</span>
+														</div>
+														<p className="mt-1 text-[11px] font-medium text-[#6B6A75]">{opt.description}</p>
+													</div>
+													{isSelected && <div className="mt-1 size-2 rounded-full bg-[#111111]" aria-hidden />}
+												</button>
+											);
+										})}
+									</div>
+								</div>
+							</>
 						) : null}
 					</div>
 
@@ -520,6 +588,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								type="button"
 								onClick={onCancel}
 								size="icon"
+								aria-label="Stop research"
+								title="Stop research"
 								className="size-8 rounded-[6px] border-0 bg-[#111111] text-white transition hover:bg-[#2B2B2B]"
 							>
 								<Square className="size-3.5 fill-current" />

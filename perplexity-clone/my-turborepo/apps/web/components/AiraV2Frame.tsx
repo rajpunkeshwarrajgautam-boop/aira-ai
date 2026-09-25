@@ -87,10 +87,22 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
       </div>
       
       <div className="px-3 pb-4">
-        <Link href="/" onClick={() => setMobileNavOpen(false)} className="flex w-full items-center justify-between rounded-[6px] bg-[#111111] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition hover:bg-[#2B2B2B] active:scale-[0.98]">
+        <button
+          type="button"
+          onClick={() => {
+            setMobileNavOpen(false);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("aira:new-chat"));
+            }
+            if (pathname !== "/") {
+              router.push("/");
+            }
+          }}
+          className="flex w-full items-center justify-between rounded-[6px] bg-[#111111] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition hover:bg-[#2B2B2B] active:scale-[0.98]"
+        >
           <span>New Chat</span>
           <Plus className="size-4" strokeWidth={2.5} />
-        </Link>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label="Primary workspace">

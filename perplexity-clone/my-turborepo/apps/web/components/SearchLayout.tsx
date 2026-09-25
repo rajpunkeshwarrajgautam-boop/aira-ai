@@ -7,7 +7,7 @@ interface ProgressPayload {
 	readonly elapsedMs: number;
 }
 
-import { Sparkles, RotateCw, Menu, X, History } from "lucide-react";
+import { Sparkles, RotateCw, Menu, X, History, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -184,6 +184,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const pendingAutoRunQueryRef = useRef<string | null>(null);
 	/** Last submitted question (state is cleared at search start; used for sign-in callback URLs). */
 	const lastSubmittedQueryRef = useRef("");
+	/** Monotonic generation counter to reject stale async operations (New Chat, Stop, switching) */
+	const searchGenerationRef = useRef(0);
+	/** Monotonic generation counter for conversation selection to prevent race conditions */
+	const conversationSelectionGenerationRef = useRef(0);
 
 	const searchParams = useSearchParams();
 	useEffect(() => {
@@ -216,7 +220,55 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
+	const [desktopSourcesOpen, setDesktopSourcesOpen] = useState(true);
+	const [mobileSourcesOpen, setMobileSourcesOpen] = useState(false);
+	const [elapsedMs, setElapsedMs] = useState(0);
+	const [showScrollBottom, setShowScrollBottom] = useState(false);
+	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+	const isNearBottomRef = useRef(true);
 	const [canvasOpen, setCanvasOpen] = useState(false);
+
+	useEffect(() => {
+		if (!busy) {
+			setElapsedMs(0);
+			return;
+		}
+		const startTime = Date.now();
+		const interval = setInterval(() => {
+			setElapsedMs(Date.now() - startTime);
+		}, 100);
+		return () => clearInterval(interval);
+	}, [busy]);
+
+	const handleScroll = useCallback(() => {
+		const el = scrollContainerRef.current;
+		if (!el) return;
+		const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+		const nearBottom = distanceFromBottom < 100;
+		isNearBottomRef.current = nearBottom;
+		setShowScrollBottom(distanceFromBottom > 150);
+	}, []);
+
+	const activeCitations = useMemo<readonly CitationItem[]>(() => {
+		if (streamingCitations.length > 0) return streamingCitations;
+		for (let i = messages.length - 1; i >= 0; i--) {
+			const m = messages[i];
+			if (m && m.role === "ASSISTANT" && Array.isArray(m.citations) && m.citations.length > 0) {
+				return m.citations as readonly CitationItem[];
+			}
+		}
+		return [];
+	}, [streamingCitations, messages]);
+
+	const scrollToBottom = useCallback(() => {
+		const el = scrollContainerRef.current;
+		if (el) {
+			const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+			el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion ? "auto" : "smooth" });
+			isNearBottomRef.current = true;
+			setShowScrollBottom(false);
+		}
+	}, []);
 
 	useEffect(() => {
 		const onToggle = () => setCanvasOpen((prev) => !prev);
@@ -241,6 +293,14 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			!(streamingAssistantMarkdown && streamingAssistantMarkdown.length > 0),
 		[busy, streamingUserQuery, streamingAssistantMarkdown],
 	);
+
+	useEffect(() => {
+		if (!busy || !isNearBottomRef.current) return;
+		const el = scrollContainerRef.current;
+		if (el) {
+			el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+		}
+	}, [busy, streamingAssistantMarkdown, showAssistantSkeleton]);
 
 	const showConversationEmpty = useMemo(
 		() =>
@@ -338,46 +398,83 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 
 	const onSelectConversation = useCallback(
 		async (id: string) => {
-			if (busy) return;
+			// Invalidate any active search or previous selection
+			searchGenerationRef.current += 1;
+			const currentSelectionGen = ++conversationSelectionGenerationRef.current;
+			abortRef.current?.abort();
+
 			if (sessionStatus !== "authenticated") return;
 			setSelectedConversationId(id);
 			setShareContext(null);
+			setStreamingUserQuery(null);
+			setStreamingAssistantMarkdown(null);
+			setStreamingCitations([]);
+			setErrorMessage(null);
+			setPhase("idle");
+
 			try {
 				const meta = await apiFetchJson<{
 					readonly conversation: { readonly id: string; readonly title: string };
 				}>(`/api/conversations/${encodeURIComponent(id)}`, { method: "GET" });
+				if (currentSelectionGen !== conversationSelectionGenerationRef.current) return;
 				setSelectedConversationTitle(meta.conversation.title);
 			} catch {
+				if (currentSelectionGen !== conversationSelectionGenerationRef.current) return;
 				setSelectedConversationTitle(null);
 			}
-			setStreamingUserQuery(null);
-			setStreamingAssistantMarkdown(null);
-			setStreamingCitations([]);
-			await fetchMessagesForConversation(id);
-			setErrorMessage(null);
-			setPhase("idle");
+
+			try {
+				const rows = await apiFetchJson<{ readonly messages: readonly ConversationMessageDto[] }>(
+					`/api/conversations/${encodeURIComponent(id)}/messages?limit=500`,
+					{ method: "GET" },
+				);
+				if (currentSelectionGen !== conversationSelectionGenerationRef.current) return;
+				setMessages(rows.messages);
+				const lastAssistant = [...rows.messages].reverse().find((m) => m.role === "ASSISTANT");
+				setParentMessageId(lastAssistant?.id);
+			} catch {
+				// Ignore if navigated away
+			}
 		},
-		[apiFetchJson, busy, fetchMessagesForConversation, sessionStatus],
+		[apiFetchJson, sessionStatus],
 	);
 
 	const createConversation = useCallback(
-		async (initialQuery?: string): Promise<string> => {
+		async (initialQuery?: string, signal?: AbortSignal, expectedGen?: number): Promise<string | null> => {
 			const payload: Record<string, unknown> = {};
 			if (initialQuery && initialQuery.trim().length > 0) {
 				payload.initialQuery = initialQuery.trim();
 			}
 
-			const created = await apiFetchJson<{ readonly conversation: ConversationSummary }>(
-				"/api/conversations",
-				{ method: "POST", body: JSON.stringify(payload) },
-			);
+			const res = await fetch("/api/conversations", {
+				method: "POST",
+				body: JSON.stringify(payload),
+				signal,
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
+
+			if (!res.ok) {
+				const parsed = (await res.json().catch(() => null)) as ApiErrorBody | null;
+				throw new Error(parsed?.error?.message ?? `Request failed (${res.status})`);
+			}
+
+			const created = (await res.json()) as { readonly conversation: ConversationSummary };
+
+			// Concurrency guard: if user navigated away or started a newer search, do NOT set conversation state
+			if (expectedGen !== undefined && expectedGen !== searchGenerationRef.current) {
+				return null;
+			}
+
 			setSelectedConversationId(created.conversation.id);
 			setSelectedConversationTitle(created.conversation.title);
 			setMessages([]);
 			setParentMessageId(undefined);
 			return created.conversation.id;
 		},
-		[apiFetchJson],
+		[],
 	);
 
 	useEffect(() => {
@@ -422,13 +519,13 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			if (prev.trim().length > 0) return prev;
 			return qParam;
 		});
-		// Set the pending auto-run ref in the effect body (not inside the updater)
-		// so it is never subject to React's double-invocation in Strict Mode or
-		// concurrent-mode render abandonment. We only arm the auto-run when the
-		// current committed query is empty (same condition as the updater).
-		if (!query.trim()) {
-			pendingAutoRunQueryRef.current = qParam;
+		// Arm the auto-run for this URL query
+		pendingAutoRunQueryRef.current = qParam;
+		if (query.trim() === qParam) {
+			pendingAutoRunQueryRef.current = null;
+			void runSearch();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [sessionStatus, searchParams, busy, query]);
 
 
@@ -530,12 +627,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	}, [sessionStatus, refreshBilling]);
 
 	const onCreateConversation = useCallback(async () => {
-		if (busy) return;
-		if (sessionStatus !== "authenticated") {
-			router.push(`/signin?callbackUrl=${encodeURIComponent("/")}`);
-			return;
-		}
+		// Invalidate any in-flight search or conversation selection
+		searchGenerationRef.current += 1;
+		conversationSelectionGenerationRef.current += 1;
 		abortRef.current?.abort();
+
 		setSelectedConversationId(null);
 		setSelectedConversationTitle(null);
 		setMessages([]);
@@ -551,8 +647,24 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setLimitErrorAction(null);
 		setResearchMode("standard");
 		setPhase("idle");
+		setMobileSourcesOpen(false);
+		if (typeof window !== "undefined" && window.location.search) {
+			router.replace("/");
+		}
 		requestAnimationFrame(() => searchBoxRef.current?.focus());
-	}, [busy, router, sessionStatus]);
+	}, [router]);
+
+	const handleStop = useCallback(() => {
+		abortRef.current?.abort();
+	}, []);
+
+	useEffect(() => {
+		const handleNewChat = () => {
+			void onCreateConversation();
+		};
+		window.addEventListener("aira:new-chat", handleNewChat);
+		return () => window.removeEventListener("aira:new-chat", handleNewChat);
+	}, [onCreateConversation]);
 
 	const runSearch = useCallback(async (searchContext?: { model?: string; attachments?: readonly unknown[] }) => {
 		let q = query.trim();
@@ -652,21 +764,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			return;
 		}
 
-		let conversationId: string | null = selectedConversationId;
-
-		if (!isGuest) {
-			if (!conversationId) {
-				conversationId = await createConversation(q);
-			}
-		} else {
-			conversationId = null;
-		}
-
-		lastSubmittedQueryRef.current = q;
-
+		// Arm AbortController and monotonic generation token BEFORE any async calls (including conversation creation)
 		abortRef.current?.abort();
 		const controller = new AbortController();
 		abortRef.current = controller;
+		const currentGeneration = ++searchGenerationRef.current;
 
 		setErrorMessage(null);
 		setErrorCode(null);
@@ -679,42 +781,66 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setPhase("connecting");
 		answerStreamStartedLoggedRef.current = false;
 
-			try {
-				logProductEvent({
-					event: "search_submitted",
-					surface: messages.length === 0 ? "home" : "search",
-					userType: isGuest ? "guest" : "signed_in",
-					queryLength: q.length,
-				});
-			} catch {
-				// ignore analytics
-			}
+		let conversationId: string | null = selectedConversationId;
 
-			try {
-				const response = await fetch("/api/search", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(
-						isGuest
-							? {
-									query: q,
-									mode: "standard",
-									presetId: selectedPresetId,
-									model: chosenModel,
-								}
-							: {
-									query: q,
-									conversationId,
-									parentMessageId,
-									continueResearch: Boolean(parentMessageId),
-									mode: currentMode,
-									presetId: selectedPresetId,
-									model: chosenModel,
-								},
-					),
-					signal: controller.signal,
-					credentials: "include",
-				});
+		if (!isGuest) {
+			if (!conversationId) {
+				try {
+					conversationId = await createConversation(q, controller.signal, currentGeneration);
+				} catch (e) {
+					if (currentGeneration !== searchGenerationRef.current) return;
+					if (controller.signal.aborted) return;
+					throw e;
+				}
+				// If user clicked New Chat, Stop, or switched conversations while createConversation was awaiting:
+				if (currentGeneration !== searchGenerationRef.current) return;
+			}
+		} else {
+			conversationId = null;
+		}
+
+		lastSubmittedQueryRef.current = q;
+
+		try {
+			logProductEvent({
+				event: "search_submitted",
+				surface: messages.length === 0 ? "home" : "search",
+				userType: isGuest ? "guest" : "signed_in",
+				queryLength: q.length,
+			});
+		} catch {
+			// ignore analytics
+		}
+
+		let streamedAnswer = "";
+
+		try {
+			if (currentGeneration !== searchGenerationRef.current) return;
+			const response = await fetch("/api/search", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(
+					isGuest
+						? {
+								query: q,
+								mode: "standard",
+								presetId: selectedPresetId,
+								model: chosenModel,
+							}
+						: {
+								query: q,
+								conversationId,
+								parentMessageId,
+								continueResearch: Boolean(parentMessageId),
+								mode: currentMode,
+								presetId: selectedPresetId,
+								model: chosenModel,
+							},
+				),
+				signal: controller.signal,
+				credentials: "include",
+			});
+			if (currentGeneration !== searchGenerationRef.current) return;
 
 			if (!response.ok) {
 				const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
@@ -814,10 +940,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			let sawDone = false;
 			let doneConversationId: string | undefined;
 			let doneMessageId: string | undefined;
-			let streamedAnswer = "";
+			streamedAnswer = "";
 			let finalCitations: CitationItem[] = [];
 
 			const processBlock = (raw: string) => {
+				if (currentGeneration !== searchGenerationRef.current) return;
 				try {
 					const block = parseSseBlock(raw);
 					if (!block) return;
@@ -922,7 +1049,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			};
 
 			while (true) {
+				if (currentGeneration !== searchGenerationRef.current) {
+					reader.cancel().catch(() => {});
+					return;
+				}
 				const { done, value } = await reader.read();
+				if (currentGeneration !== searchGenerationRef.current) {
+					reader.cancel().catch(() => {});
+					return;
+				}
 				if (done) {
 					if (buffer.trim().length > 0) {
 						processBlock(buffer);
@@ -932,6 +1067,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				buffer += decoder.decode(value, { stream: true });
 
 				while (true) {
+					if (currentGeneration !== searchGenerationRef.current) {
+						reader.cancel().catch(() => {});
+						return;
+					}
 					const match = buffer.match(/\r?\n\r?\n/);
 					if (!match) break;
 
@@ -942,6 +1081,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 					processBlock(raw);
 				}
 			}
+
+			if (currentGeneration !== searchGenerationRef.current) return;
 
 			if (!sawDone) {
 				setPhase((p) => (p === "streaming" || p === "connecting" ? "complete" : p));
@@ -989,23 +1130,31 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			// Refetch persisted full history inside the selected thread.
 			if (!isGuest && sawDone && (doneConversationId ?? conversationId)) {
 				const finalId = doneConversationId ?? conversationId!;
+				if (currentGeneration !== searchGenerationRef.current) return;
 				await fetchMessagesForConversation(finalId);
+				if (currentGeneration !== searchGenerationRef.current) return;
 				void refreshBilling();
 			}
 
-			setStreamingUserQuery(null);
-			setStreamingAssistantMarkdown(null);
-			setStreamingCitations([]);
-		} catch (e: unknown) {
-			if (e instanceof DOMException && e.name === "AbortError") {
-				// A client-side abort (user navigated away, submitted new query, etc)
-				// is an expected cancellation, NOT a system failure. Do not log search_failed.
-				setPhase("idle");
-				setErrorMessage(null);
-				setErrorCode(null);
+			if (currentGeneration === searchGenerationRef.current) {
 				setStreamingUserQuery(null);
 				setStreamingAssistantMarkdown(null);
 				setStreamingCitations([]);
+			}
+		} catch (e: unknown) {
+			if (currentGeneration !== searchGenerationRef.current) {
+				return;
+			}
+			if (e instanceof DOMException && e.name === "AbortError") {
+				// A client-side abort (user pressed Stop).
+				setPhase("idle");
+				setErrorMessage(null);
+				setErrorCode(null);
+				if (streamedAnswer.trim().length === 0) {
+					setStreamingUserQuery(null);
+					setStreamingAssistantMarkdown(null);
+					setStreamingCitations([]);
+				}
 				return;
 			}
 			const raw = e instanceof Error ? e.message : "Unexpected error.";
@@ -1101,8 +1250,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				value={query}
 				onChange={setQuery}
 				onSubmit={(ctx) => void runSearch(ctx)}
-				disabled={busy}
+				disabled={false}
 				isBusy={busy}
+				onCancel={handleStop}
 				placeholder={
 					!isAuthed
 						? "Ask anything or delegate an autonomous mission..."
@@ -1331,7 +1481,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</header>
 					) : null}
 
-					<div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6">
+					<div className="mx-auto flex w-full max-w-5xl xl:max-w-6xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6 transition-all duration-300">
 						{isAuthed && showConversationEmpty ? (
 							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
@@ -1346,7 +1496,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							)}
 							aria-busy={busy}
 						>
-							<div className={cn("min-h-0 flex-1", !showConversationEmpty && "overflow-y-auto")}>
+							<div ref={scrollContainerRef} onScroll={handleScroll} className={cn("min-h-0 flex-1 relative", !showConversationEmpty && "overflow-y-auto")}>
 								<ConversationMessageList
 									messages={messages}
 									streamingUserQuery={streamingUserQuery}
@@ -1374,7 +1524,23 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 										requestAnimationFrame(() => searchBoxRef.current?.focus());
 									}}
 									statusText={statusText}
+									elapsedMs={elapsedMs}
+									onCancel={handleStop}
+									desktopSourcesOpen={desktopSourcesOpen}
+									onToggleDesktopSources={() => setDesktopSourcesOpen((o) => !o)}
+									onOpenMobileSources={() => setMobileSourcesOpen(true)}
 								/>
+								{showScrollBottom ? (
+									<button
+										type="button"
+										onClick={scrollToBottom}
+										className="fixed bottom-24 right-6 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/95 text-zinc-700 shadow-lg backdrop-blur-md transition-all hover:bg-zinc-100 hover:text-zinc-950 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black md:bottom-28 md:right-10"
+										aria-label="Scroll to latest message"
+										title="Scroll to bottom"
+									>
+										<ArrowDown className="size-4" />
+									</button>
+								) : null}
 							</div>
 							{(shareContext || (!isAuthed && phase === "complete" && messages.length > 0)) && !busy ? (
 								<ShareResultBar
@@ -1437,7 +1603,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</p>
 
 						{!showConversationEmpty ? (
-							<div className="order-2 md:order-none sticky bottom-0 z-20 -mx-4 bg-surface/95 px-4 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none">
+							<div className="order-2 md:order-none sticky bottom-0 z-20 w-full max-w-full bg-surface/95 px-2 pb-4 pt-2 border-t border-border-subtle/60 backdrop-blur-md md:relative md:bottom-auto md:z-auto md:mx-0 md:bg-transparent md:p-0 md:border-none md:backdrop-blur-none">
 								{composerBlock}
 							</div>
 						) : null}
@@ -1493,6 +1659,67 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 								}}
 								disabled={busy}
 							/>
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{mobileSourcesOpen ? (
+				<div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Research sources">
+					<div
+						className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+						onClick={() => setMobileSourcesOpen(false)}
+					/>
+					<div className="relative ml-auto flex h-full w-full max-w-sm flex-col bg-white shadow-2xl animate-in slide-in-from-right duration-200">
+						<div className="flex h-14 items-center justify-between border-b border-black/[0.08] px-4">
+							<div className="flex items-center gap-2">
+								<span className="font-semibold text-zinc-900 text-sm">Sources & References</span>
+								<span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+									{activeCitations.length}
+								</span>
+							</div>
+							<button
+								type="button"
+								onClick={() => setMobileSourcesOpen(false)}
+								className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 active:scale-95 transition"
+								aria-label="Close sources sheet"
+							>
+								<X className="size-5" />
+							</button>
+						</div>
+						<div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+							{activeCitations.length === 0 ? (
+								<div className="py-8 text-center text-xs text-zinc-400">
+									No sources retrieved yet for this conversation.
+								</div>
+							) : (
+								activeCitations.map((citation, idx) => (
+									<a
+										key={citation.url ?? idx}
+										href={citation.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="group flex flex-col gap-1 rounded-xl border border-black/[0.08] bg-zinc-50/50 p-3 hover:bg-zinc-100/70 hover:border-black/15 transition"
+									>
+										<div className="flex items-center gap-2 text-xs font-semibold text-zinc-900">
+											<span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-bold text-zinc-700 shadow-2xs border border-black/5">
+												{citation.index ?? idx + 1}
+											</span>
+											<span className="truncate group-hover:underline">
+												{citation.title || "External Source"}
+											</span>
+										</div>
+										{citation.excerpt ? (
+											<p className="line-clamp-2 text-[11px] leading-relaxed text-zinc-500 pl-7">
+												{citation.excerpt}
+											</p>
+										) : null}
+										<div className="flex items-center gap-1 text-[10px] text-zinc-400 pl-7">
+											<span className="truncate">{citation.url ? new URL(citation.url).hostname : ""}</span>
+										</div>
+									</a>
+								))
+							)}
 						</div>
 					</div>
 				</div>
