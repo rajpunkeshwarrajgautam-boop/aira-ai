@@ -290,19 +290,22 @@ export class AutomationEngine {
 					const diskRaw = readFileSync(this.runsPath, "utf8");
 					const diskParsed = JSON.parse(diskRaw);
 					if (Array.isArray(diskParsed)) {
-						const existingRunIds = new Set(this.executionHistory.map((r) => r.id));
+						const runMap = new Map(this.executionHistory.map((r) => [r.id, r]));
 						for (const r of diskParsed) {
-							if (!existingRunIds.has(r.id)) {
-								this.executionHistory.push(r);
-								existingRunIds.add(r.id);
+							const inMem = runMap.get(r.id);
+							if (!inMem) {
+								runMap.set(r.id, r);
+							} else if (inMem.status === "RUNNING" && r.status !== "RUNNING") {
+								runMap.set(r.id, r);
 							}
 						}
+						this.executionHistory = Array.from(runMap.values());
 					}
 				} catch {
 					// ignore
 				}
 			}
-			const tempRuns = `${this.runsPath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+			const tempRuns = `${this.runsPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
 			try {
 				writeFileSync(tempRuns, JSON.stringify(this.executionHistory, null, 2), "utf8");
 				renameSync(tempRuns, this.runsPath);
@@ -723,6 +726,24 @@ export class AutomationEngine {
 					};
 				}
 			} else {
+				if (existsSync(this.runsPath)) {
+					try {
+						const diskRaw = readFileSync(this.runsPath, "utf8");
+						const diskParsed = JSON.parse(diskRaw);
+						if (Array.isArray(diskParsed)) {
+							const runMap = new Map(this.executionHistory.map((r) => [r.id, r]));
+							for (const r of diskParsed) {
+								const inMem = runMap.get(r.id);
+								if (!inMem || (inMem.status === "RUNNING" && r.status !== "RUNNING")) {
+									runMap.set(r.id, r);
+								}
+							}
+							this.executionHistory = Array.from(runMap.values());
+						}
+					} catch {
+						// ignore
+					}
+				}
 				const existing = this.executionHistory.find(
 					(e) => e.idempotencyKey === options.idempotencyKey && e.userId === userId && (e.status === "COMPLETED" || e.status === "SUCCEEDED"),
 				);
