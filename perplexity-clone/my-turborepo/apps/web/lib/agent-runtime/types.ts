@@ -44,6 +44,7 @@ export interface AgentExecutionOptions {
 	readonly taskRole?: string;
 	readonly taskKey?: string;
 	readonly budgets?: Record<string, unknown>;
+	readonly model?: string;
 }
 
 export interface CreateAgentRunInput {

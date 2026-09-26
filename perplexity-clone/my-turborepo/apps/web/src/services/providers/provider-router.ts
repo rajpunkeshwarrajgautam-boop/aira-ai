@@ -112,6 +112,10 @@ export class ProviderRouter {
 		this.fallbackCore?.registerProvider(provider);
 	}
 
+	getProvider(providerId: string): AIProvider | undefined {
+		return this.primaryCore.getProvider(providerId) ?? this.fallbackCore?.getProvider(providerId);
+	}
+
 	static async createDefault(tier: ProviderAccessTier = "pro"): Promise<ProviderRouter> {
 		const { OpenAIProvider } = await import("./openai-provider");
 		const { NVIDIAProvider } = await import("./nvidia-provider");
