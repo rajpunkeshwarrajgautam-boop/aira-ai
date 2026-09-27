@@ -119,6 +119,12 @@ body,
     grid-template-columns: var(--rail-width) minmax(0, 1fr) !important;
     overflow-x: visible !important;
   }
+
+  .aira-v2-frame.aira-intelligence-os.is-sidebar-collapsed,
+  .aira-v2-frame.aira-intelligence-os.is-integrated-nav,
+  .aira-v2-frame.aira-intelligence-os[data-sidebar-collapsed="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 .aira-v2-main {

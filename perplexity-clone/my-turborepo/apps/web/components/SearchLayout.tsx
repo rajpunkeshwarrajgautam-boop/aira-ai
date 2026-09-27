@@ -323,11 +323,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		[messages.length, streamingUserQuery, streamingAssistantMarkdown],
 	);
 
-	const showConversationPanel = useMemo(
-		() => phase !== "error" || !showConversationEmpty,
-		[phase, showConversationEmpty],
-	);
-
 	useEffect(() => {
 		if (!showAssistantSkeleton) {
 			setStatusText("Searching the web...");
@@ -1260,6 +1255,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			);
 			setErrorMessage(msg);
 			setQuery(q);
+			if (streamedAnswer.trim().length === 0) {
+				setStreamingUserQuery(null);
+				setStreamingAssistantMarkdown(null);
+				setStreamingCitations([]);
+			}
 		}
 	}, [
 		busy,
@@ -1592,7 +1592,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
 
-						{showConversationPanel ? <div
+						<div
 							className={cn(
 								"flex min-h-0 flex-1 flex-col",
 								!showConversationEmpty && "overflow-hidden",
@@ -1686,7 +1686,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</Link>
 								</div>
 							) : null}
-						</div> : null}
+						</div>
 
 						<p className="sr-only" aria-live="polite">
 							{phase === "connecting"
