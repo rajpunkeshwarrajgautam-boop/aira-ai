@@ -12,7 +12,7 @@ function read(relative: string): string {
 
 test("chat home uses the unified Intelligence OS shell", () => {
 	const page = read("app/page.tsx");
-	assert.ok(page.includes("<AiraV2Frame>"), "home chat should share the global AIRA application shell");
+	assert.ok(page.includes("<AiraV2Frame integratedWorkspaceNavigation>"), "home chat should share the global AIRA application shell while delegating authenticated home navigation");
 	assert.ok(page.includes("<SearchLayout />"));
 	assert.ok(page.includes("impeccable-chat-v2.css"));
 });
@@ -34,12 +34,18 @@ test("composer exposes real commands, tools, and voice input", () => {
 	assert.ok(searchBox.includes("setCommandMenuDismissedValue(value)"));
 });
 
-test("conversation sidebar is context-only while the shared shell owns application navigation", () => {
+test("authenticated chat home integrates application navigation into the conversation sidebar without duplicating the shared rail", () => {
 	const sidebar = read("components/conversations/ConversationSidebar.tsx");
 	const frame = read("components/AiraV2Frame.tsx");
+	const grouping = read("lib/conversation-grouping.ts");
 	assert.ok(!sidebar.includes("aira-app-rail"), "Research must not render a second application rail inside conversation history");
 	assert.ok(sidebar.includes("Search conversations"));
-	assert.ok(sidebar.includes("Previous 7 Days"));
+	assert.ok(sidebar.includes('aria-label="Workspace destinations"'));
+	assert.ok(sidebar.includes("partitionConversations(filtered)"));
+	assert.ok(grouping.includes('"previous-7-days": "Previous 7 Days"'));
+	for (const label of ["Research", "Knowledge", "Projects", "Library"]) {
+		assert.ok(sidebar.includes(label), `expected ${label} in integrated home sidebar navigation`);
+	}
 	assert.ok(frame.includes('aria-label="AIRA workspace navigation"'));
 	assert.ok(frame.includes('href: "/omniroute"'), 'expected OmniRoute destination in shared workspace navigation');
 	for (const label of ["Research", "Build", "Browser", "Agents", "Knowledge", "OmniRoute", "Model Lab", "Memory", "Global Search", "Integrations"]) {

@@ -83,11 +83,20 @@ test("AiraV2Frame: New Chat button dispatches aira:new-chat event", () => {
 
 test("ConversationSidebar: New conversation button is not disabled when busy", () => {
 	const src = readWebFile("components/conversations/ConversationSidebar.tsx");
-	const btnMatch = src.match(/<button[\s\S]*?className="aira-new-chat[\s\S]*?>/);
-	assert.ok(btnMatch, "New conversation button must exist in ConversationSidebar");
+	const classIndex = src.indexOf('className="aira-new-chat');
+	assert.ok(classIndex >= 0, "New conversation button must exist in ConversationSidebar");
+	const buttonStart = src.lastIndexOf("<button", classIndex);
+	const buttonEnd = src.indexOf(">", classIndex);
+	assert.ok(buttonStart >= 0 && buttonEnd > classIndex, "New conversation opening tag must be readable");
+	const openingTag = src.slice(buttonStart, buttonEnd + 1);
 	assert.ok(
-		!btnMatch[0].includes("disabled={disabled}"),
+		!openingTag.includes("disabled={disabled}"),
 		"New conversation button must remain enabled during busy state",
+	);
+	const normalizedSrc = src.replace(/\r\n?/g, "\n");
+	assert.ok(
+		normalizedSrc.includes("event.preventDefault();\n\t\t\t\tonCreateConversation();"),
+		"New conversation keyboard shortcut must remain enabled during busy state",
 	);
 });
 
