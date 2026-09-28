@@ -1,5 +1,8 @@
 import type {
 	ChatCompletionMessageParam,
+	ChatCompletionMessage,
+	ChatCompletionTool,
+	ChatCompletionToolChoiceOption,
 } from "openai/resources/chat/completions";
 import {
 	ProviderRouter,
@@ -86,6 +89,54 @@ export class OpenAIService {
 		};
 
 		yield* this.router.streamChat(messages, routerOptions);
+	}
+
+	/**
+	 * Checks if the service has an active provider capable of native tool calling for the given model.
+	 */
+	supportsNativeToolCalling(model?: string): boolean {
+		if (model && (model.startsWith("meta/") || model.startsWith("nvidia/"))) {
+			return false;
+		}
+		const openAiProvider = this.router.getProvider("openai") as OpenAIProvider | undefined;
+		return Boolean(openAiProvider && typeof openAiProvider.generateChatCompletion === "function");
+	}
+
+	/**
+	 * Non-streaming chat completion with optional native tools support.
+	 */
+	async chatCompletion(
+		messages: ChatCompletionMessageParam[],
+		options: {
+			model?: string;
+			temperature?: number;
+			maxCompletionTokens?: number;
+			abortSignal?: AbortSignal;
+			topP?: number;
+			frequencyPenalty?: number;
+			presencePenalty?: number;
+			tools?: ChatCompletionTool[];
+			toolChoice?: ChatCompletionToolChoiceOption;
+		} = {},
+	): Promise<ChatCompletionMessage> {
+		if (options.model && (options.model.startsWith("meta/") || options.model.startsWith("nvidia/"))) {
+			throw new Error("Provider 'nvidia' does not support native tool calling. Refusing to route free-tier model to paid provider.");
+		}
+		const openAiProvider = this.router.getProvider("openai") as OpenAIProvider | undefined;
+		if (openAiProvider && typeof openAiProvider.generateChatCompletion === "function") {
+			return openAiProvider.generateChatCompletion(messages, {
+				model: options.model,
+				temperature: options.temperature ?? this.config.defaultTemperature,
+				maxCompletionTokens: options.maxCompletionTokens ?? this.config.defaultMaxCompletionTokens,
+				abortSignal: options.abortSignal,
+				topP: options.topP,
+				frequencyPenalty: options.frequencyPenalty,
+				presencePenalty: options.presencePenalty,
+				tools: options.tools,
+				toolChoice: options.toolChoice,
+			});
+		}
+		throw new Error("No native-tool-capable provider is configured in OpenAIService.");
 	}
 
 	/**

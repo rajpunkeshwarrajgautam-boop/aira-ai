@@ -13,10 +13,17 @@ import { createRunArtifact, listRunArtifacts } from "@/lib/agent-platform/store"
 import { VerificationResultSchema } from "@/lib/agent-platform/verification-schema";
 import type { VerificationResult } from "@/lib/agent-platform/types";
 import { executeTool } from "@/lib/tool-gateway/gateway";
-import type { AiraToolId, ToolContext } from "@/lib/tool-gateway/types";
+import { ToolGatewayError, type AiraToolId, type ToolContext } from "@/lib/tool-gateway/types";
 import { getProviderHealthSnapshot } from "@/src/services/providers/provider-health";
 import { getOpenAIService, OpenAIService } from "@/src/services/openai";
+import type OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import {
+	isNativeToolCallingEnabled,
+	toOpenAIToolDefinitions,
+	parseNativeToolCall,
+	formatToolResultMessage,
+} from "./native-tool-protocol";
 
 import type {
 	AgentRuntime,
@@ -112,6 +119,14 @@ export function isToolExecutionSuccessful(result: unknown): boolean {
 	return status === "COMPLETED";
 }
 
+export function isBudgetExhaustedError(err: unknown): boolean {
+	if (err instanceof ToolGatewayError) {
+		return err.code === "TOOL_BUDGET_EXHAUSTED" || err.code === "MISSION_TOOL_BUDGET_EXHAUSTED";
+	}
+	const code = (err as { code?: string })?.code;
+	return code === "TOOL_BUDGET_EXHAUSTED" || code === "MISSION_TOOL_BUDGET_EXHAUSTED";
+}
+
 export function generateFallbackDeliverable(
 	objective: string,
 	name: string | undefined,
@@ -180,11 +195,19 @@ export async function submitAiraAgentRun(
 		type: "SUBMITTED",
 		status: AgentRunStatus.RUNNING,
 		message: `Managed execution launched via ${PROVIDER}`,
-		metadata: { provider: PROVIDER, clientRequestId: input.clientRequestId },
+		metadata: {
+			provider: PROVIDER,
+			clientRequestId: input.clientRequestId,
+			...(input.agentExecutionOptions?.projectId ? { projectId: input.agentExecutionOptions.projectId } : {}),
+		},
 	});
 
 	const abortController = new AbortController();
 	activeAbortControllers.set(createdRun.id, abortController);
+
+	let finalOutput = "";
+	let verificationObj: VerificationResult | null = null;
+	const executedTools: Array<{ tool: string; action: string; result: unknown; status?: string }> = [];
 
 	try {
 		const options = input.agentExecutionOptions;
@@ -197,22 +220,39 @@ export async function submitAiraAgentRun(
 		const taskKey = options?.taskKey ?? "investigation";
 
 		const service = getOpenAIService();
-		const systemPrompt = [
-			"You are AIRA Work Autonomous Outcome Agent.",
-			"You execute structured outcome tasks with precision, verified tool evidence, and persisted deliverables.",
-			options?.instructions ?? "",
-			`Role: ${taskRole}. Task Key: ${taskKey}.`,
-			`Allowed Tools for this task: [${allowedTools.join(", ")}].`,
-			"You must use tools when external research, web inspection, browser action, or memory lookup is needed.",
-			"Tool calling protocol:",
-			"To call a tool, respond ONLY with a JSON object in this format:",
-			'{"thought": "...", "call": {"tool": "<tool_name>", "action": "<action>", "input": { ... }}}',
-			"When you have finished all required work, respond with a JSON object in this format:",
-			'{"thought": "...", "finalAnswer": "<comprehensive factual result>", "evidence": ["..."]}',
-			taskKey === "verification" || taskRole === "VERIFICATION"
-				? 'For verification tasks, your final JSON MUST include a "verification" object with: {"criteria": [{"criterionId": string, "passed": boolean, "evidence": string[]}], "requiredEvidencePresent": boolean, "overallPassed": boolean, "summary": string}'
-				: "",
-		].filter(Boolean).join("\n\n");
+		const useNativeTools =
+			isNativeToolCallingEnabled() && service.supportsNativeToolCalling(options?.model);
+		const nativeToolDefs = useNativeTools ? toOpenAIToolDefinitions(allowedTools) : [];
+
+		const systemPrompt = useNativeTools
+			? [
+				"You are AIRA Work Autonomous Outcome Agent.",
+				"You execute structured outcome tasks with precision, verified tool evidence, and persisted deliverables.",
+				options?.instructions ?? "",
+				`Role: ${taskRole}. Task Key: ${taskKey}.`,
+				`Allowed Tools for this task: [${allowedTools.join(", ")}].`,
+				"Use native tool calling when external research, web inspection, browser action, or memory lookup is needed.",
+				"When you have finished all required work or completed all tool operations, provide your final factual deliverable response.",
+				taskKey === "verification" || taskRole === "VERIFICATION"
+					? 'For verification tasks, your final deliverable must certify criteria satisfaction and summarize findings.'
+					: "",
+			].filter(Boolean).join("\n\n")
+			: [
+				"You are AIRA Work Autonomous Outcome Agent.",
+				"You execute structured outcome tasks with precision, verified tool evidence, and persisted deliverables.",
+				options?.instructions ?? "",
+				`Role: ${taskRole}. Task Key: ${taskKey}.`,
+				`Allowed Tools for this task: [${allowedTools.join(", ")}].`,
+				"You must use tools when external research, web inspection, browser action, or memory lookup is needed.",
+				"Tool calling protocol:",
+				"To call a tool, respond ONLY with a JSON object in this format:",
+				'{"thought": "...", "call": {"tool": "<tool_name>", "action": "<action>", "input": { ... }}}',
+				"When you have finished all required work, respond with a JSON object in this format:",
+				'{"thought": "...", "finalAnswer": "<comprehensive factual result>", "evidence": ["..."]}',
+				taskKey === "verification" || taskRole === "VERIFICATION"
+					? 'For verification tasks, your final JSON MUST include a "verification" object with: {"criteria": [{"criterionId": string, "passed": boolean, "evidence": string[]}], "requiredEvidencePresent": boolean, "overallPassed": boolean, "summary": string}'
+					: "",
+			].filter(Boolean).join("\n\n");
 
 		const userPrompt = [
 			`Task Objective: ${input.objective}`,
@@ -240,14 +280,122 @@ export async function submitAiraAgentRun(
 		} else if (taskRole === "RESEARCH" || taskKey === "investigation") {
 			maxSteps = Math.min(2, maxSteps);
 		}
-		let finalOutput = "";
-		let verificationObj: VerificationResult | null = null;
-		const executedTools: Array<{ tool: string; action: string; result: unknown; status?: string }> = [];
-
 		while (step < maxSteps) {
 			step += 1;
 			if (abortController.signal.aborted) {
 				throw new Error("Execution was cancelled by user request.");
+			}
+
+			if (useNativeTools && nativeToolDefs.length > 0) {
+				let message: OpenAI.ChatCompletionMessage;
+				try {
+					message = await service.chatCompletion(messages, {
+						abortSignal: abortController.signal,
+						tools: nativeToolDefs,
+					});
+				} catch (err: unknown) {
+					if (abortController.signal.aborted || (err as { name?: string })?.name === "AbortError") {
+						throw new Error("Execution was cancelled by user request.");
+					}
+					throw err;
+				}
+
+				if (message.tool_calls && message.tool_calls.length > 0) {
+					messages.push(message as ChatCompletionMessageParam);
+
+					for (const toolCall of message.tool_calls) {
+						if (toolCall.type !== "function" || !toolCall.function) continue;
+
+						const parsed = parseNativeToolCall(toolCall);
+						if (parsed.parseError) {
+							messages.push(formatToolResultMessage(toolCall.id, {
+								status: "FAILED",
+								error: parsed.parseError,
+							}));
+							executedTools.push({
+								tool: parsed.tool,
+								action: parsed.action,
+								result: { error: parsed.parseError },
+								status: "FAILED",
+							});
+							continue;
+						}
+
+						if (!isToolPermitted(parsed.tool, allowedTools)) {
+							messages.push(formatToolResultMessage(toolCall.id, {
+								status: "DENIED",
+								error: `Tool "${parsed.tool}" is not permitted for this task. Permitted tools: [${allowedTools.join(", ")}].`,
+							}));
+							executedTools.push({
+								tool: parsed.tool,
+								action: parsed.action,
+								result: { error: `Tool ${parsed.tool} not permitted.` },
+								status: "FAILED",
+							});
+							continue;
+						}
+
+						// Execute tool via certified Tool Gateway
+						const toolContext: ToolContext = {
+							userId: input.userId,
+							projectId,
+							runId,
+							taskId,
+							agentId,
+							source: "AGENT",
+						};
+						const toolReq = {
+							clientRequestId: `tool_${createdRun.id}_s${step}_${toolCall.id}`,
+							tool: parsed.tool,
+							action: parsed.action,
+							input: parsed.input,
+						};
+
+						let toolResult: unknown;
+						try {
+							toolResult = await executeTool(toolContext, toolReq);
+						} catch (toolErr: unknown) {
+							if (isBudgetExhaustedError(toolErr)) {
+								toolResult = {
+									status: "FAILED",
+									error: toolErr instanceof Error ? toolErr.message : "Tool budget exhausted",
+									code: (toolErr as { code?: string })?.code,
+								};
+								executedTools.push({
+									tool: parsed.tool,
+									action: parsed.action,
+									result: toolResult,
+									status: "FAILED",
+								});
+								throw toolErr;
+							}
+							toolResult = {
+								status: "FAILED",
+								error: toolErr instanceof Error ? toolErr.message : "Tool execution failed",
+							};
+						}
+
+						const isSuccess = isToolExecutionSuccessful(toolResult);
+						executedTools.push({
+							tool: parsed.tool,
+							action: parsed.action,
+							result: toolResult,
+							status: isSuccess ? "COMPLETED" : "FAILED",
+						});
+
+						messages.push(
+							formatToolResultMessage(
+								toolCall.id,
+								(toolResult as { result?: unknown })?.result ?? toolResult,
+							),
+						);
+					}
+					continue;
+				}
+
+				// No tool calls returned: final model response
+				finalOutput = message.content ?? "";
+				break;
 			}
 
 			let responseText = "";
@@ -300,6 +448,20 @@ export async function submitAiraAgentRun(
 				try {
 					toolResult = await executeTool(toolContext, toolReq);
 				} catch (toolErr: unknown) {
+					if (isBudgetExhaustedError(toolErr)) {
+						toolResult = {
+							status: "FAILED",
+							error: toolErr instanceof Error ? toolErr.message : "Tool budget exhausted",
+							code: (toolErr as { code?: string })?.code,
+						};
+						executedTools.push({
+							tool,
+							action,
+							result: toolResult,
+							status: "FAILED",
+						});
+						throw toolErr;
+					}
 					toolResult = { status: "FAILED", error: toolErr instanceof Error ? toolErr.message : "Tool execution failed" };
 				}
 
@@ -336,14 +498,21 @@ export async function submitAiraAgentRun(
 				content: "All tool steps are complete. Now synthesize and output your comprehensive final answer deliverable based on all observations and task objectives.",
 			});
 			try {
-				const finalResponseText = await OpenAIService.collectTextStream(
-					service.streamChatText(messages, { abortSignal: abortController.signal }),
-				);
-				const finalDecision = parseModelDecision(finalResponseText);
-				if (finalDecision.verification) {
-					verificationObj = finalDecision.verification;
+				if (useNativeTools) {
+					const finalMsg = await service.chatCompletion(messages, {
+						abortSignal: abortController.signal,
+					});
+					finalOutput = finalMsg.content || "";
+				} else {
+					const finalResponseText = await OpenAIService.collectTextStream(
+						service.streamChatText(messages, { abortSignal: abortController.signal }),
+					);
+					const finalDecision = parseModelDecision(finalResponseText);
+					if (finalDecision.verification) {
+						verificationObj = finalDecision.verification;
+					}
+					finalOutput = finalDecision.finalAnswer || finalResponseText;
 				}
-				finalOutput = finalDecision.finalAnswer || finalResponseText;
 			} catch {
 				// Fallback construct below
 			}
@@ -514,11 +683,20 @@ export async function submitAiraAgentRun(
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : "Agent execution failed.";
 
+		const partialResult = executedTools.length > 0 ? {
+			output: finalOutput || errorMessage,
+			provider: PROVIDER,
+			executedTools: executedTools.map((t) => ({ tool: t.tool, action: t.action, status: t.status })),
+			partial: true,
+			error: errorMessage,
+		} : null;
+
 		// Only mark FAILED if status was still RUNNING
 		await prisma.$executeRaw`
 			UPDATE "AgentRun"
 			SET "status" = 'FAILED'::"AgentRunStatus",
 			    "errorMessage" = ${errorMessage.slice(0, 4000)},
+			    "result" = ${partialResult ? JSON.stringify(partialResult) : null}::jsonb,
 			    "completedAt" = current_timestamp,
 			    "updatedAt" = current_timestamp
 			WHERE "id" = ${createdRun.id}

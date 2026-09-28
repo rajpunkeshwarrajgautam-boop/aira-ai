@@ -38,10 +38,13 @@ export const dynamic = "force-dynamic";
 import { globalUserAgentStore } from "@/lib/agents/user-agents-store";
 import { getFollowUpContext } from "@/lib/conversation-memory";
 import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
+import { getProjectForUser } from "@/lib/agent-platform/store";
+import type { AgentExecutionOptions } from "@/lib/agent-runtime/types";
 
 const SubmitRunSchema = z.object({
 	clientRequestId: z.string().uuid(),
 	agentDefinitionId: z.string().optional(),
+	projectId: z.string().uuid().optional(),
 	objective: z.string().trim().min(3).max(4_000),
 	provider: z.enum(["DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
 });
@@ -162,6 +165,16 @@ export async function POST(req: Request): Promise<Response> {
 		}
 	}
 
+	if (parsed.data.projectId) {
+		const project = await getProjectForUser(session.user.id, parsed.data.projectId);
+		if (!project) {
+			return noStoreJson(
+				{ error: { code: "NOT_FOUND", message: "Project not found." } },
+				{ status: 404 },
+			);
+		}
+	}
+
 	let knowledgeContext: string[] = [];
 	let memoryContext: string[] = [];
 
@@ -227,14 +240,21 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		leaseId = lease.leaseId;
 
-		const agentExecutionOptions = agentDef ? {
-			agentDefinitionId: agentDef.id,
-			name: agentDef.name,
-			instructions: agentDef.instructions,
-			allowedTools: agentDef.tools,
-			knowledgeContext,
-			memoryContext,
-		} : undefined;
+		const agentExecutionOptions: AgentExecutionOptions | undefined = agentDef
+			? {
+					agentDefinitionId: agentDef.id,
+					name: agentDef.name,
+					instructions: agentDef.instructions,
+					allowedTools: agentDef.tools,
+					knowledgeContext,
+					memoryContext,
+					...(parsed.data.projectId ? { projectId: parsed.data.projectId } : {}),
+				}
+			: parsed.data.projectId
+				? {
+						projectId: parsed.data.projectId,
+					}
+				: undefined;
 
 		const submitted = await selectedRuntime.createRun({
 			userId: session.user.id,
@@ -250,7 +270,10 @@ export async function POST(req: Request): Promise<Response> {
 				type: "SUBMITTED",
 				status: submitted.run.status,
 				message: `Task accepted by ${runtimeLabel(submitted.run.provider)}.`,
-				metadata: { provider: submitted.run.provider },
+				metadata: {
+					provider: submitted.run.provider,
+					...(parsed.data.projectId ? { projectId: parsed.data.projectId } : {}),
+				},
 			}),
 			recordAgentRunStepBestEffort({
 				runId: submitted.run.id,

@@ -47,4 +47,35 @@ export class OpenAIProvider implements AIProvider {
 			if (refusal) yield refusal;
 		}
 	}
+
+	async generateChatCompletion(
+		messages: ChatCompletionMessageParam[],
+		options: ProviderOptions & {
+			tools?: OpenAI.ChatCompletionTool[];
+			toolChoice?: OpenAI.ChatCompletionToolChoiceOption;
+		} = {},
+	): Promise<OpenAI.ChatCompletionMessage> {
+		const params: OpenAI.ChatCompletionCreateParamsNonStreaming = {
+			model: options.model ?? this.defaultModel,
+			messages,
+			stream: false,
+			temperature: options.temperature,
+			max_completion_tokens: options.maxCompletionTokens,
+			top_p: options.topP,
+			frequency_penalty: options.frequencyPenalty,
+			presence_penalty: options.presencePenalty,
+			...(options.tools && options.tools.length > 0 ? { tools: options.tools } : {}),
+			...(options.toolChoice ? { tool_choice: options.toolChoice } : {}),
+		};
+
+		const response = await this.client.chat.completions.create(params, {
+			signal: options.abortSignal,
+		});
+
+		const choice = response.choices[0];
+		if (!choice?.message) {
+			throw new Error("OpenAI provider returned an empty completion choice.");
+		}
+		return choice.message;
+	}
 }
