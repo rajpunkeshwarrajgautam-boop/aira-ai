@@ -108,15 +108,31 @@ export default function PricingPage() {
 							<section key={plan.name} className={cn("aira-premium-card aira-card-hover relative flex flex-col overflow-hidden rounded-[28px] p-6", plan.highlight && "aira-pro-glow border-accent/25 md:-translate-y-2")}>
 								{plan.highlight ? <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.15),transparent_72%)]" aria-hidden /> : null}
 								<div className="relative flex items-start justify-between gap-3">
-									<span className={cn("flex size-11 items-center justify-center rounded-2xl", plan.highlight ? "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent-violet)))] text-white shadow-[0_10px_28px_hsl(var(--accent)/0.22)]" : "aira-icon-pop")}><Icon className="size-4.5" aria-hidden /></span>
-									{plan.highlight ? <span className="rounded-full bg-content-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">Most popular</span> : null}
+									<span className={cn("flex size-11 items-center justify-center rounded-2xl", plan.highlight ? "bg-[linear-gradient(135deg,#7C3AED,#4F46E5)] text-white shadow-[0_10px_28px_rgba(124,58,237,0.35)]" : "aira-icon-pop")}><Icon className="size-4.5" aria-hidden /></span>
+									{plan.highlight ? (
+										<span className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200 shadow-sm backdrop-blur-md">
+											<Sparkles className="size-3 text-violet-400" aria-hidden /> Most popular
+										</span>
+									) : null}
 								</div>
-								<p className="relative mt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-content-tertiary">{plan.eyebrow}</p>
-								<h2 className="relative mt-1 text-xl font-semibold">{plan.name}</h2>
-								<p className="relative mt-2 min-h-[48px] text-sm leading-6 text-content-tertiary">{plan.description}</p>
-								<div className="relative mt-6 flex items-end gap-2"><span className="text-4xl font-semibold tracking-tight">{plan.price}</span>{plan.name !== "Free" ? <span className="pb-1 text-xs text-content-tertiary">/ month</span> : null}</div>
-								{plan.priceNote ? <p className="relative mt-1 text-[11px] text-content-tertiary">{plan.priceNote}</p> : null}
-								<ul className="relative my-6 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex items-start gap-2.5 text-sm leading-5 text-content-secondary"><span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full", plan.highlight ? "bg-accent/10 text-accent" : "bg-surface-inset text-content-secondary")}><Check className="size-3" aria-hidden /></span>{feature}</li>)}</ul>
+								<p className={cn("relative mt-5 text-[10px] font-semibold uppercase tracking-[0.14em]", plan.highlight ? "text-violet-300" : "text-content-tertiary")}>{plan.eyebrow}</p>
+								<h2 className={cn("relative mt-1 tracking-tight", plan.highlight ? "aira-pro-white text-2xl font-bold text-white" : "text-xl font-semibold")}>{plan.name}</h2>
+								<p className={cn("relative mt-2 min-h-[48px] text-sm leading-6", plan.highlight ? "aira-pro-muted text-zinc-300" : "text-content-tertiary")}>{plan.description}</p>
+								<div className="relative mt-6 flex items-end gap-2">
+									<span className={cn("text-4xl tracking-tight", plan.highlight ? "aira-pro-white font-extrabold text-white" : "font-semibold")}>{plan.price}</span>
+									{plan.name !== "Free" ? <span className={cn("pb-1 text-xs", plan.highlight ? "text-zinc-400" : "text-content-tertiary")}>/ month</span> : null}
+								</div>
+								{plan.priceNote ? <p className={cn("relative mt-1 text-[11px]", plan.highlight ? "text-zinc-400" : "text-content-tertiary")}>{plan.priceNote}</p> : null}
+								<ul className="relative my-6 flex-1 space-y-3">
+									{plan.features.map((feature) => (
+										<li key={feature} className={cn("flex items-start gap-2.5 text-sm leading-5", plan.highlight ? "text-zinc-200" : "text-content-secondary")}>
+											<span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full", plan.highlight ? "bg-violet-500/20 text-violet-300" : "bg-surface-inset text-content-secondary")}>
+												<Check className="size-3" aria-hidden />
+											</span>
+											{feature}
+										</li>
+									))}
+								</ul>
 
 								{(sessionStatus === "loading" || (sessionStatus === "authenticated" && checkingPlan)) ? (
 									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Checking plan…</Button>
@@ -126,23 +142,23 @@ export default function PricingPage() {
 									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-surface-inset/60"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
 								) : (
 									<Button
-			type="button"
-			onClick={() => {
-				try {
-					logProductEvent({
-						event: "upgrade_clicked",
-						surface: "pricing",
-						userType: sessionStatus === "authenticated" ? "signed_in" : "guest",
-						errorCode: key,
-					});
-				} catch {
-					// ignore
-				}
-			}}
-			className="relative h-11 w-full rounded-xl bg-surface-inset/60 hover:bg-surface-inset text-content-primary"
-		>
-			Paid upgrades unavailable
-		</Button>
+										type="button"
+										onClick={() => {
+											try {
+												logProductEvent({
+													event: "upgrade_clicked",
+													surface: "pricing",
+													userType: sessionStatus === "authenticated" ? "signed_in" : "guest",
+													errorCode: key,
+												});
+											} catch {
+												// ignore
+											}
+										}}
+										className={cn("relative h-11 w-full rounded-xl transition", plan.highlight ? "pro-cta-btn bg-white text-[#0D0E15] hover:bg-zinc-100 font-semibold shadow-md" : "bg-surface-inset/60 hover:bg-surface-inset text-content-primary")}
+									>
+										Paid upgrades unavailable
+									</Button>
 								)}
 							</section>
 						);

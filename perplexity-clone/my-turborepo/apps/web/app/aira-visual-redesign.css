@@ -1213,12 +1213,40 @@ main.aira-shell section.aira-premium-card span.text-white {
   color: #ffffff !important;
 }
 
-/* Pro card highlighted surface */
+/* Pro card Obsidian Monolith Hero surface */
 main.aira-shell section.aira-premium-card.aira-pro-glow {
-  border-color: rgba(58, 12, 163, 0.35) !important;
+  background: #0D0E15 !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  color: #FFFFFF !important;
   box-shadow:
-    0 4px 20px rgba(58, 12, 163, 0.10),
-    0 1px 4px rgba(17, 17, 21, 0.05) !important;
+    0 25px 60px -12px rgba(79, 70, 229, 0.28),
+    0 0 0 1px rgba(139, 92, 246, 0.3) !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow h2,
+main.aira-shell section.aira-premium-card.aira-pro-glow .aira-pro-white {
+  color: #FFFFFF !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow p.aira-pro-muted,
+main.aira-shell section.aira-premium-card.aira-pro-glow li {
+  color: #D4D4D8 !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow li span {
+  color: #C4B5FD !important;
+  background: rgba(139, 92, 246, 0.25) !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow .pro-cta-btn {
+  background: #FFFFFF !important;
+  color: #0D0E15 !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow .pro-cta-btn:hover {
+  background: #F4F4F5 !important;
 }
 
 /* Pricing CTA buttons — ink on surface */
