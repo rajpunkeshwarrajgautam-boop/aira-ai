@@ -383,6 +383,10 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						aria-expanded={showCommandMenu}
 						onChange={(event) => {
 							setCommandMenuDismissedValue(null);
+							setContextMenuOpen(false);
+							setModelMenuOpen(false);
+							setModeMenuOpen(false);
+							setReasoningMenuOpen(false);
 							onChange(event.target.value);
 							resize();
 						}}
@@ -420,8 +424,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								setContextMenuOpen((open) => !open);
 							}}
 							className={cn(
-								"flex size-8 items-center justify-center rounded-[6px] transition",
-								contextMenuOpen ? "bg-[#111111] text-white" : "bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]"
+								"flex size-8 items-center justify-center rounded-[6px] transition border",
+								contextMenuOpen ? "border-[#111111]/30 bg-[#F4F4F5] text-[#111111]" : "border-transparent bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]"
 							)}
 							aria-label="Add context or attach document"
 							aria-controls={contextMenuId}
@@ -455,13 +459,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								Sovereign Integrations
 							</p>
 
-							<Link href="/knowledge" target="_blank" className="flex min-h-10 items-center justify-between rounded-xl px-3 py-2 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5" onClick={() => setContextMenuOpen(false)}>
+							<Link href="/knowledge" className="flex min-h-10 items-center justify-between rounded-xl px-3 py-2 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5" onClick={() => setContextMenuOpen(false)}>
 								<span className="flex items-center gap-3"><FileText className="size-4 text-[#8B7CFF]" strokeWidth={2.5} /> Knowledge Library</span>
 							</Link>
-							<Link href="/agents" target="_blank" className="flex min-h-10 items-center justify-between rounded-xl px-3 py-2 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5" onClick={() => setContextMenuOpen(false)}>
+							<Link href="/agents" className="flex min-h-10 items-center justify-between rounded-xl px-3 py-2 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#0F172A]/5" onClick={() => setContextMenuOpen(false)}>
 								<span className="flex items-center gap-3"><Bot className="size-4 text-[#8B7CFF]" strokeWidth={2.5} /> Agent Missions</span>
 							</Link>
-							<Link href="/omniroute" target="_blank" className="flex min-h-10 items-center justify-between rounded-[8px] px-3 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#F4F4F5]" onClick={() => setContextMenuOpen(false)}>
+							<Link href="/omniroute" className="flex min-h-10 items-center justify-between rounded-[8px] px-3 py-2 text-[13px] font-semibold text-[#111111] transition hover:bg-[#F4F4F5]" onClick={() => setContextMenuOpen(false)}>
 								<span className="flex items-center gap-3"><Network className="size-4 text-[#525252]" strokeWidth={2.5} /> OmniRoute Status</span>
 							</Link>
 						</div>
