@@ -199,9 +199,8 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" disabled aria-label="Notifications (not available yet)" className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] transition hover:bg-[#F4F4F5] hover:text-[#111111]">
+          <button type="button" disabled aria-label="Notifications (not available yet)" className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] opacity-70 cursor-not-allowed transition hover:bg-[#F4F4F5]">
             <Bell className="size-[18px]" strokeWidth={2} />
-            <span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-[#111111]"></span>
           </button>
           <UserMenu className="flex" />
         </div>
