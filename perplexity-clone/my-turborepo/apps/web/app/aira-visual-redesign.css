@@ -1209,6 +1209,10 @@ main.aira-shell section.aira-premium-card span {
   color: inherit !important;
 }
 
+main.aira-shell section.aira-premium-card span.text-white {
+  color: #ffffff !important;
+}
+
 /* Pro card highlighted surface */
 main.aira-shell section.aira-premium-card.aira-pro-glow {
   border-color: rgba(58, 12, 163, 0.35) !important;
