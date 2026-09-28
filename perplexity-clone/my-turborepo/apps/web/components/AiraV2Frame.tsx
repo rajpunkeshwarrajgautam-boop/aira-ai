@@ -34,10 +34,13 @@ import {
   X,
   Menu,
   Plus,
-  LayoutTemplate
+  LayoutTemplate,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../lib/cn";
 import { AiraLogo } from "./AiraLogo";
@@ -59,12 +62,16 @@ type NavigationItem = (typeof PRIMARY_NAV)[number] | (typeof BOTTOM_NAV)[number]
 function routeFromHref(href: string): string { return href.split(/[?#]/, 1)[0] || "/"; }
 function isActivePath(pathname: string, href: string): boolean { const route = routeFromHref(href); return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(route + "/"); }
 
-export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
+export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }: { readonly children: ReactNode; readonly integratedWorkspaceNavigation?: boolean }) {
   const pathname = usePathname();
+  const { status: sessionStatus } = useSession();
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const useIntegratedNavigation = integratedWorkspaceNavigation && sessionStatus !== "unauthenticated";
+  const isCollapsed = !useIntegratedNavigation && !desktopSidebarOpen;
   
   const inputRef = useRef<HTMLInputElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
@@ -78,12 +85,21 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
   useEffect(() => { setMobileNavOpen(false); }, [pathname]);
   const navigate = (href: string) => { setPaletteOpen(false); setMobileNavOpen(false); router.push(href); };
 
-  return <div className="aira-v2-frame aira-intelligence-os">
-    {mobileNavOpen ? <button type="button" className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} /> : null}
-    <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-[#EAEAEA] bg-white transition-transform duration-300 lg:static lg:translate-x-0", mobileNavOpen ? "translate-x-0" : "-translate-x-full")} aria-label="AIRA workspace navigation">
+  return <div className={cn("aira-v2-frame aira-intelligence-os", isCollapsed && "is-sidebar-collapsed", useIntegratedNavigation && "is-integrated-nav")} data-sidebar-collapsed={isCollapsed ? "true" : "false"}>
+    {mobileNavOpen && !useIntegratedNavigation ? <button type="button" className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} /> : null}
+    {!useIntegratedNavigation ? <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-[#EAEAEA] bg-white transition-transform duration-300 lg:static lg:translate-x-0", mobileNavOpen ? "translate-x-0" : "-translate-x-full", !desktopSidebarOpen && "lg:hidden")} aria-label="AIRA workspace navigation">
       <div className="flex h-[72px] shrink-0 items-center justify-between px-5">
         <AiraLogo />
         <button type="button" className="lg:hidden text-[#94A3B8] hover:text-[#0F172A]" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><X className="size-5" /></button>
+        <button
+          type="button"
+          onClick={() => setDesktopSidebarOpen(false)}
+          className="hidden lg:grid size-8 place-items-center rounded-lg text-[#777680] transition hover:bg-[#F4F4F5] hover:text-[#111115]"
+          aria-label="Collapse workspace sidebar"
+          title="Collapse sidebar"
+        >
+          <PanelLeftClose className="size-4" aria-hidden />
+        </button>
       </div>
       
       <div className="px-3 pb-4">
@@ -139,14 +155,30 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
           })}
         </div>
       </div>
-    </aside>
+    </aside> : null}
     
     <div className="aira-v2-main flex min-w-0 flex-1 flex-col bg-white">
       <header className="aira-v2-topbar sticky top-0 z-30 flex h-[72px] shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white/95 px-4 backdrop-blur-md sm:px-6">
         <div className="flex items-center">
-          <button type="button" className="mr-4 lg:hidden text-[#475569] hover:text-[#0F172A]" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}>
-            <Menu className="size-[22px]" />
-          </button>
+          {!useIntegratedNavigation ? (
+            <>
+              <button type="button" className="mr-4 lg:hidden text-[#475569] hover:text-[#0F172A]" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}>
+                <Menu className="size-[22px]" />
+              </button>
+              {!desktopSidebarOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setDesktopSidebarOpen(true)}
+                  className="mr-3 hidden lg:flex h-8 items-center gap-1.5 rounded-lg border border-[#EAEAEA] bg-white px-2.5 text-[12px] font-medium text-[#525252] shadow-xs transition hover:border-[#D4D4D4] hover:bg-[#F4F4F5] hover:text-[#111111]"
+                  aria-label="Open workspace sidebar"
+                  title="Open workspace sidebar"
+                >
+                  <PanelLeftOpen className="size-4 text-[#777680]" aria-hidden />
+                  <span>Sidebar</span>
+                </button>
+              ) : null}
+            </>
+          ) : null}
         </div>
         
         <div className="flex flex-1 items-center justify-center px-2 sm:px-4 min-w-0">
@@ -165,7 +197,7 @@ export function AiraV2Frame({ children }: { readonly children: ReactNode }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => {}} className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] transition hover:bg-[#F4F4F5] hover:text-[#111111]">
+          <button type="button" disabled aria-label="Notifications (not available yet)" className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] transition hover:bg-[#F4F4F5] hover:text-[#111111]">
             <Bell className="size-[18px]" strokeWidth={2} />
             <span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-[#111111]"></span>
           </button>

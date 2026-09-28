@@ -3,6 +3,8 @@
 import {
 	ArrowUp,
 	Bot,
+	BrainCircuit,
+	Check,
 	ChevronDown,
 	Command,
 	ExternalLink,
@@ -33,15 +35,26 @@ import {
 
 import { Button } from "./ui/button";
 import { cn } from "../lib/cn";
+import {
+	reasoningEffortCapability,
+	supportedReasoningEffort,
+	type ReasoningEffort,
+} from "../lib/reasoning-effort";
 
 export interface SearchBoxProps {
 	readonly value: string;
 	readonly onChange: (value: string) => void;
-	readonly onSubmit: (context?: { model?: string; attachments?: readonly AttachedFile[] }) => void;
+	readonly onSubmit: (context?: {
+		readonly model?: string;
+		readonly reasoningEffort?: ReasoningEffort;
+		readonly attachments?: readonly AttachedFile[];
+	}) => void;
 	readonly onCancel?: () => void;
 	readonly disabled?: boolean;
 	readonly isBusy?: boolean;
 	readonly placeholder?: string;
+	readonly researchMode?: "standard" | "deep";
+	readonly onResearchModeChange?: (mode: "standard" | "deep") => void;
 	readonly className?: string;
 }
 
@@ -98,7 +111,18 @@ const QUICK_COMMANDS: readonly QuickCommand[] = [
 ] as const;
 
 export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function SearchBox(
-	{ value, onChange, onSubmit, onCancel, disabled, isBusy, placeholder = "Ask anything…", className },
+	{
+		value,
+		onChange,
+		onSubmit,
+		onCancel,
+		disabled,
+		isBusy,
+		placeholder = "Ask anything…",
+		researchMode = "standard",
+		onResearchModeChange,
+		className,
+	},
 	ref,
 ) {
 	const taRef = useRef<HTMLTextAreaElement>(null);
@@ -109,10 +133,15 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	const contextMenuId = useId();
 	const commandMenuId = useId();
 	const modelMenuId = useId();
+	const modeMenuId = useId();
+	const reasoningMenuId = useId();
 
 	const [contextMenuOpen, setContextMenuOpen] = useState(false);
 	const [modelMenuOpen, setModelMenuOpen] = useState(false);
+	const [modeMenuOpen, setModeMenuOpen] = useState(false);
+	const [reasoningMenuOpen, setReasoningMenuOpen] = useState(false);
 	const [selectedModel, setSelectedModel] = useState<string>("auto");
+	const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
 	const [attachments, setAttachments] = useState<readonly AttachedFile[]>([]);
 	const [commandMenuDismissedValue, setCommandMenuDismissedValue] = useState<string | null>(null);
 	const [listening, setListening] = useState(false);
@@ -174,16 +203,18 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 	}, [isBusy, onSubmit, value]);
 
 	useEffect(() => {
-		if (!contextMenuOpen && !modelMenuOpen) return;
+		if (!contextMenuOpen && !modelMenuOpen && !modeMenuOpen && !reasoningMenuOpen) return;
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
 				setContextMenuOpen(false);
 				setModelMenuOpen(false);
+				setModeMenuOpen(false);
+				setReasoningMenuOpen(false);
 			}
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [contextMenuOpen, modelMenuOpen]);
+	}, [contextMenuOpen, modeMenuOpen, modelMenuOpen, reasoningMenuOpen]);
 
 	const busy = Boolean(disabled || isBusy);
 	const canSubmit = Boolean(value.trim() || attachments.length > 0) && !busy;
@@ -203,8 +234,14 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 			window.location.assign("/workspace-search");
 			return;
 		}
-		onSubmit({ model: selectedModel, attachments });
-	}, [value, attachments, busy, onSubmit, selectedModel]);
+		onSubmit({
+			model: selectedModel,
+			...(supportedReasoningEffort(selectedModel, reasoningEffort)
+				? { reasoningEffort }
+				: {}),
+			attachments,
+		});
+	}, [value, attachments, busy, onSubmit, reasoningEffort, selectedModel]);
 
 	const toggleVoice = useCallback(() => {
 		if (!voiceAvailable || busy) return;
@@ -258,11 +295,15 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 		() => MODEL_OPTIONS.find((m) => m.id === selectedModel) ?? MODEL_OPTIONS[0]!,
 		[selectedModel],
 	);
+	const activeReasoningCapability = useMemo(
+		() => reasoningEffortCapability(selectedModel),
+		[selectedModel],
+	);
 
 	useImperativeHandle(ref, () => ({ focus: () => taRef.current?.focus(), submit: handleSubmit }));
 
 	return (
-		<form onSubmit={(event) => { event.preventDefault(); handleSubmit(); }} className={cn("relative mx-auto w-full max-w-[780px]", className)} aria-label="Ask AiraAI">
+		<form onSubmit={(event) => { event.preventDefault(); handleSubmit(); }} className={cn("relative mx-auto w-full max-w-[820px]", className)} aria-label="Ask AiraAI">
 			{/* Hidden file input for in-composer attachment without navigating away */}
 			<input
 				ref={fileInputRef}
@@ -309,7 +350,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 				</div>
 			) : null}
 
-			<div className={cn("relative flex w-full flex-col gap-2 rounded-xl border border-[#EAEAEA] bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition focus-within:border-[#111111] focus-within:ring-1 focus-within:ring-[#111111]", busy && "opacity-95")}>
+			<div className={cn("relative flex w-full flex-col gap-2 rounded-[18px] border border-[rgba(17,17,21,0.09)] bg-white p-3 shadow-[0_16px_44px_rgba(17,17,21,0.08)] transition duration-150 focus-within:border-[#3A0CA3]/35 focus-within:ring-4 focus-within:ring-[#3A0CA3]/[0.045]", busy && "opacity-95")}>
 				
 				<div className="flex w-full flex-col">
 					{attachments.length > 0 ? (
@@ -347,9 +388,11 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						}}
 						onInput={resize}
 						onKeyDown={(event) => {
-							if (event.key === "Escape" && (contextMenuOpen || modelMenuOpen)) {
+							if (event.key === "Escape" && (contextMenuOpen || modelMenuOpen || modeMenuOpen || reasoningMenuOpen)) {
 								setContextMenuOpen(false);
 								setModelMenuOpen(false);
+								setModeMenuOpen(false);
+								setReasoningMenuOpen(false);
 								return;
 							}
 							if (event.key === "Escape" && showCommandMenu) {
@@ -362,16 +405,18 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							}
 						}}
 						placeholder={placeholder || "Ask AIRA..."}
-						className="aira-composer-textarea max-h-[200px] min-h-[44px] w-full resize-none bg-transparent px-2 py-2 text-[15px] font-medium leading-relaxed text-[#111111] outline-none placeholder:font-medium placeholder:text-[#A3A3A3] disabled:cursor-not-allowed"
+						className="aira-composer-textarea max-h-[200px] min-h-[48px] w-full resize-none bg-transparent px-2 py-2.5 text-[15px] font-medium leading-relaxed text-[#111111] outline-none placeholder:font-normal placeholder:text-[#A3A3A3] disabled:cursor-not-allowed"
 					/>
 				</div>
 
-				<div className="flex w-full items-center justify-between pt-1">
-					<div className="flex items-center gap-2 pl-1">
+				<div className="flex w-full min-w-0 items-end gap-2 pt-1 sm:items-center">
+					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 pl-1 [&>*]:shrink-0 sm:flex-nowrap sm:gap-2">
 						<button
 							type="button"
 							onClick={() => {
 								setModelMenuOpen(false);
+								setModeMenuOpen(false);
+								setReasoningMenuOpen(false);
 								setContextMenuOpen((open) => !open);
 							}}
 							className={cn(
@@ -433,6 +478,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							aria-controls={modelMenuOpen ? modelMenuId : undefined}
 							onClick={() => {
 								setContextMenuOpen(false);
+								setModeMenuOpen(false);
+								setReasoningMenuOpen(false);
 								setModelMenuOpen((open) => !open);
 							}}
 							className={cn(
@@ -562,11 +609,118 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						) : null}
 					</div>
 
-					{/* MICROPHONE DEFERRED: Speech-to-text deferred to a post-launch update.
-					     Implementation preserved below (voiceAvailable, toggleVoice, SpeechRecognition).
-					     Re-enable by replacing `false` with `voiceAvailable` below. */}
-					{/* eslint-disable-next-line no-constant-condition, no-constant-binary-expression */}
-					{false && voiceAvailable ? (
+
+					<div className="relative">
+						<button
+							type="button"
+							aria-haspopup="menu"
+							aria-expanded={modeMenuOpen}
+							aria-controls={modeMenuOpen ? modeMenuId : undefined}
+							onClick={() => {
+								setContextMenuOpen(false);
+								setModelMenuOpen(false);
+								setReasoningMenuOpen(false);
+								setModeMenuOpen((open) => !open);
+							}}
+							className={cn(
+								"flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[11px] font-semibold transition",
+								modeMenuOpen
+									? "border-[#111111] bg-[#111111] text-white"
+									: "border-transparent bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]",
+							)}
+						>
+							<Layers className="size-3.5" aria-hidden />
+							<span>{researchMode === "deep" ? "Deep" : "Search"}</span>
+							<ChevronDown className="size-3" aria-hidden />
+						</button>
+						{modeMenuOpen ? (
+							<div
+								id={modeMenuId}
+								role="menu"
+								className="absolute bottom-[calc(100%+12px)] left-0 z-50 w-64 rounded-2xl border border-[rgba(17,17,21,0.1)] bg-white p-2 shadow-2xl"
+							>
+								{([
+									["standard", "Standard Search", "Fast sourced answers for everyday research."],
+									["deep", "Deep Research", "Longer multi-step investigation for complex questions."],
+								] as const).map(([mode, label, description]) => (
+									<button
+										key={mode}
+										type="button"
+										role="menuitemradio"
+										aria-checked={researchMode === mode}
+										onClick={() => {
+											onResearchModeChange?.(mode);
+											setModeMenuOpen(false);
+											requestAnimationFrame(() => taRef.current?.focus());
+										}}
+										className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-[#F4F4F5]"
+									>
+										<span className="mt-0.5 grid size-4 place-items-center rounded-full border border-[#D4D4D4]">
+											{researchMode === mode ? <span className="size-2 rounded-full bg-[#111111]" /> : null}
+										</span>
+										<span>
+											<span className="block text-[12px] font-semibold text-[#111111]">{label}</span>
+											<span className="mt-0.5 block text-[10px] leading-4 text-[#6B6A75]">{description}</span>
+										</span>
+									</button>
+								))}
+							</div>
+						) : null}
+					</div>
+
+					<div className="relative">
+						<button
+							type="button"
+							aria-haspopup="menu"
+							aria-expanded={reasoningMenuOpen}
+							aria-label={`Reasoning effort. Current: ${activeReasoningCapability.supported ? reasoningEffort : "Auto"}`}
+							onClick={() => {
+								setContextMenuOpen(false);
+								setModelMenuOpen(false);
+								setModeMenuOpen(false);
+								setReasoningMenuOpen((open) => !open);
+							}}
+							className={cn(
+								"flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[11px] font-semibold transition",
+								reasoningMenuOpen
+									? "border-[#111111] bg-[#111111] text-white"
+									: "border-transparent bg-[#F4F4F5] text-[#525252] hover:bg-[#EAEAEA] hover:text-[#111111]",
+							)}
+						>
+							<BrainCircuit className="size-3.5" aria-hidden />
+							<span className="hidden md:inline">Reasoning</span>
+							<span>{activeReasoningCapability.supported ? reasoningEffort[0]?.toUpperCase() + reasoningEffort.slice(1) : "Auto"}</span>
+						</button>
+
+						{reasoningMenuOpen ? (
+							<>
+								<div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/35 sm:hidden" onClick={() => setReasoningMenuOpen(false)}>
+									<div id={reasoningMenuId} role="menu" aria-label="Reasoning effort" className="rounded-t-3xl bg-white p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+										<div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#D4D4D4]" />
+										<p className="text-[13px] font-semibold text-[#111111]">Reasoning effort</p>
+										<p className="mt-1 text-[11px] leading-4 text-[#6B6A75]">{activeReasoningCapability.reason}</p>
+										<div className="mt-3 space-y-1">{(["low", "medium", "high"] as const).map((effort) => (
+											<button key={effort} type="button" role="menuitemradio" aria-checked={reasoningEffort === effort} disabled={!activeReasoningCapability.supported} onClick={() => { setReasoningEffort(effort); setReasoningMenuOpen(false); }} className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-[12px] font-medium text-[#111111] transition enabled:hover:bg-[#F4F4F5] disabled:cursor-not-allowed disabled:text-[#A3A3A3]">
+												<span>{effort[0]?.toUpperCase() + effort.slice(1)}</span>{reasoningEffort === effort && activeReasoningCapability.supported ? <Check className="size-4" /> : null}
+											</button>
+										))}</div>
+									</div>
+								</div>
+								<div id={`${reasoningMenuId}-desktop`} role="menu" aria-label="Reasoning effort" className="absolute bottom-[calc(100%+12px)] left-0 z-50 hidden w-72 rounded-2xl border border-[rgba(17,17,21,0.1)] bg-white p-2 shadow-2xl sm:block">
+									<div className="px-3 pb-2 pt-1.5">
+										<p className="text-[11px] font-semibold text-[#111111]">Reasoning effort</p>
+										<p className="mt-1 text-[10px] leading-4 text-[#6B6A75]">{activeReasoningCapability.reason}</p>
+									</div>
+									{(["low", "medium", "high"] as const).map((effort) => (
+										<button key={effort} type="button" role="menuitemradio" aria-checked={reasoningEffort === effort} disabled={!activeReasoningCapability.supported} onClick={() => { setReasoningEffort(effort); setReasoningMenuOpen(false); requestAnimationFrame(() => taRef.current?.focus()); }} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-medium text-[#111111] transition enabled:hover:bg-[#F4F4F5] disabled:cursor-not-allowed disabled:text-[#A3A3A3]">
+											<span>{effort[0]?.toUpperCase() + effort.slice(1)}</span>{reasoningEffort === effort && activeReasoningCapability.supported ? <Check className="size-4" /> : null}
+										</button>
+									))}
+								</div>
+							</>
+						) : null}
+					</div>
+					{voiceAvailable ? (
 						<button
 							type="button"
 							aria-label={listening ? "Stop voice input" : "Start voice input"}
@@ -596,6 +750,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 							</Button>
 						) : (
 							<Button
+							        aria-label="Submit query"
 								type="submit"
 								disabled={!canSubmit}
 								size="icon"
@@ -607,8 +762,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 					</div>
 				</div>
 			</div>
-			<div className="mt-4 flex items-center justify-center gap-4 text-[11px] font-semibold tracking-wide text-[#0F172A]/40">
-				<span>AIRA CAN MAKE MISTAKES. VERIFY IMPORTANT INFO.</span>
+			<div className="mt-2.5 flex items-center justify-center text-[10px] font-medium tracking-wide text-[#8F8E98]">
+				<span>Aira can make mistakes. Verify important information.</span>
 			</div>
 		</form>
 	);

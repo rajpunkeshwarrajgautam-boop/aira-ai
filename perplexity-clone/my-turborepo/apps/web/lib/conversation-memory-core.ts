@@ -15,6 +15,7 @@ export interface ConversationSummary {
 	readonly title: string;
 	readonly lastMessageAt: Date;
 	readonly createdAt: Date;
+	readonly pinnedAt: Date | null;
 }
 
 export interface ConversationMessageDto {
@@ -42,7 +43,7 @@ export async function createConversation(
 ): Promise<ConversationSummary> {
 	return prisma.conversation.create({
 		data: { userId, title: inferTitleFromQuery(initialQuery ?? "") },
-		select: { id: true, title: true, lastMessageAt: true, createdAt: true },
+		select: { id: true, title: true, lastMessageAt: true, createdAt: true, pinnedAt: true },
 	});
 }
 
@@ -54,7 +55,7 @@ export async function listConversations(
 		where: { userId, archivedAt: null },
 		orderBy: { lastMessageAt: "desc" },
 		take: Math.min(Math.max(limit, 1), 100),
-		select: { id: true, title: true, lastMessageAt: true, createdAt: true },
+		select: { id: true, title: true, lastMessageAt: true, createdAt: true, pinnedAt: true },
 	});
 }
 

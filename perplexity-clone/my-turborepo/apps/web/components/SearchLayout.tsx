@@ -27,6 +27,7 @@ import {
 } from "./conversations/ConversationMessageList";
 import {
 	type ConversationSummary,
+	type SidebarProject,
 	ConversationSidebar,
 } from "./conversations/ConversationSidebar";
 import { ResearchHistoryPanel, type ResearchHistoryRow } from "./conversations/ResearchHistoryPanel";
@@ -199,6 +200,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const busy = useMemo(() => phase === "connecting" || phase === "streaming", [phase]);
 
 	const [conversations, setConversations] = useState<readonly ConversationSummary[]>([]);
+	const [projects, setProjects] = useState<readonly SidebarProject[]>([]);
+	const [sidebarError, setSidebarError] = useState<string | null>(null);
+	const [pinningConversationIds, setPinningConversationIds] = useState<readonly string[]>([]);
 	const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 	const [selectedConversationTitle, setSelectedConversationTitle] = useState<
 		string | null
@@ -219,7 +223,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	} | null>(null);
 
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-	const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
+	const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 	const [desktopSourcesOpen, setDesktopSourcesOpen] = useState(true);
 	const [mobileSourcesOpen, setMobileSourcesOpen] = useState(false);
 	const [elapsedMs, setElapsedMs] = useState(0);
@@ -227,6 +231,15 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	const isNearBottomRef = useRef(true);
 	const [canvasOpen, setCanvasOpen] = useState(false);
+
+	useEffect(() => {
+		if (!mobileSidebarOpen) return;
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") setMobileSidebarOpen(false);
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [mobileSidebarOpen]);
 
 	useEffect(() => {
 		if (!busy) {
@@ -310,11 +323,6 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		[messages.length, streamingUserQuery, streamingAssistantMarkdown],
 	);
 
-	const showConversationPanel = useMemo(
-		() => phase !== "error" || !showConversationEmpty,
-		[phase, showConversationEmpty],
-	);
-
 	useEffect(() => {
 		if (!showAssistantSkeleton) {
 			setStatusText("Searching the web...");
@@ -382,6 +390,62 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				: target || null;
 		});
 	}, [apiFetchJson, searchParams]);
+
+	const fetchProjects = useCallback(async () => {
+		const rows = await apiFetchJson<{ readonly projects: readonly SidebarProject[] }>(
+			"/api/agent-platform/projects",
+			{ method: "GET", cache: "no-store" },
+		);
+		setProjects(rows.projects);
+	}, [apiFetchJson]);
+
+	const handleTogglePin = useCallback(
+		async (conversationId: string, pinned: boolean) => {
+			if (sessionStatus !== "authenticated") return;
+			if (pinningConversationIds.includes(conversationId)) return;
+
+			const previous = conversations.find((conversation) => conversation.id === conversationId);
+			if (!previous) return;
+			const previousPinnedAt = previous.pinnedAt ?? null;
+
+			const optimisticPinnedAt = pinned ? new Date().toISOString() : null;
+			setSidebarError(null);
+			setPinningConversationIds((current) => [...current, conversationId]);
+			setConversations((current) =>
+				current.map((conversation) =>
+					conversation.id === conversationId
+						? { ...conversation, pinnedAt: optimisticPinnedAt }
+						: conversation,
+				),
+			);
+
+			try {
+				const rows = await apiFetchJson<{ readonly conversation: ConversationSummary }>(
+					`/api/conversations/${encodeURIComponent(conversationId)}`,
+					{ method: "PATCH", body: JSON.stringify({ pinned }) },
+				);
+				setConversations((current) =>
+					current.map((conversation) =>
+						conversation.id === conversationId
+							? { ...conversation, ...rows.conversation }
+							: conversation,
+					),
+				);
+			} catch (error) {
+				setConversations((current) =>
+					current.map((conversation) =>
+						conversation.id === conversationId
+							? { ...conversation, pinnedAt: previousPinnedAt }
+							: conversation,
+					),
+				);
+				setSidebarError(error instanceof Error ? error.message : "Pin state could not be updated.");
+			} finally {
+				setPinningConversationIds((current) => current.filter((id) => id !== conversationId));
+			}
+		},
+		[apiFetchJson, conversations, pinningConversationIds, sessionStatus],
+	);
 
 	const fetchMessagesForConversation = useCallback(
 		async (conversationId: string) => {
@@ -480,18 +544,22 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	useEffect(() => {
 		if (sessionStatus !== "authenticated") return;
 		void (async () => {
-			try {
-				await fetchConversations();
-			} catch (e) {
-				console.error(e);
-			}
+			const [conversationResult, projectResult] = await Promise.allSettled([
+				fetchConversations(),
+				fetchProjects(),
+			]);
+			if (conversationResult.status === "rejected") console.error(conversationResult.reason);
+			if (projectResult.status === "rejected") console.error(projectResult.reason);
 		})();
-	}, [fetchConversations, sessionStatus]);
+	}, [fetchConversations, fetchProjects, sessionStatus]);
 
 	useEffect(() => {
 		if (sessionStatus === "authenticated") return;
 		hasAutoRunUrlQueryRef.current = null;
 		setConversations([]);
+		setProjects([]);
+		setSidebarError(null);
+		setPinningConversationIds([]);
 		setSelectedConversationId(null);
 		setSelectedConversationTitle(null);
 		setMessages([]);
@@ -1133,7 +1201,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				if (currentGeneration !== searchGenerationRef.current) return;
 				await fetchMessagesForConversation(finalId);
 				if (currentGeneration !== searchGenerationRef.current) return;
-				void refreshBilling();
+				void Promise.allSettled([fetchConversations(), refreshBilling()]);
 			}
 
 			if (currentGeneration === searchGenerationRef.current) {
@@ -1187,10 +1255,16 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			);
 			setErrorMessage(msg);
 			setQuery(q);
+			if (streamedAnswer.trim().length === 0) {
+				setStreamingUserQuery(null);
+				setStreamingAssistantMarkdown(null);
+				setStreamingCitations([]);
+			}
 		}
 	}, [
 		busy,
 		createConversation,
+		fetchConversations,
 		fetchMessagesForConversation,
 		onCreateConversation,
 		messages.length,
@@ -1250,6 +1324,8 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 				value={query}
 				onChange={setQuery}
 				onSubmit={(ctx) => void runSearch(ctx)}
+				researchMode={researchMode}
+				onResearchModeChange={setResearchMode}
 				disabled={false}
 				isBusy={busy}
 				onCancel={handleStop}
@@ -1400,12 +1476,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		<div className={cn("relative min-h-dvh w-full overflow-hidden", className)}>
 			<div className="relative z-10 mx-auto flex min-h-dvh max-w-[1440px] flex-col md:flex-row">
 				{isAuthed && desktopSidebarOpen ? (
-					<div className="hidden w-[300px] shrink-0 md:block md:py-3 md:pl-3 animate-in fade-in slide-in-from-left-2 duration-200">
+					<div className="hidden w-[292px] shrink-0 md:block md:py-2 md:pl-2 animate-in fade-in slide-in-from-left-2 duration-200">
 						<ConversationSidebar
 							conversations={conversations}
+							projects={projects}
 							selectedConversationId={selectedConversationId}
 							onSelectConversation={onSelectConversation}
 							onCreateConversation={onCreateConversation}
+							onTogglePin={handleTogglePin}
+							pinningConversationIds={pinningConversationIds}
+							onCollapse={() => setDesktopSidebarOpen(false)}
+							errorMessage={sidebarError}
 							disabled={busy}
 						/>
 					</div>
@@ -1455,11 +1536,11 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 												type="button"
 												onClick={() => setDesktopSidebarOpen((open) => !open)}
 												className="hidden md:flex h-8 items-center gap-1.5 rounded-lg border border-[var(--aira-border-subtle)] bg-white px-2.5 text-[var(--aira-text-2)] shadow-sm hover:border-[#09090B]/30 hover:text-[var(--aira-text-0)] transition"
-												aria-label={desktopSidebarOpen ? "Hide conversation history" : "Open conversation history"}
-												title={desktopSidebarOpen ? "Hide history (⌘H)" : "Show history (⌘H)"}
+												aria-label={desktopSidebarOpen ? "Hide workspace sidebar" : "Open workspace sidebar"}
+												title={desktopSidebarOpen ? "Hide sidebar (⌘H)" : "Show sidebar (⌘H)"}
 											>
 												<History className="size-3.5 text-[#09090B]" />
-												<span className="text-[11px] font-medium">{desktopSidebarOpen ? "Hide History" : "History"}</span>
+												<span className="text-[11px] font-medium">{desktopSidebarOpen ? "Hide Sidebar" : "Sidebar"}</span>
 											</button>
 										</>
 									) : null}
@@ -1481,12 +1562,37 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						</header>
 					) : null}
 
+					{isAuthed && !showConversationEmpty ? (
+						<div className="mx-auto flex h-11 w-full max-w-5xl items-center gap-2 px-3 md:px-6 xl:max-w-6xl">
+							<button
+								type="button"
+								onClick={() => setMobileSidebarOpen(true)}
+								className="grid size-8 place-items-center rounded-lg border border-[rgba(17,17,21,0.08)] bg-white text-[#6B6A75] shadow-xs transition hover:text-[#111115] md:hidden"
+								aria-label="Open workspace sidebar"
+							>
+								<Menu className="size-4" aria-hidden />
+							</button>
+							{!desktopSidebarOpen ? (
+								<button
+									type="button"
+									onClick={() => setDesktopSidebarOpen(true)}
+									className="hidden h-8 items-center gap-1.5 rounded-lg border border-[rgba(17,17,21,0.08)] bg-white px-2.5 text-[11px] font-medium text-[#6B6A75] shadow-xs transition hover:text-[#111115] md:flex"
+								>
+									<History className="size-3.5" aria-hidden /> Sidebar
+								</button>
+							) : null}
+							<p className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#6B6A75]">
+								{selectedConversationTitle ?? "Conversation"}
+							</p>
+						</div>
+					) : null}
+
 					<div className="mx-auto flex w-full max-w-5xl xl:max-w-6xl flex-1 flex-col gap-6 px-4 pb-8 md:px-6 transition-all duration-300">
 						{isAuthed && showConversationEmpty ? (
 							<ResearchHistoryPanel items={researchHistory} onSelectItem={onSelectConversation} />
 						) : null}
 
-						{showConversationPanel ? <div
+						<div
 							className={cn(
 								"flex min-h-0 flex-1 flex-col",
 								!showConversationEmpty && "overflow-hidden",
@@ -1580,7 +1686,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									</Link>
 								</div>
 							) : null}
-						</div> : null}
+						</div>
 
 						<p className="sr-only" aria-live="polite">
 							{phase === "connecting"
@@ -1628,26 +1734,16 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 			</div>
 
 			{isAuthed && mobileSidebarOpen ? (
-				<div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true">
+				<div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Aira workspace sidebar">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
 						onClick={() => setMobileSidebarOpen(false)}
 					/>
-					<div className="relative flex w-[300px] max-w-[85vw] flex-col bg-surface shadow-glass animate-in slide-in-from-left duration-300 ease-out ring-1 ring-black/5">
-						<div className="flex h-14 items-center justify-between border-b border-border-subtle/80 px-4">
-							<span className="font-semibold text-content-primary">Menu</span>
-							<button
-								type="button"
-								onClick={() => setMobileSidebarOpen(false)}
-								className="rounded-lg p-1.5 text-content-secondary hover:bg-surface-inset active:scale-95 transition-transform"
-								aria-label="Close menu"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
-						<div className="flex-1 overflow-y-auto p-4">
+					<div className="relative flex w-[320px] max-w-[88vw] flex-col bg-[#FAF9F7] p-2 shadow-2xl animate-in slide-in-from-left duration-300 ease-out ring-1 ring-black/5">
+						<div className="min-h-0 flex-1">
 							<ConversationSidebar
 								conversations={conversations}
+								projects={projects}
 								selectedConversationId={selectedConversationId}
 								onSelectConversation={(id) => {
 									void onSelectConversation(id);
@@ -1657,6 +1753,10 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 									void onCreateConversation();
 									setMobileSidebarOpen(false);
 								}}
+								onTogglePin={handleTogglePin}
+								pinningConversationIds={pinningConversationIds}
+								errorMessage={sidebarError}
+								onCollapse={() => setMobileSidebarOpen(false)}
 								disabled={busy}
 							/>
 						</div>

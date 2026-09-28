@@ -25,7 +25,7 @@ function HomeSkeleton() {
 export default function Home() {
   return (
     <div className="aira-home aira-v2-page min-h-dvh">
-      <AiraV2Frame>
+      <AiraV2Frame integratedWorkspaceNavigation>
         <Suspense fallback={<HomeSkeleton />}>
           <SearchLayout />
         </Suspense>

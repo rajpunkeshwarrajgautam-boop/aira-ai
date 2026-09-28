@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const UpdateSchema = z.object({
 	title: z.string().trim().min(1).max(120).optional(),
 	archived: z.boolean().optional(),
+	pinned: z.boolean().optional(),
 });
 
 type Params = { params: Promise<{ conversationId: string }> };
@@ -56,8 +57,11 @@ export async function PATCH(req: Request, { params }: Params): Promise<Response>
 				...(parsed.data.archived !== undefined
 					? { archivedAt: parsed.data.archived ? new Date() : null }
 					: {}),
+				...(parsed.data.pinned !== undefined
+					? { pinnedAt: parsed.data.pinned ? new Date() : null }
+					: {}),
 			},
-			select: { id: true, title: true, archivedAt: true, lastMessageAt: true, updatedAt: true },
+			select: { id: true, title: true, pinnedAt: true, archivedAt: true, lastMessageAt: true, updatedAt: true },
 		});
 		return Response.json({ conversation: updated });
 	} catch {
