@@ -84,17 +84,17 @@ export default function PricingPage() {
 	}, [sessionStatus]);
 
 	return (
-		<main className="aira-shell min-h-dvh overflow-hidden text-content-primary">
+		<main className="aira-shell aira-cyber-teal-stage min-h-dvh overflow-hidden text-content-primary">
 			<WorkspaceHeader />
 			<div className="relative mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 md:py-16">
 				<div className="aira-orb aira-orb-blue -left-12 top-20 size-24 opacity-45" aria-hidden />
 				<div className="aira-orb aira-orb-violet -right-10 top-8 size-28 opacity-50" aria-hidden />
 
 				<div className="aira-enter relative mx-auto max-w-3xl text-center">
-					<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border-subtle bg-white/75 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-content-secondary shadow-sm backdrop-blur"><Sparkles className="size-3.5 text-accent" aria-hidden /> Simple pricing</div>
-					<h1 className="aira-display mt-5 text-4xl sm:text-5xl md:text-6xl">Choose how far <span className="aira-gradient-text">Aira can go.</span></h1>
-					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-content-tertiary sm:text-base">Start free. Move up when deeper research, more usage, or higher limits start saving you real time.</p>
-					<div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-3 text-sm leading-6 text-amber-900 dark:text-amber-100" role="status">
+					<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300 shadow-sm backdrop-blur"><Sparkles className="size-3.5 text-cyan-400" aria-hidden /> Simple pricing</div>
+					<h1 className="aira-display mt-5 text-4xl sm:text-5xl md:text-6xl text-white font-extrabold tracking-tight">Choose how far <span className="bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">Aira can go.</span></h1>
+					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">Start free. Move up when deeper research, more usage, or higher limits start saving you real time.</p>
+					<div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-amber-400/25 bg-amber-400/[0.08] px-4 py-3 text-sm leading-6 text-amber-200" role="status">
 						Paid checkout is currently disabled while AIRA completes commercial activation. No payment can be started from this release candidate. Explore Free tier capabilities or configure workspace access.
 					</div>
 				</div>
@@ -104,29 +104,30 @@ export default function PricingPage() {
 						const Icon = plan.icon;
 						const key = planKey(plan.name);
 						const isCurrent = activePlan === key;
+						const tierClass = plan.name === "Free" ? "aira-card-amber" : plan.highlight ? "aira-card-cyan aira-pro-glow md:-translate-y-3" : "aira-card-fuchsia";
 						return (
-							<section key={plan.name} className={cn("aira-premium-card aira-card-hover relative flex flex-col overflow-hidden rounded-[28px] p-6", plan.highlight && "aira-pro-glow border-accent/25 md:-translate-y-2")}>
-								{plan.highlight ? <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.15),transparent_72%)]" aria-hidden /> : null}
+							<section key={plan.name} className={cn("aira-premium-card aira-card-hover relative flex flex-col overflow-hidden p-6 transition-all duration-300", tierClass)}>
+								<div className="card-arch-glow pointer-events-none absolute inset-x-0 top-0 h-32" aria-hidden />
 								<div className="relative flex items-start justify-between gap-3">
-									<span className={cn("flex size-11 items-center justify-center rounded-2xl", plan.highlight ? "bg-[linear-gradient(135deg,#7C3AED,#4F46E5)] text-white shadow-[0_10px_28px_rgba(124,58,237,0.35)]" : "aira-icon-pop")}><Icon className="size-4.5" aria-hidden /></span>
+									<span className="tier-icon flex size-11 items-center justify-center rounded-2xl shadow-md"><Icon className="size-4.5" aria-hidden /></span>
 									{plan.highlight ? (
-										<span className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200 shadow-sm backdrop-blur-md">
-											<Sparkles className="size-3 text-violet-400" aria-hidden /> Most popular
+										<span className="cyan-pill-badge inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] shadow-sm backdrop-blur-md">
+											<Sparkles className="size-3 text-cyan-300" aria-hidden /> Most popular
 										</span>
 									) : null}
 								</div>
-								<p className={cn("relative mt-5 text-[10px] font-semibold uppercase tracking-[0.14em]", plan.highlight ? "text-violet-300" : "text-content-tertiary")}>{plan.eyebrow}</p>
-								<h2 className={cn("relative mt-1 tracking-tight", plan.highlight ? "aira-pro-white text-2xl font-bold text-white" : "text-xl font-semibold")}>{plan.name}</h2>
-								<p className={cn("relative mt-2 min-h-[48px] text-sm leading-6", plan.highlight ? "aira-pro-muted text-zinc-300" : "text-content-tertiary")}>{plan.description}</p>
+								<p className={cn("relative mt-5 text-[10px] font-semibold uppercase tracking-[0.14em]", plan.highlight ? "text-cyan-400" : plan.name === "Free" ? "text-amber-400" : "text-fuchsia-400")}>{plan.eyebrow}</p>
+								<h2 className="relative mt-1 text-2xl font-bold tracking-tight text-white">{plan.name}</h2>
+								<p className="relative mt-2 min-h-[48px] text-sm leading-6 text-zinc-300">{plan.description}</p>
 								<div className="relative mt-6 flex items-end gap-2">
-									<span className={cn("text-4xl tracking-tight", plan.highlight ? "aira-pro-white font-extrabold text-white" : "font-semibold")}>{plan.price}</span>
-									{plan.name !== "Free" ? <span className={cn("pb-1 text-xs", plan.highlight ? "text-zinc-400" : "text-content-tertiary")}>/ month</span> : null}
+									<span className="tier-price-val text-4xl font-extrabold tracking-tight text-white">{plan.price}</span>
+									{plan.name !== "Free" ? <span className="pb-1 text-xs text-zinc-400">/ month</span> : null}
 								</div>
-								{plan.priceNote ? <p className={cn("relative mt-1 text-[11px]", plan.highlight ? "text-zinc-400" : "text-content-tertiary")}>{plan.priceNote}</p> : null}
+								{plan.priceNote ? <p className="relative mt-1 text-[11px] text-zinc-400">{plan.priceNote}</p> : null}
 								<ul className="relative my-6 flex-1 space-y-3">
 									{plan.features.map((feature) => (
-										<li key={feature} className={cn("flex items-start gap-2.5 text-sm leading-5", plan.highlight ? "text-zinc-200" : "text-content-secondary")}>
-											<span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full", plan.highlight ? "bg-violet-500/20 text-violet-300" : "bg-surface-inset text-content-secondary")}>
+										<li key={feature} className="flex items-start gap-2.5 text-sm leading-5 text-zinc-200">
+											<span className="check-icon mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full">
 												<Check className="size-3" aria-hidden />
 											</span>
 											{feature}
@@ -135,11 +136,11 @@ export default function PricingPage() {
 								</ul>
 
 								{(sessionStatus === "loading" || (sessionStatus === "authenticated" && checkingPlan)) ? (
-									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Checking plan…</Button>
+									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-white/5 border border-white/10 text-zinc-400">Checking plan…</Button>
 								) : isCurrent ? (
-									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-surface-inset/60">Current plan</Button>
+									<Button variant="outline" disabled className="relative h-11 w-full rounded-xl bg-white/5 border border-white/10 text-zinc-400">Current plan</Button>
 								) : plan.name === "Free" ? (
-									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-surface-inset/60"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
+									<Button variant="outline" asChild className="relative h-11 w-full rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 font-medium"><Link href="/">{sessionStatus === "authenticated" ? "Open AIRA" : "Start free"}</Link></Button>
 								) : (
 									<Button
 										type="button"
@@ -155,7 +156,7 @@ export default function PricingPage() {
 												// ignore
 											}
 										}}
-										className={cn("relative h-11 w-full rounded-xl transition", plan.highlight ? "pro-cta-btn bg-white text-[#0D0E15] hover:bg-zinc-100 font-semibold shadow-md" : "bg-surface-inset/60 hover:bg-surface-inset text-content-primary")}
+										className={cn("relative h-11 w-full rounded-xl transition", plan.highlight ? "pro-cta-btn bg-white text-[#0B2533] hover:bg-zinc-100 font-bold shadow-md" : "bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-300 hover:bg-fuchsia-500/20 font-medium")}
 									>
 										Paid upgrades unavailable
 									</Button>
