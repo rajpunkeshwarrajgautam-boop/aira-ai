@@ -283,7 +283,7 @@ export function ConversationMessageList({
 		return (
 			<div className="aira-enter group flex gap-4 py-4 sm:py-6">
 				<div className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-[#EAEAEA] bg-[#F9F8F6] text-[10px] font-bold text-[#111111]">A</div>
-				<div className="aira-assistant-response min-w-0 flex-1 pb-8">
+				<div className="aira-assistant-response min-w-0 flex-1 p-4 sm:p-5 rounded-xl">
 					<div className="mb-2 flex min-h-7 flex-wrap items-center justify-between gap-2">
 						<div className="flex min-w-0 flex-wrap items-center gap-2">
 							<p className="shrink-0 whitespace-nowrap text-[12px] font-semibold text-[#111115]">AIRA AI</p>
@@ -393,10 +393,11 @@ export function ConversationMessageList({
 			)}
 
 			{!showEmptyHint && (
-				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-[rgba(17,17,21,0.08)] bg-[#F9F8F6]/95 px-4 backdrop-blur-xl sm:px-5">
-				<div className="min-w-0">
-					<h2 className="truncate text-[13px] font-semibold text-[#111115]">{title}</h2>
-					<p className="mt-0.5 text-[10px] text-[#6B6A75]">AIRA workspace</p>
+				<div className="aira-thread-toolbar sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-[rgba(17,17,21,0.08)] bg-[#F9F8F6]/95 px-4 backdrop-blur-xl sm:px-5">
+				<div className="min-w-0 flex items-center gap-2">
+					<span className="rounded bg-[#F4F4F5] px-2 py-0.5 text-[11px] font-semibold text-[#525252]">Research</span>
+					<span className="text-[12px] text-[#A3A3A3]">/</span>
+					<span className="truncate text-[12px] font-medium text-[#111111] max-w-[240px] sm:max-w-sm md:max-w-md">{title}</span>
 				</div>
 
 				{/* Effort Selector in Toolbar (Gate 102) */}
