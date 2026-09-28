@@ -43,3 +43,27 @@ test("home frame delegates navigation to the integrated authenticated workspace 
 	assert.match(page, /AiraV2Frame integratedWorkspaceNavigation/);
 	assert.match(frame, /useIntegratedNavigation/);
 });
+
+test("ConversationRow provides persistent visual differentiation and discoverable affordance for pinned conversations", () => {
+	const sidebar = source("components/conversations/ConversationSidebar.tsx");
+
+	// 1. Pinned conversation receives persistent pinned-state styling and data attribute
+	assert.match(sidebar, /data-pinned=\{pinned \? "true" : undefined\}/);
+	assert.match(sidebar, /pinned\s*\?\s*"bg-\[#3A0CA3\]\/\[0\.035\]/);
+	assert.match(sidebar, /ring-1 ring-\[#3A0CA3\]\/12/);
+	assert.match(sidebar, /pinned && !selected \? "font-medium text-\[#241442\]"/);
+
+	// 2. PinOff control is visually discoverable without hover for pinned rows
+	assert.match(sidebar, /pinned\s*\?\s*"text-\[#5C4D82\] opacity-75 hover:bg-white hover:text-\[#3A0CA3\] hover:opacity-100"/);
+
+	// 3. Unpinned rows retain normal appearance with hover-only pin icon
+	assert.match(sidebar, /"text-\[#9A99A3\] opacity-0 hover:bg-white hover:text-\[#3A0CA3\] group-hover\/row:opacity-100"/);
+	assert.match(sidebar, /"text-\[#5F5E68\] hover:bg-\[#111115\]\/\[0\.035\] hover:text-\[#111115\]"/);
+
+	// 4. Selected state remains intact with strong identity
+	assert.match(sidebar, /selected\s*\?\s*pinned\s*\?\s*"bg-\[#3A0CA3\]\/\[0\.08\] font-semibold text-\[#2D0A82\] ring-1 ring-\[#3A0CA3\]\/20"/);
+
+	// 5. Accessible label flips between Pin and Unpin
+	assert.match(sidebar, /aria-label=\{pinned \? `Unpin \$\{conversation\.title\}` : `Pin \$\{conversation\.title\}`\}/);
+	assert.match(sidebar, /title=\{pinned \? "Unpin conversation" : "Pin conversation"\}/);
+});

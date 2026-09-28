@@ -109,7 +109,7 @@ function ConversationRow({
 }) {
 	const pinned = conversation.pinnedAt !== null && conversation.pinnedAt !== undefined;
 	return (
-		<li className="group/row relative">
+		<li className="group/row relative" data-pinned={pinned ? "true" : undefined}>
 			<button
 				type="button"
 				onClick={onSelect}
@@ -118,12 +118,28 @@ function ConversationRow({
 				className={cn(
 					"flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 pr-16 text-left transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#3A0CA3]",
 					selected
-						? "bg-[#3A0CA3]/[0.07] font-semibold text-[#2D0A82]"
-						: "text-[#5F5E68] hover:bg-[#111115]/[0.035] hover:text-[#111115]",
+						? pinned
+							? "bg-[#3A0CA3]/[0.08] font-semibold text-[#2D0A82] ring-1 ring-[#3A0CA3]/20"
+							: "bg-[#3A0CA3]/[0.07] font-semibold text-[#2D0A82]"
+						: pinned
+							? "bg-[#3A0CA3]/[0.035] text-[#2B1B4D] ring-1 ring-[#3A0CA3]/12 hover:bg-[#3A0CA3]/[0.06] hover:text-[#1A0B3B]"
+							: "text-[#5F5E68] hover:bg-[#111115]/[0.035] hover:text-[#111115]",
 				)}
 			>
-				<span className="min-w-0 flex-1 truncate text-[12px]">{conversation.title}</span>
-				<span className="shrink-0 text-[9px] tabular-nums text-[#A09FAA]">
+				<span
+					className={cn(
+						"min-w-0 flex-1 truncate text-[12px]",
+						pinned && !selected ? "font-medium text-[#241442]" : undefined,
+					)}
+				>
+					{conversation.title}
+				</span>
+				<span
+					className={cn(
+						"shrink-0 text-[9px] tabular-nums",
+						pinned && !selected ? "text-[#7B6E96]" : "text-[#A09FAA]",
+					)}
+				>
 					{formatRelative(conversation.lastMessageAt)}
 				</span>
 			</button>
@@ -131,11 +147,16 @@ function ConversationRow({
 				<button
 					type="button"
 					onClick={(event) => {
-					event.stopPropagation();
-					onTogglePin();
-				}}
+						event.stopPropagation();
+						onTogglePin();
+					}}
 					disabled={disabled || pinning}
-					className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-[#9A99A3] opacity-0 transition hover:bg-white hover:text-[#3A0CA3] focus-visible:opacity-100 group-hover/row:opacity-100 disabled:cursor-wait disabled:opacity-40"
+					className={cn(
+						"absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md transition focus-visible:opacity-100 disabled:cursor-wait disabled:opacity-40",
+						pinned
+							? "text-[#5C4D82] opacity-75 hover:bg-white hover:text-[#3A0CA3] hover:opacity-100"
+							: "text-[#9A99A3] opacity-0 hover:bg-white hover:text-[#3A0CA3] group-hover/row:opacity-100",
+					)}
 					aria-label={pinned ? `Unpin ${conversation.title}` : `Pin ${conversation.title}`}
 					title={pinned ? "Unpin conversation" : "Pin conversation"}
 				>
