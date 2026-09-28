@@ -36,7 +36,7 @@ export default async function SignInPage({
 
 	return (
 		<main className="aira-auth-stage aira-auth-stage-visme">
-			<section className="aira-auth-frame aira-auth-frame-visme" aria-label="Aira AI authentication">
+			<section className="aira-auth-frame aira-auth-frame-visme overflow-hidden" aria-label="Aira AI authentication">
 				<AuthThemeVisual theme={theme} />
 
 				<div className="aira-auth-form-side aira-auth-form-side-visme">

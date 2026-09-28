@@ -87,7 +87,7 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
 
   return <div className={cn("aira-v2-frame aira-intelligence-os", isCollapsed && "is-sidebar-collapsed", useIntegratedNavigation && "is-integrated-nav")} data-sidebar-collapsed={isCollapsed ? "true" : "false"}>
     {mobileNavOpen && !useIntegratedNavigation ? <button type="button" className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} /> : null}
-    {!useIntegratedNavigation ? <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-[#EAEAEA] bg-white transition-transform duration-300 lg:static lg:translate-x-0", mobileNavOpen ? "translate-x-0" : "-translate-x-full", !desktopSidebarOpen && "lg:hidden")} aria-label="AIRA workspace navigation">
+    {!useIntegratedNavigation ? <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] lg:w-[240px] flex-col border-r border-[#EAEAEA] bg-white transition-transform duration-300 lg:static lg:translate-x-0", mobileNavOpen ? "translate-x-0" : "-translate-x-full", !desktopSidebarOpen && "lg:hidden")} aria-label="AIRA workspace navigation">
       <div className="flex h-[72px] shrink-0 items-center justify-between px-5">
         <AiraLogo />
         <button type="button" className="lg:hidden text-[#94A3B8] hover:text-[#0F172A]" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><X className="size-5" /></button>
@@ -102,7 +102,7 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
         </button>
       </div>
       
-      <div className="px-3 pb-4">
+      <div className="px-3 pb-3 shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -121,38 +121,40 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label="Primary workspace">
-        <div className="flex flex-col gap-1">
-          {PRIMARY_NAV.map((item) => {
-            const active = isActivePath(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition", active ? "bg-[#F4F4F5] text-[#111111]" : "text-[#525252] hover:bg-[#F4F4F5]/50 hover:text-[#111111]")} aria-current={active ? "page" : undefined}>
-                <Icon className={cn("size-[18px]", active ? "text-[#111111]" : "text-[#A3A3A3]")} strokeWidth={2} aria-hidden />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-      
-      <div className="mt-auto px-3 py-4">
-        <div className="mb-4 rounded-[8px] border border-[#EAEAEA] bg-transparent p-4 text-center">
-          <h4 className="mb-1 text-[13px] font-bold text-[#111111]">Aira PRO</h4>
-          <p className="mb-3 text-[11px] leading-relaxed text-[#525252]">Higher thinking with AI. Upgrade for full access.</p>
-          <Link href="/pricing" className="block rounded-[6px] bg-white border border-[#EAEAEA] px-4 py-1.5 text-[12px] font-semibold text-[#111111] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition hover:bg-[#F4F4F5]">Upgrade</Link>
-        </div>
-        <div className="flex flex-col gap-1 border-t border-[#E2E8F0] pt-4">
-          {BOTTOM_NAV.map((item) => {
-            const active = isActivePath(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition", active ? "bg-[#F4F4F5] text-[#111111]" : "text-[#525252] hover:bg-[#F4F4F5]/50 hover:text-[#111111]")} aria-current={active ? "page" : undefined}>
-                <Icon className={cn("size-[18px]", active ? "text-[#111111]" : "text-[#A3A3A3]")} strokeWidth={2} aria-hidden />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+      <div className="flex flex-1 min-h-0 flex-col justify-between overflow-y-auto">
+        <nav className="px-3 py-1" aria-label="Primary workspace">
+          <div className="flex flex-col gap-1">
+            {PRIMARY_NAV.map((item) => {
+              const active = isActivePath(pathname, item.href);
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition", active ? "bg-[#F4F4F5] text-[#111111]" : "text-[#525252] hover:bg-[#F4F4F5]/50 hover:text-[#111111]")} aria-current={active ? "page" : undefined}>
+                  <Icon className={cn("size-[18px]", active ? "text-[#111111]" : "text-[#A3A3A3]")} strokeWidth={2} aria-hidden />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+        
+        <div className="px-3 py-3 mt-auto shrink-0">
+          <div className="mb-3 rounded-[8px] border border-[#EAEAEA] bg-transparent p-3 text-center">
+            <h4 className="mb-0.5 text-[12px] font-bold text-[#111111]">Aira PRO</h4>
+            <p className="mb-2 text-[11px] leading-relaxed text-[#525252]">Higher thinking with AI. Upgrade for full access.</p>
+            <Link href="/pricing" className="block rounded-[6px] bg-white border border-[#EAEAEA] px-3 py-1.5 text-[11px] font-semibold text-[#111111] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition hover:bg-[#F4F4F5]">Upgrade</Link>
+          </div>
+          <div className="flex flex-col gap-1 border-t border-[#E2E8F0] pt-2">
+            {BOTTOM_NAV.map((item) => {
+              const active = isActivePath(pathname, item.href);
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition", active ? "bg-[#F4F4F5] text-[#111111]" : "text-[#525252] hover:bg-[#F4F4F5]/50 hover:text-[#111111]")} aria-current={active ? "page" : undefined}>
+                  <Icon className={cn("size-[18px]", active ? "text-[#111111]" : "text-[#A3A3A3]")} strokeWidth={2} aria-hidden />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </aside> : null}
@@ -197,9 +199,8 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" disabled aria-label="Notifications (not available yet)" className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] transition hover:bg-[#F4F4F5] hover:text-[#111111]">
+          <button type="button" disabled aria-label="Notifications (not available yet)" className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] opacity-70 cursor-not-allowed transition hover:bg-[#F4F4F5]">
             <Bell className="size-[18px]" strokeWidth={2} />
-            <span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-[#111111]"></span>
           </button>
           <UserMenu className="flex" />
         </div>

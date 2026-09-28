@@ -18,7 +18,7 @@ export function AiraPreloader() {
 			hasVisited.current = true;
 		}
 		
-		const duration = shouldReduceMotion ? 0 : 1500;
+		const duration = shouldReduceMotion ? 0 : 100;
 		const timeout = window.setTimeout(() => setVisible(false), duration);
 		return () => window.clearTimeout(timeout);
 	}, [shouldReduceMotion]);
@@ -27,10 +27,10 @@ export function AiraPreloader() {
 		<AnimatePresence>
 			{visible && (
 				<motion.div 
-					className="aira-preloader-container fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--aira-canvas)]"
+					className="aira-preloader-container pointer-events-none fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--aira-canvas)]"
 					initial={{ opacity: 1 }}
-					exit={{ opacity: 0, filter: "blur(10px)" }}
-					transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+					exit={{ opacity: 0, filter: "blur(4px)" }}
+					transition={{ duration: 0.2, ease: "easeOut" }}
 				>
 					<motion.div
 						initial={{ scale: 0.95, opacity: 1 }}

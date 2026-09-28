@@ -1209,24 +1209,226 @@ main.aira-shell section.aira-premium-card span {
   color: inherit !important;
 }
 
-/* Pro card highlighted surface */
+main.aira-shell section.aira-premium-card span.text-white {
+  color: #ffffff !important;
+}
+
+/* Pro card Obsidian Monolith Hero surface */
 main.aira-shell section.aira-premium-card.aira-pro-glow {
-  border-color: rgba(58, 12, 163, 0.35) !important;
+  background: #0D0E15 !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  color: #FFFFFF !important;
   box-shadow:
-    0 4px 20px rgba(58, 12, 163, 0.10),
-    0 1px 4px rgba(17, 17, 21, 0.05) !important;
+    0 25px 60px -12px rgba(79, 70, 229, 0.28),
+    0 0 0 1px rgba(139, 92, 246, 0.3) !important;
 }
 
-/* Pricing CTA buttons — ink on surface */
-main.aira-shell .rounded-xl.bg-surface-inset\/60 {
-  background: rgba(17, 17, 21, 0.05) !important;
-  border-color: var(--aira-border-subtle) !important;
-  color: var(--aira-text-0) !important;
+main.aira-shell section.aira-premium-card.aira-pro-glow h2,
+main.aira-shell section.aira-premium-card.aira-pro-glow .aira-pro-white {
+  color: #FFFFFF !important;
 }
 
-/* Footer note on pricing */
-main.aira-shell .text-content-tertiary {
-  color: var(--aira-text-2) !important;
+main.aira-shell section.aira-premium-card.aira-pro-glow p.aira-pro-muted,
+main.aira-shell section.aira-premium-card.aira-pro-glow li {
+  color: #D4D4D8 !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow li span {
+  color: #C4B5FD !important;
+  background: rgba(139, 92, 246, 0.25) !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow .pro-cta-btn {
+  background: #FFFFFF !important;
+  color: #0D0E15 !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+}
+
+main.aira-shell section.aira-premium-card.aira-pro-glow .pro-cta-btn:hover {
+  background: #F4F4F5 !important;
+}
+
+/* Option 1: Cyber-Teal and Radiant Arches Theme */
+main.aira-shell.aira-cyber-teal-stage,
+main.aira-cyber-teal-stage.aira-cyber-teal-stage,
+.aira-cyber-teal-stage {
+  background: #0F2530 !important;
+  color: #FFFFFF !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage::before,
+main.aira-shell.aira-cyber-teal-stage::after {
+  display: none !important;
+}
+
+/* Petrol Teal Header styling */
+main.aira-shell.aira-cyber-teal-stage header,
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header {
+  background: rgba(15, 37, 48, 0.8) !important;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.18) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header a,
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header button,
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header span {
+  color: #E2E8F0 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header [aria-label="AIRA AI home"] span {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header a[href="/pricing"],
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header button[data-state="active"] {
+  background: rgba(6, 182, 212, 0.15) !important;
+  border-color: rgba(6, 182, 212, 0.4) !important;
+  color: #38BDF8 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header .aira-topbar-signin,
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header a.aira-topbar-signin,
+main.aira-shell.aira-cyber-teal-stage .aira-public-workspace-header button.aira-topbar-signin {
+  background: #06B6D4 !important;
+  color: #0F2530 !important;
+  font-weight: 700 !important;
+  border: none !important;
+}
+
+/* Hero Typography */
+main.aira-shell.aira-cyber-teal-stage .aira-display,
+main.aira-shell.aira-cyber-teal-stage h1.aira-display,
+main.aira-shell.aira-cyber-teal-stage h1 {
+  color: #FFFFFF !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage h1 span {
+  background: linear-gradient(135deg, #22D3EE, #2DD4BF, #818CF8) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage p {
+  color: #94A3B8 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .aira-orb-blue {
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.35) 0%, transparent 70%) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .aira-orb-violet {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%) !important;
+}
+
+/* Card 1: Free (Amber Radiant Arch) */
+main.aira-shell.aira-cyber-teal-stage section.aira-card-amber {
+  background: #0D2028 !important;
+  border-radius: 36px 36px 24px 24px !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 15px 40px -10px rgba(245, 158, 11, 0.15) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-amber .card-arch-glow {
+  background: radial-gradient(ellipse at top, rgba(245, 158, 11, 0.28), transparent 70%) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-amber .tier-icon {
+  background: linear-gradient(135deg, #F59E0B, #EA580C) !important;
+  color: #FFFFFF !important;
+}
+
+/* Card 2: Pro (Hero Electric Cyan Radiant Arch) */
+main.aira-shell.aira-cyber-teal-stage section.aira-card-cyan {
+  background: #092633 !important;
+  border-radius: 40px 40px 28px 28px !important;
+  border: 2px solid rgba(6, 182, 212, 0.7) !important;
+  box-shadow: 0 25px 60px -10px rgba(6, 182, 212, 0.4), 0 0 25px rgba(6, 182, 212, 0.2) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-cyan .card-arch-glow {
+  background: radial-gradient(ellipse at top, rgba(6, 182, 212, 0.45), transparent 75%) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-cyan .tier-icon {
+  background: linear-gradient(135deg, #06B6D4, #2563EB) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.5) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-cyan .cyan-pill-badge {
+  background: rgba(8, 47, 73, 0.9) !important;
+  border: 1px solid rgba(6, 182, 212, 0.6) !important;
+  color: #A5F3FC !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.3) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-cyan .pro-cta-btn {
+  background: #FFFFFF !important;
+  color: #092633 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.25) !important;
+  border: none !important;
+}
+
+/* Card 3: Team (Neon Fuchsia Radiant Arch) */
+main.aira-shell.aira-cyber-teal-stage section.aira-card-fuchsia {
+  background: #0D2028 !important;
+  border-radius: 36px 36px 24px 24px !important;
+  border: 1px solid rgba(217, 70, 239, 0.35) !important;
+  box-shadow: 0 15px 40px -10px rgba(217, 70, 239, 0.15) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-fuchsia .card-arch-glow {
+  background: radial-gradient(ellipse at top, rgba(217, 70, 239, 0.28), transparent 70%) !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-fuchsia .tier-icon {
+  background: linear-gradient(135deg, #D946EF, #9333EA) !important;
+  color: #FFFFFF !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-premium-card h2 {
+  color: #FFFFFF !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-premium-card p {
+  color: #94A3B8 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-premium-card span.tier-price-val {
+  color: #FFFFFF !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-premium-card li {
+  color: #E2E8F0 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-amber li span.check-icon {
+  background: rgba(245, 158, 11, 0.25) !important;
+  color: #FBBF24 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-cyan li span.check-icon {
+  background: rgba(6, 182, 212, 0.3) !important;
+  color: #38BDF8 !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage section.aira-card-fuchsia li span.check-icon {
+  background: rgba(217, 70, 239, 0.25) !important;
+  color: #F472B6 !important;
+}
+
+/* Eyebrow and Status message overrides */
+main.aira-shell.aira-cyber-teal-stage [role="status"].rounded-2xl {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  color: #FCD34D !important;
+}
+
+main.aira-shell.aira-cyber-teal-stage .text-content-tertiary {
+  color: #94A3B8 !important;
 }
 
 /* Ensure UserMenu on light header renders correctly */
