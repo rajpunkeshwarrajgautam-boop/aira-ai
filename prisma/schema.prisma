@@ -94,6 +94,7 @@ model User {
   memories             UserMemory[]
   mcpServerPreferences McpServerPreference[]
   customAgents         UserAgent[]
+  agentTeams           AgentTeam[]
   automationRoutines   AutomationRoutine[]
   automationRuns       AutomationRoutineRun[]
   automationNotifs     AutomationNotification[]
@@ -434,6 +435,37 @@ model UserAgent {
 
   @@index([userId, updatedAt(sort: Desc)])
   @@index([isPublic])
+}
+
+model AgentTeam {
+  id                String             @id
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  description       String             @db.Text
+  status            String             @default("ACTIVE")
+  version           Int                @default(1)
+  members           Json
+  budgets           Json
+  coordinatorPolicy Json
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  versions          AgentTeamVersion[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, status])
+}
+
+model AgentTeamVersion {
+  id         String    @id @default(cuid())
+  teamId     String
+  team       AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  version    Int
+  definition Json
+  createdAt  DateTime  @default(now())
+
+  @@unique([teamId, version])
+  @@index([teamId])
 }
 
 model UserAgentVersion {
