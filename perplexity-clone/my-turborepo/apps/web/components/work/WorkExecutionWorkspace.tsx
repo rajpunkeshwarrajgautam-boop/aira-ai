@@ -13,6 +13,17 @@ type CapabilityPlan = {
   totalEstimatedCostUsd: number;
   overallRisk: string;
   requiresApprovalBeforeStart: boolean;
+  executionMode?: "TEAM";
+  teamTasks?: Array<{
+    key: string;
+    title: string;
+    objective: string;
+    agentRole: string;
+    modelTier: string;
+    priority: number;
+    dependencies: string[];
+    approval?: { action: string; risk: string } | null;
+  }>;
 };
 
 type LaunchResult = { projectId: string; runId: string; status: string };
@@ -100,8 +111,9 @@ export function WorkExecutionWorkspace({
     const goal = (objectiveOverride ?? objective).trim();
     if (goal.length < 3) return;
     if (sessionStatus !== "authenticated") {
+      const callbackIntent = commandIntent ?? "plan";
       const callbackUrl = goal
-        ? `/work?objective=${encodeURIComponent(goal)}&intent=plan`
+        ? `/work?objective=${encodeURIComponent(goal)}&intent=${encodeURIComponent(callbackIntent)}`
         : "/work";
       router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
@@ -116,6 +128,7 @@ export function WorkExecutionWorkspace({
         body: JSON.stringify({
           id: crypto.randomUUID(),
           objective: goal,
+          context: commandIntent === "team" ? { orchestration: "TEAM" } : undefined,
           constraints: ["Stay within the declared cost ceiling", "Do not claim completion without evidence"],
           expectedDeliverables: [
             {
@@ -154,7 +167,7 @@ export function WorkExecutionWorkspace({
     } finally {
       setBusy(null);
     }
-  }, [effort, maxBudgetUsd, objective, router, sessionStatus]);
+  }, [commandIntent, effort, maxBudgetUsd, objective, router, sessionStatus]);
 
   useEffect(() => {
     if (!autoPlan || autoPlanStartedRef.current || sessionStatus !== "authenticated") return;
@@ -338,7 +351,28 @@ export function WorkExecutionWorkspace({
 
           <aside className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
             <h2 className="text-sm font-semibold text-[#111115]">Execution evidence</h2>
-            {!plan ? <p className="mt-4 text-sm leading-6 text-[#6B6A75]">Generate a plan or load a template above to inspect the task graph before execution.</p> : <div className="mt-4 space-y-3"><div className="rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] p-3 text-xs text-[#6B6A75]"><div>Risk: <span className="font-medium text-[#111115]">{plan.overallRisk}</span></div><div className="mt-1">Estimated cost: <span className="font-medium text-[#111115]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div><div className="mt-1">Tasks: <span className="font-medium text-[#111115]">{plan.tasks.length}</span></div></div>{plan.tasks.slice(0, 6).map((task) => <div key={task.id} className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 py-2 shadow-2xs"><p className="text-xs font-medium text-[#111115]">{task.title}</p><p className="mt-1 text-[11px] text-[#6B6A75]">{task.agentRole} · {task.risk}</p></div>)}</div>}
+            {!plan ? (
+              <p className="mt-4 text-sm leading-6 text-[#6B6A75]">Generate a plan or load a template above to inspect the task graph before execution.</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] p-3 text-xs text-[#6B6A75]">
+                  <div>Risk: <span className="font-medium text-[#111115]">{plan.overallRisk}</span></div>
+                  <div className="mt-1">Capability cost estimate: <span className="font-medium text-[#111115]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div>
+                  <div className="mt-1">Execution tasks: <span className="font-medium text-[#111115]">{plan.teamTasks?.length ?? plan.tasks.length}</span></div>
+                  {plan.executionMode === "TEAM" ? <div className="mt-1 font-medium text-[#3A0CA3]">Coordinator mode · exact server DAG preview</div> : null}
+                </div>
+                {(plan.teamTasks ?? plan.tasks).slice(0, 12).map((task) => (
+                  <div key={"key" in task ? task.key : task.id} className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 py-2 shadow-2xs">
+                    <p className="text-xs font-medium text-[#111115]">{task.title}</p>
+                    <p className="mt-1 text-[11px] text-[#6B6A75]">
+                      {task.agentRole}
+                      {"dependencies" in task && task.dependencies.length ? ` · waits for ${task.dependencies.length}` : ""}
+                      {"risk" in task ? ` · ${task.risk}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
             {launch ? <div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] p-3"><p className="text-xs font-semibold text-emerald-800">Managed run created · {launch.status}</p><p className="mt-1 break-all text-[10px] text-[#6B6A75]">{launch.runId}</p><Link href={`/work/runs/${encodeURIComponent(launch.runId)}`} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#3A0CA3] hover:underline">Open Work Mission Control <ExternalLink className="size-3" /></Link></div> : null}
           </aside>
         </section>
