@@ -29,6 +29,26 @@ mock.module("@/lib/agent-platform/store", {
 	},
 });
 
+mock.module("@/lib/tool-gateway/gateway", {
+	namedExports: {
+		toolAvailability: mock.fn(async () => ({
+			browser: false,
+			terminal: false,
+			git: false,
+			files: false,
+			memory: false,
+			web: false,
+			github: false,
+			vercel: false,
+			supabase: false,
+			mcp: false,
+			gmail: false,
+			slack: false,
+			google_drive: false,
+		})),
+	},
+});
+
 const { POST } = await import("../app/api/intent/route");
 
 async function post(message: string) {
