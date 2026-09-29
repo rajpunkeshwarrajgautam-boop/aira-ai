@@ -124,3 +124,14 @@ test("explicit commands are rejected by the semantic endpoint and composer keeps
 	assert.ok(commandIndex >= 0 && intentIndex > commandIndex);
 	assert.equal(source.includes('/api/agent-platform/projects/${projectId}/runs'), false);
 });
+
+
+test("Work review resolves intent mission objectives server-side through owner-scoped project lookup", () => {
+	const source = readFileSync(new URL("../app/work/page.tsx", import.meta.url), "utf8");
+	assert.match(source, /getProjectForUser\(session\.user\.id, projectId\)/);
+	assert.match(source, /project\.config\?\.source === "intent-router"/);
+	assert.match(source, /project\.config\?\.intent === "AGENT_MISSION"/);
+	assert.match(source, /project\.config\?\.launchAuthorized === false/);
+	assert.match(source, /const initialObjective = explicitObjective \|\| projectObjective/);
+	assert.match(source, /const autoPlan = Boolean\(commandIntent && initialObjective\.length >= 3\)/);
+});
