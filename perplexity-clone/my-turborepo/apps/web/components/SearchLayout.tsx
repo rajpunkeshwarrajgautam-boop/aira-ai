@@ -142,8 +142,9 @@ interface IntentDecisionPayload {
 type IntentDirective =
 	| { readonly type: "SEARCH"; readonly mode: ResearchMode }
 	| { readonly type: "WORK_REVIEW"; readonly href: string; readonly autoLaunch: false }
-	| { readonly type: "TOOL_PREVIEW"; readonly capabilities: readonly string[]; readonly requiresApproval: boolean; readonly status: "READY" | "BLOCKED"; readonly reason: string }
-	| { readonly type: "AUTOMATION_PREVIEW"; readonly persistent: boolean; readonly enabled: false; readonly recurrence: IntentDecisionPayload["recurrence"] | null; readonly capabilities: readonly string[]; readonly requiresApproval: true; readonly status: "READY" | "BLOCKED"; readonly reason: string };
+	| { readonly type: "TOOL_PREVIEW"; readonly capabilities: readonly string[]; readonly requiresApproval: boolean; readonly status: "READY" | "BLOCKED"; readonly reason: string; readonly approvalId?: string }
+	| { readonly type: "TOOL_RESULT"; readonly capabilities: readonly string[]; readonly requiresApproval: false; readonly status: "COMPLETED"; readonly reason: string; readonly tool: string; readonly action: string; readonly result: Record<string, unknown>; readonly runId: string }
+	| { readonly type: "AUTOMATION_PREVIEW"; readonly persistent: boolean; readonly enabled: false; readonly recurrence: IntentDecisionPayload["recurrence"] | null; readonly capabilities: readonly string[]; readonly requiresApproval: true; readonly status: "READY" | "BLOCKED"; readonly reason: string; readonly routineId?: string };
 
 interface IntentResponsePayload {
 	readonly decision?: IntentDecisionPayload;
@@ -153,7 +154,7 @@ interface IntentResponsePayload {
 
 interface IntentPreviewState {
 	readonly decision: IntentDecisionPayload;
-	readonly directive: Extract<IntentDirective, { readonly type: "TOOL_PREVIEW" | "AUTOMATION_PREVIEW" }>;
+	readonly directive: Extract<IntentDirective, { readonly type: "TOOL_PREVIEW" | "TOOL_RESULT" | "AUTOMATION_PREVIEW" }>;
 }
 
 function parseSseBlock(block: string): { event: string; data: string } | null {
@@ -1416,7 +1417,9 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							<p className="font-semibold text-content-primary">
 								{intentPreview.directive.type === "AUTOMATION_PREVIEW"
 									? intentPreview.directive.persistent ? "Automation preview ready" : "Workflow preview ready"
-									: intentPreview.directive.status === "BLOCKED" ? "Action needs setup" : "Action ready for review"}
+									: intentPreview.directive.type === "TOOL_RESULT"
+										? "Action completed"
+										: intentPreview.directive.status === "BLOCKED" ? "Action needs setup" : "Action ready for review"}
 							</p>
 							<p className="mt-1 text-xs leading-5 text-content-secondary">{intentPreview.directive.reason}</p>
 						</div>
@@ -1434,10 +1437,17 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							<span key={capability} className="rounded-full border border-border-subtle bg-surface-subtle px-2.5 py-1 text-[11px] text-content-secondary">{capability}</span>
 						))}
 					</div>
+					{intentPreview.directive.type === "TOOL_RESULT" ? (
+						<pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-border-subtle bg-surface-subtle p-3 text-[11px] leading-5 text-content-secondary">
+							{JSON.stringify(intentPreview.directive.result, null, 2)}
+						</pre>
+					) : null}
 					<div className="mt-4 flex items-center gap-3">
-						<Link href={intentPreview.directive.type === "AUTOMATION_PREVIEW" ? "/workflows" : "/tools"} className="rounded-xl bg-accent px-3.5 py-2 text-xs font-semibold text-white hover:bg-accent/90">
-							{intentPreview.directive.type === "AUTOMATION_PREVIEW" ? "Review automation" : "Review connections"}
-						</Link>
+						{intentPreview.directive.type !== "TOOL_RESULT" ? (
+							<Link href={intentPreview.directive.type === "AUTOMATION_PREVIEW" ? "/workflows" : "/tools"} className="rounded-xl bg-accent px-3.5 py-2 text-xs font-semibold text-white hover:bg-accent/90">
+								{intentPreview.directive.type === "AUTOMATION_PREVIEW" ? "Review automation" : "Review connections"}
+							</Link>
+						) : null}
 						{intentPreview.directive.requiresApproval ? <span className="text-xs text-amber-400">Approval required before execution</span> : null}
 					</div>
 				</div>
