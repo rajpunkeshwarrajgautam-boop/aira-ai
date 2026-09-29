@@ -39,3 +39,60 @@ export async function recordAgentMessage(input: {
 		values (${crypto.randomUUID()},${input.projectId},${input.runId},${input.taskId ?? null},${input.agentId ?? null},${input.kind},${body}::jsonb)
 	`;
 }
+
+
+export interface AgentMessageRecord {
+	readonly id: string;
+	readonly projectId: string;
+	readonly runId: string;
+	readonly taskId: string | null;
+	readonly agentId: string | null;
+	readonly kind: AgentMessageKind;
+	readonly body: Record<string, unknown>;
+	readonly createdAt: Date;
+}
+
+function objectBody(value: unknown): Record<string, unknown> {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
+}
+
+export async function listAgentMessagesForTasks(input: {
+	readonly userId: string;
+	readonly runId: string;
+	readonly taskIds: readonly string[];
+	readonly kinds?: readonly AgentMessageKind[];
+}): Promise<AgentMessageRecord[]> {
+	const taskIds = [...new Set(input.taskIds.filter(Boolean))].slice(0, 50);
+	if (!taskIds.length) return [];
+	const kinds = input.kinds?.length ? [...new Set(input.kinds)] : ["HANDOFF", "RESULT"];
+	const rows = await prisma.$queryRaw<Array<Omit<AgentMessageRecord, "body"> & { body: unknown }>>`
+		select m."id",m."projectId",m."runId",m."taskId",m."agentId",m."kind",m."body",m."createdAt"
+		from "AgentMessage" m
+		join "AgentPlatformRun" r on r."id"=m."runId" and r."projectId"=m."projectId"
+		where m."runId"=${input.runId}
+		  and r."userId"=${input.userId}
+		  and m."taskId" = any(${taskIds}::text[])
+		  and m."kind" = any(${kinds}::text[])
+		order by m."createdAt" asc
+	`;
+	return rows.map((row) => ({ ...row, body: objectBody(row.body) }));
+}
+
+export async function listRunAgentMessages(input: {
+	readonly userId: string;
+	readonly runId: string;
+	readonly limit?: number;
+}): Promise<AgentMessageRecord[]> {
+	const limit = Math.min(Math.max(Math.trunc(input.limit ?? 150), 1), 300);
+	const rows = await prisma.$queryRaw<Array<Omit<AgentMessageRecord, "body"> & { body: unknown }>>`
+		select m."id",m."projectId",m."runId",m."taskId",m."agentId",m."kind",m."body",m."createdAt"
+		from "AgentMessage" m
+		join "AgentPlatformRun" r on r."id"=m."runId" and r."projectId"=m."projectId"
+		where m."runId"=${input.runId} and r."userId"=${input.userId}
+		order by m."createdAt" desc
+		limit ${limit}
+	`;
+	return rows.map((row) => ({ ...row, body: objectBody(row.body) }));
+}
