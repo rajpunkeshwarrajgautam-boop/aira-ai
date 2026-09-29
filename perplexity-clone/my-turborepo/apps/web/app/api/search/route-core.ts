@@ -2,6 +2,7 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
+import { globalIntelligentRouter } from "@/lib/routing/intelligent-router";
 import { assertAnonymousSearchAllowed, AnonymousQuotaError } from "@/lib/anonymous-search-quota";
 import { getOrCreateAnonymousIdCookie } from "@/lib/analytics/anon-id";
 import {
@@ -109,6 +110,14 @@ type MetadataEvent = {
 	readonly exaRequestId?: string;
 	readonly exaSearchType?: string;
 	readonly model?: string;
+	readonly routing?: {
+		readonly taskType: string;
+		readonly complexity: string;
+		readonly providerTier: string;
+		readonly requestedProvider: string;
+		readonly requestedModel: string;
+		readonly explicitModelOverride: boolean;
+	};
 };
 
 type TextEvent = {
@@ -368,6 +377,25 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	/** Analytics mode: bypass paths always count as standard (no web retrieval). */
 	let analyticsSearchMode: "standard" | "deep" = parsed.data.mode;
 	const providerTier = providerAccessTierForBillingPlan(entitlements?.billingPlan);
+	const routingDecision = globalIntelligentRouter.selectRuntimeRoute({
+		query: parsed.data.query,
+		providerTier,
+		mode: parsed.data.mode,
+		explicitModel: parsed.data.model,
+	});
+	const routedModel = routingDecision.requestedModel;
+	console.info(
+		"[IntelligentRouter] route selected",
+		JSON.stringify({
+			taskType: routingDecision.signals.taskType,
+			complexity: routingDecision.signals.complexity,
+			providerTier: routingDecision.providerTier,
+			requestedProvider: routingDecision.requestedProvider,
+			requestedModel: routingDecision.requestedModel,
+			explicitModelOverride: routingDecision.explicitModelOverride,
+			reasons: routingDecision.reasons,
+		}),
+	);
 	const searchPipelineStartTime = Date.now();
 
 	const stream = new ReadableStream<Uint8Array>({
@@ -430,6 +458,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 						contextualMemory: context.chatHistory.length > 0 ? context.contextualMemory : [],
 						disableSearch: true,
 						presetId: parsed.data.presetId,
+						model: routedModel,
 						onProgress: (ev) => emitProgress(ev.stage, ev.message),
 					});
 				} else if (parsed.data.mode === "deep") {
@@ -447,6 +476,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							chatHistory: context.chatHistory,
 							contextualMemory: context.contextualMemory,
 							presetId: parsed.data.presetId,
+							model: routedModel,
 						});
 					} else {
 						grounded = await streamDeepResearchAnswer({
@@ -456,6 +486,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							chatHistory: context.chatHistory,
 							contextualMemory: context.contextualMemory,
 							presetId: parsed.data.presetId,
+							model: routedModel,
 						});
 					}
 				} else {
@@ -466,7 +497,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 						chatHistory: context.chatHistory,
 						contextualMemory: context.contextualMemory,
 						presetId: parsed.data.presetId,
-						model: parsed.data.model,
+						model: routedModel,
 						onProgress: (ev) => emitProgress(ev.stage, ev.message),
 					});
 				}
@@ -477,7 +508,15 @@ async function handleSearchPost(req: Request): Promise<Response> {
 					citations: grounded.sources.map(mapCitation),
 					exaRequestId: grounded.exaRequestId,
 					exaSearchType: grounded.exaSearchType,
-					model: parsed.data.model ?? "auto",
+					model: routedModel,
+					routing: {
+						taskType: routingDecision.signals.taskType,
+						complexity: routingDecision.signals.complexity,
+						providerTier: routingDecision.providerTier,
+						requestedProvider: routingDecision.requestedProvider,
+						requestedModel: routingDecision.requestedModel,
+						explicitModelOverride: routingDecision.explicitModelOverride,
+					},
 				};
 
 				controller.enqueue(sseEncode("metadata", metadata));
