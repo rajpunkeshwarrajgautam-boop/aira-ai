@@ -133,7 +133,7 @@ export function wantsSoftwareBuild(objective: string): boolean {
 
 export function buildAgentTeamDag(objective: string): TaskSpec[] {
 	if (wantsSoftwareBuild(objective)) return buildManagerDag(objective);
-	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|website|screenshot|page|scrape|crawl|live\s+site)\b/i.test(objective);
+	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|websites?|screenshots?|pages?|scrape|crawl|live\s+sites?)\b/i.test(objective);
 	const tasks: TaskSpec[] = [
 		{
 			key: "team-brief",
@@ -187,7 +187,7 @@ export function buildAgentTeamDag(objective: string): TaskSpec[] {
 }
 
 export function buildWorkDag(objective: string): TaskSpec[] {
-	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|website|screenshot|page|scrape|crawl)\b/i.test(objective);
+	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|websites?|screenshots?|pages?|scrape|crawl)\b/i.test(objective);
 	const tasks: TaskSpec[] = [
 		{
 			key: "scoping",
