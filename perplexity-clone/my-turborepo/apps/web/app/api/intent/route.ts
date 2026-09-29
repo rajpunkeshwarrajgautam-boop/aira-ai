@@ -6,6 +6,7 @@ import {
 	toIntentDecisionTelemetry,
 	type IntentDecision,
 } from "@/lib/intent-router";
+import { createProject } from "@/lib/agent-platform/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +33,10 @@ function json(body: unknown, init?: ResponseInit): Response {
 	});
 }
 
-function directiveFor(decision: IntentDecision) {
+function directiveFor(
+	decision: IntentDecision,
+	options: { readonly workProjectId?: string } = {},
+) {
 	switch (decision.intent) {
 		case "ANSWER":
 		case "RESEARCH":
@@ -43,7 +47,9 @@ function directiveFor(decision: IntentDecision) {
 		case "AGENT_MISSION":
 			return {
 				type: "WORK_REVIEW" as const,
-				href: "/work?intent=agent",
+				href: options.workProjectId
+					? `/work?intent=agent&projectId=${encodeURIComponent(options.workProjectId)}`
+					: "/work?intent=agent",
 				autoLaunch: false,
 			};
 		case "TOOL_ACTION":
@@ -92,8 +98,9 @@ export async function POST(request: Request): Promise<Response> {
 	const telemetry = toIntentDecisionTelemetry(routed.decision);
 	console.info("[AiraIntentRouter] decision", JSON.stringify(telemetry));
 
-	const directive = directiveFor(routed.decision);
-	if (directive.type !== "SEARCH") {
+	let workProjectId: string | undefined;
+	const initialDirective = directiveFor(routed.decision);
+	if (initialDirective.type !== "SEARCH") {
 		const session = await auth();
 		if (!session?.user?.id) {
 			return json(
@@ -104,7 +111,34 @@ export async function POST(request: Request): Promise<Response> {
 				{ status: 401 },
 			);
 		}
+
+		if (
+			routed.decision.intent === "AGENT_MISSION" &&
+			!routed.decision.fallbackReason
+		) {
+			const project = await createProject({
+				userId: session.user.id,
+				name: "Aira mission review",
+				objective: parsed.data.message,
+				config: {
+					source: "intent-router",
+					intent: "AGENT_MISSION",
+					launchAuthorized: false,
+				},
+			});
+			workProjectId = project.id;
+			console.info(
+				"[AiraExecutionRouter] handoff",
+				JSON.stringify({
+					intent: routed.decision.intent,
+					executionSurface: routed.decision.executionSurface,
+					projectId: project.id,
+					autoLaunch: false,
+				}),
+			);
+		}
 	}
 
+	const directive = directiveFor(routed.decision, { workProjectId });
 	return json({ decision: routed.decision, directive });
 }
