@@ -107,6 +107,7 @@ const QUICK_COMMANDS: readonly QuickCommand[] = [
 	{ command: "/research ", label: "Deep Research", description: "Run the real multi-source Deep Research pipeline" },
 	{ command: "/plan ", label: "Plan Mission", description: "Generate a server-side Work plan without starting execution" },
 	{ command: "/agent ", label: "Prepare Agent Mission", description: "Prepare a managed autonomous mission for explicit review and launch" },
+	{ command: "/team ", label: "Agent Team", description: "Coordinate multiple persisted specialist agents with dependency handoffs" },
 	{ command: "/work ", label: "Work Mode", description: "Open AIRA Work with an optional mission objective" },
 	{ command: "/tasks", label: "Tasks", description: "Inspect persisted managed tasks across Work missions" },
 	{ command: "/tools", label: "Tools", description: "Inspect live Tool Gateway adapter availability" },
