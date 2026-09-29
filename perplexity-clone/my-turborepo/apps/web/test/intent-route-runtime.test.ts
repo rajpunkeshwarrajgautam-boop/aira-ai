@@ -49,6 +49,30 @@ mock.module("@/lib/tool-gateway/gateway", {
 	},
 });
 
+const createdAutomationDrafts: Array<Record<string, unknown>> = [];
+mock.module("@/lib/automation/engine", {
+	namedExports: {
+		globalAutomationEngine: {
+			createDraftRoutineAsync: mock.fn(async (input: Record<string, unknown>) => {
+				createdAutomationDrafts.push(input);
+				return {
+					id: "routine-intent-draft-123",
+					userId: input.userId,
+					name: input.name,
+					description: input.description,
+					enabled: false,
+					version: 1,
+					trigger: input.trigger,
+					workflowDag: input.workflowDag,
+					budgetUsd: input.budgetUsd,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				};
+			}),
+		},
+	},
+});
+
 const { POST } = await import("../app/api/intent/route");
 
 async function post(message: string) {
@@ -104,6 +128,7 @@ test("execution intents require authentication and never downgrade approval", as
 
 test("automation remains a disabled preview and missions stop at Work review", async () => {
 	authenticated = true;
+	createdAutomationDrafts.length = 0;
 	const automation = await post("Every Monday at 9 AM find 20 new leads and prepare email drafts.");
 	assert.equal(automation.response.status, 200);
 	assert.deepEqual(
@@ -111,6 +136,17 @@ test("automation remains a disabled preview and missions stop at Work review", a
 		["AUTOMATION_PREVIEW", false, true],
 	);
 	assert.deepEqual(automation.body.directive?.recurrence, { type: "cron", schedule: "0 9 * * 1", timezone: "Asia/Calcutta" });
+	assert.equal((automation.body.directive as { readonly routineId?: string })?.routineId, "routine-intent-draft-123");
+	assert.equal(automation.body.directive?.status, "BLOCKED");
+	assert.equal(createdAutomationDrafts.length, 1);
+	assert.deepEqual(createdAutomationDrafts[0]?.trigger, {
+		type: "cron",
+		cronExpression: "0 9 * * 1",
+		timezone: "Asia/Calcutta",
+	});
+	assert.equal(createdAutomationDrafts[0]?.enabled, undefined);
+	const draftDag = createdAutomationDrafts[0]?.workflowDag as { nodes?: Array<{ config?: Record<string, unknown> }> };
+	assert.equal(draftDag.nodes?.[0]?.config?.intentDraft, true);
 
 	createdProjects.length = 0;
 	const missionText = "Research our market, decide the best strategy, build a plan, and carry it out.";
