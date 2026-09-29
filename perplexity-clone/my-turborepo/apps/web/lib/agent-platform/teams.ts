@@ -76,6 +76,7 @@ export interface CompiledTeamTaskConfig {
   readonly agentDefinitionId?: string;
   readonly agentName?: string;
   readonly instructions?: string;
+  readonly modelPolicy?: Record<string, unknown>;
   readonly allowedTools: readonly string[];
   readonly skillIds: readonly string[];
 }
@@ -167,6 +168,10 @@ async function validateReferences(userId: string, definition: AgentTeamDefinitio
       const skill = await globalSkillsStore.getSkillForUserAsync(userId, skillId);
       if (!skill || !skill.enabled) {
         throw new Error(`Member ${member.key} references unavailable skill ${skillId}.`);
+      }
+      const missingTools = skill.requiredTools.filter((tool) => !tools.includes(tool));
+      if (missingTools.length) {
+        throw new Error(`Member ${member.key} skill ${skillId} requires unauthorized tool(s): ${missingTools.join(", ")}.`);
       }
     }
   }
@@ -328,6 +333,7 @@ export async function compileAgentTeam(
           agentDefinitionId: agent.id,
           agentName: agent.name,
           instructions: agent.instructions,
+          modelPolicy: { ...agent.modelPolicy },
         } : {}),
         allowedTools,
         skillIds,
