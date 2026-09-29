@@ -91,7 +91,7 @@ export interface PlatformTask {
 	readonly priority: number;
 	readonly agentRole: string;
 	readonly modelTier: AgentModelTier;
-	readonly config: Record<string, unknown>;
+	readonly config?: Record<string, unknown>;
 	readonly dependencies: string[];
 	readonly inputArtifacts: string[];
 	readonly outputArtifacts: string[];
