@@ -61,6 +61,7 @@ function runRow(row: PlatformRun): PlatformRun {
 function taskRow(row: PlatformTask): PlatformTask {
 	return {
 		...row,
+		config: jsonObject(row.config),
 		dependencies: stringArray(row.dependencies),
 		inputArtifacts: stringArray(row.inputArtifacts),
 		outputArtifacts: stringArray(row.outputArtifacts),
@@ -153,12 +154,13 @@ export async function createPlatformRun(input: {
 		...input.tasks.map((task) => {
 			const id = taskIds.get(task.key)!;
 			const dependencies = JSON.stringify(task.dependencies.map((key) => taskIds.get(key)).filter(Boolean));
+			const config = JSON.stringify(task.config ?? {});
 			const initialStatus = task.approval ? "APPROVAL_REQUIRED" : "QUEUED";
 			return prisma.$executeRaw`
 				insert into "AgentTask" (
-					"id", "projectId", "runId", "title", "objective", "status", "priority", "agentRole", "modelTier", "dependencies", "maxAttempts"
+					"id", "projectId", "runId", "title", "objective", "status", "priority", "agentRole", "modelTier", "config", "dependencies", "maxAttempts"
 				) values (
-					${id}, ${input.projectId}, ${runId}, ${task.title}, ${task.objective}, ${initialStatus}, ${task.priority}, ${task.agentRole}, ${task.modelTier}, ${dependencies}::jsonb, ${input.budgets.maxRetries + 1}
+					${id}, ${input.projectId}, ${runId}, ${task.title}, ${task.objective}, ${initialStatus}, ${task.priority}, ${task.agentRole}, ${task.modelTier}, ${config}::jsonb, ${dependencies}::jsonb, ${input.budgets.maxRetries + 1}
 				)
 			`;
 		}),
