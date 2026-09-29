@@ -151,7 +151,7 @@ export function SkillsWorkspace() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#3A0CA3]">AIRA Command</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] md:text-3xl">Skills</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6B6A75]">
-              Persistent capability packages used by AIRA's planner. Custom skills are stored per user; built-in skills remain platform-controlled.
+              Persistent capability packages used by AIRA&apos;s planner. Custom skills are stored per user; built-in skills remain platform-controlled.
             </p>
           </div>
           <div className="flex gap-2">
