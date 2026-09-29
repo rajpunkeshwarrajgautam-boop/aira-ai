@@ -759,6 +759,53 @@ export async function listPendingApprovals(userId: string, runId?: string): Prom
 		`;
 }
 
+export interface AgentInstanceRecord {
+	readonly id: string;
+	readonly projectId: string;
+	readonly runId: string;
+	readonly role: string;
+	readonly objective: string;
+	readonly status: "IDLE" | "WORKING" | "WAITING" | "PAUSED" | "STOPPED" | "FAILED";
+	readonly modelTier: string;
+	readonly capabilities: string[];
+	readonly allowedTools: string[];
+	readonly workspace: string | null;
+	readonly currentTaskId: string | null;
+	readonly budgets: Record<string, unknown>;
+	readonly createdAt: Date;
+	readonly updatedAt: Date;
+}
+
+export async function listAgentInstancesForRun(userId: string, runId: string): Promise<AgentInstanceRecord[]> {
+	const rows = await prisma.$queryRaw<Array<Omit<AgentInstanceRecord, "capabilities" | "allowedTools" | "budgets"> & {
+		capabilities: unknown;
+		allowedTools: unknown;
+		budgets: unknown;
+	}>>`
+		select a.*
+		from "AgentInstance" a
+		join "AgentPlatformRun" r on r."id"=a."runId" and r."projectId"=a."projectId"
+		where a."runId"=${runId} and r."userId"=${userId}
+		order by a."createdAt" asc
+	`;
+	return rows.map((value) => ({
+		...value,
+		capabilities: stringArray(value.capabilities),
+		allowedTools: stringArray(value.allowedTools),
+		budgets: jsonObject(value.budgets),
+	}));
+}
+
+export async function listRunApprovals(userId: string, runId: string): Promise<Array<Record<string, unknown>>> {
+	return prisma.$queryRaw<Array<Record<string, unknown>>>`
+		select *
+		from "AgentApproval"
+		where "userId"=${userId} and "runId"=${runId}
+		order by "createdAt" desc
+		limit 100
+	`;
+}
+
 export async function resolveApproval(input: { readonly userId: string; readonly approvalId: string; readonly approve: boolean }): Promise<{ taskId: string; runId: string; projectId: string } | null> {
 	const rows = await prisma.$queryRaw<Array<{ taskId: string | null; runId: string; projectId: string }>>`
 		update "AgentApproval" set "status"=${input.approve ? "APPROVED" : "REJECTED"}, "resolvedAt"=current_timestamp
