@@ -126,6 +126,15 @@ export async function getProjectForUser(userId: string, projectId: string): Prom
 	return rows[0] ? projectRow(rows[0]) : null;
 }
 
+export async function archiveProjectForUser(userId: string, projectId: string): Promise<boolean> {
+	const changed = await prisma.$executeRaw`
+		update "AgentProject"
+		set "status"='ARCHIVED', "updatedAt"=current_timestamp
+		where "id"=${projectId} and "userId"=${userId} and "status"='ACTIVE'
+	`;
+	return changed === 1;
+}
+
 export async function getRunByClientRequestId(userId: string, clientRequestId: string): Promise<PlatformRun | null> {
 	const rows = await prisma.$queryRaw<PlatformRun[]>`
 		select * from "AgentPlatformRun"
