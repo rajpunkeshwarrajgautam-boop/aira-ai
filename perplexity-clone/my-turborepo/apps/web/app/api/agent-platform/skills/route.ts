@@ -23,7 +23,8 @@ const InstallSkillInputSchema = z.object({
 
 export async function GET(): Promise<Response> {
 	const session = await auth();
-	const skills = await globalSkillsStore.listSkillsAsync(session?.user?.id);
+	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
+	const skills = await globalSkillsStore.listSkillsAsync(session.user.id);
 	return json({ skills });
 }
 
