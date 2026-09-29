@@ -104,7 +104,11 @@ const MODEL_OPTIONS: readonly ModelOption[] = [
 ] as const;
 
 const QUICK_COMMANDS: readonly QuickCommand[] = [
-	{ command: "/deep ", label: "AIRA HyperResearch", description: "Launch multi-hop verified source investigation" },
+	{ command: "/research ", label: "Deep Research", description: "Run the real multi-source Deep Research pipeline" },
+	{ command: "/plan ", label: "Plan Mission", description: "Generate a server-side Work plan without starting execution" },
+	{ command: "/agent ", label: "Prepare Agent Mission", description: "Prepare a managed autonomous mission for explicit review and launch" },
+	{ command: "/work ", label: "Work Mode", description: "Open AIRA Work with an optional mission objective" },
+	{ command: "/deep ", label: "AIRA HyperResearch", description: "Legacy shortcut for Deep Research" },
 	{ command: "/new", label: "New thread", description: "Initialize fresh sovereign context" },
 	{ command: "/history", label: "History & Memory", description: "Search conversations, messages, and retained context" },
 	{ command: "/share", label: "Share Dossier", description: "Export and share this intelligence dossier" },
