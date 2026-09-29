@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Sparkles,
   StopCircle,
+  UsersRound,
   Wrench,
   XCircle,
 } from "lucide-react";
@@ -134,6 +135,16 @@ interface MissionToolCall {
   completedAt?: string | null;
 }
 
+
+interface AgentMessage {
+  id: string;
+  taskId?: string | null;
+  agentId?: string | null;
+  kind: "INSTRUCTION" | "PROGRESS" | "BLOCKER" | "HANDOFF" | "RESULT" | "STEERING";
+  body: Record<string, unknown>;
+  createdAt: string;
+}
+
 interface MissionUsage {
   toolCallsUsed: number;
   inputTokensUsed: number;
@@ -154,6 +165,7 @@ interface RunDetailsResponse {
   agents: AgentInstance[];
   toolCalls: MissionToolCall[];
   usage?: MissionUsage | null;
+  messages: AgentMessage[];
 }
 
 interface ArtifactDetail {
@@ -218,6 +230,19 @@ function safeUsageNumber(usage: Record<string, unknown>, key: string): number {
 function taskTitle(tasks: PlatformTask[], taskId?: string | null): string | null {
   if (!taskId) return null;
   return tasks.find((task) => task.id === taskId)?.title ?? null;
+}
+
+function messageSummary(message: AgentMessage): string {
+  const summary = message.body.summary;
+  if (typeof summary === "string" && summary.trim()) return summary.trim();
+  return "No textual handoff summary was persisted.";
+}
+
+function messageList(message: AgentMessage, key: string): string[] {
+  const value = message.body[key];
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string").slice(0, 12)
+    : [];
 }
 
 export function WorkRunMissionControl() {
@@ -419,7 +444,7 @@ export function WorkRunMissionControl() {
 
   if (!data || !metrics) return null;
 
-  const { run, project, tasks, events, approvals, artifacts, agents, toolCalls, usage } = data;
+  const { run, project, tasks, events, approvals, artifacts, agents, toolCalls, usage, messages } = data;
   const isActive = ACTIVE_RUN.has(run.status);
   const pendingApprovals = approvals.filter((approval) => approval.status === "PENDING");
   const progress = tasks.length ? Math.round((metrics.completedTasks / tasks.length) * 100) : 0;
@@ -430,6 +455,22 @@ export function WorkRunMissionControl() {
   const maxCost = Number(run.budgets?.maxCostUsd ?? usage?.budgets?.maxCostUsd ?? 0);
   const maxToolCalls = Number(run.budgets?.maxToolCalls ?? usage?.budgets?.maxToolCalls ?? 0);
   const toolCallsUsed = Number(usage?.toolCallsUsed ?? toolCalls.length);
+
+  const teamMode = events.some((event) => event.type === "team.coordinator.started");
+  const handoffs = messages.filter((message) => message.kind === "HANDOFF");
+  const steeringMessages = messages.filter((message) => message.kind === "STEERING");
+  const blockedTasks = tasks.filter((task) => task.status === "BLOCKED").length;
+  const coordinatorState = run.status === "COMPLETED"
+    ? "Completed"
+    : run.status === "FAILED" || run.status === "CANCELLED"
+      ? run.status
+      : pendingApprovals.length > 0
+        ? "Waiting for approval"
+        : blockedTasks > 0
+          ? "Blocked task requires attention"
+          : handoffs.length > 0
+            ? "Routing specialist handoffs"
+            : "Coordinating specialists";
 
   return (
     <main className="min-h-[calc(100dvh-72px)] bg-[var(--aira-canvas,#F9F8F6)] px-4 py-5 text-[#111115] md:px-7">
@@ -456,6 +497,7 @@ export function WorkRunMissionControl() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#3A0CA3]">AIRA Mission Control</span>
                 <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusStyle(run.status)}`}>{run.status}</span>
+                {teamMode ? <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3A0CA3]/15 bg-[#3A0CA3]/[0.05] px-2.5 py-1 text-[10px] font-semibold text-[#3A0CA3]"><UsersRound className="size-3" />Agent Team</span> : null}
                 {isActive ? <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />Live</span> : null}
               </div>
               <h1 className="mt-3 text-2xl font-semibold tracking-[-0.035em] md:text-[32px]">{project?.name ?? "Managed mission"}</h1>
@@ -464,6 +506,7 @@ export function WorkRunMissionControl() {
                 <span>Runtime <strong className="font-semibold text-[#52515B]">{run.runtime ?? "managed"}</strong></span>
                 <span>Duration <strong className="font-semibold text-[#52515B]">{durationLabel(run.startedAt, run.completedAt)}</strong></span>
                 <span>Run <strong className="font-mono font-medium text-[#52515B]">{run.id.slice(0, 12)}</strong></span>
+                {teamMode ? <span>Coordinator <strong className="font-semibold text-[#52515B]">{coordinatorState}</strong></span> : null}
               </div>
             </div>
 
@@ -696,6 +739,71 @@ export function WorkRunMissionControl() {
           </div>
 
           <aside className="space-y-5">
+            {teamMode ? (
+              <section className="rounded-[20px] border border-[#3A0CA3]/12 bg-white p-5 shadow-xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2"><UsersRound className="size-4 text-[#3A0CA3]" /><h2 className="text-sm font-semibold">Team coordination</h2></div>
+                    <p className="mt-1 text-xs text-[#6B6A75]">Persisted specialist handoffs routed across direct task dependencies.</p>
+                  </div>
+                  <span className="rounded-full bg-[#3A0CA3]/[0.06] px-2.5 py-1 text-[9px] font-semibold text-[#3A0CA3]">{handoffs.length} handoffs</span>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-[rgba(17,17,21,0.07)] bg-[#FCFBF9] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8F8E98]">Coordinator state</p>
+                  <p className="mt-1 text-xs font-semibold text-[#111115]">{coordinatorState}</p>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-[#8F8E98]">
+                    <span>{agents.length} agent instances</span>
+                    <span>{metrics.activeTasks} active tasks</span>
+                    <span>{steeringMessages.length} steering messages</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 max-h-[520px] space-y-2.5 overflow-y-auto pr-1">
+                  {handoffs.map((handoff) => {
+                    const fromTask = tasks.find((task) => task.id === handoff.taskId);
+                    const downstream = handoff.taskId
+                      ? tasks.filter((task) => task.dependencies.includes(handoff.taskId!))
+                      : [];
+                    const decisions = messageList(handoff, "decisions");
+                    const risks = messageList(handoff, "risks");
+                    const nextActions = messageList(handoff, "nextActions");
+                    const handoffArtifacts = messageList(handoff, "artifacts");
+                    return (
+                      <article key={handoff.id} className="rounded-2xl border border-[rgba(17,17,21,0.07)] bg-[#FCFBF9] p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#3A0CA3]">{fromTask?.agentRole ?? "SPECIALIST"} HANDOFF</p>
+                            <p className="mt-1 text-xs font-semibold">{fromTask?.title ?? "Completed specialist task"}</p>
+                          </div>
+                          <time className="shrink-0 text-[9px] text-[#A3A2AA]">{new Date(handoff.createdAt).toLocaleTimeString()}</time>
+                        </div>
+                        <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-[11px] leading-5 text-[#5F5E68]">{messageSummary(handoff)}</p>
+                        {downstream.length ? (
+                          <div className="mt-3 rounded-xl border border-[#3A0CA3]/10 bg-white px-3 py-2">
+                            <p className="text-[9px] font-semibold text-[#8F8E98]">Routed to</p>
+                            <p className="mt-1 text-[10px] leading-4 text-[#52515B]">{downstream.map((task) => `${task.agentRole} · ${task.title}`).join(" · ")}</p>
+                          </div>
+                        ) : null}
+                        {(handoffArtifacts.length || decisions.length || risks.length || nextActions.length) ? (
+                          <details className="mt-3">
+                            <summary className="cursor-pointer text-[9px] font-semibold text-[#6B6A75]">Inspect structured handoff</summary>
+                            <div className="mt-2 space-y-2 text-[10px] leading-4 text-[#5F5E68]">
+                              {handoffArtifacts.length ? <div><strong className="text-[#111115]">Evidence:</strong> {handoffArtifacts.join(" · ")}</div> : null}
+                              {decisions.length ? <div><strong className="text-[#111115]">Decisions:</strong> {decisions.join(" · ")}</div> : null}
+                              {risks.length ? <div><strong className="text-red-700">Risks:</strong> {risks.join(" · ")}</div> : null}
+                              {nextActions.length ? <div><strong className="text-[#111115]">Next:</strong> {nextActions.join(" · ")}</div> : null}
+                            </div>
+                          </details>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                  {!handoffs.length ? <p className="py-8 text-center text-xs text-[#8F8E98]">No specialist handoff has been persisted yet.</p> : null}
+                </div>
+              </section>
+            ) : null}
+
             <section className="rounded-[20px] border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
               <div><h2 className="text-sm font-semibold">Agent roster</h2><p className="mt-1 text-xs text-[#6B6A75]">Actual managed agent instances persisted for this run.</p></div>
               <div className="mt-4 space-y-2.5">
