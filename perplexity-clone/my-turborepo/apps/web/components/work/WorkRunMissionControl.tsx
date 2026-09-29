@@ -65,6 +65,7 @@ interface PlatformTask {
   maxAttempts: number;
   dependencies: string[];
   outputArtifacts: string[];
+  runtimeRunId?: string | null;
   lastError?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -232,6 +233,9 @@ export function WorkRunMissionControl() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactDetail | null>(null);
   const [artifactPending, setArtifactPending] = useState<string | null>(null);
+  const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
+  const [steerInstruction, setSteerInstruction] = useState("");
+  const [taskActionPending, setTaskActionPending] = useState<string | null>(null);
 
   const fetchData = useCallback(async (quiet = false) => {
     if (!runId) return;
@@ -325,6 +329,57 @@ export function WorkRunMissionControl() {
       setError(cause instanceof Error ? cause.message : "Could not load artifact.");
     } finally {
       setArtifactPending(null);
+    }
+  }
+
+  async function steerTask(taskId: string) {
+    const instruction = steerInstruction.trim();
+    if (instruction.length < 2 || taskActionPending) return;
+    setTaskActionPending(`steer:${taskId}`);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/agent-platform/runs/${encodeURIComponent(runId)}/tasks/${encodeURIComponent(taskId)}/steer`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instruction }),
+        },
+      );
+      const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!response.ok) throw new Error(body?.error?.message ?? "Task steering failed.");
+      setSteerTaskId(null);
+      setSteerInstruction("");
+      await fetchData(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Task steering failed.");
+    } finally {
+      setTaskActionPending(null);
+    }
+  }
+
+  async function reconcileTask(taskId: string) {
+    if (taskActionPending) return;
+    setTaskActionPending(`reconcile:${taskId}`);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/agent-platform/runs/${encodeURIComponent(runId)}/tasks/${encodeURIComponent(taskId)}/reconcile`,
+        { method: "POST" },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        recovery?: { outcome?: string; reason?: string };
+        error?: { message?: string };
+      } | null;
+      if (!response.ok) throw new Error(body?.error?.message ?? "Task reconciliation failed.");
+      if (body?.recovery?.outcome === "PENDING") {
+        setError(`Reconciliation remains pending: ${body.recovery.reason ?? "runtime state is not authoritative yet"}.`);
+      }
+      await fetchData(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Task reconciliation failed.");
+    } finally {
+      setTaskActionPending(null);
     }
   }
 
@@ -513,6 +568,61 @@ export function WorkRunMissionControl() {
                         </div>
                         {task.dependencies.length ? <p className="mt-2 text-[10px] text-[#8F8E98]">Depends on {task.dependencies.length} task{task.dependencies.length === 1 ? "" : "s"}</p> : null}
                         {task.lastError ? <div className="mt-3 rounded-xl border border-red-500/15 bg-red-50 px-3 py-2 text-[11px] leading-5 text-red-700">{task.lastError}</div> : null}
+
+                        {(task.status === "RUNNING" && task.runtimeRunId) || task.status === "BLOCKED" ? (
+                          <div className="mt-3 flex flex-wrap gap-2 border-t border-[rgba(17,17,21,0.06)] pt-3">
+                            {task.status === "RUNNING" && task.runtimeRunId ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSteerTaskId((current) => current === task.id ? null : task.id);
+                                  setSteerInstruction("");
+                                }}
+                                className="rounded-lg border border-[#3A0CA3]/15 bg-[#3A0CA3]/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-[#3A0CA3] hover:bg-[#3A0CA3]/[0.08]"
+                              >
+                                Steer running task
+                              </button>
+                            ) : null}
+                            {task.status === "BLOCKED" ? (
+                              <button
+                                type="button"
+                                onClick={() => void reconcileTask(task.id)}
+                                disabled={taskActionPending === `reconcile:${task.id}`}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-50 px-2.5 py-1.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                              >
+                                {taskActionPending === `reconcile:${task.id}` ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                                Reconcile existing runtime
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {steerTaskId === task.id ? (
+                          <div className="mt-3 rounded-xl border border-[#3A0CA3]/15 bg-white p-3">
+                            <label className="text-[10px] font-semibold text-[#52515B]" htmlFor={`steer-${task.id}`}>Steering instruction</label>
+                            <textarea
+                              id={`steer-${task.id}`}
+                              value={steerInstruction}
+                              onChange={(event) => setSteerInstruction(event.target.value)}
+                              maxLength={4000}
+                              rows={3}
+                              placeholder="Give the active delegated runtime a concrete mid-run instruction…"
+                              className="mt-2 w-full resize-y rounded-lg border border-[rgba(17,17,21,0.1)] px-3 py-2 text-xs leading-5 outline-none focus:border-[#3A0CA3]"
+                            />
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                              <span className="text-[9px] text-[#8F8E98]">Sent only if this runtime supports steering.</span>
+                              <button
+                                type="button"
+                                onClick={() => void steerTask(task.id)}
+                                disabled={steerInstruction.trim().length < 2 || taskActionPending === `steer:${task.id}`}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#3A0CA3] px-3 py-1.5 text-[10px] font-semibold text-white disabled:opacity-40"
+                              >
+                                {taskActionPending === `steer:${task.id}` ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+                                Send instruction
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </article>
