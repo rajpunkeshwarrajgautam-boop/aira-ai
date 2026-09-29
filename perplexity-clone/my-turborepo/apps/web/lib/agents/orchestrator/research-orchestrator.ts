@@ -112,7 +112,7 @@ export class ResearchOrchestrator {
 			{ role: "user", content: `Question: ${input.query}` },
 		];
 
-		const streamPlan = router.streamChat(planningMessages, { temperature: 0.2, abortSignal });
+		const streamPlan = router.streamChat(planningMessages, { model: input.model, temperature: 0.2, abortSignal });
 		let planRaw = "";
 		for await (const part of streamPlan) {
 			planRaw += part;
@@ -199,6 +199,7 @@ ${preset.systemPromptModifier}`;
 
 		async function* stream() {
 			yield* router.streamChat(finalMessages, {
+				model: input.model,
 				temperature: 0.2,
 				abortSignal,
 			});
