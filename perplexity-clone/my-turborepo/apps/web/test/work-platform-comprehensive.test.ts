@@ -143,9 +143,9 @@ test("Gate 31: Native Work Mission Control UI Page and Component exist", () => {
 	assert.ok(pageSource.includes("WorkRunMissionControl"), "Page must render WorkRunMissionControl");
 
 	const componentSource = readWeb("components/work/WorkRunMissionControl.tsx");
-	assert.ok(componentSource.includes("Managed Task Graph"), "Component must display managed task graph");
-	assert.ok(componentSource.includes("Persisted Deliverables"), "Component must display deliverables");
-	assert.ok(componentSource.includes("Execution Evidence Stream"), "Component must display live evidence stream");
+	assert.ok(componentSource.includes("Task graph"), "Component must display managed task graph");
+	assert.ok(componentSource.includes("Artifacts"), "Component must display persisted deliverables/artifacts");
+	assert.ok(componentSource.includes("Execution timeline"), "Component must display live persisted execution evidence");
 	assert.ok(componentSource.includes("handleCancel"), "Component must support cancellation");
 	assert.ok(componentSource.includes("handleApproval"), "Component must support interactive approvals");
 });
