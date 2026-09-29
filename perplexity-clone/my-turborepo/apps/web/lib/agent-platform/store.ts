@@ -202,6 +202,29 @@ export async function listTasks(runId: string): Promise<PlatformTask[]> {
 	return rows.map(taskRow);
 }
 
+export interface UserTaskRecord extends PlatformTask {
+	readonly runStatus: PlatformRunStatus;
+	readonly projectName: string;
+}
+
+export async function listTasksForUser(userId: string, limit = 100): Promise<UserTaskRecord[]> {
+	const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+	const rows = await prisma.$queryRaw<UserTaskRecord[]>`
+		select t.*, r."status" as "runStatus", p."name" as "projectName"
+		from "AgentTask" t
+		join "AgentPlatformRun" r on r."id" = t."runId" and r."projectId" = t."projectId"
+		join "AgentProject" p on p."id" = t."projectId" and p."userId" = r."userId"
+		where r."userId" = ${userId}
+		order by t."updatedAt" desc, t."priority" desc
+		limit ${boundedLimit}
+	`;
+	return rows.map((row) => ({
+		...taskRow(row),
+		runStatus: row.runStatus,
+		projectName: row.projectName,
+	}));
+}
+
 export async function appendEvent(input: {
 	readonly projectId: string;
 	readonly runId: string;
