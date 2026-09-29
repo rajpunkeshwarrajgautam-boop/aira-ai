@@ -381,6 +381,52 @@ export class InstallableSkillsStore {
 		return this.memorySkills.get(id) ?? null;
 	}
 
+	async getSkillForUserAsync(userId: string, id: string): Promise<InstallableSkill | null> {
+		const skill = await this.getSkillAsync(id);
+		if (!skill) return null;
+		if (skill.isBuiltin) return skill;
+		return skill.userId === userId ? skill : null;
+	}
+
+	async toggleSkillForUserAsync(userId: string, id: string, enabled: boolean): Promise<boolean> {
+		const skill = await this.getSkillForUserAsync(userId, id);
+		if (!skill || skill.isBuiltin) return false;
+
+		if (process.env.DATABASE_URL) {
+			const result = await prisma.installableSkill.updateMany({
+				where: { id, userId, isBuiltin: false },
+				data: { enabled },
+			});
+			if (result.count !== 1) return false;
+		}
+
+		const cached = this.memorySkills.get(id);
+		if (cached && cached.userId === userId && !cached.isBuiltin) {
+			this.memorySkills.set(id, { ...cached, enabled, updatedAt: new Date().toISOString() });
+			this.persistToDisk();
+		}
+		return true;
+	}
+
+	async uninstallSkillForUserAsync(userId: string, id: string): Promise<boolean> {
+		const skill = await this.getSkillForUserAsync(userId, id);
+		if (!skill || skill.isBuiltin) return false;
+
+		if (process.env.DATABASE_URL) {
+			const result = await prisma.installableSkill.deleteMany({
+				where: { id, userId, isBuiltin: false },
+			});
+			if (result.count !== 1) return false;
+		}
+
+		const cached = this.memorySkills.get(id);
+		if (cached?.userId === userId && !cached.isBuiltin) {
+			this.memorySkills.delete(id);
+			this.persistToDisk();
+		}
+		return true;
+	}
+
 	listSkills(scope?: string | { userId?: string; workspaceId?: string }): readonly InstallableSkill[] {
 		const filter = typeof scope === "string" ? { userId: scope } : scope;
 		const builtins = [...this.builtinMap.values()];
