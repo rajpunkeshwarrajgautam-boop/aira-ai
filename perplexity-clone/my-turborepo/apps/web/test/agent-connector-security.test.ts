@@ -170,6 +170,12 @@ const context: ToolContext = {
 // SECTION 1: Policy Invariants & Always Denied Boundaries
 // ---------------------------------------------------------------------------
 
+test("CONNECTOR REALITY: global business adapters stay unavailable while backed only by deterministic transports", async () => {
+	assert.equal(await gmailToolAdapter.isAvailable(), false);
+	assert.equal(await slackToolAdapter.isAvailable(), false);
+	assert.equal(await googleDriveToolAdapter.isAvailable(), false);
+});
+
 test("POLICY INVARIANT: Destructive connector actions are ALWAYS_DENIED regardless of caller flags", () => {
 	assert.equal(isAlwaysDeniedToolAction("gmail", "batch_delete"), true);
 	assert.equal(isAlwaysDeniedToolAction("gmail", "modify_filters"), true);
