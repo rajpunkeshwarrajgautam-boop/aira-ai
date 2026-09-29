@@ -25,7 +25,12 @@ test("/team prepares a coordinated mission without auto-launching execution", as
   assert.ok(workspace.includes('commandIntent === "team" ? "TEAM" : "AUTO"'));
   assert.ok(workspace.includes('"Launch Agent Team"'));
   assert.ok(workspace.includes("Capability plan ready. Team launch will expand this into a persisted coordinator DAG"));
-  assert.ok(!workspace.includes("void executePlan()"));
+  const autoPlanEffect = workspace.slice(
+    workspace.indexOf("if (!autoPlan || autoPlanStartedRef.current"),
+    workspace.indexOf("async function executePlan()"),
+  );
+  assert.ok(autoPlanEffect.includes("void generatePlan(initialGoal)"));
+  assert.ok(!autoPlanEffect.includes("executePlan("));
 });
 
 test("generic Agent Team DAG creates parallel specialists then converges through synthesis and verification", () => {
