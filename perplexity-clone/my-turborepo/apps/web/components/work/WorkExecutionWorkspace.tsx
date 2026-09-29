@@ -4,7 +4,7 @@ import { ExternalLink, Loader2, Play, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type CapabilityPlan = {
   missionId: string;
@@ -42,10 +42,22 @@ async function readError(response: Response): Promise<Error> {
   return new Error(body?.error?.message ?? `Request failed (${response.status}).`);
 }
 
-export function WorkExecutionWorkspace() {
+type WorkExecutionWorkspaceProps = {
+  readonly initialObjective?: string;
+  readonly autoPlan?: boolean;
+  readonly commandIntent?: "plan" | "agent" | null;
+};
+
+export function WorkExecutionWorkspace({
+  initialObjective = "",
+  autoPlan = false,
+  commandIntent = null,
+}: WorkExecutionWorkspaceProps) {
   const router = useRouter();
   const { status: sessionStatus } = useSession();
-  const [objective, setObjective] = useState("");
+  const initialGoal = initialObjective.trim().slice(0, 8_000);
+  const autoPlanStartedRef = useRef(false);
+  const [objective, setObjective] = useState(initialGoal);
   const [effort, setEffort] = useState<"LOW" | "MEDIUM" | "HIGH" | "MAXIMUM">("MEDIUM");
   const [maxBudgetUsd, setMaxBudgetUsd] = useState(5);
   const [plan, setPlan] = useState<CapabilityPlan | null>(null);
@@ -84,11 +96,14 @@ export function WorkExecutionWorkspace() {
     return () => controller.abort();
   }, [sessionStatus]);
 
-  async function generatePlan() {
-    const goal = objective.trim();
+  const generatePlan = useCallback(async (objectiveOverride?: string) => {
+    const goal = (objectiveOverride ?? objective).trim();
     if (goal.length < 3) return;
     if (sessionStatus !== "authenticated") {
-      router.push(`/signin?callbackUrl=${encodeURIComponent("/work")}`);
+      const callbackUrl = goal
+        ? `/work?objective=${encodeURIComponent(goal)}&intent=plan`
+        : "/work";
+      router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
     setBusy("plan");
@@ -139,7 +154,14 @@ export function WorkExecutionWorkspace() {
     } finally {
       setBusy(null);
     }
-  }
+  }, [effort, maxBudgetUsd, objective, router, sessionStatus]);
+
+  useEffect(() => {
+    if (!autoPlan || autoPlanStartedRef.current || sessionStatus !== "authenticated") return;
+    if (initialGoal.length < 3) return;
+    autoPlanStartedRef.current = true;
+    void generatePlan(initialGoal);
+  }, [autoPlan, generatePlan, initialGoal, sessionStatus]);
 
   async function executePlan() {
     const goal = objective.trim();
@@ -208,6 +230,19 @@ export function WorkExecutionWorkspace() {
         ) : null}
 
         {error ? <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-800">{error}</div> : null}
+
+        {commandIntent ? (
+          <div role="status" className="rounded-xl border border-[#3A0CA3]/20 bg-[#3A0CA3]/[0.045] px-4 py-3 text-sm text-[#4A3A78]">
+            <span className="font-semibold text-[#3A0CA3]">AIRA Command · /{commandIntent}</span>
+            <span className="ml-2">
+              {busy === "plan"
+                ? "Generating the real server-side capability plan…"
+                : plan
+                  ? "Plan ready. Review tasks, risk and estimated cost before launching the managed run."
+                  : "Objective loaded. AIRA will generate a real capability plan once your authenticated session is ready."}
+            </span>
+          </div>
+        ) : null}
 
         {sessionStatus !== "authenticated" ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgba(58,12,163,0.18)] bg-[rgba(58,12,163,0.04)] p-4 text-xs">
