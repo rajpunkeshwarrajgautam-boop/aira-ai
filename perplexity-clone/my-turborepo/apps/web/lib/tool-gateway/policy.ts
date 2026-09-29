@@ -137,6 +137,21 @@ const POLICY: Partial<Record<AiraToolId, Record<string, RiskClass>>> = {
 		modify_permissions_public: "PROTECTED",
 		delete_shared_drive: "PROTECTED",
 	},
+	google_calendar: {
+		list_events: "LOW",
+		get_event: "LOW",
+		free_busy: "LOW",
+		create_event: "HIGH",
+		update_event: "HIGH",
+		delete_event: "HIGH",
+	},
+	crm: {
+		search_contacts: "LOW",
+		get_company: "LOW",
+		list_deals: "LOW",
+		create_contact: "HIGH",
+		update_deal: "HIGH",
+	},
 };
 
 // Protected actions are deliberately denied at the central authorization
