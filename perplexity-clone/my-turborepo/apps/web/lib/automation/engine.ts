@@ -762,6 +762,9 @@ export class AutomationEngine {
 		if (!routine.enabled) {
 			throw new Error("Routine is paused or draft-only and cannot execute until it is explicitly activated.");
 		}
+		if (routine.workflowDag.nodes.some((node) => node.config.intentDraft === true)) {
+			throw new Error("Routine draft has not been compiled into a certified executable workflow.");
+		}
 
 		// Idempotency check: if identical key already completed/succeeded, return existing
 		if (options?.idempotencyKey) {
