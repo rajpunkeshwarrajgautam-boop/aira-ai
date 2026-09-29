@@ -10,6 +10,7 @@ const TEST_USER_IDS = [
 	"user_auto_2",
 	"user_approval_test",
 	"user_routine_restart",
+	"user_automation_draft",
 ];
 
 test.before(async () => {
@@ -71,6 +72,54 @@ test("Scheduled Routines & Visual DAG Workflow Validation (Gates 49, 116)", () =
 	assert.equal(validation.valid, true);
 	assert.equal(validation.cycles, false);
 	assert.deepEqual(validation.order, ["trigger_node", "agent_node", "export_node"]);
+});
+
+test("Natural-language automation drafts are durable but non-executable until certified", async () => {
+	const userId = "user_automation_draft";
+	const workflowDag = {
+		id: "dag-intent-draft",
+		name: "Intent draft",
+		version: 1,
+		description: "Draft-only workflow awaiting compiler certification",
+		nodes: [
+			{
+				id: "intent_draft",
+				type: "trigger" as const,
+				name: "Intent draft boundary",
+				config: { intentDraft: true, requiredCapabilities: ["email.draft"] },
+				inputBindings: {},
+			},
+		],
+		edges: [],
+	};
+
+	const draft = await globalAutomationEngine.createDraftRoutineAsync({
+		userId,
+		name: "Persisted intent draft",
+		trigger: { type: "cron", cronExpression: "0 9 * * 1", timezone: "UTC" },
+		workflowDag,
+	});
+	assert.equal(draft.enabled, false);
+	assert.deepEqual(draft.trigger, { type: "cron", cronExpression: "0 9 * * 1", timezone: "UTC" });
+	await assert.rejects(
+		globalAutomationEngine.executeWorkflow(draft.id, userId),
+		/paused or draft-only/i,
+	);
+
+	const accidentallyEnabled = await globalAutomationEngine.createRoutineAsync({
+		userId,
+		name: "Enabled intent draft must still fail",
+		enabled: true,
+		trigger: { type: "manual" },
+		workflowDag: { ...workflowDag, id: "dag-intent-draft-enabled" },
+	});
+	await assert.rejects(
+		globalAutomationEngine.executeWorkflow(accidentallyEnabled.id, userId),
+		/not been compiled into a certified executable workflow/i,
+	);
+
+	await globalAutomationEngine.deleteRoutineAsync(userId, draft.id);
+	await globalAutomationEngine.deleteRoutineAsync(userId, accidentallyEnabled.id);
 });
 
 test("Workflow DAG Cycle Detection (Gate 116)", () => {
