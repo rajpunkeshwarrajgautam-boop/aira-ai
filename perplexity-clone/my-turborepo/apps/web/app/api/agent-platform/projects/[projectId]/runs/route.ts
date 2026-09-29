@@ -25,6 +25,7 @@ const StartRunSchema = z.object({
 	objective: z.string().trim().min(3).max(8_000).optional(),
 	provider: z.enum(["AIRA_AGENT", "DEERFLOW", "AUTOGPT", "AGENT_SWARM"]).optional(),
 	orchestration: z.enum(["AUTO", "TEAM"]).optional(),
+	teamId: z.string().uuid().optional(),
 	budgets: z
 		.object({
 			maxAgents: z.number().int().min(1).max(24).optional(),
@@ -106,6 +107,7 @@ export async function POST(req: Request, { params }: Params): Promise<Response> 
 			requestedRuntime: parsed.data.provider as AgentRuntimeId | undefined,
 			budgets: effectiveBudgets,
 			orchestration: parsed.data.orchestration,
+			teamId: parsed.data.teamId,
 		});
 		return json(result, { status: 202 });
 	} catch (error) {
