@@ -65,7 +65,9 @@ test("team planning previews the exact server coordinator DAG builder", () => {
 
   assert.ok(planRoute.includes("buildAgentTeamDag(parsed.data.objective)"));
   assert.ok(planRoute.includes('executionMode: "TEAM"'));
-  assert.ok(workspace.includes('context: commandIntent === "team" ? { orchestration: "TEAM" } : undefined'));
+  assert.ok(workspace.includes('context: commandIntent === "team"'));
+  assert.ok(workspace.includes('orchestration: "TEAM"'));
+  assert.ok(workspace.includes('...(teamId ? { teamId } : {})'));
   assert.ok(workspace.includes("exact server DAG preview"));
   assert.ok(runRoute.includes('orchestration: z.enum(["AUTO", "TEAM"]).optional()'));
   assert.ok(runRoute.includes("orchestration: parsed.data.orchestration"));
