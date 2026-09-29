@@ -10,6 +10,25 @@ mock.module("@/auth", {
 	},
 });
 
+const createdProjects: Array<Record<string, unknown>> = [];
+mock.module("@/lib/agent-platform/store", {
+	namedExports: {
+		createProject: mock.fn(async (input: Record<string, unknown>) => {
+			createdProjects.push(input);
+			return {
+				id: "project-intent-mission-123",
+				userId: input.userId,
+				name: input.name,
+				objective: input.objective,
+				config: input.config,
+				status: "ACTIVE",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
+		}),
+	},
+});
+
 const { POST } = await import("../app/api/intent/route");
 
 async function post(message: string) {
@@ -73,11 +92,24 @@ test("automation remains a disabled preview and missions stop at Work review", a
 	);
 	assert.deepEqual(automation.body.directive?.recurrence, { type: "cron", schedule: "0 9 * * 1", timezone: "Asia/Calcutta" });
 
-	const mission = await post("Research our market, decide the best strategy, build a plan, and carry it out.");
+	createdProjects.length = 0;
+	const missionText = "Research our market, decide the best strategy, build a plan, and carry it out.";
+	const mission = await post(missionText);
 	assert.equal(mission.response.status, 200);
 	assert.deepEqual([mission.body.directive?.type, mission.body.directive?.autoLaunch], ["WORK_REVIEW", false]);
-	assert.equal(mission.body.directive?.href, "/work?intent=agent");
+	assert.equal(mission.body.directive?.href, "/work?intent=agent&projectId=project-intent-mission-123");
 	assert.equal(mission.body.directive?.href?.includes("objective="), false);
+	assert.equal(createdProjects.length, 1);
+	assert.deepEqual(createdProjects[0], {
+		userId: "user-intent-test",
+		name: "Aira mission review",
+		objective: missionText,
+		config: {
+			source: "intent-router",
+			intent: "AGENT_MISSION",
+			launchAuthorized: false,
+		},
+	});
 });
 
 test("explicit commands are rejected by the semantic endpoint and composer keeps command authority first", async () => {
