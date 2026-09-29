@@ -59,9 +59,12 @@ function countStepSignals(query: string): number {
 
 function inferTaskType(query: string, mode: "standard" | "deep", modality: ModelModality): RoutingTaskType {
 	if (modality === "vision" || modality === "audio") return "multimodal";
+	// An explicit Deep Research request is authoritative: technical vocabulary
+	// inside a research question must not accidentally downgrade it to a coding route.
+	if (mode === "deep") return "research";
 	if (CODING_PATTERN.test(query)) return "coding";
 	if (BROWSER_PATTERN.test(query) && TOOL_PATTERN.test(query)) return "browser";
-	if (mode === "deep" || RESEARCH_PATTERN.test(query)) return "research";
+	if (RESEARCH_PATTERN.test(query)) return "research";
 	return "general";
 }
 
