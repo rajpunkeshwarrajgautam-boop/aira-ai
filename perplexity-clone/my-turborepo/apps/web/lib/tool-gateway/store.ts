@@ -321,6 +321,52 @@ export async function markToolCallOutcomeUnknown(toolCallId: string): Promise<vo
 	`;
 }
 
+export interface MissionToolCall {
+	readonly id: string;
+	readonly taskId: string | null;
+	readonly agentId: string | null;
+	readonly tool: string;
+	readonly action: string;
+	readonly risk: RiskClass;
+	readonly status: ToolCallStatus;
+	readonly approvalId: string | null;
+	readonly inputSummary: Record<string, unknown>;
+	readonly resultSummary: Record<string, unknown> | null;
+	readonly usage: Record<string, unknown>;
+	readonly errorCode: string | null;
+	readonly createdAt: Date;
+	readonly startedAt: Date | null;
+	readonly completedAt: Date | null;
+}
+
+export async function listMissionToolCalls(
+	userId: string,
+	runId: string,
+	limit = 100,
+): Promise<MissionToolCall[]> {
+	const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+	const rows = await prisma.$queryRaw<Array<Omit<MissionToolCall, "inputSummary" | "resultSummary" | "usage"> & {
+		inputSummary: unknown;
+		resultSummary: unknown;
+		usage: unknown;
+	}>>`
+		select c."id", c."taskId", c."agentId", c."tool", c."action", c."risk", c."status",
+			c."approvalId", c."inputSummary", c."resultSummary", c."usage", c."errorCode",
+			c."createdAt", c."startedAt", c."completedAt"
+		from "AgentToolCall" c
+		join "AgentPlatformRun" r on r."id"=c."runId"
+		where c."runId"=${runId} and c."userId"=${userId} and r."userId"=${userId}
+		order by c."createdAt" desc
+		limit ${boundedLimit}
+	`;
+	return rows.map((value) => ({
+		...value,
+		inputSummary: jsonObject(value.inputSummary),
+		resultSummary: value.resultSummary ? jsonObject(value.resultSummary) : null,
+		usage: jsonObject(value.usage),
+	}));
+}
+
 export async function readMissionUsage(runId: string): Promise<{
 	toolCallsUsed: number;
 	inputTokensUsed: bigint;
