@@ -23,6 +23,7 @@ export default async function WorkPage({
   const initialObjective = firstParam(params.objective).trim().slice(0, 8_000);
   const rawIntent = firstParam(params.intent);
   const commandIntent = rawIntent === "plan" || rawIntent === "agent" || rawIntent === "team" ? rawIntent : null;
+  const teamId = firstParam(params.teamId).trim().slice(0, 128);
   const autoPlan = Boolean(commandIntent && initialObjective.length >= 3);
 
   return (
@@ -32,6 +33,7 @@ export default async function WorkPage({
           initialObjective={initialObjective}
           autoPlan={autoPlan}
           commandIntent={commandIntent}
+          teamId={teamId || undefined}
         />
       </AiraV2Frame>
     </div>
