@@ -77,3 +77,21 @@ test("Artifact inspection uses the existing tenant-scoped artifact endpoint", ()
   assert.ok(component.includes("inspectArtifact"));
   assert.ok(artifactRoute.includes("getRunArtifact(session.user.id, runId, artifactId)"));
 });
+
+test("Mission Control task operator controls call real steering and reconciliation routes", () => {
+  const component = read("components/work/WorkRunMissionControl.tsx");
+  const steerRoute = read("app/api/agent-platform/runs/[runId]/tasks/[taskId]/steer/route.ts");
+  const reconcileRoute = read("app/api/agent-platform/runs/[runId]/tasks/[taskId]/reconcile/route.ts");
+
+  assert.ok(component.includes("/tasks/"));
+  assert.ok(component.includes("/steer"));
+  assert.ok(component.includes("/reconcile"));
+  assert.ok(component.includes("Steer running task"));
+  assert.ok(component.includes("Reconcile existing runtime"));
+  assert.ok(component.includes("Sent only if this runtime supports steering."));
+
+  assert.ok(steerRoute.includes("steerManagedTask"));
+  assert.ok(steerRoute.includes("userId: session.user.id"));
+  assert.ok(reconcileRoute.includes("reconcileBlockedManagedTask"));
+  assert.ok(reconcileRoute.includes("userId: session.user.id"));
+});
