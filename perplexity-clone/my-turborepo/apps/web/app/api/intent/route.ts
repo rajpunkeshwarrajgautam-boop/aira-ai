@@ -8,6 +8,11 @@ import {
 } from "@/lib/intent-router";
 import { createProject } from "@/lib/agent-platform/store";
 import { toolAvailability } from "@/lib/tool-gateway/gateway";
+import {
+	globalAutomationEngine,
+	type RoutineTrigger,
+	type VisualWorkflowDAG,
+} from "@/lib/automation/engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,9 +62,70 @@ function json(body: unknown, init?: ResponseInit): Response {
 	});
 }
 
+function automationTriggerFor(decision: IntentDecision): RoutineTrigger | null {
+	const recurrence = decision.recurrence;
+	if (!recurrence) return { type: "manual" };
+
+	if (recurrence.type === "cron" && recurrence.schedule) {
+		return {
+			type: "cron",
+			cronExpression: recurrence.schedule,
+			timezone: recurrence.timezone ?? "UTC",
+		};
+	}
+
+	if (recurrence.type === "interval" && recurrence.schedule) {
+		const match = recurrence.schedule.match(/^every\s+(\d+)\s+(minute|hour|day|week)\(s\)$/i);
+		if (!match) return null;
+		const count = Number(match[1]);
+		const unit = match[2]!.toLowerCase();
+		const multiplier =
+			unit === "minute" ? 1 :
+			unit === "hour" ? 60 :
+			unit === "day" ? 1_440 :
+			10_080;
+		return { type: "interval", intervalMinutes: count * multiplier };
+	}
+
+	if (recurrence.type === "event" && recurrence.event === "email.received") {
+		return { type: "connector_event", connectorId: "gmail", eventName: "message.received" };
+	}
+	if (recurrence.type === "event" && recurrence.event === "drive.file.created") {
+		return { type: "connector_event", connectorId: "google_drive", eventName: "file.created" };
+	}
+
+	return null;
+}
+
+function automationDraftDag(decision: IntentDecision): VisualWorkflowDAG {
+	return {
+		id: `intent-draft-${crypto.randomUUID()}`,
+		name: "Aira natural-language automation draft",
+		version: 1,
+		description: `Non-executable draft awaiting certified workflow compilation. Capabilities: ${decision.requiredCapabilities.join(", ")}`,
+		nodes: [
+			{
+				id: "intent_draft",
+				type: "trigger",
+				name: "Intent draft boundary",
+				config: {
+					intentDraft: true,
+					requiredCapabilities: decision.requiredCapabilities,
+				},
+				inputBindings: {},
+			},
+		],
+		edges: [],
+	};
+}
+
 function directiveFor(
 	decision: IntentDecision,
-	options: { readonly workProjectId?: string } = {},
+	options: {
+		readonly workProjectId?: string;
+		readonly automationDraftId?: string;
+		readonly automationDraftReason?: string;
+	} = {},
 ) {
 	switch (decision.intent) {
 		case "ANSWER":
@@ -93,8 +159,9 @@ function directiveFor(
 				recurrence: decision.recurrence ?? null,
 				capabilities: decision.requiredCapabilities,
 				requiresApproval: true,
-				status: decision.fallbackReason ? "BLOCKED" as const : "READY" as const,
-				reason: decision.fallbackReason ?? "Preview only. Explicit activation is required.",
+				...(options.automationDraftId ? { routineId: options.automationDraftId } : {}),
+				status: (decision.fallbackReason || options.automationDraftReason) ? "BLOCKED" as const : "READY" as const,
+				reason: decision.fallbackReason ?? options.automationDraftReason ?? "Preview only. Explicit activation is required.",
 			};
 	}
 }
@@ -123,6 +190,8 @@ export async function POST(request: Request): Promise<Response> {
 	console.info("[AiraIntentRouter] decision", JSON.stringify(telemetry));
 
 	let workProjectId: string | undefined;
+	let automationDraftId: string | undefined;
+	let automationDraftReason: string | undefined;
 	const initialDirective = directiveFor(routed.decision);
 	if (initialDirective.type !== "SEARCH") {
 		const session = await auth();
@@ -161,8 +230,40 @@ export async function POST(request: Request): Promise<Response> {
 				}),
 			);
 		}
+
+		if (routed.decision.intent === "AUTOMATION_CREATE") {
+			const trigger = automationTriggerFor(routed.decision);
+			if (!trigger) {
+				automationDraftReason = "AUTOMATION_TRIGGER_UNSUPPORTED: Aira could not persist this recurrence safely.";
+			} else {
+				const draft = await globalAutomationEngine.createDraftRoutineAsync({
+					userId: session.user.id,
+					name: "Aira automation draft",
+					description: "Natural-language automation draft. It remains non-executable until compiled into a certified workflow.",
+					trigger,
+					workflowDag: automationDraftDag(routed.decision),
+					budgetUsd: 5,
+				});
+				automationDraftId = draft.id;
+				automationDraftReason = "DRAFT_REQUIRES_CERTIFIED_WORKFLOW: Persisted safely, but activation is blocked until Aira compiles a certified executable workflow.";
+				console.info(
+					"[AiraExecutionRouter] automation_draft",
+					JSON.stringify({
+						intent: routed.decision.intent,
+						executionSurface: routed.decision.executionSurface,
+						routineId: draft.id,
+						enabled: false,
+						recurrenceType: routed.decision.recurrence?.type ?? null,
+					}),
+				);
+			}
+		}
 	}
 
-	const directive = directiveFor(routed.decision, { workProjectId });
+	const directive = directiveFor(routed.decision, {
+		workProjectId,
+		automationDraftId,
+		automationDraftReason,
+	});
 	return json({ decision: routed.decision, directive });
 }
