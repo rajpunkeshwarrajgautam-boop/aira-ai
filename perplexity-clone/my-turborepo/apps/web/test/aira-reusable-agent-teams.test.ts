@@ -8,7 +8,7 @@ import { AgentTeamDefinitionSchema } from "../lib/agent-platform/teams";
 import { globalCommandRegistry } from "../lib/agents/commands/command-registry";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(HERE, "../../../../../..");
+const REPO_ROOT = path.resolve(HERE, "../../../../..");
 const WEB_ROOT = path.resolve(HERE, "..");
 
 function web(relativePath: string): string {
