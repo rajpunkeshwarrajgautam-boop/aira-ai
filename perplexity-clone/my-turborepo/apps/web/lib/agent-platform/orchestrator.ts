@@ -106,6 +106,61 @@ export function wantsSoftwareBuild(objective: string): boolean {
 	return codeKeywords.test(objective);
 }
 
+export function buildAgentTeamDag(objective: string): TaskSpec[] {
+	if (wantsSoftwareBuild(objective)) return buildManagerDag(objective);
+	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|website|screenshot|page|scrape|crawl|live\s+site)\b/i.test(objective);
+	const tasks: TaskSpec[] = [
+		{
+			key: "team-brief",
+			title: "Coordinator brief and acceptance criteria",
+			objective: `Translate the mission into explicit scope, constraints, decision criteria, and evidence requirements for the specialist team. Objective: ${objective}`,
+			agentRole: "PRODUCT",
+			modelTier: "reasoning",
+			priority: 100,
+			dependencies: [],
+		},
+		{
+			key: "team-research",
+			title: "Primary evidence and research",
+			objective: `Collect authoritative evidence, source-backed facts, and unresolved uncertainties required to complete: ${objective}`,
+			agentRole: "RESEARCH",
+			modelTier: "long-context",
+			priority: 92,
+			dependencies: ["team-brief"],
+		},
+		{
+			key: needsBrowser ? "team-live-investigation" : "team-independent-analysis",
+			title: needsBrowser ? "Independent live investigation" : "Independent specialist analysis",
+			objective: needsBrowser
+				? `Independently inspect live destinations with the browser runtime, capture concrete observations, and challenge the primary evidence for: ${objective}`
+				: `Independently analyze the objective, challenge assumptions, identify trade-offs and formulate a second specialist perspective for: ${objective}`,
+			agentRole: needsBrowser ? "BROWSER" : "ARCHITECT",
+			modelTier: needsBrowser ? "vision" : "reasoning",
+			priority: 88,
+			dependencies: ["team-brief"],
+		},
+		{
+			key: "team-synthesis",
+			title: "Coordinator synthesis",
+			objective: `Reconcile the specialist handoffs, resolve conflicts using evidence, and construct the requested deliverable for: ${objective}`,
+			agentRole: "ARCHITECT",
+			modelTier: "reasoning",
+			priority: 76,
+			dependencies: ["team-research", needsBrowser ? "team-live-investigation" : "team-independent-analysis"],
+		},
+		{
+			key: "team-verification",
+			title: "Independent team verification",
+			objective: `Audit the synthesized deliverable against the original acceptance criteria and direct specialist evidence. Reject unsupported claims and record any remaining uncertainty for: ${objective}`,
+			agentRole: "VERIFICATION",
+			modelTier: "reasoning",
+			priority: 60,
+			dependencies: ["team-synthesis"],
+		},
+	];
+	return tasks;
+}
+
 export function buildWorkDag(objective: string): TaskSpec[] {
 	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|website|screenshot|page|scrape|crawl)\b/i.test(objective);
 	const tasks: TaskSpec[] = [
@@ -294,6 +349,7 @@ export async function startManagedRun(input: {
 	readonly objective: string;
 	readonly requestedRuntime?: AgentRuntimeId;
 	readonly budgets?: Partial<RunBudgets>;
+	readonly orchestration?: "AUTO" | "TEAM";
 }): Promise<RuntimeTickResult> {
 	const existing = await getRunByClientRequestId(input.userId, input.clientRequestId);
 	if (existing) {
@@ -304,7 +360,12 @@ export async function startManagedRun(input: {
 	const runtime = await selectAgentRuntime(input.requestedRuntime);
 	const budgets = boundedBudgets(input.budgets);
 	const isSoftware = wantsSoftwareBuild(input.objective);
-	const tasks = isSoftware ? buildManagerDag(input.objective) : buildWorkDag(input.objective);
+	const teamMode = input.orchestration === "TEAM";
+	const tasks = teamMode
+		? buildAgentTeamDag(input.objective)
+		: isSoftware
+			? buildManagerDag(input.objective)
+			: buildWorkDag(input.objective);
 	if (tasks.length > budgets.maxAgents) {
 		throw new AgentRuntimeError({
 			code: "MISSION_AGENT_BUDGET_TOO_SMALL",
@@ -336,7 +397,13 @@ export async function startManagedRun(input: {
 			projectId: input.projectId,
 			runId: run.id,
 			type: "run.started",
-			payload: { manager: "AIRA_MANAGER", runtime: runtime.id, billing: "mission" },
+			payload: {
+				manager: "AIRA_MANAGER",
+				runtime: runtime.id,
+				billing: "mission",
+				orchestration: teamMode ? "TEAM" : "AUTO",
+				teamTaskCount: teamMode ? tasks.length : undefined,
+			},
 		}),
 		rememberProjectFact({
 			userId: input.userId,
@@ -350,6 +417,19 @@ export async function startManagedRun(input: {
 		}).catch(() => undefined),
 	]);
 	const tasksList = await listTasks(run.id);
+	if (teamMode) {
+		await appendEvent({
+			projectId: input.projectId,
+			runId: run.id,
+			type: "team.coordinator.started",
+			payload: {
+				manager: "AIRA_MANAGER",
+				taskCount: tasksList.length,
+				parallelism: budgets.maxParallelAgents,
+				roles: [...new Set(tasksList.map((task) => task.agentRole))],
+			},
+		}).catch(() => undefined);
+	}
 	return {
 		run,
 		tasks: tasksList,
