@@ -4,6 +4,7 @@ import { globalCapabilityPlanner } from "@/lib/agents/capability-planner";
 import { assertSafetyAllowed, SafetyBlockedError, SafetyGatewayError } from "@/src/services/safety/safety-gateway";
 import { resolvePlanBudgetCeilings } from "@/lib/agent-platform/budgets";
 import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
+import { buildAgentTeamDag } from "@/lib/agent-platform/orchestrator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,11 +69,24 @@ export async function POST(req: Request): Promise<Response> {
 	}
 
 	const plan = globalCapabilityPlanner.plan(parsed.data);
+	const teamMode = parsed.data.context?.orchestration === "TEAM";
+	const teamExecutionPlan = teamMode
+		? buildAgentTeamDag(parsed.data.objective).map((task) => ({
+			key: task.key,
+			title: task.title,
+			objective: task.objective,
+			agentRole: task.agentRole,
+			modelTier: task.modelTier,
+			priority: task.priority,
+			dependencies: task.dependencies,
+			approval: task.approval ?? null,
+		}))
+		: undefined;
 	const entitlements = await getEffectiveEntitlements(session.user.id).catch(() => null);
 	const ceilings = entitlements ? resolvePlanBudgetCeilings(entitlements.billingPlan) : undefined;
 
 	return json({
-		plan,
+		plan: teamMode ? { ...plan, executionMode: "TEAM", teamTasks: teamExecutionPlan } : plan,
 		budgetCeilings: ceilings,
 		entitlements: entitlements ? { plan: entitlements.billingPlan } : undefined,
 	});
