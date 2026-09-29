@@ -11,12 +11,17 @@ mock.module("@/auth", {
 });
 
 const createdProjects: Array<Record<string, unknown>> = [];
+const createdRuns: Array<Record<string, unknown>> = [];
+const archivedProjects: Array<{ userId: string; projectId: string }> = [];
+const runStatusUpdates: Array<{ runId: string; status: string; summary?: string | null }> = [];
 mock.module("@/lib/agent-platform/store", {
 	namedExports: {
 		createProject: mock.fn(async (input: Record<string, unknown>) => {
 			createdProjects.push(input);
 			return {
-				id: "project-intent-mission-123",
+				id: input.config && (input.config as Record<string, unknown>).hidden === true
+					? "project-chat-action-123"
+					: "project-intent-mission-123",
 				userId: input.userId,
 				name: input.name,
 				objective: input.objective,
@@ -26,26 +31,66 @@ mock.module("@/lib/agent-platform/store", {
 				updatedAt: new Date(),
 			};
 		}),
+		archiveProjectForUser: mock.fn(async (userId: string, projectId: string) => {
+			archivedProjects.push({ userId, projectId });
+			return true;
+		}),
+		createPlatformRun: mock.fn(async (input: Record<string, unknown>) => {
+			createdRuns.push(input);
+			return {
+				id: "run-chat-action-123",
+				projectId: input.projectId,
+				userId: input.userId,
+				clientRequestId: input.clientRequestId,
+				status: "RUNNING",
+				runtime: null,
+				managerRole: "ORCHESTRATOR",
+				budgets: input.budgets,
+				summary: null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				startedAt: new Date(),
+				completedAt: null,
+			};
+		}),
+		setRunStatus: mock.fn(async (runId: string, status: string, summary?: string | null) => {
+			runStatusUpdates.push({ runId, status, summary });
+		}),
 	},
 });
 
+const toolAvailabilityState = {
+	browser: false,
+	terminal: false,
+	git: false,
+	files: false,
+	memory: false,
+	web: false,
+	github: false,
+	vercel: false,
+	supabase: false,
+	mcp: false,
+	gmail: false,
+	slack: false,
+	google_drive: false,
+};
+const toolExecutions: Array<{ context: Record<string, unknown>; request: Record<string, unknown> }> = [];
 mock.module("@/lib/tool-gateway/gateway", {
 	namedExports: {
-		toolAvailability: mock.fn(async () => ({
-			browser: false,
-			terminal: false,
-			git: false,
-			files: false,
-			memory: false,
-			web: false,
-			github: false,
-			vercel: false,
-			supabase: false,
-			mcp: false,
-			gmail: false,
-			slack: false,
-			google_drive: false,
-		})),
+		toolAvailability: mock.fn(async () => ({ ...toolAvailabilityState })),
+		executeTool: mock.fn(async (context: Record<string, unknown>, request: Record<string, unknown>) => {
+			toolExecutions.push({ context, request });
+			return {
+				status: "COMPLETED" as const,
+				toolCallId: "tool-call-chat-123",
+				result: {
+					messages: [{ id: "msg-1", subject: "Important update" }],
+					trust: "UNTRUSTED_EXTERNAL_CONTENT",
+				},
+				usage: { toolCalls: 1, costUsd: 0, costKnown: true },
+				resultFidelity: "FULL" as const,
+			};
+		}),
 	},
 });
 
@@ -94,6 +139,11 @@ async function post(message: string) {
 				readonly recurrence?: unknown;
 				readonly autoLaunch?: boolean;
 				readonly href?: string;
+				readonly tool?: string;
+				readonly action?: string;
+				readonly result?: Record<string, unknown>;
+				readonly runId?: string;
+				readonly routineId?: string;
 			};
 			readonly error?: { readonly code?: string };
 		},
@@ -109,6 +159,57 @@ test("answer and research directives remain on the existing search backend", asy
 	const research = await post("Research NVIDIA's latest inference strategy using current sources.");
 	assert.equal(research.response.status, 200);
 	assert.deepEqual([research.body.decision?.intent, research.body.directive?.type], ["RESEARCH", "SEARCH"]);
+});
+
+test("available read-only tool intent executes through an owned bounded Tool Gateway run", async () => {
+	authenticated = true;
+	toolAvailabilityState.gmail = true;
+	createdProjects.length = 0;
+	createdRuns.length = 0;
+	archivedProjects.length = 0;
+	runStatusUpdates.length = 0;
+	toolExecutions.length = 0;
+
+	const result = await post("Read my latest important emails.");
+	assert.equal(result.response.status, 200);
+	assert.equal(result.body.decision?.intent, "TOOL_ACTION");
+	assert.deepEqual(
+		[result.body.directive?.type, result.body.directive?.status, result.body.directive?.tool, result.body.directive?.action],
+		["TOOL_RESULT", "COMPLETED", "gmail", "search"],
+	);
+	assert.deepEqual(result.body.directive?.result, {
+		messages: [{ id: "msg-1", subject: "Important update" }],
+		trust: "UNTRUSTED_EXTERNAL_CONTENT",
+	});
+	assert.equal(createdProjects.length, 1);
+	assert.equal(createdRuns.length, 1);
+	assert.deepEqual(archivedProjects, [{ userId: "user-intent-test", projectId: "project-chat-action-123" }]);
+	assert.equal(toolExecutions.length, 1);
+	assert.deepEqual(toolExecutions[0]?.context, {
+		userId: "user-intent-test",
+		projectId: "project-chat-action-123",
+		runId: "run-chat-action-123",
+		taskId: null,
+		agentId: null,
+		source: "USER",
+	});
+	assert.deepEqual(toolExecutions[0]?.request && {
+		tool: toolExecutions[0].request.tool,
+		action: toolExecutions[0].request.action,
+		input: toolExecutions[0].request.input,
+	}, {
+		tool: "gmail",
+		action: "search",
+		input: { q: "is:important", maxResults: 20 },
+	});
+	assert.ok(typeof toolExecutions[0]?.request.clientRequestId === "string");
+	assert.deepEqual(runStatusUpdates, [{
+		runId: "run-chat-action-123",
+		status: "COMPLETED",
+		summary: "Chat tool action: email.read",
+	}]);
+
+	toolAvailabilityState.gmail = false;
 });
 
 test("execution intents require authentication and never downgrade approval", async () => {
