@@ -73,7 +73,7 @@ export class CommandRegistry {
 			return {
 				type: "error",
 				payload: null,
-				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /tasks, /tools, /skills, /work <objective>, /new, /history, or /share.`,
+				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /team <objective>, /tasks, /tools, /skills, /work <objective>, /new, /history, or /share.`,
 			};
 		}
 
@@ -236,6 +236,24 @@ globalCommandRegistry.registerCommand({
 			type: "redirect",
 			payload: `/work?objective=${encodeURIComponent(objective)}&intent=plan`,
 			message: "Generating a managed Work plan...",
+		};
+	},
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/team",
+	description: "Prepare a coordinated multi-agent AIRA mission for explicit review and launch",
+	category: "mission",
+	version: 1,
+	execute: (args) => {
+		const objective = args.join(" ").trim();
+		if (!objective) {
+			return { type: "error", payload: null, message: "Please provide an objective after /team" };
+		}
+		return {
+			type: "redirect",
+			payload: `/work?objective=${encodeURIComponent(objective)}&intent=team`,
+			message: "Preparing coordinated Agent Team mission...",
 		};
 	},
 });
