@@ -130,6 +130,32 @@ interface DonePayload {
 	readonly messageId?: string;
 }
 
+interface IntentDecisionPayload {
+	readonly intent: "ANSWER" | "RESEARCH" | "TOOL_ACTION" | "WORKFLOW" | "AUTOMATION_CREATE" | "AGENT_MISSION";
+	readonly confidence: number;
+	readonly requiredCapabilities: readonly string[];
+	readonly requiresApproval: boolean;
+	readonly recurrence?: { readonly type: "cron" | "interval" | "event"; readonly schedule?: string; readonly timezone?: string; readonly event?: string };
+	readonly fallbackReason?: string;
+}
+
+type IntentDirective =
+	| { readonly type: "SEARCH"; readonly mode: ResearchMode }
+	| { readonly type: "WORK_REVIEW"; readonly href: string; readonly autoLaunch: false }
+	| { readonly type: "TOOL_PREVIEW"; readonly capabilities: readonly string[]; readonly requiresApproval: boolean; readonly status: "READY" | "BLOCKED"; readonly reason: string }
+	| { readonly type: "AUTOMATION_PREVIEW"; readonly persistent: boolean; readonly enabled: false; readonly recurrence: IntentDecisionPayload["recurrence"] | null; readonly capabilities: readonly string[]; readonly requiresApproval: true; readonly status: "READY" | "BLOCKED"; readonly reason: string };
+
+interface IntentResponsePayload {
+	readonly decision?: IntentDecisionPayload;
+	readonly directive?: IntentDirective;
+	readonly error?: { readonly code?: string; readonly message?: string };
+}
+
+interface IntentPreviewState {
+	readonly decision: IntentDecisionPayload;
+	readonly directive: Extract<IntentDirective, { readonly type: "TOOL_PREVIEW" | "AUTOMATION_PREVIEW" }>;
+}
+
 function parseSseBlock(block: string): { event: string; data: string } | null {
 	const trimmed = block.trim();
 	if (!trimmed) return null;
@@ -169,6 +195,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 	const [billing, setBilling] = useState<BillingStatusPayload | null>(null);
 	const [statusText, setStatusText] = useState("Searching the web...");
 	const [progressStage, setProgressStage] = useState<string | null>(null);
+	const [intentPreview, setIntentPreview] = useState<IntentPreviewState | null>(null);
 
 	const abortRef = useRef<AbortController | null>(null);
 	const searchBoxRef = useRef<SearchBoxHandle>(null);
@@ -709,6 +736,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		setStreamingUserQuery(null);
 		setStreamingAssistantMarkdown(null);
 		setStreamingCitations([]);
+		setIntentPreview(null);
 		setQuery("");
 		setErrorMessage(null);
 		setErrorCode(null);
@@ -806,6 +834,49 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 		}
 
 		if (!q) return;
+
+		setIntentPreview(null);
+		let intentResponse: Response;
+		try {
+			intentResponse = await fetch("/api/intent", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					message: q,
+					timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+				}),
+			});
+		} catch {
+			setPhase("error");
+			setErrorCode("INTENT_ROUTER_UNAVAILABLE");
+			setErrorMessage("Aira could not safely determine how to handle this request. Please try again.");
+			return;
+		}
+		const intentPayload = (await intentResponse.json().catch(() => null)) as IntentResponsePayload | null;
+		if (!intentResponse.ok || !intentPayload?.decision || !intentPayload.directive) {
+			if (intentResponse.status === 401) {
+				redirectToSignInWithQuery(q);
+				return;
+			}
+			setPhase("error");
+			setErrorCode(intentPayload?.error?.code ?? "INTENT_ROUTER_FAILED");
+			setErrorMessage(intentPayload?.error?.message ?? "Aira could not safely route this request.");
+			return;
+		}
+
+		if (intentPayload.directive.type === "SEARCH") {
+			currentMode = intentPayload.directive.mode;
+		} else if (intentPayload.directive.type === "WORK_REVIEW") {
+			setQuery("");
+			router.push(intentPayload.directive.href);
+			return;
+		} else {
+			setQuery("");
+			setPhase("idle");
+			setIntentPreview({ decision: intentPayload.decision, directive: intentPayload.directive });
+			return;
+		}
 
 		const isGuest = sessionStatus !== "authenticated";
 
@@ -1337,6 +1408,40 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 							: "Ask anything or delegate an autonomous mission..."
 				}
 			/>
+
+			{intentPreview ? (
+				<div className="rounded-2xl border border-accent/25 bg-surface-elevated/90 p-4 text-sm shadow-panel" role="status">
+					<div className="flex items-start justify-between gap-3">
+						<div>
+							<p className="font-semibold text-content-primary">
+								{intentPreview.directive.type === "AUTOMATION_PREVIEW"
+									? intentPreview.directive.persistent ? "Automation preview ready" : "Workflow preview ready"
+									: intentPreview.directive.status === "BLOCKED" ? "Action needs setup" : "Action ready for review"}
+							</p>
+							<p className="mt-1 text-xs leading-5 text-content-secondary">{intentPreview.directive.reason}</p>
+						</div>
+						<button type="button" onClick={() => setIntentPreview(null)} className="rounded-lg px-2 py-1 text-xs text-content-tertiary hover:bg-surface-subtle hover:text-content-primary" aria-label="Dismiss routing preview">Dismiss</button>
+					</div>
+					{intentPreview.directive.type === "AUTOMATION_PREVIEW" && intentPreview.directive.recurrence ? (
+						<p className="mt-3 text-xs font-medium text-content-primary">
+							{intentPreview.directive.recurrence.type === "event"
+								? `Trigger · ${intentPreview.directive.recurrence.event}`
+								: `Schedule · ${intentPreview.directive.recurrence.schedule}${intentPreview.directive.recurrence.timezone ? ` · ${intentPreview.directive.recurrence.timezone}` : ""}`}
+						</p>
+					) : null}
+					<div className="mt-3 flex flex-wrap gap-1.5">
+						{intentPreview.directive.capabilities.map((capability) => (
+							<span key={capability} className="rounded-full border border-border-subtle bg-surface-subtle px-2.5 py-1 text-[11px] text-content-secondary">{capability}</span>
+						))}
+					</div>
+					<div className="mt-4 flex items-center gap-3">
+						<Link href={intentPreview.directive.type === "AUTOMATION_PREVIEW" ? "/workflows" : "/tools"} className="rounded-xl bg-accent px-3.5 py-2 text-xs font-semibold text-white hover:bg-accent/90">
+							{intentPreview.directive.type === "AUTOMATION_PREVIEW" ? "Review automation" : "Review connections"}
+						</Link>
+						{intentPreview.directive.requiresApproval ? <span className="text-xs text-amber-400">Approval required before execution</span> : null}
+					</div>
+				</div>
+			) : null}
 
 			{phase === "error" && errorMessage ? (
 				<div
