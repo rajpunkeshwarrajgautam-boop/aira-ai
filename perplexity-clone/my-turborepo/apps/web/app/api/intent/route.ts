@@ -7,6 +7,7 @@ import {
 	type IntentDecision,
 } from "@/lib/intent-router";
 import { createProject } from "@/lib/agent-platform/store";
+import { toolAvailability } from "@/lib/tool-gateway/gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,13 +19,36 @@ const RequestSchema = z
 	})
 	.strict();
 
-const SAFE_NATIVE_CAPABILITIES = new Set([
+const SAFE_NATIVE_CAPABILITIES = [
 	"answer.generate",
 	"research.web_search",
 	"research.deep_research",
 	"automation.create",
 	"agent.plan",
-]);
+] as const;
+
+async function availableCapabilities(): Promise<ReadonlySet<string>> {
+	const available = new Set<string>(SAFE_NATIVE_CAPABILITIES);
+	const tools = await toolAvailability().catch(() => null);
+	if (!tools) return available;
+
+	if (tools.gmail) {
+		available.add("email.read");
+		available.add("email.search");
+		available.add("email.draft");
+		available.add("email.send");
+	}
+	if (tools.google_drive) {
+		available.add("drive.search");
+		available.add("drive.read");
+		available.add("drive.write");
+	}
+	if (tools.slack) available.add("slack.send");
+
+	// Calendar, CRM, publishing, delete and finance capabilities remain blocked
+	// until dedicated certified adapters exist in the Tool Gateway.
+	return available;
+}
 
 function json(body: unknown, init?: ResponseInit): Response {
 	return Response.json(body, {
@@ -86,7 +110,7 @@ export async function POST(request: Request): Promise<Response> {
 
 	const routed = await routeIntent(parsed.data.message, {
 		timezone: parsed.data.timezone ?? "UTC",
-		availableCapabilities: SAFE_NATIVE_CAPABILITIES,
+		availableCapabilities: await availableCapabilities(),
 	});
 	if (routed.kind === "EXPLICIT_COMMAND") {
 		return json(
