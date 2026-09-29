@@ -73,7 +73,7 @@ export class CommandRegistry {
 			return {
 				type: "error",
 				payload: null,
-				message: `Command ${commandName} not found. Try /new, /history, /deep <query>, or /share.`,
+				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /work <objective>, /new, /history, or /share.`,
 			};
 		}
 
@@ -118,6 +118,25 @@ globalCommandRegistry.registerCommand({
 });
 
 globalCommandRegistry.registerCommand({
+	name: "/research",
+	description: "Run Deep Research for a query using AIRA's real research pipeline",
+	aliases: ["/r"],
+	category: "action",
+	version: 1,
+	execute: (args) => {
+		const query = args.join(" ").trim();
+		if (!query) {
+			return { type: "error", payload: null, message: "Please provide a query after /research" };
+		}
+		return {
+			type: "action",
+			payload: { mode: "deep", query },
+			message: `Starting Deep Research for: ${query}`,
+		};
+	},
+});
+
+globalCommandRegistry.registerCommand({
 	name: "/deep",
 	description: "Force Deep Research mode for the current query",
 	category: "action",
@@ -134,6 +153,7 @@ globalCommandRegistry.registerCommand({
 		};
 	},
 });
+
 
 globalCommandRegistry.registerCommand({
 	name: "/share",
@@ -167,16 +187,52 @@ globalCommandRegistry.registerCommand({
 });
 
 globalCommandRegistry.registerCommand({
-	name: "/work",
-	description: "Initiate an autonomous deliverable mission",
+	name: "/plan",
+	description: "Create a real server-side AIRA Work plan and review it before execution",
 	category: "mission",
 	version: 1,
 	execute: (args) => {
-		const objective = args.join(" ");
+		const objective = args.join(" ").trim();
+		if (!objective) {
+			return { type: "error", payload: null, message: "Please provide an objective after /plan" };
+		}
 		return {
 			type: "redirect",
-			payload: objective ? `/build?objective=${encodeURIComponent(objective)}` : "/build",
-			message: "Launching work mode...",
+			payload: `/work?objective=${encodeURIComponent(objective)}&intent=plan`,
+			message: "Generating a managed Work plan...",
+		};
+	},
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/agent",
+	description: "Prepare an autonomous AIRA Work mission for explicit review and launch",
+	category: "mission",
+	version: 1,
+	execute: (args) => {
+		const objective = args.join(" ").trim();
+		if (!objective) {
+			return { type: "error", payload: null, message: "Please provide an objective after /agent" };
+		}
+		return {
+			type: "redirect",
+			payload: `/work?objective=${encodeURIComponent(objective)}&intent=agent`,
+			message: "Preparing the autonomous mission for review...",
+		};
+	},
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/work",
+	description: "Open AIRA Work Mode or prepare a managed mission objective",
+	category: "mission",
+	version: 2,
+	execute: (args) => {
+		const objective = args.join(" ").trim();
+		return {
+			type: "redirect",
+			payload: objective ? `/work?objective=${encodeURIComponent(objective)}` : "/work",
+			message: "Opening Work Mode...",
 		};
 	},
 });
