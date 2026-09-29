@@ -45,7 +45,7 @@ async function readError(response: Response): Promise<Error> {
 type WorkExecutionWorkspaceProps = {
   readonly initialObjective?: string;
   readonly autoPlan?: boolean;
-  readonly commandIntent?: "plan" | "agent" | null;
+  readonly commandIntent?: "plan" | "agent" | "team" | null;
 };
 
 export function WorkExecutionWorkspace({
@@ -179,7 +179,12 @@ export function WorkExecutionWorkspace({
         body: JSON.stringify({
           name: `Work · ${goal.slice(0, 72)}`,
           objective: goal,
-          config: { source: "work-mode", missionId: plan.missionId, effort },
+          config: {
+            source: commandIntent === "team" ? "agent-team" : "work-mode",
+            missionId: plan.missionId,
+            effort,
+            orchestration: commandIntent === "team" ? "TEAM" : "AUTO",
+          },
         }),
       });
       if (!projectResponse.ok) throw await readError(projectResponse);
@@ -193,6 +198,7 @@ export function WorkExecutionWorkspace({
           body: JSON.stringify({
             clientRequestId: crypto.randomUUID(),
             objective: goal,
+            orchestration: commandIntent === "team" ? "TEAM" : "AUTO",
             budgets: {
               maxAgents: 16,
               maxParallelAgents: 4,
@@ -238,7 +244,9 @@ export function WorkExecutionWorkspace({
               {busy === "plan"
                 ? "Generating the real server-side capability plan…"
                 : plan
-                  ? "Plan ready. Review tasks, risk and estimated cost before launching the managed run."
+                  ? commandIntent === "team"
+                    ? "Capability plan ready. Team launch will expand this into a persisted coordinator DAG with direct specialist handoffs."
+                    : "Plan ready. Review tasks, risk and estimated cost before launching the managed run."
                   : "Objective loaded. AIRA will generate a real capability plan once your authenticated session is ready."}
             </span>
           </div>
@@ -324,7 +332,7 @@ export function WorkExecutionWorkspace({
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={() => void generatePlan()} disabled={busy !== null || objective.trim().length < 3} className="inline-flex items-center gap-2 rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-4 py-2.5 text-sm font-semibold text-[#111115] shadow-xs transition hover:bg-[#FAF9F6] disabled:opacity-40">{busy === "plan" ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4 text-[#3A0CA3]" />}Generate plan</button>
-              <button type="button" onClick={() => void executePlan()} disabled={busy !== null || !plan || runtimeState !== "ready"} title={runtimeState === "unavailable" ? "Managed execution requires a configured, healthy autonomous runtime." : undefined} className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] disabled:opacity-40">{busy === "launch" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}Launch managed run</button>
+              <button type="button" onClick={() => void executePlan()} disabled={busy !== null || !plan || runtimeState !== "ready"} title={runtimeState === "unavailable" ? "Managed execution requires a configured, healthy autonomous runtime." : undefined} className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] disabled:opacity-40">{busy === "launch" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}{commandIntent === "team" ? "Launch Agent Team" : "Launch managed run"}</button>
             </div>
           </div>
 
