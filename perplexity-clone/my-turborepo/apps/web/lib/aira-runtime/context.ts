@@ -1,5 +1,5 @@
 import { retrieveProjectMemory } from "@/lib/agent-platform/project-memory";
-import { globalSkillsStore } from "@/lib/agents/installable-skills-store";
+import { globalSkillsStore, type InstallableSkill } from "@/lib/agents/installable-skills-store";
 
 import { buildCapabilityManifest, type CapabilityManifest } from "./capabilities";
 import {
@@ -75,7 +75,7 @@ export async function buildRuntimeContext(input: RuntimeContextInput): Promise<B
 			limit: 8,
 		}).catch(() => []),
 		Promise.all(configuredSkillIds.map((id) => globalSkillsStore.getSkillForUserAsync(input.userId, id)))
-			.then((skills) => skills.filter((skill): skill is NonNullable<typeof skill> => Boolean(skill?.enabled))),
+			.then((skills) => skills.filter((skill): skill is InstallableSkill => Boolean(skill?.enabled))),
 	]);
 	const toolMap = availableToolMap(manifest);
 	const availableAssignedTools = input.allowedTools.filter((tool) => toolMap[tool] === true);
