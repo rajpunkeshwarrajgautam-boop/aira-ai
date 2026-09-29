@@ -862,13 +862,14 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		const claimed = await claimTask(task.id, workerId);
 		if (!claimed) continue;
 		const runtimeRequestId = runtimeAttemptRequestId(claimed);
-		const configuredTeamTask = Boolean(taskConfigString(task.config, "teamId"));
-		const configuredTools = taskConfigStrings(task.config, "allowedTools");
-		const configuredSkillIds = taskConfigStrings(task.config, "skillIds");
-		const agentDefinitionId = taskConfigString(task.config, "agentDefinitionId");
-		const agentName = taskConfigString(task.config, "agentName");
-		const agentInstructions = taskConfigString(task.config, "instructions");
-		const memberKey = taskConfigString(task.config, "memberKey");
+		const taskConfig = task.config ?? {};
+		const configuredTeamTask = Boolean(taskConfigString(taskConfig, "teamId"));
+		const configuredTools = taskConfigStrings(taskConfig, "allowedTools");
+		const configuredSkillIds = taskConfigStrings(taskConfig, "skillIds");
+		const agentDefinitionId = taskConfigString(taskConfig, "agentDefinitionId");
+		const agentName = taskConfigString(taskConfig, "agentName");
+		const agentInstructions = taskConfigString(taskConfig, "instructions");
+		const memberKey = taskConfigString(taskConfig, "memberKey");
 		const allowedTools = configuredTeamTask ? configuredTools : (AGENT_TOOLS[task.agentRole] ?? ["files"]);
 		const agentId = await createAgentInstance({
 			projectId: run.projectId,
@@ -974,8 +975,8 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					memoryKeys: runtimeContext.memoryKeys,
 					attempt: claimed.attempt + 1,
 					...(configuredTeamTask ? {
-						teamId: taskConfigString(task.config, "teamId"),
-						teamVersion: task.config.teamVersion,
+						teamId: taskConfigString(taskConfig, "teamId"),
+						teamVersion: taskConfig.teamVersion,
 						memberKey,
 						agentDefinitionId,
 					} : {}),
@@ -1049,8 +1050,8 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					runtimeClientRequestId: runtimeRequestId,
 					attempt: claimed.attempt + 1,
 					...(configuredTeamTask ? {
-						teamId: taskConfigString(task.config, "teamId"),
-						teamVersion: task.config.teamVersion,
+						teamId: taskConfigString(taskConfig, "teamId"),
+						teamVersion: taskConfig.teamVersion,
 						memberKey,
 						agentDefinitionId,
 						agentName,
