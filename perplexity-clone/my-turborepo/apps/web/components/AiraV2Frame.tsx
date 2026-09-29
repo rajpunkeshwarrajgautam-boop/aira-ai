@@ -40,6 +40,7 @@ import {
   PanelLeftClose,
   Puzzle,
   PanelLeftOpen,
+  UsersRound,
   Wrench
 } from "lucide-react";
 import Link from "next/link";
@@ -60,6 +61,7 @@ const PRIMARY_NAV = [
 const CAPABILITY_NAV = [
   { href: "/work", label: "Work", icon: Command },
   { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/teams", label: "Teams", icon: UsersRound },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/tools", label: "Tools", icon: Wrench },
   { href: "/skills", label: "Skills", icon: Puzzle },
