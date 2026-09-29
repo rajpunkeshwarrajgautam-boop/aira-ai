@@ -22,7 +22,7 @@ export default async function WorkPage({
   const params = await searchParams;
   const initialObjective = firstParam(params.objective).trim().slice(0, 8_000);
   const rawIntent = firstParam(params.intent);
-  const commandIntent = rawIntent === "plan" || rawIntent === "agent" ? rawIntent : null;
+  const commandIntent = rawIntent === "plan" || rawIntent === "agent" || rawIntent === "team" ? rawIntent : null;
   const autoPlan = Boolean(commandIntent && initialObjective.length >= 3);
 
   return (
