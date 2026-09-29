@@ -13,7 +13,9 @@ export type AiraToolId =
 	| "mcp"
 	| "gmail"
 	| "slack"
-	| "google_drive";
+	| "google_drive"
+	| "google_calendar"
+	| "crm";
 
 export type ToolCallSource = "AGENT" | "USER" | "SYSTEM";
 export type ToolCallStatus =
