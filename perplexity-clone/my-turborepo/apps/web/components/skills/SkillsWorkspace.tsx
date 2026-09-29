@@ -72,7 +72,6 @@ export function SkillsWorkspace() {
 
   async function toggle(skill: Skill) {
     if (skill.isBuiltin) return;
-    if (!window.confirm(`Remove custom skill "${skill.name}"?`)) return;
     setBusyId(skill.id);
     setError(null);
     try {
@@ -93,6 +92,7 @@ export function SkillsWorkspace() {
 
   async function remove(skill: Skill) {
     if (skill.isBuiltin) return;
+    if (!window.confirm(`Remove custom skill "${skill.name}"?`)) return;
     setBusyId(skill.id);
     setError(null);
     try {
