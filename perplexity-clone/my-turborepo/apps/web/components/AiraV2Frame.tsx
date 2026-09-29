@@ -24,8 +24,10 @@
 */
 import {
   Bell,
+  Bot,
   Command,
   FileText,
+  ListTodo,
   FolderOpen,
   Boxes,
   Library,
@@ -36,7 +38,9 @@ import {
   Plus,
   LayoutTemplate,
   PanelLeftClose,
-  PanelLeftOpen
+  Puzzle,
+  PanelLeftOpen,
+  Wrench
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -53,12 +57,23 @@ const PRIMARY_NAV = [
   { href: "/library", label: "Library", icon: Library },
 ] as const;
 
+const CAPABILITY_NAV = [
+  { href: "/work", label: "Work", icon: Command },
+  { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/tools", label: "Tools", icon: Wrench },
+  { href: "/skills", label: "Skills", icon: Puzzle },
+] as const;
+
 const BOTTOM_NAV = [
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ] as const;
 
-type NavigationItem = (typeof PRIMARY_NAV)[number] | (typeof BOTTOM_NAV)[number];
+type NavigationItem =
+  | (typeof PRIMARY_NAV)[number]
+  | (typeof CAPABILITY_NAV)[number]
+  | (typeof BOTTOM_NAV)[number];
 function routeFromHref(href: string): string { return href.split(/[?#]/, 1)[0] || "/"; }
 function isActivePath(pathname: string, href: string): boolean { const route = routeFromHref(href); return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(route + "/"); }
 
@@ -77,7 +92,7 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
   const paletteRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
-  const allCommands = useMemo<readonly NavigationItem[]>(() => [...PRIMARY_NAV, ...BOTTOM_NAV], []);
+  const allCommands = useMemo<readonly NavigationItem[]>(() => [...PRIMARY_NAV, ...CAPABILITY_NAV, ...BOTTOM_NAV], []);
   const filteredCommands = useMemo(() => { const needle = filter.trim().toLowerCase(); return needle ? allCommands.filter((item) => `${item.label}`.toLowerCase().includes(needle)) : allCommands; }, [allCommands, filter]);
 
   useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPaletteOpen((open) => !open); } if (event.key === "Escape") { setPaletteOpen(false); setMobileNavOpen(false); } }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, []);
@@ -134,6 +149,22 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
                 </Link>
               );
             })}
+          </div>
+
+          <div className="mt-6">
+            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#A3A3A3]">AIRA Command</p>
+            <div className="flex flex-col gap-1">
+              {CAPABILITY_NAV.map((item) => {
+                const active = isActivePath(pathname, item.href);
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition", active ? "bg-[#F4F4F5] text-[#111111]" : "text-[#525252] hover:bg-[#F4F4F5]/50 hover:text-[#111111]")} aria-current={active ? "page" : undefined}>
+                    <Icon className={cn("size-[18px]", active ? "text-[#111111]" : "text-[#A3A3A3]")} strokeWidth={2} aria-hidden />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </nav>
         
