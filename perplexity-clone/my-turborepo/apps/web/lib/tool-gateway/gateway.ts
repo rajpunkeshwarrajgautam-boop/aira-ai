@@ -6,7 +6,13 @@ import { prisma } from "@/lib/prisma";
 
 import { browserToolAdapter, gitToolAdapter, terminalToolAdapter } from "./adapters";
 import { githubToolAdapter, mcpToolAdapter, supabaseToolAdapter, vercelToolAdapter } from "./external-adapters";
-import { gmailToolAdapter, googleDriveToolAdapter, slackToolAdapter } from "./connector-adapters";
+import {
+	crmToolAdapter,
+	gmailToolAdapter,
+	googleCalendarToolAdapter,
+	googleDriveToolAdapter,
+	slackToolAdapter,
+} from "./connector-adapters";
 import { filesToolAdapter, memoryToolAdapter, webToolAdapter } from "./native-adapters";
 import {
 	classifyToolRisk,
@@ -51,6 +57,8 @@ const adapters = new Map<AiraToolId, ToolAdapter>([
 	[gmailToolAdapter.id, gmailToolAdapter],
 	[slackToolAdapter.id, slackToolAdapter],
 	[googleDriveToolAdapter.id, googleDriveToolAdapter],
+	[googleCalendarToolAdapter.id, googleCalendarToolAdapter],
+	[crmToolAdapter.id, crmToolAdapter],
 ]);
 
 /** Internal dependency boundary for deterministic recovery verification. */
