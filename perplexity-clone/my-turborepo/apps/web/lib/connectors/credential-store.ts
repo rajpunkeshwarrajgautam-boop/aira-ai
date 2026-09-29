@@ -119,6 +119,41 @@ export class ConnectorCredentialStore {
 		});
 	}
 
+	async listConnectionRefsAsync(
+		userId: string,
+		connectorId?: string,
+	): Promise<readonly { connectionId: string; connectorId: string; createdAt: string }[]> {
+		if (process.env.DATABASE_URL) {
+			const rows = connectorId
+				? await prisma.$queryRaw<Array<{ id: string; connectorId: string; createdAt: Date }>>`
+					SELECT "id", "connectorId", "createdAt"
+					FROM "ConnectorConnection"
+					WHERE "userId" = ${userId} AND "connectorId" = ${connectorId}
+					ORDER BY "updatedAt" DESC
+				`
+				: await prisma.$queryRaw<Array<{ id: string; connectorId: string; createdAt: Date }>>`
+					SELECT "id", "connectorId", "createdAt"
+					FROM "ConnectorConnection"
+					WHERE "userId" = ${userId}
+					ORDER BY "updatedAt" DESC
+				`;
+			return rows.map((row) => ({
+				connectionId: row.id,
+				connectorId: row.connectorId,
+				createdAt: row.createdAt.toISOString(),
+			}));
+		}
+
+		return [...this.connections.values()]
+			.filter((entry) => entry.userId === userId && (!connectorId || entry.connectorId === connectorId))
+			.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+			.map((entry) => ({
+				connectionId: entry.connectionId,
+				connectorId: entry.connectorId,
+				createdAt: entry.createdAt,
+			}));
+	}
+
 	async resolveCredentialAsync(userId: string, connectionId: string): Promise<ConnectorCredential> {
 		let stored: StoredConnection | undefined;
 
