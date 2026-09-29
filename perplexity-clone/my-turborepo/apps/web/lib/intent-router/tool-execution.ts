@@ -43,6 +43,87 @@ const CHAT_TOOL_BUDGETS: RunBudgets = {
 	maxRetries: 0,
 };
 
+function zonedDateParts(date: Date, timeZone: string): { year: number; month: number; day: number } {
+	const parts = new Intl.DateTimeFormat("en-CA", {
+		timeZone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(date);
+	const value = (type: "year" | "month" | "day") =>
+		Number(parts.find((part) => part.type === type)?.value);
+	return { year: value("year"), month: value("month"), day: value("day") };
+}
+
+function timeZoneOffsetMs(date: Date, timeZone: string): number {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hourCycle: "h23",
+	}).formatToParts(date);
+	const pick = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+	const asUtc = Date.UTC(
+		pick("year"),
+		pick("month") - 1,
+		pick("day"),
+		pick("hour"),
+		pick("minute"),
+		pick("second"),
+	);
+	return asUtc - Math.floor(date.getTime() / 1_000) * 1_000;
+}
+
+function zonedMidnightUtc(
+	date: { year: number; month: number; day: number },
+	timeZone: string,
+): Date {
+	const nominal = Date.UTC(date.year, date.month - 1, date.day, 0, 0, 0);
+	let candidate = nominal - timeZoneOffsetMs(new Date(nominal), timeZone);
+	candidate = nominal - timeZoneOffsetMs(new Date(candidate), timeZone);
+	return new Date(candidate);
+}
+
+function addCalendarDays(
+	date: { year: number; month: number; day: number },
+	days: number,
+): { year: number; month: number; day: number } {
+	const next = new Date(Date.UTC(date.year, date.month - 1, date.day + days, 12, 0, 0));
+	return {
+		year: next.getUTCFullYear(),
+		month: next.getUTCMonth() + 1,
+		day: next.getUTCDate(),
+	};
+}
+
+function calendarReadWindow(message: string, timeZone: string): { timeMin: string; timeMax: string } {
+	const now = new Date();
+	const localToday = zonedDateParts(now, timeZone);
+	if (/\btomorrow\b/i.test(message)) {
+		const startDate = addCalendarDays(localToday, 1);
+		const endDate = addCalendarDays(localToday, 2);
+		return {
+			timeMin: zonedMidnightUtc(startDate, timeZone).toISOString(),
+			timeMax: zonedMidnightUtc(endDate, timeZone).toISOString(),
+		};
+	}
+	if (/\btoday\b/i.test(message)) {
+		const endDate = addCalendarDays(localToday, 1);
+		return {
+			timeMin: now.toISOString(),
+			timeMax: zonedMidnightUtc(endDate, timeZone).toISOString(),
+		};
+	}
+	return {
+		timeMin: now.toISOString(),
+		timeMax: new Date(now.getTime() + 7 * 86_400_000).toISOString(),
+	};
+}
+
 function gmailQuery(message: string): string | undefined {
 	const normalized = message.toLowerCase();
 	const parts: string[] = [];
@@ -83,6 +164,7 @@ function driveSearchQuery(message: string): string | undefined {
 export function resolveReadOnlyToolAction(
 	message: string,
 	decision: IntentDecision,
+	timeZone = "UTC",
 ): ReadOnlyToolResolution {
 	if (decision.intent !== "TOOL_ACTION") {
 		return { kind: "BLOCKED", reason: "TOOL_INTENT_REQUIRED" };
@@ -133,6 +215,45 @@ export function resolveReadOnlyToolAction(
 		};
 	}
 
+	if (capability === "calendar.read") {
+		const safeTimeZone = (() => {
+			try {
+				new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+				return timeZone;
+			} catch {
+				return "UTC";
+			}
+		})();
+		return {
+			kind: "READY",
+			action: {
+				capability,
+				tool: "google_calendar",
+				action: "list_events",
+				input: { ...calendarReadWindow(message, safeTimeZone), calendarId: "primary" },
+			},
+		};
+	}
+
+	if (capability === "crm.lead.search") {
+		const match = message.match(
+			/\b(?:find|search(?:\s+for)?|list)\s+(?:new\s+)?(.+?)\s+(?:in|from)\s+(?:the\s+)?(?:crm|hubspot)\b/i,
+		);
+		const rawQuery = match?.[1]
+			?.replace(/\b(?:leads?|prospects?|contacts?)\b/gi, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+		return {
+			kind: "READY",
+			action: {
+				capability,
+				tool: "crm",
+				action: "search_contacts",
+				input: rawQuery ? { query: rawQuery.slice(0, 200), limit: 20 } : { limit: 20 },
+			},
+		};
+	}
+
 	return {
 		kind: "BLOCKED",
 		reason: `TOOL_ACTION_UNSUPPORTED: ${capability} has no certified natural-language executor.`,
@@ -143,11 +264,12 @@ export async function executeReadOnlyChatTool(input: {
 	readonly userId: string;
 	readonly message: string;
 	readonly decision: IntentDecision;
+	readonly timeZone?: string;
 }): Promise<
 	| { readonly kind: "BLOCKED"; readonly reason: string }
 	| { readonly kind: "EXECUTED"; readonly execution: ChatToolExecution }
 > {
-	const resolved = resolveReadOnlyToolAction(input.message, input.decision);
+	const resolved = resolveReadOnlyToolAction(input.message, input.decision, input.timeZone ?? "UTC");
 	if (resolved.kind === "BLOCKED") return resolved;
 
 	const project = await createProject({
