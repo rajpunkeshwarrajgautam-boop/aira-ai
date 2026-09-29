@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { executeTool } from "@/lib/tool-gateway/gateway";
 import { readMissionUsage } from "@/lib/tool-gateway/store";
 
-import { recordAgentMessage } from "./messages";
+import { listAgentMessagesForTasks, recordAgentMessage } from "./messages";
 import { rememberProjectFact, type ProjectMemoryKind } from "./project-memory";
 import {
 	appendEvent,
@@ -387,6 +387,27 @@ function safeHandoff(result: unknown): string {
 	}
 }
 
+function handoffBody(result: unknown, artifacts: readonly string[]): Record<string, unknown> {
+	const value = result && typeof result === "object" && !Array.isArray(result)
+		? (result as Record<string, unknown>)
+		: {};
+	const stringList = (candidate: unknown): string[] =>
+		Array.isArray(candidate)
+			? candidate.filter((entry): entry is string => typeof entry === "string").slice(0, 30)
+			: [];
+	const summary =
+		typeof value.summary === "string"
+			? value.summary.slice(0, 6_000)
+			: safeHandoff(result);
+	return {
+		summary,
+		artifacts: [...new Set([...artifacts, ...stringList(value.artifacts), ...stringList(value.evidence)])].slice(0, 50),
+		decisions: stringList(value.decisions),
+		risks: stringList(value.risks ?? value.blockers),
+		nextActions: stringList(value.nextActions),
+	};
+}
+
 function memoryKindForTask(task: PlatformTask): ProjectMemoryKind {
 	if (task.agentRole === "VERIFICATION") return "VERIFICATION";
 	if (task.agentRole === "ARCHITECT") return "ARCHITECTURE";
@@ -632,6 +653,7 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 			const artifacts = runtime.getArtifacts ? await runtime.getArtifacts(userId, child.id).catch(() => []) : [];
 			const paths = artifacts.length ? artifacts.map((artifact) => artifact.uri ?? artifact.name) : artifactsFromResult(child.result);
 			const handoff = safeHandoff(child.result);
+			const structuredHandoff = handoffBody(child.result, paths);
 			await completeTask(task.id, paths);
 			await Promise.all([
 				recordAgentMessage({
@@ -639,7 +661,14 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 					runId: run.id,
 					taskId: task.id,
 					kind: "RESULT",
-					body: { summary: handoff, artifacts: paths, decisions: [], risks: [], nextActions: [] },
+					body: structuredHandoff,
+				}).catch(() => undefined),
+				recordAgentMessage({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					kind: "HANDOFF",
+					body: structuredHandoff,
 				}).catch(() => undefined),
 				rememberProjectFact({
 					userId,
@@ -652,6 +681,13 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 					metadata: { taskId: task.id, agentRole: task.agentRole, artifacts: paths.slice(0, 20) },
 				}).catch(() => undefined),
 				appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "task.completed", payload: { runtimeRunId: child.id, artifacts: paths } }),
+				appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					type: "team.handoff.recorded",
+					payload: { fromTaskId: task.id, agentRole: task.agentRole, artifactCount: paths.length },
+				}),
 			]);
 			reconciled += 1;
 		} else if (child.status === AgentRunStatus.FAILED || child.status === AgentRunStatus.TERMINATED) {
@@ -726,6 +762,51 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				relatedWorkspaces = prepared.relatedWorkspaces;
 			}
 
+			const dependencyTasks = task.dependencies
+				.map((dependencyId) => byId.get(dependencyId))
+				.filter((dependency): dependency is PlatformTask => Boolean(dependency));
+			const dependencyMessages = dependencyTasks.length
+				? await listAgentMessagesForTasks({
+					userId,
+					runId: run.id,
+					taskIds: dependencyTasks.map((dependency) => dependency.id),
+					kinds: ["HANDOFF", "RESULT"],
+				})
+				: [];
+			const latestByTask = new Map<string, (typeof dependencyMessages)[number]>();
+			for (const message of dependencyMessages) {
+				if (!message.taskId) continue;
+				const current = latestByTask.get(message.taskId);
+				if (!current || current.kind !== "HANDOFF" || message.kind === "HANDOFF") {
+					latestByTask.set(message.taskId, message);
+				}
+			}
+			const dependencyHandoffs = dependencyTasks.flatMap((dependency) => {
+				const message = latestByTask.get(dependency.id);
+				return message
+					? [{
+						taskId: dependency.id,
+						taskTitle: dependency.title,
+						agentRole: dependency.agentRole,
+						body: message.body,
+					}]
+					: [];
+			});
+			if (dependencyHandoffs.length > 0) {
+				await appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					agentId,
+					type: "team.handoff.injected",
+					payload: {
+						toTaskId: task.id,
+						fromTaskIds: dependencyHandoffs.map((handoff) => handoff.taskId),
+						handoffCount: dependencyHandoffs.length,
+					},
+				}).catch(() => undefined);
+			}
+
 			const runtimeContext = await buildRuntimeContext({
 				userId,
 				projectId: run.projectId,
@@ -735,6 +816,7 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				taskTitle: task.title,
 				objective: task.objective,
 				allowedTools,
+				dependencyHandoffs,
 				...(workspace ? { workspace: { workspaceId: workspace.workspaceId, branch: workspace.branch, baseRef: workspace.baseRef } } : {}),
 				...(relatedWorkspaces.length ? {
 					relatedWorkspaces: relatedWorkspaces.map((entry) => ({
