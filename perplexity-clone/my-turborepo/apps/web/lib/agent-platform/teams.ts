@@ -47,8 +47,20 @@ export const AgentTeamDefinitionSchema = z.object({
   name: z.string().trim().min(2).max(100),
   description: z.string().trim().max(500).default(""),
   members: z.array(AgentTeamMemberSchema).min(2).max(16),
-  budgets: AgentTeamBudgetsSchema.default({}),
-  coordinatorPolicy: CoordinatorPolicySchema.default({}),
+  budgets: AgentTeamBudgetsSchema.default({
+    maxAgents: 12,
+    maxParallelAgents: 4,
+    maxToolCalls: 160,
+    maxTokens: 500_000,
+    maxCostUsd: 20,
+    maxDurationMinutes: 180,
+    maxRetries: 2,
+  }),
+  coordinatorPolicy: CoordinatorPolicySchema.default({
+    handoffMode: "DIRECT_DEPENDENCIES",
+    requireIndependentVerification: true,
+    maxHandoffsPerTask: 8,
+  }),
 });
 
 export type AgentTeamMember = z.infer<typeof AgentTeamMemberSchema>;
@@ -69,7 +81,7 @@ export interface AgentTeamVersionRecord {
   readonly createdAt: string;
 }
 
-export interface CompiledTeamTaskConfig {
+export interface CompiledTeamTaskConfig extends Record<string, unknown> {
   readonly teamId: string;
   readonly teamVersion: number;
   readonly memberKey: string;
