@@ -51,9 +51,17 @@ async function availableCapabilities(): Promise<ReadonlySet<string>> {
 		available.add("drive.write");
 	}
 	if (tools.slack) available.add("slack.send");
+	if (tools.google_calendar) {
+		available.add("calendar.read");
+		available.add("calendar.create");
+	}
+	if (tools.crm) {
+		available.add("crm.lead.search");
+		available.add("crm.contact.create");
+	}
 
-	// Calendar, CRM, publishing, delete and finance capabilities remain blocked
-	// until dedicated certified adapters exist in the Tool Gateway.
+	// CRM enrichment/contact-update, publishing, delete and finance capabilities
+	// remain blocked until dedicated certified adapters/actions exist.
 	return available;
 }
 
