@@ -73,7 +73,7 @@ export class CommandRegistry {
 			return {
 				type: "error",
 				payload: null,
-				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /team <objective>, /tasks, /tools, /skills, /work <objective>, /new, /history, or /share.`,
+				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /team <objective>, /teams, /tasks, /tools, /skills, /work <objective>, /new, /history, or /share.`,
 			};
 		}
 
@@ -184,6 +184,18 @@ globalCommandRegistry.registerCommand({
 			message: "Opening mission control...",
 		};
 	},
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/teams",
+	description: "Open reusable versioned Agent Teams",
+	category: "navigation",
+	version: 1,
+	execute: () => ({
+		type: "redirect",
+		payload: "/teams",
+		message: "Opening reusable Agent Teams...",
+	}),
 });
 
 globalCommandRegistry.registerCommand({
