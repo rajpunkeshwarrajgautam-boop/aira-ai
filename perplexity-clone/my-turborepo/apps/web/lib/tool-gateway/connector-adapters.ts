@@ -123,10 +123,11 @@ const GmailDraftSchema = z.object({
 const GmailSendSchema = GmailDraftSchema;
 
 export function createGmailToolAdapter(transport: GmailTransport = deterministicGmailTransport): ToolAdapter {
+	const hasRealTransport = transport !== deterministicGmailTransport;
 	return {
 		id: "gmail",
 		async isAvailable() {
-			return enabled("AIRA_GMAIL_CONNECTOR_ENABLED") && Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim() && process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim());
+			return hasRealTransport && enabled("AIRA_GMAIL_CONNECTOR_ENABLED") && Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim() && process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim());
 		},
 		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
 			if (action === "batch_delete" || action === "modify_filters") {
@@ -291,10 +292,11 @@ export function verifySlackSignature(options: {
 }
 
 export function createSlackToolAdapter(transport: SlackTransport = deterministicSlackTransport): ToolAdapter {
+	const hasRealTransport = transport !== deterministicSlackTransport;
 	return {
 		id: "slack",
 		async isAvailable() {
-			return enabled("AIRA_SLACK_CONNECTOR_ENABLED") && Boolean(process.env.SLACK_BOT_TOKEN?.trim() && process.env.SLACK_SIGNING_SECRET?.trim());
+			return hasRealTransport && enabled("AIRA_SLACK_CONNECTOR_ENABLED") && Boolean(process.env.SLACK_BOT_TOKEN?.trim() && process.env.SLACK_SIGNING_SECRET?.trim());
 		},
 		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
 			if (action === "admin_manage_workspace") {
@@ -442,10 +444,11 @@ const DriveShareSchema = z.object({
 });
 
 export function createGoogleDriveToolAdapter(transport: GoogleDriveTransport = deterministicGoogleDriveTransport): ToolAdapter {
+	const hasRealTransport = transport !== deterministicGoogleDriveTransport;
 	return {
 		id: "google_drive",
 		async isAvailable() {
-			return enabled("AIRA_GOOGLE_DRIVE_CONNECTOR_ENABLED") && Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() && process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim());
+			return hasRealTransport && enabled("AIRA_GOOGLE_DRIVE_CONNECTOR_ENABLED") && Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() && process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim());
 		},
 		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
 			if (action === "modify_permissions_public" || action === "delete_shared_drive") {
