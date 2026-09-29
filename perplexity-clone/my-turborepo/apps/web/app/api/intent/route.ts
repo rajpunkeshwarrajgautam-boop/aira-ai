@@ -13,6 +13,8 @@ import {
 	type RoutineTrigger,
 	type VisualWorkflowDAG,
 } from "@/lib/automation/engine";
+import { executeReadOnlyChatTool } from "@/lib/intent-router/tool-execution";
+import { ToolGatewayError } from "@/lib/tool-gateway/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -192,6 +194,27 @@ export async function POST(request: Request): Promise<Response> {
 	let workProjectId: string | undefined;
 	let automationDraftId: string | undefined;
 	let automationDraftReason: string | undefined;
+	let toolDirective:
+		| {
+				type: "TOOL_RESULT";
+				capabilities: readonly string[];
+				status: "COMPLETED";
+				requiresApproval: false;
+				reason: string;
+				tool: string;
+				action: string;
+				result: Record<string, unknown>;
+				runId: string;
+			}
+		| {
+				type: "TOOL_PREVIEW";
+				capabilities: readonly string[];
+				status: "BLOCKED" | "READY";
+				requiresApproval: boolean;
+				reason: string;
+				approvalId?: string;
+			}
+		| undefined;
 	const initialDirective = directiveFor(routed.decision);
 	if (initialDirective.type !== "SEARCH") {
 		const session = await auth();
@@ -203,6 +226,76 @@ export async function POST(request: Request): Promise<Response> {
 				},
 				{ status: 401 },
 			);
+		}
+
+		if (
+			routed.decision.intent === "TOOL_ACTION" &&
+			!routed.decision.fallbackReason &&
+			routed.decision.sideEffect === "READ"
+		) {
+			try {
+				const execution = await executeReadOnlyChatTool({
+					userId: session.user.id,
+					message: parsed.data.message,
+					decision: routed.decision,
+				});
+				if (execution.kind === "BLOCKED") {
+					toolDirective = {
+						type: "TOOL_PREVIEW",
+						capabilities: routed.decision.requiredCapabilities,
+						status: "BLOCKED",
+						requiresApproval: routed.decision.requiresApproval,
+						reason: execution.reason,
+					};
+				} else if (execution.execution.result.status === "COMPLETED") {
+					toolDirective = {
+						type: "TOOL_RESULT",
+						capabilities: routed.decision.requiredCapabilities,
+						status: "COMPLETED",
+						requiresApproval: false,
+						reason: "Aira completed the read-only action through the Tool Gateway.",
+						tool: execution.execution.action.tool,
+						action: execution.execution.action.action,
+						result: execution.execution.result.result,
+						runId: execution.execution.runId,
+					};
+				} else if (execution.execution.result.status === "APPROVAL_REQUIRED") {
+					toolDirective = {
+						type: "TOOL_PREVIEW",
+						capabilities: routed.decision.requiredCapabilities,
+						status: "READY",
+						requiresApproval: true,
+						reason: "The Tool Gateway requires explicit approval before this action can continue.",
+						approvalId: execution.execution.result.approvalId,
+					};
+				} else {
+					toolDirective = {
+						type: "TOOL_PREVIEW",
+						capabilities: routed.decision.requiredCapabilities,
+						status: "BLOCKED",
+						requiresApproval: false,
+						reason: execution.execution.result.reason,
+					};
+				}
+				console.info(
+					"[AiraExecutionRouter] tool_action",
+					JSON.stringify({
+						intent: routed.decision.intent,
+						executionSurface: routed.decision.executionSurface,
+						status: execution.kind === "EXECUTED" ? execution.execution.result.status : "BLOCKED",
+						capabilities: routed.decision.requiredCapabilities,
+					}),
+				);
+			} catch (error) {
+				if (!(error instanceof ToolGatewayError)) throw error;
+				toolDirective = {
+					type: "TOOL_PREVIEW",
+					capabilities: routed.decision.requiredCapabilities,
+					status: "BLOCKED",
+					requiresApproval: false,
+					reason: `${error.code}: ${error.message}`,
+				};
+			}
 		}
 
 		if (
@@ -260,7 +353,7 @@ export async function POST(request: Request): Promise<Response> {
 		}
 	}
 
-	const directive = directiveFor(routed.decision, {
+	const directive = toolDirective ?? directiveFor(routed.decision, {
 		workProjectId,
 		automationDraftId,
 		automationDraftReason,
