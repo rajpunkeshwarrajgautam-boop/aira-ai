@@ -246,6 +246,7 @@ export async function POST(request: Request): Promise<Response> {
 					userId: session.user.id,
 					message: parsed.data.message,
 					decision: routed.decision,
+					timeZone: parsed.data.timezone ?? "UTC",
 				});
 				if (execution.kind === "BLOCKED") {
 					toolDirective = {
