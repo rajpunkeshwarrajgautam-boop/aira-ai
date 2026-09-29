@@ -42,6 +42,7 @@ import {
 } from "./types";
 import { applyRuntimeUsage, missionBudgetExceeded, usageFromRuntimeResult } from "./usage";
 import { getTaskWorktree, listRunWorktrees, type WorktreeRecord } from "./worktrees";
+import { compileAgentTeam, getAgentTeam, teamBudgets } from "./teams";
 
 const AGENT_TOOLS: Record<string, readonly string[]> = {
 	PRODUCT: ["files", "web", "memory"],
@@ -97,6 +98,30 @@ function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 		maxDurationMinutes: Math.max(10, Math.min(1440, input?.maxDurationMinutes ?? DEFAULT_RUN_BUDGETS.maxDurationMinutes)),
 		maxRetries: Math.max(0, Math.min(5, input?.maxRetries ?? DEFAULT_RUN_BUDGETS.maxRetries)),
 	};
+}
+
+function capBudgets(requested: RunBudgets, team: RunBudgets): RunBudgets {
+	return {
+		maxAgents: Math.min(requested.maxAgents, team.maxAgents),
+		maxParallelAgents: Math.min(requested.maxParallelAgents, team.maxParallelAgents),
+		maxToolCalls: Math.min(requested.maxToolCalls, team.maxToolCalls),
+		maxTokens: Math.min(requested.maxTokens, team.maxTokens),
+		maxCostUsd: Math.min(requested.maxCostUsd, team.maxCostUsd),
+		maxDurationMinutes: Math.min(requested.maxDurationMinutes, team.maxDurationMinutes),
+		maxRetries: Math.min(requested.maxRetries, team.maxRetries),
+	};
+}
+
+function taskConfigStrings(config: Record<string, unknown>, key: string): string[] {
+	const value = config[key];
+	return Array.isArray(value)
+		? value.filter((entry): entry is string => typeof entry === "string").slice(0, 30)
+		: [];
+}
+
+function taskConfigString(config: Record<string, unknown>, key: string): string | undefined {
+	const value = config[key];
+	return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export function wantsSoftwareBuild(objective: string): boolean {
@@ -350,6 +375,7 @@ export async function startManagedRun(input: {
 	readonly requestedRuntime?: AgentRuntimeId;
 	readonly budgets?: Partial<RunBudgets>;
 	readonly orchestration?: "AUTO" | "TEAM";
+	readonly teamId?: string;
 }): Promise<RuntimeTickResult> {
 	const existing = await getRunByClientRequestId(input.userId, input.clientRequestId);
 	if (existing) {
@@ -358,14 +384,26 @@ export async function startManagedRun(input: {
 	}
 
 	const runtime = await selectAgentRuntime(input.requestedRuntime);
-	const budgets = boundedBudgets(input.budgets);
+	const requestedBudgets = boundedBudgets(input.budgets);
+	const savedTeam = input.teamId ? await getAgentTeam(input.userId, input.teamId) : null;
+	if (input.teamId && (!savedTeam || savedTeam.status !== "ACTIVE")) {
+		throw new AgentRuntimeError({
+			code: "AGENT_TEAM_NOT_FOUND",
+			message: "The selected reusable Agent Team does not exist or is archived.",
+			status: 404,
+			runtimeId: runtime.id,
+		});
+	}
+	const teamMode = input.orchestration === "TEAM" || Boolean(savedTeam);
+	const budgets = savedTeam ? capBudgets(requestedBudgets, teamBudgets(savedTeam)) : requestedBudgets;
 	const isSoftware = wantsSoftwareBuild(input.objective);
-	const teamMode = input.orchestration === "TEAM";
-	const tasks = teamMode
-		? buildAgentTeamDag(input.objective)
-		: isSoftware
-			? buildManagerDag(input.objective)
-			: buildWorkDag(input.objective);
+	const tasks = savedTeam
+		? await compileAgentTeam(input.userId, savedTeam, input.objective)
+		: teamMode
+			? buildAgentTeamDag(input.objective)
+			: isSoftware
+				? buildManagerDag(input.objective)
+				: buildWorkDag(input.objective);
 	if (tasks.length > budgets.maxAgents) {
 		throw new AgentRuntimeError({
 			code: "MISSION_AGENT_BUDGET_TOO_SMALL",
@@ -403,6 +441,9 @@ export async function startManagedRun(input: {
 				billing: "mission",
 				orchestration: teamMode ? "TEAM" : "AUTO",
 				teamTaskCount: teamMode ? tasks.length : undefined,
+				teamId: savedTeam?.id,
+				teamVersion: savedTeam?.version,
+				teamName: savedTeam?.name,
 			},
 		}),
 		rememberProjectFact({
@@ -427,6 +468,9 @@ export async function startManagedRun(input: {
 				taskCount: tasksList.length,
 				parallelism: budgets.maxParallelAgents,
 				roles: [...new Set(tasksList.map((task) => task.agentRole))],
+				teamId: savedTeam?.id,
+				teamVersion: savedTeam?.version,
+				teamName: savedTeam?.name,
 			},
 		}).catch(() => undefined);
 	}
@@ -818,7 +862,14 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		const claimed = await claimTask(task.id, workerId);
 		if (!claimed) continue;
 		const runtimeRequestId = runtimeAttemptRequestId(claimed);
-		const allowedTools = AGENT_TOOLS[task.agentRole] ?? ["files"];
+		const configuredTeamTask = Boolean(taskConfigString(task.config, "teamId"));
+		const configuredTools = taskConfigStrings(task.config, "allowedTools");
+		const configuredSkillIds = taskConfigStrings(task.config, "skillIds");
+		const agentDefinitionId = taskConfigString(task.config, "agentDefinitionId");
+		const agentName = taskConfigString(task.config, "agentName");
+		const agentInstructions = taskConfigString(task.config, "instructions");
+		const memberKey = taskConfigString(task.config, "memberKey");
+		const allowedTools = configuredTeamTask ? configuredTools : (AGENT_TOOLS[task.agentRole] ?? ["files"]);
 		const agentId = await createAgentInstance({
 			projectId: run.projectId,
 			runId: run.id,
@@ -896,6 +947,9 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				taskTitle: task.title,
 				objective: task.objective,
 				allowedTools,
+				configuredSkillIds,
+				agentName,
+				agentInstructions,
 				dependencyHandoffs,
 				...(workspace ? { workspace: { workspaceId: workspace.workspaceId, branch: workspace.branch, baseRef: workspace.baseRef } } : {}),
 				...(relatedWorkspaces.length ? {
@@ -919,6 +973,12 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					selectedSkills: runtimeContext.selectedSkillIds,
 					memoryKeys: runtimeContext.memoryKeys,
 					attempt: claimed.attempt + 1,
+					...(configuredTeamTask ? {
+						teamId: taskConfigString(task.config, "teamId"),
+						teamVersion: task.config.teamVersion,
+						memberKey,
+						agentDefinitionId,
+					} : {}),
 					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
 				},
 			}).catch(() => undefined);
@@ -943,7 +1003,8 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				objective: task.objective,
 				billingMode: "DELEGATED",
 				agentExecutionOptions: {
-					name: task.title,
+					...(agentDefinitionId ? { agentDefinitionId } : {}),
+					name: agentName ?? task.title,
 					instructions: runtimeContext.systemPrompt,
 					allowedTools,
 					projectId: run.projectId,
@@ -987,6 +1048,13 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					runtimeRunId: submission.run.id,
 					runtimeClientRequestId: runtimeRequestId,
 					attempt: claimed.attempt + 1,
+					...(configuredTeamTask ? {
+						teamId: taskConfigString(task.config, "teamId"),
+						teamVersion: task.config.teamVersion,
+						memberKey,
+						agentDefinitionId,
+						agentName,
+					} : {}),
 					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
 				},
 			});
