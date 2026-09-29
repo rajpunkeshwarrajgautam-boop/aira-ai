@@ -72,6 +72,7 @@ export function SkillsWorkspace() {
 
   async function toggle(skill: Skill) {
     if (skill.isBuiltin) return;
+    if (!window.confirm(`Remove custom skill "${skill.name}"?`)) return;
     setBusyId(skill.id);
     setError(null);
     try {
@@ -176,8 +177,8 @@ export function SkillsWorkspace() {
             <div className="mb-4 flex items-center gap-2"><ShieldCheck className="size-4 text-[#3A0CA3]" /><h2 className="text-sm font-semibold">Install custom skill</h2></div>
             <div className="grid gap-3 md:grid-cols-2">
               <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Skill name" maxLength={80} className="rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm outline-none focus:border-[#3A0CA3]" />
-              <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Short description" maxLength={400} className="rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm outline-none focus:border-[#3A0CA3]" />
-              <textarea value={form.instructions} onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))} placeholder="Execution instructions" rows={5} maxLength={10000} className="md:col-span-2 rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm leading-6 outline-none focus:border-[#3A0CA3]" />
+              <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Short description" maxLength={300} className="rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm outline-none focus:border-[#3A0CA3]" />
+              <textarea value={form.instructions} onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))} placeholder="Execution instructions" rows={5} maxLength={5000} className="md:col-span-2 rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm leading-6 outline-none focus:border-[#3A0CA3]" />
               <input value={form.requiredTools} onChange={(e) => setForm((f) => ({ ...f, requiredTools: e.target.value }))} placeholder="Required tools: web, files, github" className="rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm outline-none focus:border-[#3A0CA3]" />
               <input value={form.preferredRoles} onChange={(e) => setForm((f) => ({ ...f, preferredRoles: e.target.value }))} placeholder="Preferred roles: RESEARCH, BACKEND" className="rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm outline-none focus:border-[#3A0CA3]" />
               <input value={form.keywords} onChange={(e) => setForm((f) => ({ ...f, keywords: e.target.value }))} placeholder="Keywords: audit, security, source" className="md:col-span-2 rounded-xl border border-[rgba(17,17,21,0.12)] px-3 py-2.5 text-sm outline-none focus:border-[#3A0CA3]" />
