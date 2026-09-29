@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Skill = {
   id: string;
