@@ -73,6 +73,8 @@ const toolAvailabilityState = {
 	gmail: false,
 	slack: false,
 	google_drive: false,
+	google_calendar: false,
+	crm: false,
 };
 const toolExecutions: Array<{ context: Record<string, unknown>; request: Record<string, unknown> }> = [];
 mock.module("@/lib/tool-gateway/gateway", {
@@ -80,13 +82,19 @@ mock.module("@/lib/tool-gateway/gateway", {
 		toolAvailability: mock.fn(async () => ({ ...toolAvailabilityState })),
 		executeTool: mock.fn(async (context: Record<string, unknown>, request: Record<string, unknown>) => {
 			toolExecutions.push({ context, request });
+			const result = request.tool === "google_calendar"
+				? {
+					events: [{ id: "event-1", summary: "Tomorrow meeting" }],
+					trust: "UNTRUSTED_EXTERNAL_CONTENT",
+				}
+				: {
+					messages: [{ id: "msg-1", subject: "Important update" }],
+					trust: "UNTRUSTED_EXTERNAL_CONTENT",
+				};
 			return {
 				status: "COMPLETED" as const,
 				toolCallId: "tool-call-chat-123",
-				result: {
-					messages: [{ id: "msg-1", subject: "Important update" }],
-					trust: "UNTRUSTED_EXTERNAL_CONTENT",
-				},
+				result,
 				usage: { toolCalls: 1, costUsd: 0, costKnown: true },
 				resultFidelity: "FULL" as const,
 			};
@@ -210,6 +218,45 @@ test("available read-only tool intent executes through an owned bounded Tool Gat
 	}]);
 
 	toolAvailabilityState.gmail = false;
+});
+
+test("calendar natural-language read reaches the Calendar Tool Gateway with a bounded local-day window", async () => {
+	authenticated = true;
+	toolAvailabilityState.google_calendar = true;
+	createdProjects.length = 0;
+	createdRuns.length = 0;
+	archivedProjects.length = 0;
+	runStatusUpdates.length = 0;
+	toolExecutions.length = 0;
+
+	const result = await post("Check my calendar tomorrow.");
+	assert.equal(result.response.status, 200);
+	assert.equal(result.body.decision?.intent, "TOOL_ACTION");
+	assert.deepEqual(
+		[result.body.directive?.type, result.body.directive?.tool, result.body.directive?.action],
+		["TOOL_RESULT", "google_calendar", "list_events"],
+	);
+	assert.deepEqual(result.body.directive?.result, {
+		events: [{ id: "event-1", summary: "Tomorrow meeting" }],
+		trust: "UNTRUSTED_EXTERNAL_CONTENT",
+	});
+	const request = toolExecutions[0]?.request;
+	assert.equal(request?.tool, "google_calendar");
+	assert.equal(request?.action, "list_events");
+	const input = request?.input as { timeMin?: string; timeMax?: string; calendarId?: string };
+	assert.equal(input.calendarId, "primary");
+	assert.ok(input.timeMin && input.timeMax);
+	const start = Date.parse(input.timeMin!);
+	const end = Date.parse(input.timeMax!);
+	assert.ok(Number.isFinite(start) && Number.isFinite(end) && end > start);
+	assert.equal((end - start) / 3_600_000, 24);
+	assert.deepEqual(runStatusUpdates, [{
+		runId: "run-chat-action-123",
+		status: "COMPLETED",
+		summary: "Chat tool action: calendar.read",
+	}]);
+
+	toolAvailabilityState.google_calendar = false;
 });
 
 test("execution intents require authentication and never downgrade approval", async () => {
