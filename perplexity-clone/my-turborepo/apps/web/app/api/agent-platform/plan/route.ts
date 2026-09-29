@@ -5,6 +5,7 @@ import { assertSafetyAllowed, SafetyBlockedError, SafetyGatewayError } from "@/s
 import { resolvePlanBudgetCeilings } from "@/lib/agent-platform/budgets";
 import { getEffectiveEntitlements } from "@/lib/billing/plan-enforcement";
 import { buildAgentTeamDag } from "@/lib/agent-platform/orchestrator";
+import { compileAgentTeam, getAgentTeam, teamBudgets } from "@/lib/agent-platform/teams";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,24 +70,45 @@ export async function POST(req: Request): Promise<Response> {
 	}
 
 	const plan = globalCapabilityPlanner.plan(parsed.data);
-	const teamMode = parsed.data.context?.orchestration === "TEAM";
+	const requestedTeamId = typeof parsed.data.context?.teamId === "string" ? parsed.data.context.teamId.trim() : "";
+	const savedTeam = requestedTeamId ? await getAgentTeam(session.user.id, requestedTeamId) : null;
+	if (requestedTeamId && (!savedTeam || savedTeam.status !== "ACTIVE")) {
+		return json({ error: { code: "AGENT_TEAM_NOT_FOUND", message: "The selected reusable Agent Team does not exist or is archived." } }, { status: 404 });
+	}
+	const teamMode = parsed.data.context?.orchestration === "TEAM" || Boolean(savedTeam);
+	const compiledTeam = savedTeam ? await compileAgentTeam(session.user.id, savedTeam, parsed.data.objective) : null;
 	const teamExecutionPlan = teamMode
-		? buildAgentTeamDag(parsed.data.objective).map((task) => ({
-			key: task.key,
-			title: task.title,
-			objective: task.objective,
-			agentRole: task.agentRole,
-			modelTier: task.modelTier,
-			priority: task.priority,
-			dependencies: task.dependencies,
-			approval: task.approval ?? null,
-		}))
+		? (compiledTeam ?? buildAgentTeamDag(parsed.data.objective)).map((task) => {
+			const config = task.config ?? {};
+			return {
+				key: task.key,
+				title: task.title,
+				objective: task.objective,
+				agentRole: task.agentRole,
+				modelTier: task.modelTier,
+				priority: task.priority,
+				dependencies: task.dependencies,
+				approval: task.approval ?? null,
+				agentDefinitionId: typeof config.agentDefinitionId === "string" ? config.agentDefinitionId : undefined,
+				agentName: typeof config.agentName === "string" ? config.agentName : undefined,
+				tools: Array.isArray(config.allowedTools) ? config.allowedTools.filter((value): value is string => typeof value === "string") : [],
+				skills: Array.isArray(config.skillIds) ? config.skillIds.filter((value): value is string => typeof value === "string") : [],
+			};
+		})
 		: undefined;
 	const entitlements = await getEffectiveEntitlements(session.user.id).catch(() => null);
 	const ceilings = entitlements ? resolvePlanBudgetCeilings(entitlements.billingPlan) : undefined;
 
 	return json({
-		plan: teamMode ? { ...plan, executionMode: "TEAM", teamTasks: teamExecutionPlan } : plan,
+		plan: teamMode ? {
+			...plan,
+			executionMode: "TEAM",
+			teamId: savedTeam?.id,
+			teamName: savedTeam?.name,
+			teamVersion: savedTeam?.version,
+			teamBudgets: savedTeam ? teamBudgets(savedTeam) : undefined,
+			teamTasks: teamExecutionPlan,
+		} : plan,
 		budgetCeilings: ceilings,
 		entitlements: entitlements ? { plan: entitlements.billingPlan } : undefined,
 	});
