@@ -73,7 +73,7 @@ export class CommandRegistry {
 			return {
 				type: "error",
 				payload: null,
-				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /work <objective>, /new, /history, or /share.`,
+				message: `Command ${commandName} not found. Try /research <query>, /plan <objective>, /agent <objective>, /tasks, /tools, /skills, /work <objective>, /new, /history, or /share.`,
 			};
 		}
 
@@ -184,6 +184,42 @@ globalCommandRegistry.registerCommand({
 			message: "Opening mission control...",
 		};
 	},
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/tasks",
+	description: "Open persisted managed tasks across AIRA Work missions",
+	category: "navigation",
+	version: 1,
+	execute: () => ({
+		type: "redirect",
+		payload: "/tasks",
+		message: "Opening persisted managed tasks...",
+	}),
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/tools",
+	description: "Open live Tool Gateway capability status",
+	category: "navigation",
+	version: 1,
+	execute: () => ({
+		type: "redirect",
+		payload: "/tools",
+		message: "Opening live Tool Gateway status...",
+	}),
+});
+
+globalCommandRegistry.registerCommand({
+	name: "/skills",
+	description: "Open persistent AIRA skill management",
+	category: "navigation",
+	version: 1,
+	execute: () => ({
+		type: "redirect",
+		payload: "/skills",
+		message: "Opening Skills...",
+	}),
 });
 
 globalCommandRegistry.registerCommand({
