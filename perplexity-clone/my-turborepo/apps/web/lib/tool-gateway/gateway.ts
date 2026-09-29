@@ -164,7 +164,7 @@ export function registeredToolIds(): AiraToolId[] {
 }
 
 export async function toolAvailability(): Promise<Record<AiraToolId, boolean>> {
-	const all: AiraToolId[] = ["browser", "terminal", "git", "files", "memory", "web", "github", "vercel", "supabase", "mcp"];
+	const all: AiraToolId[] = [...adapters.keys()];
 	const result = Object.fromEntries(all.map((id) => [id, false])) as Record<AiraToolId, boolean>;
 	await Promise.all(
 		[...adapters.entries()].map(async ([id, adapter]) => {
