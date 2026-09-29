@@ -14,6 +14,18 @@ type CapabilityPlan = {
   overallRisk: string;
   requiresApprovalBeforeStart: boolean;
   executionMode?: "TEAM";
+  teamId?: string;
+  teamName?: string;
+  teamVersion?: number;
+  teamBudgets?: {
+    maxAgents: number;
+    maxParallelAgents: number;
+    maxToolCalls: number;
+    maxTokens: number;
+    maxCostUsd: number;
+    maxDurationMinutes: number;
+    maxRetries: number;
+  };
   teamTasks?: Array<{
     key: string;
     title: string;
@@ -23,6 +35,10 @@ type CapabilityPlan = {
     priority: number;
     dependencies: string[];
     approval?: { action: string; risk: string } | null;
+    agentDefinitionId?: string;
+    agentName?: string;
+    tools?: string[];
+    skills?: string[];
   }>;
 };
 
@@ -57,12 +73,14 @@ type WorkExecutionWorkspaceProps = {
   readonly initialObjective?: string;
   readonly autoPlan?: boolean;
   readonly commandIntent?: "plan" | "agent" | "team" | null;
+  readonly teamId?: string;
 };
 
 export function WorkExecutionWorkspace({
   initialObjective = "",
   autoPlan = false,
   commandIntent = null,
+  teamId,
 }: WorkExecutionWorkspaceProps) {
   const router = useRouter();
   const { status: sessionStatus } = useSession();
@@ -113,7 +131,7 @@ export function WorkExecutionWorkspace({
     if (sessionStatus !== "authenticated") {
       const callbackIntent = commandIntent ?? "plan";
       const callbackUrl = goal
-        ? `/work?objective=${encodeURIComponent(goal)}&intent=${encodeURIComponent(callbackIntent)}`
+        ? `/work?objective=${encodeURIComponent(goal)}&intent=${encodeURIComponent(callbackIntent)}${teamId ? `&teamId=${encodeURIComponent(teamId)}` : ""}`
         : "/work";
       router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
@@ -128,7 +146,9 @@ export function WorkExecutionWorkspace({
         body: JSON.stringify({
           id: crypto.randomUUID(),
           objective: goal,
-          context: commandIntent === "team" ? { orchestration: "TEAM" } : undefined,
+          context: commandIntent === "team"
+            ? { orchestration: "TEAM", ...(teamId ? { teamId } : {}) }
+            : undefined,
           constraints: ["Stay within the declared cost ceiling", "Do not claim completion without evidence"],
           expectedDeliverables: [
             {
@@ -167,7 +187,7 @@ export function WorkExecutionWorkspace({
     } finally {
       setBusy(null);
     }
-  }, [commandIntent, effort, maxBudgetUsd, objective, router, sessionStatus]);
+  }, [commandIntent, effort, maxBudgetUsd, objective, router, sessionStatus, teamId]);
 
   useEffect(() => {
     if (!autoPlan || autoPlanStartedRef.current || sessionStatus !== "authenticated") return;
@@ -197,6 +217,7 @@ export function WorkExecutionWorkspace({
             missionId: plan.missionId,
             effort,
             orchestration: commandIntent === "team" ? "TEAM" : "AUTO",
+            ...(teamId ? { teamId } : {}),
           },
         }),
       });
@@ -212,6 +233,7 @@ export function WorkExecutionWorkspace({
             clientRequestId: crypto.randomUUID(),
             objective: goal,
             orchestration: commandIntent === "team" ? "TEAM" : "AUTO",
+            ...(teamId ? { teamId } : {}),
             budgets: {
               maxAgents: 16,
               maxParallelAgents: 4,
@@ -359,7 +381,13 @@ export function WorkExecutionWorkspace({
                   <div>Risk: <span className="font-medium text-[#111115]">{plan.overallRisk}</span></div>
                   <div className="mt-1">Capability cost estimate: <span className="font-medium text-[#111115]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div>
                   <div className="mt-1">Execution tasks: <span className="font-medium text-[#111115]">{plan.teamTasks?.length ?? plan.tasks.length}</span></div>
-                  {plan.executionMode === "TEAM" ? <div className="mt-1 font-medium text-[#3A0CA3]">Coordinator mode · exact server DAG preview</div> : null}
+                  {plan.executionMode === "TEAM" ? (
+                    <>
+                      <div className="mt-1 font-medium text-[#3A0CA3]">Coordinator mode · exact server DAG preview</div>
+                      {plan.teamName ? <div className="mt-1">Saved team: <span className="font-medium text-[#111115]">{plan.teamName} · v{plan.teamVersion}</span></div> : null}
+                      {plan.teamBudgets ? <div className="mt-1">Team ceiling: <span className="font-medium text-[#111115]">${plan.teamBudgets.maxCostUsd.toFixed(2)} · {plan.teamBudgets.maxParallelAgents} parallel</span></div> : null}
+                    </>
+                  ) : null}
                 </div>
                 {(plan.teamTasks ?? plan.tasks).slice(0, 12).map((task) => (
                   <div key={"key" in task ? task.key : task.id} className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 py-2 shadow-2xs">
@@ -369,6 +397,7 @@ export function WorkExecutionWorkspace({
                       {"dependencies" in task && task.dependencies.length ? ` · waits for ${task.dependencies.length}` : ""}
                       {"risk" in task ? ` · ${task.risk}` : ""}
                     </p>
+                    {"agentName" in task && task.agentName ? <p className="mt-1 text-[10px] font-medium text-[#3A0CA3]">{task.agentName}{task.tools?.length ? ` · ${task.tools.length} tools` : ""}{task.skills?.length ? ` · ${task.skills.length} skills` : ""}</p> : null}
                   </div>
                 ))}
               </div>
