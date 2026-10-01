@@ -34,11 +34,17 @@ test("production framework dependencies stay above the September 2026 security f
 	const docs = readJson("perplexity-clone/my-turborepo/apps/docs/package.json");
 	const workspace = readFileSync(path.join(REPO_ROOT, "pnpm-workspace.yaml"), "utf8");
 	const sharpOverride = workspace.match(/^\s*sharp:\s*([^\s#]+)\s*$/m)?.[1];
+	const axiosOverride = workspace.match(/^\s*axios:\s*([^\s#]+)\s*$/m)?.[1];
+	const nextOverride = workspace.match(/^\s*next:\s*([^\s#]+)\s*$/m)?.[1];
 
 	assert.ok(web.dependencies?.next, "web Next.js dependency must exist");
 	assert.ok(docs.dependencies?.next, "docs Next.js dependency must exist");
-	assert.ok(atLeast(web.dependencies.next, "16.3.3"), `web Next.js security floor regressed: ${web.dependencies.next}`);
-	assert.ok(atLeast(docs.dependencies.next, "16.3.3"), `docs Next.js security floor regressed: ${docs.dependencies.next}`);
+	assert.ok(atLeast(web.dependencies.next, "16.3.8"), `web Next.js security floor regressed: ${web.dependencies.next}`);
+	assert.ok(atLeast(docs.dependencies.next, "16.3.8"), `docs Next.js security floor regressed: ${docs.dependencies.next}`);
 	assert.ok(sharpOverride, "workspace sharp override must exist");
 	assert.ok(atLeast(sharpOverride, "0.35.4"), `sharp security floor regressed: ${sharpOverride}`);
+	assert.ok(axiosOverride, "workspace axios override must exist");
+	assert.ok(atLeast(axiosOverride, "1.20.0"), `axios security floor regressed: ${axiosOverride}`);
+	assert.ok(nextOverride, "workspace next override must exist");
+	assert.ok(atLeast(nextOverride, "16.3.8"), `next security floor regressed: ${nextOverride}`);
 });
