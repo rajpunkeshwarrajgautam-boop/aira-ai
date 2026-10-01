@@ -3,24 +3,32 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-test("AiraPreloader eliminates blocking 1500ms delay and supports instant unmount", () => {
+test("AiraPreloader remains non-blocking while the opening animation is visible", () => {
   const preloaderPath = path.resolve(
     process.cwd(),
     "components/AiraPreloader.tsx"
   );
   const content = fs.readFileSync(preloaderPath, "utf8");
 
-  // Must not have hardcoded 1500ms delay blocking interaction
-  assert.doesNotMatch(
+  // The logo path animation lasts 1 second and the wordmark enters after 300ms,
+  // so the preloader must remain visible long enough for both to be perceived.
+  assert.match(
     content,
     /duration\s*=\s*shouldReduceMotion\s*\?\s*0\s*:\s*1500/,
-    "Preloader must not enforce a 1500ms blocking interaction delay"
+    "Preloader must remain visible long enough for the opening animation to complete"
   );
 
-  // Must have pointer-events-none so it never blocks user clicks
+  // The visual overlay must never block an already-hydrated workspace.
   assert.match(
     content,
     /pointer-events-none/,
-    "Preloader must have pointer-events-none so it never intercepts user interactions"
+    "Preloader must not intercept user interactions"
+  );
+
+  // Preserve the premium fade/blur exit instead of an abrupt 100ms flash.
+  assert.match(
+    content,
+    /filter:\s*"blur\(10px\)"/,
+    "Preloader should retain the intended blur exit"
   );
 });
