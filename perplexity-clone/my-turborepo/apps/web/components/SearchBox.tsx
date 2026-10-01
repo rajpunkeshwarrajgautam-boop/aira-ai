@@ -104,7 +104,16 @@ const MODEL_OPTIONS: readonly ModelOption[] = [
 ] as const;
 
 const QUICK_COMMANDS: readonly QuickCommand[] = [
-	{ command: "/deep ", label: "AIRA HyperResearch", description: "Launch multi-hop verified source investigation" },
+	{ command: "/research ", label: "Deep Research", description: "Run the real multi-source Deep Research pipeline" },
+	{ command: "/plan ", label: "Plan Mission", description: "Generate a server-side Work plan without starting execution" },
+	{ command: "/agent ", label: "Prepare Agent Mission", description: "Prepare a managed autonomous mission for explicit review and launch" },
+	{ command: "/team ", label: "Agent Team", description: "Coordinate multiple persisted specialist agents with dependency handoffs" },
+	{ command: "/teams", label: "Saved Teams", description: "Build, version and launch reusable Agent Team configurations" },
+	{ command: "/work ", label: "Work Mode", description: "Open AIRA Work with an optional mission objective" },
+	{ command: "/tasks", label: "Tasks", description: "Inspect persisted managed tasks across Work missions" },
+	{ command: "/tools", label: "Tools", description: "Inspect live Tool Gateway adapter availability" },
+	{ command: "/skills", label: "Skills", description: "Manage persistent AIRA capability packages" },
+	{ command: "/deep ", label: "AIRA HyperResearch", description: "Legacy shortcut for Deep Research" },
 	{ command: "/new", label: "New thread", description: "Initialize fresh sovereign context" },
 	{ command: "/history", label: "History & Memory", description: "Search conversations, messages, and retained context" },
 	{ command: "/share", label: "Share Dossier", description: "Export and share this intelligence dossier" },

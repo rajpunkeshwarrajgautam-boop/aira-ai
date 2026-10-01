@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { executeTool } from "@/lib/tool-gateway/gateway";
 import { readMissionUsage } from "@/lib/tool-gateway/store";
 
-import { recordAgentMessage } from "./messages";
+import { listAgentMessagesForTasks, recordAgentMessage } from "./messages";
 import { rememberProjectFact, type ProjectMemoryKind } from "./project-memory";
 import {
 	appendEvent,
@@ -42,6 +42,7 @@ import {
 } from "./types";
 import { applyRuntimeUsage, missionBudgetExceeded, usageFromRuntimeResult } from "./usage";
 import { getTaskWorktree, listRunWorktrees, type WorktreeRecord } from "./worktrees";
+import { compileAgentTeam, getAgentTeam, teamBudgets } from "./teams";
 
 const AGENT_TOOLS: Record<string, readonly string[]> = {
 	PRODUCT: ["files", "web", "memory"],
@@ -99,6 +100,30 @@ function boundedBudgets(input?: Partial<RunBudgets>): RunBudgets {
 	};
 }
 
+function capBudgets(requested: RunBudgets, team: RunBudgets): RunBudgets {
+	return {
+		maxAgents: Math.min(requested.maxAgents, team.maxAgents),
+		maxParallelAgents: Math.min(requested.maxParallelAgents, team.maxParallelAgents),
+		maxToolCalls: Math.min(requested.maxToolCalls, team.maxToolCalls),
+		maxTokens: Math.min(requested.maxTokens, team.maxTokens),
+		maxCostUsd: Math.min(requested.maxCostUsd, team.maxCostUsd),
+		maxDurationMinutes: Math.min(requested.maxDurationMinutes, team.maxDurationMinutes),
+		maxRetries: Math.min(requested.maxRetries, team.maxRetries),
+	};
+}
+
+function taskConfigStrings(config: Record<string, unknown>, key: string): string[] {
+	const value = config[key];
+	return Array.isArray(value)
+		? value.filter((entry): entry is string => typeof entry === "string").slice(0, 30)
+		: [];
+}
+
+function taskConfigString(config: Record<string, unknown>, key: string): string | undefined {
+	const value = config[key];
+	return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 export function wantsSoftwareBuild(objective: string): boolean {
 	const explicitNoCode = /\b(?:no\s+(?:code|coding|app|build)|research\s+only|analysis\s+only|report\s+only)\b/i;
 	if (explicitNoCode.test(objective)) return false;
@@ -106,8 +131,63 @@ export function wantsSoftwareBuild(objective: string): boolean {
 	return codeKeywords.test(objective);
 }
 
+export function buildAgentTeamDag(objective: string): TaskSpec[] {
+	if (wantsSoftwareBuild(objective)) return buildManagerDag(objective);
+	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|websites?|screenshots?|pages?|scrape|crawl|live\s+sites?)\b/i.test(objective);
+	const tasks: TaskSpec[] = [
+		{
+			key: "team-brief",
+			title: "Coordinator brief and acceptance criteria",
+			objective: `Translate the mission into explicit scope, constraints, decision criteria, and evidence requirements for the specialist team. Objective: ${objective}`,
+			agentRole: "PRODUCT",
+			modelTier: "reasoning",
+			priority: 100,
+			dependencies: [],
+		},
+		{
+			key: "team-research",
+			title: "Primary evidence and research",
+			objective: `Collect authoritative evidence, source-backed facts, and unresolved uncertainties required to complete: ${objective}`,
+			agentRole: "RESEARCH",
+			modelTier: "long-context",
+			priority: 92,
+			dependencies: ["team-brief"],
+		},
+		{
+			key: needsBrowser ? "team-live-investigation" : "team-independent-analysis",
+			title: needsBrowser ? "Independent live investigation" : "Independent specialist analysis",
+			objective: needsBrowser
+				? `Independently inspect live destinations with the browser runtime, capture concrete observations, and challenge the primary evidence for: ${objective}`
+				: `Independently analyze the objective, challenge assumptions, identify trade-offs and formulate a second specialist perspective for: ${objective}`,
+			agentRole: needsBrowser ? "BROWSER" : "ARCHITECT",
+			modelTier: needsBrowser ? "vision" : "reasoning",
+			priority: 88,
+			dependencies: ["team-brief"],
+		},
+		{
+			key: "team-synthesis",
+			title: "Coordinator synthesis",
+			objective: `Reconcile the specialist handoffs, resolve conflicts using evidence, and construct the requested deliverable for: ${objective}`,
+			agentRole: "ARCHITECT",
+			modelTier: "reasoning",
+			priority: 76,
+			dependencies: ["team-research", needsBrowser ? "team-live-investigation" : "team-independent-analysis"],
+		},
+		{
+			key: "team-verification",
+			title: "Independent team verification",
+			objective: `Audit the synthesized deliverable against the original acceptance criteria and direct specialist evidence. Reject unsupported claims and record any remaining uncertainty for: ${objective}`,
+			agentRole: "VERIFICATION",
+			modelTier: "reasoning",
+			priority: 60,
+			dependencies: ["team-synthesis"],
+		},
+	];
+	return tasks;
+}
+
 export function buildWorkDag(objective: string): TaskSpec[] {
-	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|website|screenshot|page|scrape|crawl)\b/i.test(objective);
+	const needsBrowser = /\b(browser|open\s+https?:\/\/|visit\s+|websites?|screenshots?|pages?|scrape|crawl)\b/i.test(objective);
 	const tasks: TaskSpec[] = [
 		{
 			key: "scoping",
@@ -294,6 +374,8 @@ export async function startManagedRun(input: {
 	readonly objective: string;
 	readonly requestedRuntime?: AgentRuntimeId;
 	readonly budgets?: Partial<RunBudgets>;
+	readonly orchestration?: "AUTO" | "TEAM";
+	readonly teamId?: string;
 }): Promise<RuntimeTickResult> {
 	const existing = await getRunByClientRequestId(input.userId, input.clientRequestId);
 	if (existing) {
@@ -302,9 +384,26 @@ export async function startManagedRun(input: {
 	}
 
 	const runtime = await selectAgentRuntime(input.requestedRuntime);
-	const budgets = boundedBudgets(input.budgets);
+	const requestedBudgets = boundedBudgets(input.budgets);
+	const savedTeam = input.teamId ? await getAgentTeam(input.userId, input.teamId) : null;
+	if (input.teamId && (!savedTeam || savedTeam.status !== "ACTIVE")) {
+		throw new AgentRuntimeError({
+			code: "AGENT_TEAM_NOT_FOUND",
+			message: "The selected reusable Agent Team does not exist or is archived.",
+			status: 404,
+			runtimeId: runtime.id,
+		});
+	}
+	const teamMode = input.orchestration === "TEAM" || Boolean(savedTeam);
+	const budgets = savedTeam ? capBudgets(requestedBudgets, teamBudgets(savedTeam)) : requestedBudgets;
 	const isSoftware = wantsSoftwareBuild(input.objective);
-	const tasks = isSoftware ? buildManagerDag(input.objective) : buildWorkDag(input.objective);
+	const tasks = savedTeam
+		? await compileAgentTeam(input.userId, savedTeam, input.objective)
+		: teamMode
+			? buildAgentTeamDag(input.objective)
+			: isSoftware
+				? buildManagerDag(input.objective)
+				: buildWorkDag(input.objective);
 	if (tasks.length > budgets.maxAgents) {
 		throw new AgentRuntimeError({
 			code: "MISSION_AGENT_BUDGET_TOO_SMALL",
@@ -336,7 +435,16 @@ export async function startManagedRun(input: {
 			projectId: input.projectId,
 			runId: run.id,
 			type: "run.started",
-			payload: { manager: "AIRA_MANAGER", runtime: runtime.id, billing: "mission" },
+			payload: {
+				manager: "AIRA_MANAGER",
+				runtime: runtime.id,
+				billing: "mission",
+				orchestration: teamMode ? "TEAM" : "AUTO",
+				teamTaskCount: teamMode ? tasks.length : undefined,
+				teamId: savedTeam?.id,
+				teamVersion: savedTeam?.version,
+				teamName: savedTeam?.name,
+			},
 		}),
 		rememberProjectFact({
 			userId: input.userId,
@@ -350,6 +458,22 @@ export async function startManagedRun(input: {
 		}).catch(() => undefined),
 	]);
 	const tasksList = await listTasks(run.id);
+	if (teamMode) {
+		await appendEvent({
+			projectId: input.projectId,
+			runId: run.id,
+			type: "team.coordinator.started",
+			payload: {
+				manager: "AIRA_MANAGER",
+				taskCount: tasksList.length,
+				parallelism: budgets.maxParallelAgents,
+				roles: [...new Set(tasksList.map((task) => task.agentRole))],
+				teamId: savedTeam?.id,
+				teamVersion: savedTeam?.version,
+				teamName: savedTeam?.name,
+			},
+		}).catch(() => undefined);
+	}
 	return {
 		run,
 		tasks: tasksList,
@@ -385,6 +509,27 @@ function safeHandoff(result: unknown): string {
 	} catch {
 		return "Runtime returned a non-serializable result.";
 	}
+}
+
+function handoffBody(result: unknown, artifacts: readonly string[]): Record<string, unknown> {
+	const value = result && typeof result === "object" && !Array.isArray(result)
+		? (result as Record<string, unknown>)
+		: {};
+	const stringList = (candidate: unknown): string[] =>
+		Array.isArray(candidate)
+			? candidate.filter((entry): entry is string => typeof entry === "string").slice(0, 30)
+			: [];
+	const summary =
+		typeof value.summary === "string"
+			? value.summary.slice(0, 6_000)
+			: safeHandoff(result);
+	return {
+		summary,
+		artifacts: [...new Set([...artifacts, ...stringList(value.artifacts), ...stringList(value.evidence)])].slice(0, 50),
+		decisions: stringList(value.decisions),
+		risks: stringList(value.risks ?? value.blockers),
+		nextActions: stringList(value.nextActions),
+	};
 }
 
 function memoryKindForTask(task: PlatformTask): ProjectMemoryKind {
@@ -632,6 +777,7 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 			const artifacts = runtime.getArtifacts ? await runtime.getArtifacts(userId, child.id).catch(() => []) : [];
 			const paths = artifacts.length ? artifacts.map((artifact) => artifact.uri ?? artifact.name) : artifactsFromResult(child.result);
 			const handoff = safeHandoff(child.result);
+			const structuredHandoff = handoffBody(child.result, paths);
 			await completeTask(task.id, paths);
 			await Promise.all([
 				recordAgentMessage({
@@ -639,7 +785,14 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 					runId: run.id,
 					taskId: task.id,
 					kind: "RESULT",
-					body: { summary: handoff, artifacts: paths, decisions: [], risks: [], nextActions: [] },
+					body: structuredHandoff,
+				}).catch(() => undefined),
+				recordAgentMessage({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					kind: "HANDOFF",
+					body: structuredHandoff,
 				}).catch(() => undefined),
 				rememberProjectFact({
 					userId,
@@ -652,6 +805,13 @@ async function reconcileActiveTasks(userId: string, run: PlatformRun, tasks: rea
 					metadata: { taskId: task.id, agentRole: task.agentRole, artifacts: paths.slice(0, 20) },
 				}).catch(() => undefined),
 				appendEvent({ projectId: run.projectId, runId: run.id, taskId: task.id, type: "task.completed", payload: { runtimeRunId: child.id, artifacts: paths } }),
+				appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					type: "team.handoff.recorded",
+					payload: { fromTaskId: task.id, agentRole: task.agentRole, artifactCount: paths.length },
+				}),
 			]);
 			reconciled += 1;
 		} else if (child.status === AgentRunStatus.FAILED || child.status === AgentRunStatus.TERMINATED) {
@@ -702,7 +862,15 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 		const claimed = await claimTask(task.id, workerId);
 		if (!claimed) continue;
 		const runtimeRequestId = runtimeAttemptRequestId(claimed);
-		const allowedTools = AGENT_TOOLS[task.agentRole] ?? ["files"];
+		const taskConfig = task.config ?? {};
+		const configuredTeamTask = Boolean(taskConfigString(taskConfig, "teamId"));
+		const configuredTools = taskConfigStrings(taskConfig, "allowedTools");
+		const configuredSkillIds = taskConfigStrings(taskConfig, "skillIds");
+		const agentDefinitionId = taskConfigString(taskConfig, "agentDefinitionId");
+		const agentName = taskConfigString(taskConfig, "agentName");
+		const agentInstructions = taskConfigString(taskConfig, "instructions");
+		const memberKey = taskConfigString(taskConfig, "memberKey");
+		const allowedTools = configuredTeamTask ? configuredTools : (AGENT_TOOLS[task.agentRole] ?? ["files"]);
 		const agentId = await createAgentInstance({
 			projectId: run.projectId,
 			runId: run.id,
@@ -726,6 +894,51 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				relatedWorkspaces = prepared.relatedWorkspaces;
 			}
 
+			const dependencyTasks = task.dependencies
+				.map((dependencyId) => byId.get(dependencyId))
+				.filter((dependency): dependency is PlatformTask => Boolean(dependency));
+			const dependencyMessages = dependencyTasks.length
+				? await listAgentMessagesForTasks({
+					userId,
+					runId: run.id,
+					taskIds: dependencyTasks.map((dependency) => dependency.id),
+					kinds: ["HANDOFF", "RESULT"],
+				})
+				: [];
+			const latestByTask = new Map<string, (typeof dependencyMessages)[number]>();
+			for (const message of dependencyMessages) {
+				if (!message.taskId) continue;
+				const current = latestByTask.get(message.taskId);
+				if (!current || current.kind !== "HANDOFF" || message.kind === "HANDOFF") {
+					latestByTask.set(message.taskId, message);
+				}
+			}
+			const dependencyHandoffs = dependencyTasks.flatMap((dependency) => {
+				const message = latestByTask.get(dependency.id);
+				return message
+					? [{
+						taskId: dependency.id,
+						taskTitle: dependency.title,
+						agentRole: dependency.agentRole,
+						body: message.body,
+					}]
+					: [];
+			});
+			if (dependencyHandoffs.length > 0) {
+				await appendEvent({
+					projectId: run.projectId,
+					runId: run.id,
+					taskId: task.id,
+					agentId,
+					type: "team.handoff.injected",
+					payload: {
+						toTaskId: task.id,
+						fromTaskIds: dependencyHandoffs.map((handoff) => handoff.taskId),
+						handoffCount: dependencyHandoffs.length,
+					},
+				}).catch(() => undefined);
+			}
+
 			const runtimeContext = await buildRuntimeContext({
 				userId,
 				projectId: run.projectId,
@@ -735,6 +948,10 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				taskTitle: task.title,
 				objective: task.objective,
 				allowedTools,
+				configuredSkillIds,
+				agentName,
+				agentInstructions,
+				dependencyHandoffs,
 				...(workspace ? { workspace: { workspaceId: workspace.workspaceId, branch: workspace.branch, baseRef: workspace.baseRef } } : {}),
 				...(relatedWorkspaces.length ? {
 					relatedWorkspaces: relatedWorkspaces.map((entry) => ({
@@ -757,6 +974,12 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					selectedSkills: runtimeContext.selectedSkillIds,
 					memoryKeys: runtimeContext.memoryKeys,
 					attempt: claimed.attempt + 1,
+					...(configuredTeamTask ? {
+						teamId: taskConfigString(taskConfig, "teamId"),
+						teamVersion: taskConfig.teamVersion,
+						memberKey,
+						agentDefinitionId,
+					} : {}),
 					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
 				},
 			}).catch(() => undefined);
@@ -781,7 +1004,8 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 				objective: task.objective,
 				billingMode: "DELEGATED",
 				agentExecutionOptions: {
-					name: task.title,
+					...(agentDefinitionId ? { agentDefinitionId } : {}),
+					name: agentName ?? task.title,
 					instructions: runtimeContext.systemPrompt,
 					allowedTools,
 					projectId: run.projectId,
@@ -825,6 +1049,13 @@ async function dispatchReadyTasks(userId: string, run: PlatformRun, tasks: reado
 					runtimeRunId: submission.run.id,
 					runtimeClientRequestId: runtimeRequestId,
 					attempt: claimed.attempt + 1,
+					...(configuredTeamTask ? {
+						teamId: taskConfigString(taskConfig, "teamId"),
+						teamVersion: taskConfig.teamVersion,
+						memberKey,
+						agentDefinitionId,
+						agentName,
+					} : {}),
 					...(workspace ? { workspaceId: workspace.workspaceId, branch: workspace.branch } : {}),
 				},
 			});

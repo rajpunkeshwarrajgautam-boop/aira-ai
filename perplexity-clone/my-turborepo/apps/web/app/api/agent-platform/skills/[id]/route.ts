@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { auth } from "@/auth";
 import { globalSkillsStore } from "@/lib/agents/installable-skills-store";
 
@@ -13,8 +12,10 @@ export async function GET(
 	_req: Request,
 	context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+	const session = await auth();
+	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	const { id } = await context.params;
-	const skill = await globalSkillsStore.getSkillAsync(id);
+	const skill = await globalSkillsStore.getSkillForUserAsync(session.user.id, id);
 	if (!skill) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
 	return json({ skill });
 }
@@ -26,12 +27,18 @@ export async function PATCH(
 	const session = await auth();
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	const { id } = await context.params;
+	const skill = await globalSkillsStore.getSkillForUserAsync(session.user.id, id);
+	if (!skill) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
+	if (skill.isBuiltin) {
+		return json({ error: { code: "BUILTIN_IMMUTABLE", message: "Built-in AIRA skills cannot be modified." } }, { status: 409 });
+	}
+
 	const body = (await req.json().catch(() => null)) as { enabled?: boolean } | null;
 	if (typeof body?.enabled !== "boolean") {
 		return json({ error: { code: "BAD_REQUEST", message: "Field 'enabled' (boolean) is required." } }, { status: 400 });
 	}
 
-	const ok = await globalSkillsStore.toggleSkillAsync(id, body.enabled);
+	const ok = await globalSkillsStore.toggleSkillForUserAsync(session.user.id, id, body.enabled);
 	if (!ok) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
 	return json({ updated: true, enabled: body.enabled });
 }
@@ -43,7 +50,13 @@ export async function DELETE(
 	const session = await auth();
 	if (!session?.user?.id) return json({ error: { code: "UNAUTHENTICATED", message: "Sign in required." } }, { status: 401 });
 	const { id } = await context.params;
-	const deleted = await globalSkillsStore.uninstallSkillAsync(session.user.id, id);
-	if (!deleted) return json({ error: { code: "NOT_FOUND", message: "Skill not found or cannot be deleted." } }, { status: 404 });
+	const skill = await globalSkillsStore.getSkillForUserAsync(session.user.id, id);
+	if (!skill) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
+	if (skill.isBuiltin) {
+		return json({ error: { code: "BUILTIN_IMMUTABLE", message: "Built-in AIRA skills cannot be removed." } }, { status: 409 });
+	}
+
+	const deleted = await globalSkillsStore.uninstallSkillForUserAsync(session.user.id, id);
+	if (!deleted) return json({ error: { code: "NOT_FOUND", message: "Skill not found." } }, { status: 404 });
 	return json({ deleted: true });
 }

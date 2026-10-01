@@ -10,11 +10,31 @@ export const metadata: Metadata = {
   description: "Autonomous outcome engine backed by AIRA's persisted managed-run platform.",
 };
 
-export default function WorkPage() {
+function firstParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+export default async function WorkPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const initialObjective = firstParam(params.objective).trim().slice(0, 8_000);
+  const rawIntent = firstParam(params.intent);
+  const commandIntent = rawIntent === "plan" || rawIntent === "agent" || rawIntent === "team" ? rawIntent : null;
+  const teamId = firstParam(params.teamId).trim().slice(0, 128);
+  const autoPlan = Boolean(commandIntent && initialObjective.length >= 3);
+
   return (
     <div className="aira-v2-page">
       <AiraV2Frame>
-        <WorkExecutionWorkspace />
+        <WorkExecutionWorkspace
+          initialObjective={initialObjective}
+          autoPlan={autoPlan}
+          commandIntent={commandIntent}
+          teamId={teamId || undefined}
+        />
       </AiraV2Frame>
     </div>
   );

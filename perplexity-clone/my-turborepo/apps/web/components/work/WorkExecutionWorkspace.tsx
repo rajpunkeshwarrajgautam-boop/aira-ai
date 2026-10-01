@@ -4,7 +4,7 @@ import { ExternalLink, Loader2, Play, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type CapabilityPlan = {
   missionId: string;
@@ -13,6 +13,33 @@ type CapabilityPlan = {
   totalEstimatedCostUsd: number;
   overallRisk: string;
   requiresApprovalBeforeStart: boolean;
+  executionMode?: "TEAM";
+  teamId?: string;
+  teamName?: string;
+  teamVersion?: number;
+  teamBudgets?: {
+    maxAgents: number;
+    maxParallelAgents: number;
+    maxToolCalls: number;
+    maxTokens: number;
+    maxCostUsd: number;
+    maxDurationMinutes: number;
+    maxRetries: number;
+  };
+  teamTasks?: Array<{
+    key: string;
+    title: string;
+    objective: string;
+    agentRole: string;
+    modelTier: string;
+    priority: number;
+    dependencies: string[];
+    approval?: { action: string; risk: string } | null;
+    agentDefinitionId?: string;
+    agentName?: string;
+    tools?: string[];
+    skills?: string[];
+  }>;
 };
 
 type LaunchResult = { projectId: string; runId: string; status: string };
@@ -42,10 +69,24 @@ async function readError(response: Response): Promise<Error> {
   return new Error(body?.error?.message ?? `Request failed (${response.status}).`);
 }
 
-export function WorkExecutionWorkspace() {
+type WorkExecutionWorkspaceProps = {
+  readonly initialObjective?: string;
+  readonly autoPlan?: boolean;
+  readonly commandIntent?: "plan" | "agent" | "team" | null;
+  readonly teamId?: string;
+};
+
+export function WorkExecutionWorkspace({
+  initialObjective = "",
+  autoPlan = false,
+  commandIntent = null,
+  teamId,
+}: WorkExecutionWorkspaceProps) {
   const router = useRouter();
   const { status: sessionStatus } = useSession();
-  const [objective, setObjective] = useState("");
+  const initialGoal = initialObjective.trim().slice(0, 8_000);
+  const autoPlanStartedRef = useRef(false);
+  const [objective, setObjective] = useState(initialGoal);
   const [effort, setEffort] = useState<"LOW" | "MEDIUM" | "HIGH" | "MAXIMUM">("MEDIUM");
   const [maxBudgetUsd, setMaxBudgetUsd] = useState(5);
   const [plan, setPlan] = useState<CapabilityPlan | null>(null);
@@ -84,11 +125,15 @@ export function WorkExecutionWorkspace() {
     return () => controller.abort();
   }, [sessionStatus]);
 
-  async function generatePlan() {
-    const goal = objective.trim();
+  const generatePlan = useCallback(async (objectiveOverride?: string) => {
+    const goal = (objectiveOverride ?? objective).trim();
     if (goal.length < 3) return;
     if (sessionStatus !== "authenticated") {
-      router.push(`/signin?callbackUrl=${encodeURIComponent("/work")}`);
+      const callbackIntent = commandIntent ?? "plan";
+      const callbackUrl = goal
+        ? `/work?objective=${encodeURIComponent(goal)}&intent=${encodeURIComponent(callbackIntent)}${teamId ? `&teamId=${encodeURIComponent(teamId)}` : ""}`
+        : "/work";
+      router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
     setBusy("plan");
@@ -101,6 +146,9 @@ export function WorkExecutionWorkspace() {
         body: JSON.stringify({
           id: crypto.randomUUID(),
           objective: goal,
+          context: commandIntent === "team"
+            ? { orchestration: "TEAM", ...(teamId ? { teamId } : {}) }
+            : undefined,
           constraints: ["Stay within the declared cost ceiling", "Do not claim completion without evidence"],
           expectedDeliverables: [
             {
@@ -139,7 +187,14 @@ export function WorkExecutionWorkspace() {
     } finally {
       setBusy(null);
     }
-  }
+  }, [commandIntent, effort, maxBudgetUsd, objective, router, sessionStatus, teamId]);
+
+  useEffect(() => {
+    if (!autoPlan || autoPlanStartedRef.current || sessionStatus !== "authenticated") return;
+    if (initialGoal.length < 3) return;
+    autoPlanStartedRef.current = true;
+    void generatePlan(initialGoal);
+  }, [autoPlan, generatePlan, initialGoal, sessionStatus]);
 
   async function executePlan() {
     const goal = objective.trim();
@@ -157,7 +212,13 @@ export function WorkExecutionWorkspace() {
         body: JSON.stringify({
           name: `Work · ${goal.slice(0, 72)}`,
           objective: goal,
-          config: { source: "work-mode", missionId: plan.missionId, effort },
+          config: {
+            source: commandIntent === "team" ? "agent-team" : "work-mode",
+            missionId: plan.missionId,
+            effort,
+            orchestration: commandIntent === "team" ? "TEAM" : "AUTO",
+            ...(teamId ? { teamId } : {}),
+          },
         }),
       });
       if (!projectResponse.ok) throw await readError(projectResponse);
@@ -171,6 +232,8 @@ export function WorkExecutionWorkspace() {
           body: JSON.stringify({
             clientRequestId: crypto.randomUUID(),
             objective: goal,
+            orchestration: commandIntent === "team" ? "TEAM" : "AUTO",
+            ...(teamId ? { teamId } : {}),
             budgets: {
               maxAgents: 16,
               maxParallelAgents: 4,
@@ -208,6 +271,21 @@ export function WorkExecutionWorkspace() {
         ) : null}
 
         {error ? <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-800">{error}</div> : null}
+
+        {commandIntent ? (
+          <div role="status" className="rounded-xl border border-[#3A0CA3]/20 bg-[#3A0CA3]/[0.045] px-4 py-3 text-sm text-[#4A3A78]">
+            <span className="font-semibold text-[#3A0CA3]">AIRA Command · /{commandIntent}</span>
+            <span className="ml-2">
+              {busy === "plan"
+                ? "Generating the real server-side capability plan…"
+                : plan
+                  ? commandIntent === "team"
+                    ? "Capability plan ready. Team launch will expand this into a persisted coordinator DAG with direct specialist handoffs."
+                    : "Plan ready. Review tasks, risk and estimated cost before launching the managed run."
+                  : "Objective loaded. AIRA will generate a real capability plan once your authenticated session is ready."}
+            </span>
+          </div>
+        ) : null}
 
         {sessionStatus !== "authenticated" ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgba(58,12,163,0.18)] bg-[rgba(58,12,163,0.04)] p-4 text-xs">
@@ -289,13 +367,41 @@ export function WorkExecutionWorkspace() {
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={() => void generatePlan()} disabled={busy !== null || objective.trim().length < 3} className="inline-flex items-center gap-2 rounded-xl border border-[rgba(17,17,21,0.12)] bg-white px-4 py-2.5 text-sm font-semibold text-[#111115] shadow-xs transition hover:bg-[#FAF9F6] disabled:opacity-40">{busy === "plan" ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4 text-[#3A0CA3]" />}Generate plan</button>
-              <button type="button" onClick={() => void executePlan()} disabled={busy !== null || !plan || runtimeState !== "ready"} title={runtimeState === "unavailable" ? "Managed execution requires a configured, healthy autonomous runtime." : undefined} className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] disabled:opacity-40">{busy === "launch" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}Launch managed run</button>
+              <button type="button" onClick={() => void executePlan()} disabled={busy !== null || !plan || runtimeState !== "ready"} title={runtimeState === "unavailable" ? "Managed execution requires a configured, healthy autonomous runtime." : undefined} className="inline-flex items-center gap-2 rounded-xl bg-[#3A0CA3] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#2D0A82] disabled:opacity-40">{busy === "launch" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}{commandIntent === "team" ? "Launch Agent Team" : "Launch managed run"}</button>
             </div>
           </div>
 
           <aside className="rounded-2xl border border-[rgba(17,17,21,0.08)] bg-white p-5 shadow-xs">
             <h2 className="text-sm font-semibold text-[#111115]">Execution evidence</h2>
-            {!plan ? <p className="mt-4 text-sm leading-6 text-[#6B6A75]">Generate a plan or load a template above to inspect the task graph before execution.</p> : <div className="mt-4 space-y-3"><div className="rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] p-3 text-xs text-[#6B6A75]"><div>Risk: <span className="font-medium text-[#111115]">{plan.overallRisk}</span></div><div className="mt-1">Estimated cost: <span className="font-medium text-[#111115]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div><div className="mt-1">Tasks: <span className="font-medium text-[#111115]">{plan.tasks.length}</span></div></div>{plan.tasks.slice(0, 6).map((task) => <div key={task.id} className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 py-2 shadow-2xs"><p className="text-xs font-medium text-[#111115]">{task.title}</p><p className="mt-1 text-[11px] text-[#6B6A75]">{task.agentRole} · {task.risk}</p></div>)}</div>}
+            {!plan ? (
+              <p className="mt-4 text-sm leading-6 text-[#6B6A75]">Generate a plan or load a template above to inspect the task graph before execution.</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-xl border border-[rgba(17,17,21,0.06)] bg-[#FAF9F6] p-3 text-xs text-[#6B6A75]">
+                  <div>Risk: <span className="font-medium text-[#111115]">{plan.overallRisk}</span></div>
+                  <div className="mt-1">Capability cost estimate: <span className="font-medium text-[#111115]">${plan.totalEstimatedCostUsd.toFixed(3)}</span></div>
+                  <div className="mt-1">Execution tasks: <span className="font-medium text-[#111115]">{plan.teamTasks?.length ?? plan.tasks.length}</span></div>
+                  {plan.executionMode === "TEAM" ? (
+                    <>
+                      <div className="mt-1 font-medium text-[#3A0CA3]">Coordinator mode · exact server DAG preview</div>
+                      {plan.teamName ? <div className="mt-1">Saved team: <span className="font-medium text-[#111115]">{plan.teamName} · v{plan.teamVersion}</span></div> : null}
+                      {plan.teamBudgets ? <div className="mt-1">Team ceiling: <span className="font-medium text-[#111115]">${plan.teamBudgets.maxCostUsd.toFixed(2)} · {plan.teamBudgets.maxParallelAgents} parallel</span></div> : null}
+                    </>
+                  ) : null}
+                </div>
+                {(plan.teamTasks ?? plan.tasks).slice(0, 12).map((task) => (
+                  <div key={"key" in task ? task.key : task.id} className="rounded-xl border border-[rgba(17,17,21,0.08)] bg-white px-3 py-2 shadow-2xs">
+                    <p className="text-xs font-medium text-[#111115]">{task.title}</p>
+                    <p className="mt-1 text-[11px] text-[#6B6A75]">
+                      {task.agentRole}
+                      {"dependencies" in task && task.dependencies.length ? ` · waits for ${task.dependencies.length}` : ""}
+                      {"risk" in task ? ` · ${task.risk}` : ""}
+                    </p>
+                    {"agentName" in task && task.agentName ? <p className="mt-1 text-[10px] font-medium text-[#3A0CA3]">{task.agentName}{task.tools?.length ? ` · ${task.tools.length} tools` : ""}{task.skills?.length ? ` · ${task.skills.length} skills` : ""}</p> : null}
+                  </div>
+                ))}
+              </div>
+            )}
             {launch ? <div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] p-3"><p className="text-xs font-semibold text-emerald-800">Managed run created · {launch.status}</p><p className="mt-1 break-all text-[10px] text-[#6B6A75]">{launch.runId}</p><Link href={`/work/runs/${encodeURIComponent(launch.runId)}`} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#3A0CA3] hover:underline">Open Work Mission Control <ExternalLink className="size-3" /></Link></div> : null}
           </aside>
         </section>

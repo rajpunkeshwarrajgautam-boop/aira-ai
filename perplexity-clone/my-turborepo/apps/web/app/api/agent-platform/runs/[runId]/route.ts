@@ -2,11 +2,14 @@ import { auth } from "@/auth";
 import {
 	getProjectForUser,
 	getRunForUser,
+	listAgentInstancesForRun,
 	listEvents,
-	listPendingApprovals,
+	listRunApprovals,
 	listRunArtifacts,
 	listTasks,
 } from "@/lib/agent-platform/store";
+import { listMissionToolCalls, readMissionUsage } from "@/lib/tool-gateway/store";
+import { listRunAgentMessages } from "@/lib/agent-platform/messages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,13 +38,17 @@ export async function GET(_: Request, { params }: Params): Promise<Response> {
 	if (!run) {
 		return json({ error: { code: "NOT_FOUND", message: "Managed run not found." } }, { status: 404 });
 	}
-	const [project, tasks, events, approvals, artifacts] = await Promise.all([
+	const [project, tasks, events, approvals, artifacts, agents, toolCalls, usage, messages] = await Promise.all([
 		getProjectForUser(session.user.id, run.projectId),
 		listTasks(run.id),
 		listEvents(run.id),
-		listPendingApprovals(session.user.id, run.id),
+		listRunApprovals(session.user.id, run.id),
 		listRunArtifacts(session.user.id, run.id),
+		listAgentInstancesForRun(session.user.id, run.id),
+		listMissionToolCalls(session.user.id, run.id, 150),
+		readMissionUsage(run.id),
+		listRunAgentMessages({ userId: session.user.id, runId: run.id, limit: 200 }),
 	]);
-	return json({ run, project, tasks, events, approvals, artifacts });
+	return json({ run, project, tasks, events, approvals, artifacts, agents, toolCalls, usage, messages });
 }
 

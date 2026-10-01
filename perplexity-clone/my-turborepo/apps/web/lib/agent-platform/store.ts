@@ -61,6 +61,7 @@ function runRow(row: PlatformRun): PlatformRun {
 function taskRow(row: PlatformTask): PlatformTask {
 	return {
 		...row,
+		config: jsonObject(row.config),
 		dependencies: stringArray(row.dependencies),
 		inputArtifacts: stringArray(row.inputArtifacts),
 		outputArtifacts: stringArray(row.outputArtifacts),
@@ -153,12 +154,13 @@ export async function createPlatformRun(input: {
 		...input.tasks.map((task) => {
 			const id = taskIds.get(task.key)!;
 			const dependencies = JSON.stringify(task.dependencies.map((key) => taskIds.get(key)).filter(Boolean));
+			const config = JSON.stringify(task.config ?? {});
 			const initialStatus = task.approval ? "APPROVAL_REQUIRED" : "QUEUED";
 			return prisma.$executeRaw`
 				insert into "AgentTask" (
-					"id", "projectId", "runId", "title", "objective", "status", "priority", "agentRole", "modelTier", "dependencies", "maxAttempts"
+					"id", "projectId", "runId", "title", "objective", "status", "priority", "agentRole", "modelTier", "config", "dependencies", "maxAttempts"
 				) values (
-					${id}, ${input.projectId}, ${runId}, ${task.title}, ${task.objective}, ${initialStatus}, ${task.priority}, ${task.agentRole}, ${task.modelTier}, ${dependencies}::jsonb, ${input.budgets.maxRetries + 1}
+					${id}, ${input.projectId}, ${runId}, ${task.title}, ${task.objective}, ${initialStatus}, ${task.priority}, ${task.agentRole}, ${task.modelTier}, ${config}::jsonb, ${dependencies}::jsonb, ${input.budgets.maxRetries + 1}
 				)
 			`;
 		}),
@@ -200,6 +202,29 @@ export async function listTasks(runId: string): Promise<PlatformTask[]> {
 		select * from "AgentTask" where "runId" = ${runId} order by "priority" desc, "createdAt" asc
 	`;
 	return rows.map(taskRow);
+}
+
+export interface UserTaskRecord extends PlatformTask {
+	readonly runStatus: PlatformRunStatus;
+	readonly projectName: string;
+}
+
+export async function listTasksForUser(userId: string, limit = 100): Promise<UserTaskRecord[]> {
+	const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+	const rows = await prisma.$queryRaw<UserTaskRecord[]>`
+		select t.*, r."status" as "runStatus", p."name" as "projectName"
+		from "AgentTask" t
+		join "AgentPlatformRun" r on r."id" = t."runId" and r."projectId" = t."projectId"
+		join "AgentProject" p on p."id" = t."projectId" and p."userId" = r."userId"
+		where r."userId" = ${userId}
+		order by t."updatedAt" desc, t."priority" desc
+		limit ${boundedLimit}
+	`;
+	return rows.map((row) => ({
+		...taskRow(row),
+		runStatus: row.runStatus,
+		projectName: row.projectName,
+	}));
 }
 
 export async function appendEvent(input: {
@@ -734,6 +759,53 @@ export async function listPendingApprovals(userId: string, runId?: string): Prom
 		: prisma.$queryRaw<Array<Record<string, unknown>>>`
 			select * from "AgentApproval" where "userId"=${userId} and "status"='PENDING' order by "createdAt" asc limit 100
 		`;
+}
+
+export interface AgentInstanceRecord {
+	readonly id: string;
+	readonly projectId: string;
+	readonly runId: string;
+	readonly role: string;
+	readonly objective: string;
+	readonly status: "IDLE" | "WORKING" | "WAITING" | "PAUSED" | "STOPPED" | "FAILED";
+	readonly modelTier: string;
+	readonly capabilities: string[];
+	readonly allowedTools: string[];
+	readonly workspace: string | null;
+	readonly currentTaskId: string | null;
+	readonly budgets: Record<string, unknown>;
+	readonly createdAt: Date;
+	readonly updatedAt: Date;
+}
+
+export async function listAgentInstancesForRun(userId: string, runId: string): Promise<AgentInstanceRecord[]> {
+	const rows = await prisma.$queryRaw<Array<Omit<AgentInstanceRecord, "capabilities" | "allowedTools" | "budgets"> & {
+		capabilities: unknown;
+		allowedTools: unknown;
+		budgets: unknown;
+	}>>`
+		select a.*
+		from "AgentInstance" a
+		join "AgentPlatformRun" r on r."id"=a."runId" and r."projectId"=a."projectId"
+		where a."runId"=${runId} and r."userId"=${userId}
+		order by a."createdAt" asc
+	`;
+	return rows.map((value) => ({
+		...value,
+		capabilities: stringArray(value.capabilities),
+		allowedTools: stringArray(value.allowedTools),
+		budgets: jsonObject(value.budgets),
+	}));
+}
+
+export async function listRunApprovals(userId: string, runId: string): Promise<Array<Record<string, unknown>>> {
+	return prisma.$queryRaw<Array<Record<string, unknown>>>`
+		select *
+		from "AgentApproval"
+		where "userId"=${userId} and "runId"=${runId}
+		order by "createdAt" desc
+		limit 100
+	`;
 }
 
 export async function resolveApproval(input: { readonly userId: string; readonly approvalId: string; readonly approve: boolean }): Promise<{ taskId: string; runId: string; projectId: string } | null> {

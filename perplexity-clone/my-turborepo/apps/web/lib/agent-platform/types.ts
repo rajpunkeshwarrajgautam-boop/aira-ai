@@ -91,6 +91,7 @@ export interface PlatformTask {
 	readonly priority: number;
 	readonly agentRole: string;
 	readonly modelTier: AgentModelTier;
+	readonly config?: Record<string, unknown>;
 	readonly dependencies: string[];
 	readonly inputArtifacts: string[];
 	readonly outputArtifacts: string[];
@@ -115,6 +116,7 @@ export interface TaskSpec {
 	readonly modelTier: AgentModelTier;
 	readonly priority: number;
 	readonly dependencies: readonly string[];
+	readonly config?: Record<string, unknown>;
 	readonly approval?: { readonly action: string; readonly risk: RiskClass };
 }
 
