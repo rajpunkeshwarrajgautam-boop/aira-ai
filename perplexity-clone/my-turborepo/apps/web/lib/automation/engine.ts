@@ -357,6 +357,64 @@ export class AutomationEngine {
 		}
 	}
 
+	async createDraftRoutineAsync(params: {
+		userId: string;
+		name: string;
+		description?: string;
+		trigger: RoutineTrigger;
+		workflowDag: VisualWorkflowDAG;
+		budgetUsd?: number;
+	}): Promise<RoutineDefinition> {
+		const validation = this.validateDAG(params.workflowDag);
+		if (!validation.valid) {
+			throw new Error(validation.error ?? "Workflow draft is invalid.");
+		}
+		const id = `routine-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+		const now = new Date().toISOString();
+		const routine: RoutineDefinition = {
+			id,
+			userId: params.userId,
+			name: params.name,
+			description: params.description ?? "",
+			enabled: false,
+			version: 1,
+			trigger: params.trigger,
+			workflowDag: params.workflowDag,
+			budgetUsd: params.budgetUsd ?? 5.0,
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		if (process.env.DATABASE_URL) {
+			await prisma.$transaction(async (tx) => {
+				await tx.automationRoutine.create({
+					data: {
+						id: routine.id,
+						userId: routine.userId,
+						name: routine.name,
+						description: routine.description,
+						triggerType: routine.trigger.type,
+						triggerConfig: routine.trigger as never,
+						status: "DRAFT",
+						version: 1,
+						workflowDag: routine.workflowDag as never,
+					},
+				});
+				await tx.automationRoutineVersion.create({
+					data: {
+						routineId: routine.id,
+						version: 1,
+						workflowDag: routine.workflowDag as never,
+					},
+				});
+			});
+		}
+
+		this.routines.set(id, routine);
+		this.persistToDisk();
+		return routine;
+	}
+
 	async createRoutineAsync(params: {
 		userId: string;
 		name: string;
@@ -701,6 +759,12 @@ export class AutomationEngine {
 	): Promise<RoutineExecutionRecord> {
 		const routine = await this.getRoutineAsync(userId, routineId);
 		if (!routine || routine.userId !== userId) throw new Error("Routine not found or unauthorized");
+		if (!routine.enabled) {
+			throw new Error("Routine is paused or draft-only and cannot execute until it is explicitly activated.");
+		}
+		if (routine.workflowDag.nodes.some((node) => node.config.intentDraft === true)) {
+			throw new Error("Routine draft has not been compiled into a certified executable workflow.");
+		}
 
 		// Idempotency check: if identical key already completed/succeeded, return existing
 		if (options?.idempotencyKey) {

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { ToolAdapter, ToolContext } from "./types";
+import { globalConnectorRegistry } from "@/lib/connectors/registry";
+import { globalConnectorCredentialStore } from "@/lib/connectors/credential-store";
+
+import type { AiraToolId, ToolAdapter, ToolContext } from "./types";
 import { ToolGatewayError } from "./types";
 
 export const UNTRUSTED_EXTERNAL_CONTENT = "UNTRUSTED_EXTERNAL_CONTENT" as const;
@@ -123,10 +126,11 @@ const GmailDraftSchema = z.object({
 const GmailSendSchema = GmailDraftSchema;
 
 export function createGmailToolAdapter(transport: GmailTransport = deterministicGmailTransport): ToolAdapter {
+	const hasRealTransport = transport !== deterministicGmailTransport;
 	return {
 		id: "gmail",
 		async isAvailable() {
-			return enabled("AIRA_GMAIL_CONNECTOR_ENABLED") && Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim() && process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim());
+			return hasRealTransport && enabled("AIRA_GMAIL_CONNECTOR_ENABLED") && Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim() && process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim());
 		},
 		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
 			if (action === "batch_delete" || action === "modify_filters") {
@@ -291,10 +295,11 @@ export function verifySlackSignature(options: {
 }
 
 export function createSlackToolAdapter(transport: SlackTransport = deterministicSlackTransport): ToolAdapter {
+	const hasRealTransport = transport !== deterministicSlackTransport;
 	return {
 		id: "slack",
 		async isAvailable() {
-			return enabled("AIRA_SLACK_CONNECTOR_ENABLED") && Boolean(process.env.SLACK_BOT_TOKEN?.trim() && process.env.SLACK_SIGNING_SECRET?.trim());
+			return hasRealTransport && enabled("AIRA_SLACK_CONNECTOR_ENABLED") && Boolean(process.env.SLACK_BOT_TOKEN?.trim() && process.env.SLACK_SIGNING_SECRET?.trim());
 		},
 		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
 			if (action === "admin_manage_workspace") {
@@ -442,10 +447,11 @@ const DriveShareSchema = z.object({
 });
 
 export function createGoogleDriveToolAdapter(transport: GoogleDriveTransport = deterministicGoogleDriveTransport): ToolAdapter {
+	const hasRealTransport = transport !== deterministicGoogleDriveTransport;
 	return {
 		id: "google_drive",
 		async isAvailable() {
-			return enabled("AIRA_GOOGLE_DRIVE_CONNECTOR_ENABLED") && Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() && process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim());
+			return hasRealTransport && enabled("AIRA_GOOGLE_DRIVE_CONNECTOR_ENABLED") && Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() && process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim());
 		},
 		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
 			if (action === "modify_permissions_public" || action === "delete_shared_drive") {
@@ -568,3 +574,110 @@ export function createGoogleDriveToolAdapter(transport: GoogleDriveTransport = d
 }
 
 export const googleDriveToolAdapter: ToolAdapter = createGoogleDriveToolAdapter();
+
+
+// ---------------------------------------------------------------------------
+// Registry-backed real HTTP connector adapters
+// ---------------------------------------------------------------------------
+
+function createRegistryBackedToolAdapter(options: {
+	readonly toolId: AiraToolId;
+	readonly connectorId: string;
+	readonly readActions: ReadonlySet<string>;
+}): ToolAdapter {
+	return {
+		id: options.toolId,
+		async isAvailable() {
+			const manifest = globalConnectorRegistry.get(options.connectorId);
+			return Boolean(
+				manifest &&
+				manifest.isEnabled &&
+				manifest.health !== "UNCONFIGURED" &&
+				manifest.health !== "ERROR" &&
+				globalConnectorRegistry.getAdapter(options.connectorId),
+			);
+		},
+		async execute(context: ToolContext, action: string, input: Record<string, unknown>) {
+			const adapter = globalConnectorRegistry.getAdapter(options.connectorId);
+			if (!adapter) {
+				throw new ToolGatewayError({
+					code: "CONNECTOR_NOT_IMPLEMENTED",
+					message: `${options.connectorId} connector is not implemented.`,
+					status: 409,
+				});
+			}
+
+			const connections = await globalConnectorCredentialStore.listConnectionRefsAsync(
+				context.userId,
+				options.connectorId,
+			);
+			if (connections.length === 0) {
+				throw new ToolGatewayError({
+					code: "CONNECTOR_NOT_CONNECTED",
+					message: `Connect ${options.connectorId} before Aira can use this capability.`,
+					status: 409,
+				});
+			}
+			if (connections.length > 1) {
+				throw new ToolGatewayError({
+					code: "CONNECTOR_SELECTION_REQUIRED",
+					message: `Multiple ${options.connectorId} connections are available. Select which account Aira should use.`,
+					status: 409,
+				});
+			}
+
+			const actionSpec = adapter.actions.find((candidate) => candidate.name === action);
+			if (!actionSpec) {
+				throw new ToolGatewayError({
+					code: "TOOL_ACTION_UNSUPPORTED",
+					message: `${options.connectorId} action ${action} is not supported.`,
+					status: 409,
+				});
+			}
+
+			const connection = connections[0]!;
+			const credential = await globalConnectorCredentialStore.resolveCredentialAsync(
+				context.userId,
+				connection.connectionId,
+			);
+
+			try {
+				const raw = options.readActions.has(action)
+					? await adapter.executeRead(action, input, credential)
+					: await adapter.executeWrite(action, input, credential);
+				return {
+					result: {
+						...raw,
+						trust: options.readActions.has(action) ? UNTRUSTED_EXTERNAL_CONTENT : undefined,
+						provenance: {
+							connector: options.connectorId,
+							connectionId: connection.connectionId,
+							tenantId: context.projectId,
+							user: context.userId,
+						},
+					},
+				};
+			} catch (error) {
+				const normalized = adapter.normalizeError(error);
+				throw new ToolGatewayError({
+					code: normalized.code,
+					message: normalized.message,
+					status: normalized.status ?? 502,
+					retryable: normalized.retryable,
+				});
+			}
+		},
+	};
+}
+
+export const googleCalendarToolAdapter: ToolAdapter = createRegistryBackedToolAdapter({
+	toolId: "google_calendar",
+	connectorId: "google_calendar",
+	readActions: new Set(["list_events", "get_event", "free_busy"]),
+});
+
+export const crmToolAdapter: ToolAdapter = createRegistryBackedToolAdapter({
+	toolId: "crm",
+	connectorId: "crm",
+	readActions: new Set(["search_contacts", "get_company", "list_deals"]),
+});

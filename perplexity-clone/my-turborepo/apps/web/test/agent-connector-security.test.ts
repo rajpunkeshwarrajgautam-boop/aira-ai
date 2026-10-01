@@ -166,9 +166,26 @@ const context: ToolContext = {
 	source: "AGENT",
 };
 
+function availableTestAdapter(adapter: ToolAdapter): ToolAdapter {
+	return {
+		...adapter,
+		async isAvailable() { return true; },
+	};
+}
+
+const gatewayGmailAdapter = availableTestAdapter(gmailToolAdapter);
+const gatewaySlackAdapter = availableTestAdapter(slackToolAdapter);
+const gatewayGoogleDriveAdapter = availableTestAdapter(googleDriveToolAdapter);
+
 // ---------------------------------------------------------------------------
 // SECTION 1: Policy Invariants & Always Denied Boundaries
 // ---------------------------------------------------------------------------
+
+test("CONNECTOR REALITY: global business adapters stay unavailable while backed only by deterministic transports", async () => {
+	assert.equal(await gmailToolAdapter.isAvailable(), false);
+	assert.equal(await slackToolAdapter.isAvailable(), false);
+	assert.equal(await googleDriveToolAdapter.isAvailable(), false);
+});
 
 test("POLICY INVARIANT: Destructive connector actions are ALWAYS_DENIED regardless of caller flags", () => {
 	assert.equal(isAlwaysDeniedToolAction("gmail", "batch_delete"), true);
@@ -277,7 +294,7 @@ test("GMAIL ADVERSARIAL: Sending email requires durable user approval fence and 
 		tool: "gmail",
 		action: "send",
 		input: payload,
-	});
+	}, { adapter: gatewayGmailAdapter });
 
 	assert.equal(unapprovedResult.status, "APPROVAL_REQUIRED");
 	assert.equal(unapprovedResult.risk, "HIGH");
@@ -291,7 +308,7 @@ test("GMAIL ADVERSARIAL: Sending email requires durable user approval fence and 
 		action: "send",
 		approvalId,
 		input: payload,
-	});
+	}, { adapter: gatewayGmailAdapter });
 
 	assert.equal(approvedResult.status, "COMPLETED");
 	assert.equal(approvedResult.result.sent, true);
@@ -319,7 +336,7 @@ test("GMAIL ADVERSARIAL: Always denied batch_delete rejects at gateway and adapt
 		action: "batch_delete",
 		approvalId: "valid-approved-connector-id",
 		input: { messageIds: ["msg-1", "msg-2"] },
-	});
+	}, { adapter: gatewayGmailAdapter });
 	assert.equal(gatewayResult.status, "DENIED");
 
 	// 2. Direct adapter call also throws TOOL_ACTION_DENIED
@@ -371,7 +388,7 @@ test("SLACK ADVERSARIAL: Post message requires durable approval and blocks tool 
 		tool: "slack",
 		action: "post_message",
 		input: payload,
-	});
+	}, { adapter: gatewaySlackAdapter });
 
 	assert.equal(unapproved.status, "APPROVAL_REQUIRED");
 	assert.equal(unapproved.risk, "HIGH");
@@ -385,7 +402,7 @@ test("SLACK ADVERSARIAL: Post message requires durable approval and blocks tool 
 		action: "post_message",
 		approvalId,
 		input: payload,
-	});
+	}, { adapter: gatewaySlackAdapter });
 
 	assert.equal(approved.status, "COMPLETED");
 	assert.equal(approved.result.posted, true);
@@ -463,7 +480,7 @@ test("SLACK ADVERSARIAL: Always denied admin_manage_workspace rejects at gateway
 		action: "admin_manage_workspace",
 		approvalId: "valid-approved-connector-id",
 		input: { command: "grant_admin" },
-	});
+	}, { adapter: gatewaySlackAdapter });
 	assert.equal(res.status, "DENIED");
 
 	// Adapter level rejection
@@ -535,7 +552,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Creating, sharing, and deleting files require du
 		tool: "google_drive",
 		action: "create_file",
 		input: createPayload,
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 
 	assert.equal(unapprovedCreate.status, "APPROVAL_REQUIRED");
 	assert.equal(unapprovedCreate.risk, "HIGH");
@@ -549,7 +566,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Creating, sharing, and deleting files require du
 		action: "create_file",
 		approvalId: createApprovalId,
 		input: createPayload,
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 
 	assert.equal(approvedCreate.status, "COMPLETED");
 	assert.equal(approvedCreate.result.created, true);
@@ -564,7 +581,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Creating, sharing, and deleting files require du
 			role: "writer",
 			emailAddress: "external@thirdparty.test",
 		},
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 
 	assert.equal(unapprovedShare.status, "APPROVAL_REQUIRED");
 	assert.equal(unapprovedShare.risk, "HIGH");
@@ -577,7 +594,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Creating, sharing, and deleting files require du
 		tool: "google_drive",
 		action: "delete_file",
 		input: deletePayload,
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 	const delApprovalId = (unapprovedDel as { approvalId: string }).approvalId;
 
 	const approvedDelete = await executeTool(context, {
@@ -586,7 +603,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Creating, sharing, and deleting files require du
 		action: "delete_file",
 		approvalId: delApprovalId,
 		input: deletePayload,
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 
 	assert.equal(approvedDelete.status, "COMPLETED");
 	assert.equal(approvedDelete.result.deleted, true);
@@ -599,7 +616,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Always denied public permission and drive deleti
 		action: "modify_permissions_public",
 		approvalId: "valid-approved-connector-id",
 		input: { fileId: "drive-doc-123" },
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 	assert.equal(pubRes.status, "DENIED");
 
 	const delDriveRes = await executeTool(context, {
@@ -608,7 +625,7 @@ test("GOOGLE DRIVE ADVERSARIAL: Always denied public permission and drive deleti
 		action: "delete_shared_drive",
 		approvalId: "valid-approved-connector-id",
 		input: { driveId: "shared-drive-999" },
-	});
+	}, { adapter: gatewayGoogleDriveAdapter });
 	assert.equal(delDriveRes.status, "DENIED");
 
 	// Adapter level rejection

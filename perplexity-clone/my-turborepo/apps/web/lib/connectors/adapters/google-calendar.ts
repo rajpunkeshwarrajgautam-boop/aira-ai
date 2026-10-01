@@ -134,7 +134,8 @@ export class GoogleCalendarConnectorAdapter implements ConnectorAdapter {
 			case "list_events": {
 				const calendarId = encodeURIComponent(String(params.calendarId ?? "primary"));
 				const timeMin = params.timeMin ? encodeURIComponent(String(params.timeMin)) : encodeURIComponent(new Date().toISOString());
-				const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?timeMin=${timeMin}&singleEvents=true&orderBy=startTime`;
+				const timeMax = params.timeMax ? `&timeMax=${encodeURIComponent(String(params.timeMax))}` : "";
+				const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?timeMin=${timeMin}${timeMax}&singleEvents=true&orderBy=startTime`;
 				const res = await this.http.request<{ items?: Array<{ id: string; summary: string; start?: unknown; end?: unknown }> }>(url, {
 					method: "GET",
 					headers,
@@ -142,6 +143,8 @@ export class GoogleCalendarConnectorAdapter implements ConnectorAdapter {
 				return {
 					events: res.data.items ?? [],
 					calendarId: params.calendarId ?? "primary",
+					timeMin: params.timeMin ?? null,
+					timeMax: params.timeMax ?? null,
 				};
 			}
 

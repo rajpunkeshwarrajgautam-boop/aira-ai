@@ -33,8 +33,15 @@ test("tool risk is classified per action, not merely per tool", () => {
 test("all intended Tool Gateway adapters are registered", () => {
 	assert.deepEqual(
 		new Set(registeredToolIds()),
-		new Set(["browser", "terminal", "git", "files", "memory", "web", "github", "vercel", "supabase", "mcp", "gmail", "slack", "google_drive"]),
+		new Set(["browser", "terminal", "git", "files", "memory", "web", "github", "vercel", "supabase", "mcp", "gmail", "slack", "google_drive", "google_calendar", "crm"]),
 	);
+});
+
+test("Calendar and CRM reads remain LOW risk while mutations require approval-class risk", () => {
+	assert.equal(classifyToolRisk("google_calendar", "list_events"), "LOW");
+	assert.equal(classifyToolRisk("google_calendar", "create_event"), "HIGH");
+	assert.equal(classifyToolRisk("crm", "search_contacts"), "LOW");
+	assert.equal(classifyToolRisk("crm", "create_contact"), "HIGH");
 });
 
 test("exact tool input binding is deterministic but changes with the payload", () => {
