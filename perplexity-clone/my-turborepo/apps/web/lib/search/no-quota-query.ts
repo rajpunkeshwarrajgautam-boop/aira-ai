@@ -1,6 +1,10 @@
 /**
- * Server-side classification for queries that skip monthly search quota.
- * Conservative rules only — everything else goes through normal grounded/deep pipelines.
+ * Server-side classification for queries that do not need a fresh web search.
+ *
+ * This includes true greetings plus short, context-dependent transformation
+ * requests such as "Give me notes of it" or "Explain the second one". Those
+ * follow-ups should be answered from the active conversation rather than using
+ * the literal pronoun-heavy text as a new web-search query.
  */
 
 const GREETING_PATTERNS: ReadonlyArray<RegExp> = [
@@ -15,15 +19,44 @@ const GREETING_PATTERNS: ReadonlyArray<RegExp> = [
 	/^sup\??[!.,\s]*$/i,
 ];
 
+const EXPLICIT_WEB_INTENT_RE =
+	/\b(search|research|look\s*up|browse|web|online|sources?|evidence|verify|fact-?check|latest|current|today|news|recent|up[- ]?to[- ]?date|updated)\b/i;
+
+/**
+ * Short requests whose meaning is primarily inherited from the active thread.
+ * Keep these conservative and anchored so a standalone question such as
+ * "What is Bitcoin and how does it work?" still uses the normal grounded path.
+ */
+const CONTEXT_ONLY_FOLLOW_UP_PATTERNS: ReadonlyArray<RegExp> = [
+	/^(?:give|create|make)\s+(?:me\s+)?(?:\d+\s+)?(?:notes?|a summary|summary|bullet points?|bullets?|mcqs?|questions?|a quiz|quiz|flashcards?)(?:\s+(?:of|from|about|on)\s+(?:it|this|that|these|those|them|the above|the previous answer|your answer))?[.!?\s]*$/i,
+	/^(?:make|shorten|expand|simplify|summari[sz]e|rewrite|rephrase|convert|turn|translate)\s+(?:it|this|that|these|those|them|the above|the previous answer|your answer)(?:\s+.*)?$/i,
+	/^explain\s+(?:it|this|that|these|those|them|the\s+(?:first|second|third|fourth|fifth)\s+(?:one|point|item|example|option))(?:\s+.*)?$/i,
+	/^(?:what|which)\s+(?:about|of)\s+(?:it|this|that|these|those|them)\??[.!?\s]*$/i,
+	/^what\s+(?:are|is)\s+(?:its|their)\b.*$/i,
+	/^which\s+(?:one|option)\b.*$/i,
+	/^tell\s+me\s+more(?:\s+about\s+(?:it|this|that|these|those|them))?[.!?\s]*$/i,
+	/^compare\s+(?:them|these|those)(?:\s+.*)?$/i,
+	/^(?:why|how so|continue|go on|more|more details|elaborate)[.!?\s]*$/i,
+];
+
 function normalizeOneLine(q: string): string {
 	return q.trim().replace(/\s+/g, " ");
 }
 
+export function isContextOnlyFollowUpQuery(raw: string): boolean {
+	const t = normalizeOneLine(raw);
+	if (t.length === 0 || t.length > 240) return false;
+	if (raw.includes("\n")) return false;
+	if (EXPLICIT_WEB_INTENT_RE.test(t)) return false;
+	return CONTEXT_ONLY_FOLLOW_UP_PATTERNS.some((r) => r.test(t));
+}
+
 export function isGreetingOnlyQuery(raw: string): boolean {
 	const t = normalizeOneLine(raw);
-	if (t.length === 0 || t.length > 80) return false;
+	if (t.length === 0) return false;
 	if (raw.includes("\n")) return false;
-	return GREETING_PATTERNS.some((r) => r.test(t));
+	const greeting = t.length <= 80 && GREETING_PATTERNS.some((r) => r.test(t));
+	return greeting || isContextOnlyFollowUpQuery(raw);
 }
 
 /**
