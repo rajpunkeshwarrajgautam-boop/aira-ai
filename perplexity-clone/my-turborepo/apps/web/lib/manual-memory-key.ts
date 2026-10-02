@@ -23,8 +23,9 @@ export function manualMemoryKeyForContent(content: string): string {
 	const assignment = normalized.match(
 		/^(.{3,160}?)\s+(?:is|are|should be|defaults? to|=)\s+(.{1,600})$/i,
 	);
-	if (assignment) {
-		const subject = normalizedSubject(assignment[1]);
+	const subjectSource = assignment?.[1];
+	if (subjectSource) {
+		const subject = normalizedSubject(subjectSource);
 		if (subject.split(/\s+/).filter(Boolean).length >= 2) {
 			return `manual.slot.${digest(subject)}`;
 		}
