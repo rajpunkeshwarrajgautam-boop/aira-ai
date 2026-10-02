@@ -1,5 +1,11 @@
+import { createManualMemory } from "@/lib/persistent-memory";
+
 import { buildAdvancedReasoningContext } from "./advanced-reasoning";
-import { persistAgentMemoryTurn, recallAgentMemoryContext } from "./agentmemory";
+import {
+	isAgentMemoryConfigured,
+	persistAgentMemoryTurn,
+	recallAgentMemoryContext,
+} from "./agentmemory";
 import { routeCognitiveCapabilities, type CognitiveRouteDecision } from "./policy";
 
 export interface CognitiveContextResult {
@@ -7,6 +13,19 @@ export interface CognitiveContextResult {
 	readonly contextItems: readonly string[];
 	readonly advancedReasoningProvider?: "ADVANCED_REASONING_MCP" | "AIRA_EMBEDDED";
 	readonly agentMemoryRecallCount: number;
+}
+
+export function canonicalDurableMemoryText(query: string): string {
+	const original = query.trim().replace(/\s+/g, " ");
+	if (!original) return "";
+	const stripped = original
+		.replace(/^(?:please\s+)?remember\s+(?:that|this)\s*[:,-]?\s*/i, "")
+		.replace(
+			/^(?:please\s+)?(?:save|store)\s+(?:this|that)\s+(?:preference|decision|constraint|rule|context)\s*[:,-]?\s*/i,
+			"",
+		)
+		.trim();
+	return stripped || original;
 }
 
 export async function prepareCognitiveContext(args: {
@@ -72,18 +91,47 @@ export async function persistCognitiveMemoryTurn(args: {
 }): Promise<boolean> {
 	const decision = routeCognitiveCapabilities(args.query);
 	if (!decision.memoryWrite || decision.memoryDisabled) return false;
-	const persisted = await persistAgentMemoryTurn({
-		userId: args.userId,
-		userMessage: args.query,
-		assistantResponse: args.answer,
-		...(args.projectId ? { projectId: args.projectId } : {}),
-		...(args.sessionId ? { sessionId: args.sessionId } : {}),
-	});
+
+	const durableContent = canonicalDurableMemoryText(args.query);
+	if (!durableContent) return false;
+
+	let nativePersisted = false;
+	try {
+		await createManualMemory({
+			userId: args.userId,
+			content: durableContent,
+			pinned: true,
+		});
+		nativePersisted = true;
+	} catch (error) {
+		console.warn(
+			"[AiraCognitiveRouter] Native durable memory write rejected; external replication skipped:",
+			error instanceof Error ? error.message : String(error),
+		);
+		return false;
+	}
+
+	let externalPersisted = false;
+	if (isAgentMemoryConfigured()) {
+		externalPersisted = await persistAgentMemoryTurn({
+			userId: args.userId,
+			userMessage: durableContent,
+			assistantResponse: args.answer,
+			...(args.projectId ? { projectId: args.projectId } : {}),
+			...(args.sessionId ? { sessionId: args.sessionId } : {}),
+		});
+	}
+
 	console.info(
 		"[AiraCognitiveRouter] memory write",
-		JSON.stringify({ requested: true, persisted }),
+		JSON.stringify({
+			requested: true,
+			nativePersisted,
+			externalConfigured: isAgentMemoryConfigured(),
+			externalPersisted,
+		}),
 	);
-	return persisted;
+	return nativePersisted;
 }
 
 export {
