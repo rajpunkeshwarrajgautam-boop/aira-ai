@@ -57,8 +57,10 @@ export function canonicalDurableMemoryText(raw: string): string {
 	const correction = original.match(
 		/^(?:please\s+)?(?:change|update|replace)\s+what\s+you\s+remember\s+about\s+my\s+(.+?)\s+to\s+(.+?)(?:\s+instead)?[.!]?$/i,
 	);
-	if (correction) {
-		return `my ${correction[1].trim()} is ${correction[2].trim()}`;
+	const correctionSubject = correction?.[1]?.trim();
+	const correctionValue = correction?.[2]?.trim();
+	if (correctionSubject && correctionValue) {
+		return `my ${correctionSubject} is ${correctionValue}`;
 	}
 
 	const stripped = original
