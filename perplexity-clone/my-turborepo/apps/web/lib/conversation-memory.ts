@@ -28,8 +28,8 @@ export {
  * The DB queries, recall ranking, rolling summary, and persistence behavior stay in the
  * preserved core. This facade applies one aggregate application-owned budget before
  * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge,
- * graph recall, command-routed Memori recall, and Advanced Reasoning context are additive
- * and fail open to the existing conversation/memory path.
+ * graph recall, command-routed AgentMemory recall, and Advanced Reasoning context are
+ * additive and fail open to the existing conversation/memory path.
  */
 export async function getFollowUpContext(
 	args: Parameters<typeof getCoreFollowUpContext>[0] & { readonly includeKnowledge?: boolean },
@@ -122,9 +122,9 @@ export async function getFollowUpContext(
 }
 
 /**
- * Persist the canonical AIRA conversation turn first, then synchronously commit explicitly
- * durable memory to Memori when the server-authoritative cognitive policy selects it.
- * Memori failure never rolls back the canonical AIRA conversation record.
+ * Persist the canonical AIRA conversation turn first, then synchronously commit only
+ * explicitly durable user memory to AgentMemory when the server-authoritative cognitive
+ * policy selects it. AgentMemory failure never rolls back canonical AIRA persistence.
  */
 export async function persistConversationTurn(
 	args: Parameters<typeof persistConversationTurnCore>[0],
