@@ -5,6 +5,24 @@ export interface ConversationThreadNode {
 	readonly content: string;
 }
 
+const THREAD_REFERENCE_PATTERNS: readonly RegExp[] = [
+	/\b(?:it|this|that|these|those|them|its|their|above|previous answer|last answer|earlier answer)\b/i,
+	/\b(?:first|second|third|fourth|fifth)\s+(?:one|point|item|example|option)\b/i,
+	/^(?:make|shorten|expand|simplify|summari[sz]e|rewrite|rephrase|convert|turn)\b/i,
+	/^(?:give|create|make)\s+(?:me\s+)?(?:notes|a summary|summary|bullet points|bullets|mcqs?|questions|a quiz|quiz|flashcards?)\b/i,
+	/^explain\s+(?:it|this|that|these|those|them|the\s+(?:first|second|third|fourth|fifth)\s+(?:one|point|item|example|option))\b/i,
+];
+
+/**
+ * Conservative detector for requests whose meaning comes primarily from the active chat.
+ * It is only used when a verified conversation thread already exists.
+ */
+export function isThreadLocalFollowUp(raw: string): boolean {
+	const text = raw.trim().replace(/\s+/g, " ");
+	if (!text || text.length > 600) return false;
+	return THREAD_REFERENCE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /**
  * Resolve the exact active conversation branch, including the parent message itself.
  *
