@@ -137,3 +137,11 @@ test("CHAT-CONT-07: no-memory mode suppresses native durable and research recall
 		"prior research recall must also be disabled for private/no-memory commands",
 	);
 });
+
+test("CHAT-CONT-08: thread-local follow-ups suppress external durable-memory recall", () => {
+	const facade = readFileSync(new URL("../lib/conversation-memory.ts", import.meta.url), "utf8");
+	assert.ok(
+		facade.includes("allowPersistentMemory: !threadLocalFollowUp"),
+		"same-chat references must stay grounded in the verified active thread before any cross-chat memory",
+	);
+});
