@@ -2,6 +2,7 @@ import { getRelevantPersistentMemories } from "@/lib/persistent-memory";
 import { prisma } from "@/lib/prisma";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
 
+import { routeCognitiveCapabilities } from "./cognitive/policy";
 import {
 	isThreadLocalFollowUp,
 	toModelChatHistory,
@@ -126,15 +127,16 @@ export async function getFollowUpContext(args: {
 
 	const threadLocalFollowUp =
 		Boolean(resolvedConversationId && chatHistory.length > 0) && isThreadLocalFollowUp(query);
+	const memoryDisabled = routeCognitiveCapabilities(query).memoryDisabled;
 
-	const durableMemories = threadLocalFollowUp
+	const durableMemories = threadLocalFollowUp || memoryDisabled
 		? []
 		: await getRelevantPersistentMemories(userId, query, memoryLimit);
 
 	const normalized = normalizeQuery(query);
 	const queryTokens = normalized.split(" ").filter((token) => token.length > 2).slice(0, 5);
 	const researchCandidates =
-		!threadLocalFollowUp && !isGreetingOnlyQuery(query) && queryTokens.length
+		!memoryDisabled && !threadLocalFollowUp && !isGreetingOnlyQuery(query) && queryTokens.length
 			? await prisma.researchHistory.findMany({
 					where: {
 						userId,
