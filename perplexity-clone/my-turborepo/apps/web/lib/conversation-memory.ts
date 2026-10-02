@@ -27,8 +27,8 @@ export {
  * The canonical conversation persistence stays in the preserved core, while active-thread
  * history is resolved through the branch-aware loader so short references keep the exact
  * preceding answer. This facade then applies one aggregate application-owned budget before
- * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge,
- * graph recall, command-routed AgentMemory recall, and Advanced Reasoning context are
+ * context is passed to retrieval/model orchestration. Semantic uploaded knowledge,
+ * graph recall, optional external durable-memory recall, and Advanced Reasoning context are
  * additive and fail open to the existing conversation/memory path.
  */
 export async function getFollowUpContext(
@@ -56,6 +56,7 @@ export async function getFollowUpContext(
 			const cognitive = await prepareCognitiveContext({
 				userId: args.userId,
 				query: args.query,
+				allowPersistentMemory: !threadLocalFollowUp,
 			});
 			contextualMemory.push(...cognitive.contextItems);
 		} catch (error) {
@@ -130,9 +131,9 @@ export async function getFollowUpContext(
 }
 
 /**
- * Persist the canonical AIRA conversation turn first, then synchronously commit only
- * explicitly durable user memory to AgentMemory when the server-authoritative cognitive
- * policy selects it. AgentMemory failure never rolls back canonical AIRA persistence.
+ * Persist the canonical AIRA conversation turn first. Explicit durable-memory commands
+ * are then committed to Aira's own user-memory store. External memory replication remains
+ * optional, so a missing third-party service never disables Aira's memory feature.
  */
 export async function persistConversationTurn(
 	args: Parameters<typeof persistConversationTurnCore>[0],
@@ -146,7 +147,7 @@ export async function persistConversationTurn(
 		});
 	} catch (error) {
 		console.warn(
-			"[AIRA cognitive] Durable external memory write failed after canonical persistence:",
+			"[AIRA cognitive] Durable memory write failed after canonical conversation persistence:",
 			error instanceof Error ? error.message : String(error),
 		);
 	}
