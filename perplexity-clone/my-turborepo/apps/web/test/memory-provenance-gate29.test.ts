@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { compileFunction } from "node:vm";
+import { manualMemoryKeyForContent } from "../lib/manual-memory-key";
 
 type CoreModule = typeof import("../lib/persistent-memory-core");
 type Subject = Pick<CoreModule,
@@ -24,12 +24,12 @@ type MemoryRow = {
 	createdAt: Date;
 	updatedAt: Date;
 };
-type Where = { userId: string; id?: string | { in: string[] }; memoryKey?: string };
+type Where = { userId?: string; id?: string | { in: string[] }; memoryKey?: string | { startsWith: string } };
 type Call = { method: string; where?: unknown; data?: unknown };
 
 /**
  * Execute the ACTUAL production file, not a copy of its functions.
- * Native Node type stripping removes types; only its three declared imports
+ * Native Node type stripping removes types; only its declared imports
  * are bound to test dependencies. Function bodies are not rewritten.
  * Any new/unhandled import fails closed so a real database/provider cannot be
  * loaded accidentally. This is mocked-dependency testing, not REAL_DB testing.
@@ -40,8 +40,9 @@ function loadSubject() {
 	const rows: MemoryRow[] = [];
 	let nextId = 1;
 	const matches = (row: MemoryRow, where: Where) =>
-		row.userId === where.userId &&
-		(where.memoryKey === undefined || row.memoryKey === where.memoryKey) &&
+		(where.userId === undefined || row.userId === where.userId) &&
+		(where.memoryKey === undefined || (typeof where.memoryKey === "string"
+			? row.memoryKey === where.memoryKey : row.memoryKey.startsWith(where.memoryKey.startsWith))) &&
 		(where.id === undefined || (typeof where.id === "string"
 			? row.id === where.id : where.id.in.includes(row.id)));
 	const prisma = {
@@ -55,11 +56,30 @@ function loadSubject() {
 				throw new Error("Automatic refresh must not rewrite summaries");
 			},
 		},
-		$transaction: async () => {
-			calls.push({ method: "$transaction" });
-			throw new Error("Automatic refresh must not open a transaction");
-		},
 		userMemory: {
+			findUnique: async (args: { where: { userId_memoryKey: { userId: string; memoryKey: string } } }) => {
+				calls.push({ method: "userMemory.findUnique", where: args.where });
+				const row = rows.find((row) => matches(row, args.where.userId_memoryKey));
+				return row ? { ...row } : null;
+			},
+			create: async (args: { data: Partial<MemoryRow> & Pick<MemoryRow, "userId" | "memoryKey" | "content"> }) => {
+				calls.push({ method: "userMemory.create", data: args.data });
+				assert.ok(!rows.some((row) => row.userId === args.data.userId && row.memoryKey === args.data.memoryKey));
+				const row: MemoryRow = {
+					id: `memory-${nextId++}`, kind: "OTHER", keywords: [],
+					importance: 3, confidence: 1, pinned: false, lastRecalledAt: null,
+					recallCount: 0, createdAt: new Date(0), updatedAt: new Date(0), ...args.data,
+				};
+				rows.push(row);
+				return { ...row };
+			},
+			update: async (args: { where: { id: string }; data: Partial<MemoryRow> }) => {
+				calls.push({ method: "userMemory.update", where: args.where, data: args.data });
+				const row = rows.find((row) => row.id === args.where.id);
+				assert.ok(row, "Update must target an existing row");
+				Object.assign(row, args.data);
+				return { ...row };
+			},
 			upsert: async (args: {
 				where: { userId_memoryKey: { userId: string; memoryKey: string } };
 				create: Partial<MemoryRow> & Pick<MemoryRow, "userId" | "memoryKey" | "content">;
@@ -105,10 +125,23 @@ function loadSubject() {
 			},
 		},
 	};
+	const transactionalPrisma = {
+		...prisma,
+		$transaction: async <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> => {
+			calls.push({ method: "$transaction" });
+			const before = structuredClone(rows);
+			try {
+				return await callback(prisma);
+			} catch (error) {
+				rows.splice(0, rows.length, ...before);
+				throw error;
+			}
+		},
+	};
 	const source = readFileSync(new URL("../lib/persistent-memory-core.ts", import.meta.url), "utf8");
 	let executable = stripTypeScriptTypes(source, { mode: "strip" });
 	const bindings = [
-		['import { createHash } from "node:crypto";', 'const { createHash } = dependencies.crypto;'],
+		['import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";', 'const { manualMemoryKeyForContent } = dependencies;'],
 		['import { prisma } from "@/lib/prisma";', 'const { prisma } = dependencies;'],
 		['import { UserMemoryKind } from "@/generated/prisma/enums";', 'const { UserMemoryKind } = dependencies;'],
 	] as const;
@@ -122,7 +155,7 @@ function loadSubject() {
 		refreshPersistentMemory, createManualMemory, deleteUserMemory,
 		setUserMemoryPinned, listUserMemories, getRelevantPersistentMemories
 	};`, ["dependencies"], { filename: "persistent-memory-core.ts (test dependency bindings)" });
-	const subject = evaluate({ prisma, crypto: { createHash }, UserMemoryKind: { OTHER: "OTHER" } }) as Subject;
+	const subject = evaluate({ prisma: transactionalPrisma, manualMemoryKeyForContent, UserMemoryKind: { OTHER: "OTHER" } }) as Subject;
 	return { subject, calls, rows };
 }
 
@@ -174,7 +207,7 @@ test("[MOCKED CORE] unsupported generated summary cannot be written through refr
 	assert.deepEqual(calls, []);
 });
 
-test("[MOCKED CORE] explicit manual save executes actual upsert and preserves full context", async () => {
+test("[MOCKED CORE] explicit manual save executes actual transaction and preserves full context", async () => {
 	const { subject, calls, rows } = loadSubject();
 	const content = "If budget permits, I prefer using AWS Graviton instances.";
 	const saved = await subject.createManualMemory({ userId: owner, content });
@@ -183,7 +216,9 @@ test("[MOCKED CORE] explicit manual save executes actual upsert and preserves fu
 	assert.equal(rows[0]!.userId, owner);
 	assert.equal(rows[0]!.content, content);
 	assert.match(saved.memoryKey, /^manual\.[a-f0-9]{20}$/);
-	assert.deepEqual(calls[0]!.where, { userId_memoryKey: { userId: owner, memoryKey: saved.memoryKey } });
+	assert.equal(calls[0]!.method, "$transaction");
+	assert.deepEqual(calls.find((call) => call.method === "userMemory.findUnique")?.where,
+		{ userId_memoryKey: { userId: owner, memoryKey: saved.memoryKey } });
 });
 
 test("[MOCKED CORE] repeated manual save retains existing deterministic-key behavior", async () => {
@@ -203,6 +238,30 @@ test("[MOCKED CORE] identical manual content is scoped independently per owner",
 	assert.equal(rows.length, 2);
 	assert.equal(rows[0]!.userId, owner);
 	assert.equal(rows[1]!.userId, other);
+});
+
+test("[MOCKED CORE] corrected assignment updates one row and recall contains only the current value", async () => {
+	const { subject, rows } = loadSubject();
+	const first = await subject.createManualMemory({ userId: owner, content: "my AF-1 target GPU is H200 80GB" });
+	const corrected = await subject.createManualMemory({ userId: owner, content: "my AF-1 target GPU is H100 80GB" });
+	assert.equal(corrected.id, first.id);
+	assert.equal(rows.length, 1);
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner, "my AF-1 target GPU"),
+		["OTHER: my AF-1 target GPU is H100 80GB (pinned)"]);
+});
+
+test("[MOCKED CORE] a legacy assignment migrates in place while another owner's matching slot stays unchanged", async () => {
+	const { subject, rows } = loadSubject();
+	const oldContent = "my AF-1 target GPU is H200 80GB";
+	const seed = await subject.createManualMemory({ userId: owner, content: oldContent });
+	rows[0]!.memoryKey = "manual.legacy-content-hash";
+	await subject.createManualMemory({ userId: other, content: oldContent });
+	const otherBefore = structuredClone(rows[1]);
+	const corrected = await subject.createManualMemory({ userId: owner, content: "my AF-1 target GPU is H100 80GB" });
+	assert.equal(corrected.id, seed.id);
+	assert.match(corrected.memoryKey, /^manual\.slot\.[a-f0-9]{20}$/);
+	assert.equal(rows.length, 2);
+	assert.deepEqual(rows[1], otherBefore);
 });
 
 for (const content of ["   ", "My password is secret", "My API key is a-test-value"]) {
