@@ -1,8 +1,11 @@
+import { prepareCognitiveContext, persistCognitiveMemoryTurn } from "@/lib/cognitive";
 import { getRelevantGraphContext } from "@/lib/graph-memory";
 import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
 import { boundRuntimeContext } from "@services/runtime/context-budget";
-import { getFollowUpContext as getCoreFollowUpContext } from "./conversation-memory-core";
+import { persistConversationTurn as persistConversationTurnCore } from "./conversation-memory-core";
+import { getFollowUpContext as getCoreFollowUpContext } from "./conversation-thread-context";
+import { isThreadLocalFollowUp } from "./conversation-thread";
 
 export type {
 	ConversationMessageDto,
@@ -16,16 +19,17 @@ export {
 	listConversationMessages,
 	listConversations,
 	listResearchHistory,
-	persistConversationTurn,
 } from "./conversation-memory-core";
 
 /**
  * Context-assembly boundary around the existing persistence implementation.
  *
- * The DB queries, recall ranking, rolling summary, and persistence behavior stay in the
- * preserved core. This facade applies one aggregate application-owned budget before
- * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge and
- * graph recall are additive and fail open to the existing conversation/memory path.
+ * The canonical conversation persistence stays in the preserved core, while active-thread
+ * history is resolved through the branch-aware loader so short references keep the exact
+ * preceding answer. This facade then applies one aggregate application-owned budget before
+ * context is passed to retrieval/model orchestration. Semantic uploaded knowledge,
+ * graph recall, optional external durable-memory recall, and Advanced Reasoning context are
+ * additive and fail open to the existing conversation/memory path.
  */
 export async function getFollowUpContext(
 	args: Parameters<typeof getCoreFollowUpContext>[0] & { readonly includeKnowledge?: boolean },
@@ -33,7 +37,11 @@ export async function getFollowUpContext(
 	let context: Awaited<ReturnType<typeof getCoreFollowUpContext>>;
 	try {
 		context = await getCoreFollowUpContext(args);
-	} catch {
+	} catch (error) {
+		// Active-thread failures must not silently degrade into a context-free answer.
+		// Doing so is exactly how "give me notes of it" can become unrelated to the
+		// immediately preceding assistant response.
+		if (args.conversationId || args.parentMessageId) throw error;
 		context = {
 			chatHistory: [],
 			contextualMemory: [],
@@ -41,8 +49,28 @@ export async function getFollowUpContext(
 	}
 	const contextualMemory = [...context.contextualMemory];
 	const isGreeting = isGreetingOnlyQuery(args.query);
+	const threadLocalFollowUp = context.chatHistory.length > 0 && isThreadLocalFollowUp(args.query);
 
-	if (!isGreeting && args.includeKnowledge !== false) {
+	if (!isGreeting) {
+		try {
+			const cognitive = await prepareCognitiveContext({
+				userId: args.userId,
+				query: args.query,
+				allowPersistentMemory: !threadLocalFollowUp,
+			});
+			contextualMemory.push(...cognitive.contextItems);
+		} catch (error) {
+			console.warn(
+				"[AIRA cognitive] Command-routed reasoning/memory preparation failed; continuing on native context only:",
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+	}
+
+	// Short transformations/references should use the verified active thread as their
+	// primary source. Broad knowledge/graph recall on phrases like "give me notes of it"
+	// can inject unrelated material that shares only generic words such as "notes".
+	if (!isGreeting && !threadLocalFollowUp && args.includeKnowledge !== false) {
 		try {
 			const knowledge = await getRelevantKnowledgeContext(args.userId, args.query, 6);
 			if (knowledge.length > 0) {
@@ -58,7 +86,7 @@ export async function getFollowUpContext(
 		}
 	}
 
-	if (!isGreeting) {
+	if (!isGreeting && !threadLocalFollowUp) {
 		try {
 			const graph = await getRelevantGraphContext(args.userId, args.query, 8);
 			if (graph.length > 0) {
@@ -100,4 +128,28 @@ export async function getFollowUpContext(
 		contextualMemory: bounded.contextualMemory,
 		resolvedConversationId: context.resolvedConversationId,
 	};
+}
+
+/**
+ * Persist the canonical AIRA conversation turn first. Explicit durable-memory commands
+ * are then committed to Aira's own user-memory store. External memory replication remains
+ * optional, so a missing third-party service never disables Aira's memory feature.
+ */
+export async function persistConversationTurn(
+	args: Parameters<typeof persistConversationTurnCore>[0],
+): Promise<Awaited<ReturnType<typeof persistConversationTurnCore>>> {
+	const persisted = await persistConversationTurnCore(args);
+	try {
+		await persistCognitiveMemoryTurn({
+			userId: args.userId,
+			query: args.query,
+			answer: args.answer,
+		});
+	} catch (error) {
+		console.warn(
+			"[AIRA cognitive] Durable memory write failed after canonical conversation persistence:",
+			error instanceof Error ? error.message : String(error),
+		);
+	}
+	return persisted;
 }
