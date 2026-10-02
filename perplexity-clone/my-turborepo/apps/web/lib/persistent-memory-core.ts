@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
-
-import { prisma } from "@/lib/prisma";
 import { UserMemoryKind } from "@/generated/prisma/enums";
+import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";
+import { prisma } from "@/lib/prisma";
 
 const MAX_RECALL_CANDIDATES = 120;
 const MAX_RECALLED_MEMORIES = 10;
@@ -195,6 +194,21 @@ export async function listUserMemories(userId: string, limit = 100): Promise<rea
 	});
 }
 
+const USER_MEMORY_SELECT = {
+	id: true,
+	memoryKey: true,
+	kind: true,
+	content: true,
+	keywords: true,
+	importance: true,
+	confidence: true,
+	pinned: true,
+	lastRecalledAt: true,
+	recallCount: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
+
 export async function createManualMemory(args: {
 	readonly userId: string;
 	readonly content: string;
@@ -205,42 +219,58 @@ export async function createManualMemory(args: {
 	if (!content || looksSensitive(content)) {
 		throw new Error("This memory is empty or contains sensitive credential-like information.");
 	}
-	const digest = createHash("sha256").update(content.toLowerCase()).digest("hex").slice(0, 20);
-	const memoryKey = `manual.${digest}`;
-	return prisma.userMemory.upsert({
-		where: { userId_memoryKey: { userId: args.userId, memoryKey } },
-		create: {
-			userId: args.userId,
-			memoryKey,
-			kind: args.kind ?? UserMemoryKind.OTHER,
-			content,
-			keywords: tokenize(content).slice(0, 10),
-			importance: args.pinned ? 5 : 4,
-			confidence: 1,
-			pinned: args.pinned ?? true,
-		},
-		update: {
-			content,
-			kind: args.kind ?? UserMemoryKind.OTHER,
-			keywords: tokenize(content).slice(0, 10),
-			importance: args.pinned ? 5 : 4,
-			confidence: 1,
-			pinned: args.pinned ?? true,
-		},
-		select: {
-			id: true,
-			memoryKey: true,
-			kind: true,
-			content: true,
-			keywords: true,
-			importance: true,
-			confidence: true,
-			pinned: true,
-			lastRecalledAt: true,
-			recallCount: true,
-			createdAt: true,
-			updatedAt: true,
-		},
+	const memoryKey = manualMemoryKeyForContent(content);
+	const data = {
+		content,
+		kind: args.kind ?? UserMemoryKind.OTHER,
+		keywords: tokenize(content).slice(0, 10),
+		importance: args.pinned ? 5 : 4,
+		confidence: 1,
+		pinned: args.pinned ?? true,
+	};
+
+	return prisma.$transaction(async (tx) => {
+		const existing = await tx.userMemory.findUnique({
+			where: { userId_memoryKey: { userId: args.userId, memoryKey } },
+			select: { id: true },
+		});
+		if (existing) {
+			return tx.userMemory.update({
+				where: { id: existing.id },
+				data,
+				select: USER_MEMORY_SELECT,
+			});
+		}
+
+		if (memoryKey.startsWith("manual.slot.")) {
+			const legacy = await tx.userMemory.findMany({
+				where: { userId: args.userId, memoryKey: { startsWith: "manual." } },
+				orderBy: { updatedAt: "desc" },
+				take: 120,
+				select: { id: true, memoryKey: true, content: true },
+			});
+			const sameSlot = legacy.find(
+				(memory) =>
+					memory.memoryKey !== memoryKey &&
+					manualMemoryKeyForContent(memory.content) === memoryKey,
+			);
+			if (sameSlot) {
+				return tx.userMemory.update({
+					where: { id: sameSlot.id },
+					data: { ...data, memoryKey },
+					select: USER_MEMORY_SELECT,
+				});
+			}
+		}
+
+		return tx.userMemory.create({
+			data: {
+				userId: args.userId,
+				memoryKey,
+				...data,
+			},
+			select: USER_MEMORY_SELECT,
+		});
 	});
 }
 
