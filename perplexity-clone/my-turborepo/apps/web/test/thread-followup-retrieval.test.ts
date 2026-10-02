@@ -55,7 +55,7 @@ test("THREAD-RETRIEVAL-04: search route sends no-search conversational queries t
 		"utf8",
 	);
 	assert.ok(route.includes("isGreetingOnlyQuery(parsed.data.query)"));
-	assert.ok(route.includes("} else if (greetingOnly) {"));
+	assert.ok(route.includes("} else if (greetingOnly || memoryOnly) {"));
 	assert.ok(route.includes("disableSearch: true"));
 	assert.ok(route.includes("chatHistory: context.chatHistory"));
 });

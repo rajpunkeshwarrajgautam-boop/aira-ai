@@ -1,3 +1,4 @@
+import { isPersonalMemoryRecallQuery } from "./memory-relevance";
 import { getRelevantGraphContext } from "@/lib/graph-memory";
 import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
@@ -46,7 +47,7 @@ export async function getFollowUpContext(
 	const threadLocalFollowUp = context.chatHistory.length > 0 && isThreadLocalFollowUp(args.query);
 	const memoryDisabled = isMemoryDisabledRequest(args.query);
 
-	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp && args.includeKnowledge !== false) {
+	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp && !isPersonalMemoryRecallQuery(args.query) && args.includeKnowledge !== false) {
 		try {
 			const knowledge = await getRelevantKnowledgeContext(args.userId, args.query, 6);
 			if (knowledge.length > 0) {
@@ -62,7 +63,7 @@ export async function getFollowUpContext(
 		}
 	}
 
-	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp) {
+	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp && !isPersonalMemoryRecallQuery(args.query)) {
 		try {
 			const graph = await getRelevantGraphContext(args.userId, args.query, 8);
 			if (graph.length > 0) {

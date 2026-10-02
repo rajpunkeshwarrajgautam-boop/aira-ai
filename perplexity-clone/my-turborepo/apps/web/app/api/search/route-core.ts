@@ -23,6 +23,8 @@ import {
 	getFollowUpContext,
 	persistConversationTurn,
 } from "@/lib/conversation-memory";
+import { isPersonalMemoryRecallQuery } from "@/lib/memory-relevance";
+import { isExplicitDurableMemoryRequest } from "@/lib/conversation-thread";
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
@@ -257,7 +259,9 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	const mathAnswer = tryParseMathAnswer(parsed.data.query);
 	const greetingOnly =
 		mathAnswer === null && isGreetingOnlyQuery(parsed.data.query);
-	const skipSearchQuota = mathAnswer !== null || greetingOnly;
+	const memoryOnly = isPersonalMemoryRecallQuery(parsed.data.query) ||
+		isExplicitDurableMemoryRequest(parsed.data.query);
+	const skipSearchQuota = mathAnswer !== null || greetingOnly || memoryOnly;
 
 	if (!userId) {
 		if (parsed.data.conversationId || parsed.data.parentMessageId || parsed.data.continueResearch) {
@@ -420,14 +424,14 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							yield `The result is **${resultText}**.`;
 						})(),
 					};
-				} else if (greetingOnly) {
+				} else if (greetingOnly || memoryOnly) {
 					analyticsSearchMode = "standard";
 					grounded = await streamGroundedAnswer({
 						query: parsed.data.query,
 						router: await ProviderRouter.createDefault(providerTier),
 						abortSignal: abort.signal,
 						chatHistory: context.chatHistory,
-						contextualMemory: context.chatHistory.length > 0 ? context.contextualMemory : [],
+						contextualMemory: memoryOnly || context.chatHistory.length > 0 ? context.contextualMemory : [],
 						disableSearch: true,
 						presetId: parsed.data.presetId,
 						onProgress: (ev) => emitProgress(ev.stage, ev.message),

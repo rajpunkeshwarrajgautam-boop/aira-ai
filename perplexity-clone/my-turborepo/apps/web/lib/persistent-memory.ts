@@ -1,3 +1,6 @@
+import { isMemoryDisabledRequest } from "./conversation-thread";
+import { isGreetingOnlyQuery } from "./search/no-quota-query";
+import { memoryMatchesRequestedSubject } from "./memory-relevance";
 import {
 	createManualMemory as createCoreManualMemory,
 	getRelevantPersistentMemories as getCoreRelevantPersistentMemories,
@@ -62,6 +65,7 @@ export async function getRelevantPersistentMemories(
 	query: string,
 	limit = 8,
 ): Promise<readonly string[]> {
+	if (isMemoryDisabledRequest(query) || isGreetingOnlyQuery(query)) return [];
 	const lexical = await getCoreRelevantPersistentMemories(userId, query, limit);
 
 	try {
@@ -73,7 +77,8 @@ export async function getRelevantPersistentMemories(
 		]);
 		const semantic = memories
 			.map((memory) => ({ memory, similarity: scores.get(memory.id) ?? -1 }))
-			.filter(({ memory, similarity }) => memory.pinned || similarity >= 0.55)
+			.filter(({ memory, similarity }) => similarity >= 0.55 &&
+				memoryMatchesRequestedSubject(memory.content, query))
 			.sort(
 				(a, b) =>
 					Number(b.memory.pinned) - Number(a.memory.pinned) ||

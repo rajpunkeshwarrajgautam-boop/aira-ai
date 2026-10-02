@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { compileFunction } from "node:vm";
+import * as memoryRelevance from "../lib/memory-relevance";
 import { manualMemoryKeyForContent } from "../lib/manual-memory-key";
 
 type CoreModule = typeof import("../lib/persistent-memory-core");
@@ -141,6 +142,7 @@ function loadSubject() {
 	const source = readFileSync(new URL("../lib/persistent-memory-core.ts", import.meta.url), "utf8");
 	let executable = stripTypeScriptTypes(source, { mode: "strip" });
 	const bindings = [
+		['import { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } from "./memory-relevance";', 'const { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } = dependencies;'],
 		['import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";', 'const { manualMemoryKeyForContent } = dependencies;'],
 		['import { prisma } from "@/lib/prisma";', 'const { prisma } = dependencies;'],
 		['import { UserMemoryKind } from "@/generated/prisma/enums";', 'const { UserMemoryKind } = dependencies;'],
@@ -155,7 +157,7 @@ function loadSubject() {
 		refreshPersistentMemory, createManualMemory, deleteUserMemory,
 		setUserMemoryPinned, listUserMemories, getRelevantPersistentMemories
 	};`, ["dependencies"], { filename: "persistent-memory-core.ts (test dependency bindings)" });
-	const subject = evaluate({ prisma: transactionalPrisma, manualMemoryKeyForContent, UserMemoryKind: { OTHER: "OTHER" } }) as Subject;
+	const subject = evaluate({ ...memoryRelevance, prisma: transactionalPrisma, manualMemoryKeyForContent, UserMemoryKind: { OTHER: "OTHER" } }) as Subject;
 	return { subject, calls, rows };
 }
 
@@ -310,4 +312,27 @@ test("[MOCKED CORE] list and recall retain owner scoping and existing confirmed 
 		(call.where as Where).userId === owner));
 	const update = calls.find((call) => call.method === "userMemory.updateMany");
 	assert.deepEqual(update?.where, { id: { in: [saved.id] }, userId: owner });
+});
+
+test("[MOCKED CORE] pinning and recency cannot make unrelated memories relevant", async () => {
+	const { subject, calls } = loadSubject();
+	await subject.createManualMemory({ userId: owner, content: "My certification code is CEDAR-6412", pinned: true });
+	await subject.createManualMemory({ userId: owner, content: "My favorite meal is pasta", pinned: false });
+	calls.length = 0;
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner, "Explain lunar eclipses"), []);
+	assert.ok(!calls.some((call) => call.method === "userMemory.updateMany"), "Rejected memories must not count as recalled");
+});
+
+test("[MOCKED CORE] distinguish requested subjects, preserve exact recall and explicit inventories", async () => {
+	const { subject } = loadSubject();
+	await subject.createManualMemory({ userId: owner, content: "The user's Aira certification QA test code is CEDAR-6412" });
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner,
+		"What is my Aira private QA test code? Answer only with the exact code if you actually remember it; otherwise answer UNKNOWN."), []);
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner,
+		"What do you remember about my Aira private QA test code?"), []);
+	const recalled = await subject.getRelevantPersistentMemories(owner,
+		"What is my Aira certification QA test code that I asked you to remember? Answer only with the code.");
+	assert.equal(recalled.length, 1);
+	assert.match(recalled[0]!, /CEDAR-6412/);
+	assert.equal((await subject.getRelevantPersistentMemories(owner, "What do you remember about me?")).length, 1);
 });

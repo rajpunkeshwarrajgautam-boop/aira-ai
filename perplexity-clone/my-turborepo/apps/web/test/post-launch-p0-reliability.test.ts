@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test, { mock } from "node:test";
 import { compileFunction } from "node:vm";
+import * as memoryRelevance from "../lib/memory-relevance";
 import { manualMemoryKeyForContent } from "../lib/manual-memory-key";
 
 // Mock Session User for Route Tests
@@ -76,6 +77,7 @@ function loadMemorySubject() {
 	};
 	const source = readFileSync(new URL("../lib/persistent-memory-core.ts", import.meta.url), "utf8");
 	let executable = stripTypeScriptTypes(source, { mode: "strip" });
+	executable = executable.replace('import { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } from "./memory-relevance";', 'const { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } = dependencies;');
 	const keyImport = 'import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";';
 	assert.ok(executable.includes(keyImport), "Bind the actual stable-key dependency explicitly");
 	executable = executable.replace(keyImport, "const { manualMemoryKeyForContent } = dependencies;");
@@ -89,6 +91,7 @@ function loadMemorySubject() {
 		{ filename: "persistent-memory-core.ts (test runner)" },
 	);
 	const subject = evaluate({
+		...memoryRelevance,
 		prisma,
 		manualMemoryKeyForContent,
 		UserMemoryKind: { OTHER: "OTHER" },
@@ -231,7 +234,7 @@ test("P0-MEM-BEH-04: route-core suppresses contextualMemory on standalone greeti
 		"utf8",
 	);
 	assert.ok(
-		routeSource.includes("contextualMemory: context.chatHistory.length > 0 ? context.contextualMemory : []"),
+		routeSource.includes("contextualMemory: memoryOnly || context.chatHistory.length > 0 ? context.contextualMemory : []"),
 		"route-core must not inject background contextualMemory on standalone greetings with empty chat history",
 	);
 });

@@ -2,6 +2,8 @@ import { UserMemoryKind } from "@/generated/prisma/enums";
 import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";
 import { prisma } from "@/lib/prisma";
 
+import { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } from "./memory-relevance";
+
 const MAX_RECALL_CANDIDATES = 120;
 const MAX_RECALLED_MEMORIES = 10;
 
@@ -147,14 +149,14 @@ export async function getRelevantPersistentMemories(
 	});
 	if (candidates.length === 0) return [];
 
-	const showAll = /\b(what do you remember|what do you know about me|remember about me|my memories|my preferences|my profile)\b/i.test(
-		query,
-	);
-	const queryTokens = tokenize(query);
+	const showAll = isMemoryInventoryQuery(query);
+	const queryTokens = memoryQueryTokens(query);
 	if ((queryTokens.length === 0 || isGreetingQuery(query)) && !showAll) return [];
 	const ranked = candidates
 		.map((memory) => ({ memory, score: scoreMemory(memory, queryTokens, showAll) }))
-		.filter(({ memory, score }) => showAll || memory.pinned || score >= 3.8)
+		.filter(({ memory, score }) => showAll || (score >= 3.8 &&
+			memoryMatchesRequestedSubject(memory.content, query) &&
+			hasMemoryTopicOverlap(memory.content, memory.keywords, query)))
 		.sort((a, b) => b.score - a.score || b.memory.updatedAt.getTime() - a.memory.updatedAt.getTime())
 		.slice(0, Math.min(Math.max(limit, 1), MAX_RECALLED_MEMORIES));
 
