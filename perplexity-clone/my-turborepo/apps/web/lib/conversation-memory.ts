@@ -3,10 +3,8 @@ import { getRelevantGraphContext } from "@/lib/graph-memory";
 import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
 import { boundRuntimeContext } from "@services/runtime/context-budget";
-import {
-	getFollowUpContext as getCoreFollowUpContext,
-	persistConversationTurn as persistConversationTurnCore,
-} from "./conversation-memory-core";
+import { persistConversationTurn as persistConversationTurnCore } from "./conversation-memory-core";
+import { getFollowUpContext as getCoreFollowUpContext } from "./conversation-thread-context";
 
 export type {
 	ConversationMessageDto,
@@ -25,8 +23,9 @@ export {
 /**
  * Context-assembly boundary around the existing persistence implementation.
  *
- * The DB queries, recall ranking, rolling summary, and persistence behavior stay in the
- * preserved core. This facade applies one aggregate application-owned budget before
+ * The canonical conversation persistence stays in the preserved core, while active-thread
+ * history is resolved through the branch-aware loader so short references keep the exact
+ * preceding answer. This facade then applies one aggregate application-owned budget before
  * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge,
  * graph recall, command-routed AgentMemory recall, and Advanced Reasoning context are
  * additive and fail open to the existing conversation/memory path.
@@ -37,7 +36,11 @@ export async function getFollowUpContext(
 	let context: Awaited<ReturnType<typeof getCoreFollowUpContext>>;
 	try {
 		context = await getCoreFollowUpContext(args);
-	} catch {
+	} catch (error) {
+		// Active-thread failures must not silently degrade into a context-free answer.
+		// Doing so is exactly how "give me notes of it" can become unrelated to the
+		// immediately preceding assistant response.
+		if (args.conversationId || args.parentMessageId) throw error;
 		context = {
 			chatHistory: [],
 			contextualMemory: [],
