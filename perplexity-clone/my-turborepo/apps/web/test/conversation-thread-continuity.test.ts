@@ -118,3 +118,22 @@ test("CHAT-CONT-06: facade uses branch-aware context and does not silently drop 
 		"the active parent assistant message must never be excluded from context",
 	);
 });
+
+test("CHAT-CONT-07: no-memory mode suppresses native durable and research recall", () => {
+	const contextLoader = readFileSync(
+		new URL("../lib/conversation-thread-context.ts", import.meta.url),
+		"utf8",
+	);
+	assert.ok(
+		contextLoader.includes("const memoryDisabled = routeCognitiveCapabilities(query).memoryDisabled;"),
+		"the native context loader must honor the server-authoritative no-memory policy",
+	);
+	assert.ok(
+		contextLoader.includes("threadLocalFollowUp || memoryDisabled"),
+		"durable memory recall must be disabled for private/no-memory commands",
+	);
+	assert.ok(
+		contextLoader.includes("!memoryDisabled && !threadLocalFollowUp"),
+		"prior research recall must also be disabled for private/no-memory commands",
+	);
+});
