@@ -3,6 +3,7 @@ import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
 import { boundRuntimeContext } from "@services/runtime/context-budget";
 import { getFollowUpContext as getCoreFollowUpContext } from "./conversation-memory-core";
+import { isMemoryDisabledRequest, isThreadLocalFollowUp } from "./conversation-thread";
 
 export type {
 	ConversationMessageDto,
@@ -22,10 +23,10 @@ export {
 /**
  * Context-assembly boundary around the existing persistence implementation.
  *
- * The DB queries, recall ranking, rolling summary, and persistence behavior stay in the
- * preserved core. This facade applies one aggregate application-owned budget before
- * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge and
- * graph recall are additive and fail open to the existing conversation/memory path.
+ * Active-thread failures fail closed instead of silently degrading into a context-free
+ * answer. Thread-local transformations/references prioritize the verified chat branch and
+ * suppress unrelated background retrieval that could contaminate phrases such as
+ * "give me notes of it" or "explain the second one".
  */
 export async function getFollowUpContext(
 	args: Parameters<typeof getCoreFollowUpContext>[0] & { readonly includeKnowledge?: boolean },
@@ -33,7 +34,8 @@ export async function getFollowUpContext(
 	let context: Awaited<ReturnType<typeof getCoreFollowUpContext>>;
 	try {
 		context = await getCoreFollowUpContext(args);
-	} catch {
+	} catch (error) {
+		if (args.conversationId || args.parentMessageId) throw error;
 		context = {
 			chatHistory: [],
 			contextualMemory: [],
@@ -41,8 +43,10 @@ export async function getFollowUpContext(
 	}
 	const contextualMemory = [...context.contextualMemory];
 	const isGreeting = isGreetingOnlyQuery(args.query);
+	const threadLocalFollowUp = context.chatHistory.length > 0 && isThreadLocalFollowUp(args.query);
+	const memoryDisabled = isMemoryDisabledRequest(args.query);
 
-	if (!isGreeting && args.includeKnowledge !== false) {
+	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp && args.includeKnowledge !== false) {
 		try {
 			const knowledge = await getRelevantKnowledgeContext(args.userId, args.query, 6);
 			if (knowledge.length > 0) {
@@ -58,7 +62,7 @@ export async function getFollowUpContext(
 		}
 	}
 
-	if (!isGreeting) {
+	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp) {
 		try {
 			const graph = await getRelevantGraphContext(args.userId, args.query, 8);
 			if (graph.length > 0) {
