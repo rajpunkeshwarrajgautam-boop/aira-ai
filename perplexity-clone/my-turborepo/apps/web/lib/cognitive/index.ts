@@ -33,6 +33,7 @@ export async function prepareCognitiveContext(args: {
 	readonly query: string;
 	readonly projectId?: string;
 	readonly sessionId?: string;
+	readonly allowPersistentMemory?: boolean;
 }): Promise<CognitiveContextResult> {
 	const decision = routeCognitiveCapabilities(args.query);
 	const contextItems: string[] = [];
@@ -45,7 +46,11 @@ export async function prepareCognitiveContext(args: {
 		contextItems.push(reasoning.context);
 	}
 
-	if (decision.memoryRecall && !decision.memoryDisabled) {
+	if (
+		args.allowPersistentMemory !== false &&
+		decision.memoryRecall &&
+		!decision.memoryDisabled
+	) {
 		const recalled = await recallAgentMemoryContext({
 			userId: args.userId,
 			query: args.query,
@@ -66,6 +71,7 @@ export async function prepareCognitiveContext(args: {
 		JSON.stringify({
 			advancedReasoning: decision.advancedReasoning,
 			memoryRecall: decision.memoryRecall,
+			memoryRecallAllowed: args.allowPersistentMemory !== false,
 			memoryWrite: decision.memoryWrite,
 			memoryDisabled: decision.memoryDisabled,
 			reasonCodes: decision.reasonCodes,
