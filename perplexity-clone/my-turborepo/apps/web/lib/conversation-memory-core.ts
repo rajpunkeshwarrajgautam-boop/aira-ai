@@ -1,11 +1,22 @@
 import { ConversationMessageRole } from "@/generated/prisma/enums";
 import {
+	createManualMemory,
 	getRelevantPersistentMemories,
 	refreshPersistentMemory,
 } from "@/lib/persistent-memory";
 import { prisma } from "@/lib/prisma";
 import { generatePublicShareToken } from "@/lib/research-share";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
+
+import {
+	canonicalDurableMemoryText,
+	isExplicitDurableMemoryRequest,
+	isMemoryDisabledRequest,
+	isThreadLocalFollowUp,
+	toModelChatHistory,
+	walkConversationAncestry,
+	type ConversationThreadNode,
+} from "./conversation-thread";
 
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
 const DEFAULT_MEMORY_LIMIT = 8;
@@ -35,6 +46,59 @@ function inferTitleFromQuery(query: string): string {
 	const compact = query.trim().replace(/\s+/g, " ");
 	if (!compact) return "Untitled conversation";
 	return compact.length <= 80 ? compact : compact.slice(0, 77) + "...";
+}
+
+type DbThreadMessage = ConversationThreadNode & {
+	readonly createdAt: Date;
+};
+
+async function loadActiveThreadHistory(args: {
+	readonly userId: string;
+	readonly conversationId: string;
+	readonly parentMessageId?: string;
+	readonly messageLimit: number;
+}): Promise<readonly { readonly role: "user" | "assistant"; readonly content: string }[]> {
+	const limit = Math.min(Math.max(Math.trunc(args.messageLimit), 1), 30);
+
+	if (args.parentMessageId) {
+		const rows = await walkConversationAncestry<DbThreadMessage>({
+			parentMessageId: args.parentMessageId,
+			limit,
+			loadMessage: async (id) =>
+				prisma.conversationMessage.findFirst({
+					where: {
+						id,
+						userId: args.userId,
+						conversationId: args.conversationId,
+					},
+					select: {
+						id: true,
+						role: true,
+						content: true,
+						parentMessageId: true,
+						createdAt: true,
+					},
+				}),
+		});
+		return toModelChatHistory(rows);
+	}
+
+	const rows = await prisma.conversationMessage.findMany({
+		where: {
+			userId: args.userId,
+			conversationId: args.conversationId,
+		},
+		orderBy: { createdAt: "desc" },
+		take: limit,
+		select: {
+			id: true,
+			role: true,
+			content: true,
+			parentMessageId: true,
+			createdAt: true,
+		},
+	});
+	return toModelChatHistory(rows.reverse());
 }
 
 export async function createConversation(
@@ -122,6 +186,10 @@ export async function getFollowUpContext(args: {
 		memoryLimit = DEFAULT_MEMORY_LIMIT,
 	} = args;
 
+	if (parentMessageId && !conversationId) {
+		throw new Error("A parent message requires an active conversation.");
+	}
+
 	let resolvedConversationId: string | undefined;
 	let conversationSummary: string | null = null;
 	if (conversationId) {
@@ -134,54 +202,46 @@ export async function getFollowUpContext(args: {
 		conversationSummary = row.summary;
 	}
 
-	const chatHistoryRaw = resolvedConversationId
-		? await prisma.conversationMessage.findMany({
-				where: {
-					userId,
-					conversationId: resolvedConversationId,
-					...(parentMessageId ? { id: { not: parentMessageId } } : {}),
-				},
-				orderBy: { createdAt: "desc" },
-				take: Math.min(Math.max(messageLimit, 1), 30),
-				select: { role: true, content: true },
+	const chatHistory = resolvedConversationId
+		? await loadActiveThreadHistory({
+				userId,
+				conversationId: resolvedConversationId,
+				...(parentMessageId ? { parentMessageId } : {}),
+				messageLimit,
 			})
 		: [];
 
-	const chatHistory = chatHistoryRaw
-		.reverse()
-		.filter(
-			(m): m is { role: "USER" | "ASSISTANT"; content: string } =>
-				m.role === "USER" || m.role === "ASSISTANT",
-		)
-		.map((m): { readonly role: "user" | "assistant"; readonly content: string } => ({
-			role: m.role === "USER" ? "user" : "assistant",
-			content: m.content,
-		}));
+	const threadLocalFollowUp =
+		Boolean(resolvedConversationId && chatHistory.length > 0) && isThreadLocalFollowUp(query);
+	const memoryDisabled = isMemoryDisabledRequest(query);
 
-	const durableMemories = await getRelevantPersistentMemories(userId, query, memoryLimit);
+	const durableMemories = threadLocalFollowUp || memoryDisabled
+		? []
+		: await getRelevantPersistentMemories(userId, query, memoryLimit);
 
 	const normalized = normalizeQuery(query);
-	const queryTokens = normalized.split(" ").filter((t) => t.length > 2).slice(0, 5);
+	const queryTokens = normalized.split(" ").filter((token) => token.length > 2).slice(0, 5);
 	const researchCandidates =
-		!isGreetingOnlyQuery(query) && queryTokens.length
+		!memoryDisabled && !threadLocalFollowUp && !isGreetingOnlyQuery(query) && queryTokens.length
 			? await prisma.researchHistory.findMany({
-				where: {
-					userId,
-					OR: [
-						{ normalizedQuery: { contains: normalized, mode: "insensitive" } },
-						...queryTokens.map((token) => ({
-							normalizedQuery: { contains: token, mode: "insensitive" as const },
-						})),
-					],
-				},
-				orderBy: { createdAt: "desc" },
-				take: Math.min(Math.max(Math.ceil(memoryLimit / 2), 1), 4),
-				select: { query: true, assistantAnswer: true },
-			})
-		: [];
+					where: {
+						userId,
+						...(resolvedConversationId ? { conversationId: resolvedConversationId } : {}),
+						OR: [
+							{ normalizedQuery: { contains: normalized, mode: "insensitive" } },
+							...queryTokens.map((token) => ({
+								normalizedQuery: { contains: token, mode: "insensitive" as const },
+							})),
+						],
+					},
+					orderBy: { createdAt: "desc" },
+					take: Math.min(Math.max(Math.ceil(memoryLimit / 2), 1), 4),
+					select: { query: true, assistantAnswer: true },
+				})
+			: [];
 
 	const contextualMemory: string[] = [];
-	if (conversationSummary?.trim()) {
+	if (!memoryDisabled && conversationSummary?.trim()) {
 		contextualMemory.push(`CURRENT CONVERSATION SUMMARY:\n${conversationSummary.trim()}`);
 	}
 	if (durableMemories.length > 0) {
@@ -285,21 +345,44 @@ export async function persistConversationTurn(args: {
 		return { userMessageId: userMessage.id, assistantMessageId: assistantMessage.id };
 	});
 
-	// Memory curation is best-effort: a provider or parsing failure must never make
-	// an otherwise successful chat turn fail or disappear from conversation history.
-	try {
-		await refreshPersistentMemory({
-			userId: args.userId,
-			conversationId: conversation.id,
-			userMessageId: result.userMessageId,
-			query: args.query,
-			answer: args.answer,
-		});
-	} catch (error) {
-		console.warn(
-			"[AIRA memory] Could not refresh persistent memory:",
-			error instanceof Error ? error.message : String(error),
-		);
+	// Explicit, non-private memory commands are persisted to Aira's own user-scoped
+	// durable memory store. The existing safety filter in createManualMemory rejects
+	// credential-like or otherwise prohibited content.
+	if (isExplicitDurableMemoryRequest(args.query)) {
+		const durableContent = canonicalDurableMemoryText(args.query);
+		if (durableContent) {
+			try {
+				await createManualMemory({
+					userId: args.userId,
+					content: durableContent,
+					pinned: true,
+				});
+			} catch (error) {
+				console.warn(
+					"[AIRA memory] Explicit durable memory write was rejected:",
+					error instanceof Error ? error.message : String(error),
+				);
+			}
+		}
+	}
+
+	// Existing memory curation remains best-effort. It must never make an otherwise
+	// successful chat turn fail or disappear from conversation history.
+	if (!isMemoryDisabledRequest(args.query)) {
+		try {
+			await refreshPersistentMemory({
+				userId: args.userId,
+				conversationId: conversation.id,
+				userMessageId: result.userMessageId,
+				query: args.query,
+				answer: args.answer,
+			});
+		} catch (error) {
+			console.warn(
+				"[AIRA memory] Could not refresh persistent memory:",
+				error instanceof Error ? error.message : String(error),
+			);
+		}
 	}
 
 	return {
