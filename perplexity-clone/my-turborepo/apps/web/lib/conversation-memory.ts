@@ -1,8 +1,12 @@
+import { prepareCognitiveContext, persistCognitiveMemoryTurn } from "@/lib/cognitive";
 import { getRelevantGraphContext } from "@/lib/graph-memory";
 import { getRelevantKnowledgeContext } from "@/lib/knowledge-assets";
 import { isGreetingOnlyQuery } from "@/lib/search/no-quota-query";
 import { boundRuntimeContext } from "@services/runtime/context-budget";
-import { getFollowUpContext as getCoreFollowUpContext } from "./conversation-memory-core";
+import {
+	getFollowUpContext as getCoreFollowUpContext,
+	persistConversationTurn as persistConversationTurnCore,
+} from "./conversation-memory-core";
 
 export type {
 	ConversationMessageDto,
@@ -16,7 +20,6 @@ export {
 	listConversationMessages,
 	listConversations,
 	listResearchHistory,
-	persistConversationTurn,
 } from "./conversation-memory-core";
 
 /**
@@ -24,8 +27,9 @@ export {
  *
  * The DB queries, recall ranking, rolling summary, and persistence behavior stay in the
  * preserved core. This facade applies one aggregate application-owned budget before
- * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge and
- * graph recall are additive and fail open to the existing conversation/memory path.
+ * context is passed to retrieval/model orchestration. Semantic uploaded-knowledge,
+ * graph recall, command-routed Memori recall, and Advanced Reasoning context are additive
+ * and fail open to the existing conversation/memory path.
  */
 export async function getFollowUpContext(
 	args: Parameters<typeof getCoreFollowUpContext>[0] & { readonly includeKnowledge?: boolean },
@@ -41,6 +45,21 @@ export async function getFollowUpContext(
 	}
 	const contextualMemory = [...context.contextualMemory];
 	const isGreeting = isGreetingOnlyQuery(args.query);
+
+	if (!isGreeting) {
+		try {
+			const cognitive = await prepareCognitiveContext({
+				userId: args.userId,
+				query: args.query,
+			});
+			contextualMemory.push(...cognitive.contextItems);
+		} catch (error) {
+			console.warn(
+				"[AIRA cognitive] Command-routed reasoning/memory preparation failed; continuing on native context only:",
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+	}
 
 	if (!isGreeting && args.includeKnowledge !== false) {
 		try {
@@ -100,4 +119,28 @@ export async function getFollowUpContext(
 		contextualMemory: bounded.contextualMemory,
 		resolvedConversationId: context.resolvedConversationId,
 	};
+}
+
+/**
+ * Persist the canonical AIRA conversation turn first, then synchronously commit explicitly
+ * durable memory to Memori when the server-authoritative cognitive policy selects it.
+ * Memori failure never rolls back the canonical AIRA conversation record.
+ */
+export async function persistConversationTurn(
+	args: Parameters<typeof persistConversationTurnCore>[0],
+): Promise<Awaited<ReturnType<typeof persistConversationTurnCore>>> {
+	const persisted = await persistConversationTurnCore(args);
+	try {
+		await persistCognitiveMemoryTurn({
+			userId: args.userId,
+			query: args.query,
+			answer: args.answer,
+		});
+	} catch (error) {
+		console.warn(
+			"[AIRA cognitive] Durable external memory write failed after canonical persistence:",
+			error instanceof Error ? error.message : String(error),
+		);
+	}
+	return persisted;
 }
