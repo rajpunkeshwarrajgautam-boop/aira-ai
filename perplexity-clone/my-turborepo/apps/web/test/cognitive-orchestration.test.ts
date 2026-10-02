@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -59,4 +60,24 @@ test("AgentMemory write filter blocks credential-like durable memory", () => {
 	assert.equal(containsProhibitedMemoryData("api_key = sk-secret-value"), true);
 	assert.equal(containsProhibitedMemoryData("password: hunter2"), true);
 	assert.equal(containsProhibitedMemoryData("Remember that this project uses PostgreSQL 18."), false);
+});
+
+test("explicit durable memory is committed to Aira native memory before optional replication", () => {
+	const cognitive = readFileSync(new URL("../lib/cognitive/index.ts", import.meta.url), "utf8");
+	assert.ok(
+		cognitive.includes('import { createManualMemory } from "@/lib/persistent-memory";'),
+		"explicit durable memory must use Aira's canonical native memory store",
+	);
+	assert.ok(
+		cognitive.includes("nativePersisted = true"),
+		"native persistence must be the success criterion",
+	);
+	assert.ok(
+		cognitive.includes("if (isAgentMemoryConfigured())"),
+		"AgentMemory must remain optional replication rather than a runtime dependency",
+	);
+	assert.ok(
+		cognitive.includes("return nativePersisted;"),
+		"memory should work even when no external provider is configured",
+	);
 });
