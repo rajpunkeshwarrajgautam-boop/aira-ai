@@ -111,10 +111,23 @@ function flattenText(value: unknown, depth = 0): string[] {
 		.flatMap(([, child]) => flattenText(child, depth + 1));
 }
 
+function stripControlCharacters(value: string): string {
+	let cleaned = "";
+	for (const character of value) {
+		const code = character.charCodeAt(0);
+		const blocked =
+			(code >= 0 && code <= 8) ||
+			code === 11 ||
+			code === 12 ||
+			(code >= 14 && code <= 31) ||
+			code === 127;
+		cleaned += blocked ? " " : character;
+	}
+	return cleaned;
+}
+
 function cleanRecallText(value: unknown): string {
-	return flattenText(value)
-		.join("\n")
-		.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+	return stripControlCharacters(flattenText(value).join("\n"))
 		.replace(/\n{3,}/g, "\n\n")
 		.trim()
 		.slice(0, MAX_RECALL_CHARS);
