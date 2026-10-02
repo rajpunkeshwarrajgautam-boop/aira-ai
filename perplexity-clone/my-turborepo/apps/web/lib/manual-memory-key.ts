@@ -23,11 +23,13 @@ export function manualMemoryKeyForContent(content: string): string {
 	const assignment = normalized.match(
 		/^(.{3,160}?)\s+(?:is|are|should be|defaults? to|=)\s+(.{1,600})$/i,
 	);
-	const subjectSource = assignment?.[1];
-	if (subjectSource) {
-		const subject = normalizedSubject(subjectSource);
-		if (subject.split(/\s+/).filter(Boolean).length >= 2) {
-			return `manual.slot.${digest(subject)}`;
+	if (assignment) {
+		const subjectSource = assignment[1];
+		if (typeof subjectSource === "string") {
+			const subject = normalizedSubject(subjectSource);
+			if (subject.split(/\s+/).filter(Boolean).length >= 2) {
+				return `manual.slot.${digest(subject)}`;
+			}
 		}
 	}
 	return `manual.${digest(normalized.toLowerCase())}`;
