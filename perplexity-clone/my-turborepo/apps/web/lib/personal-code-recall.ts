@@ -1,5 +1,5 @@
 import { canonicalDurableMemoryText } from "./conversation-thread";
-import { memoryMatchesRequestedSubject, requestedMemorySubjects } from "./memory-relevance";
+import { memoryQueryTokens, requestedMemorySubjects } from "./memory-relevance";
 
 /**
  * Exact, explicitly formatted multi-code recall needs no generated guesses.
@@ -27,12 +27,19 @@ export function resolveFormattedCodeRecall(input: {
 	];
 	return subjects.map((subject, index) => {
 		const values = new Set<string>();
+		const requested = new Set(memoryQueryTokens(subject));
 		for (const item of evidence) {
-			const content = canonicalDurableMemoryText(item.content.replace(/^[A-Z_]+:\s*/, ""));
-			const assignment = content.match(/^(.{3,160}?\bcode)\s+(?:is|=)\s+([\p{L}\p{N}](?:[\p{L}\p{N}_.-]{0,78}[\p{L}\p{N}])?)(?=$|[\s,.!?])/iu);
-			if (assignment && memoryMatchesRequestedSubject(content, `What is my ${subject}?`)) {
-				if (item.currentThread) values.clear();
-				values.add(assignment[2]!);
+			// Real context contains numbered memory blocks, while private user turns
+			// can prefix an assignment with session instructions. Parse each line and
+			// preserve every subject qualifier so a private code is never its sibling.
+			for (const line of item.content.split(/\n/)) {
+				const content = canonicalDurableMemoryText(line.replace(/^\s*\d+\.\s*/, "").replace(/^[A-Z_]+:\s*/, ""));
+				for (const assignment of content.matchAll(/(?:^|\b(?:my|our|the user's)\s+)([^?!.:\n]{3,160}?\bcode)\s+(?:is|=)\s+([\p{L}\p{N}](?:[\p{L}\p{N}_.-]{0,78}[\p{L}\p{N}])?)(?=$|[\s,.!?])/giu)) {
+					const stored = memoryQueryTokens(assignment[1]!);
+					if (stored.length !== requested.size || !stored.every((token) => requested.has(token))) continue;
+					if (item.currentThread) values.clear();
+					values.add(assignment[2]!);
+				}
 			}
 		}
 		// Conflicting or missing evidence cannot borrow a sibling field's value.
