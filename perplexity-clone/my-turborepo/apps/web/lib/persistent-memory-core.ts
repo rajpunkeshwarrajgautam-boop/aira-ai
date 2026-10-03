@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
-
-import { prisma } from "@/lib/prisma";
 import { UserMemoryKind } from "@/generated/prisma/enums";
+import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";
+import { prisma } from "@/lib/prisma";
+
+import { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } from "./memory-relevance";
 
 const MAX_RECALL_CANDIDATES = 120;
 const MAX_RECALLED_MEMORIES = 10;
@@ -148,14 +149,14 @@ export async function getRelevantPersistentMemories(
 	});
 	if (candidates.length === 0) return [];
 
-	const showAll = /\b(what do you remember|what do you know about me|remember about me|my memories|my preferences|my profile)\b/i.test(
-		query,
-	);
-	const queryTokens = tokenize(query);
+	const showAll = isMemoryInventoryQuery(query);
+	const queryTokens = memoryQueryTokens(query);
 	if ((queryTokens.length === 0 || isGreetingQuery(query)) && !showAll) return [];
 	const ranked = candidates
 		.map((memory) => ({ memory, score: scoreMemory(memory, queryTokens, showAll) }))
-		.filter(({ memory, score }) => showAll || memory.pinned || score >= 3.8)
+		.filter(({ memory, score }) => showAll || (score >= 3.8 &&
+			memoryMatchesRequestedSubject(memory.content, query) &&
+			hasMemoryTopicOverlap(memory.content, memory.keywords, query)))
 		.sort((a, b) => b.score - a.score || b.memory.updatedAt.getTime() - a.memory.updatedAt.getTime())
 		.slice(0, Math.min(Math.max(limit, 1), MAX_RECALLED_MEMORIES));
 
@@ -195,6 +196,21 @@ export async function listUserMemories(userId: string, limit = 100): Promise<rea
 	});
 }
 
+const USER_MEMORY_SELECT = {
+	id: true,
+	memoryKey: true,
+	kind: true,
+	content: true,
+	keywords: true,
+	importance: true,
+	confidence: true,
+	pinned: true,
+	lastRecalledAt: true,
+	recallCount: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
+
 export async function createManualMemory(args: {
 	readonly userId: string;
 	readonly content: string;
@@ -205,42 +221,58 @@ export async function createManualMemory(args: {
 	if (!content || looksSensitive(content)) {
 		throw new Error("This memory is empty or contains sensitive credential-like information.");
 	}
-	const digest = createHash("sha256").update(content.toLowerCase()).digest("hex").slice(0, 20);
-	const memoryKey = `manual.${digest}`;
-	return prisma.userMemory.upsert({
-		where: { userId_memoryKey: { userId: args.userId, memoryKey } },
-		create: {
-			userId: args.userId,
-			memoryKey,
-			kind: args.kind ?? UserMemoryKind.OTHER,
-			content,
-			keywords: tokenize(content).slice(0, 10),
-			importance: args.pinned ? 5 : 4,
-			confidence: 1,
-			pinned: args.pinned ?? true,
-		},
-		update: {
-			content,
-			kind: args.kind ?? UserMemoryKind.OTHER,
-			keywords: tokenize(content).slice(0, 10),
-			importance: args.pinned ? 5 : 4,
-			confidence: 1,
-			pinned: args.pinned ?? true,
-		},
-		select: {
-			id: true,
-			memoryKey: true,
-			kind: true,
-			content: true,
-			keywords: true,
-			importance: true,
-			confidence: true,
-			pinned: true,
-			lastRecalledAt: true,
-			recallCount: true,
-			createdAt: true,
-			updatedAt: true,
-		},
+	const memoryKey = manualMemoryKeyForContent(content);
+	const data = {
+		content,
+		kind: args.kind ?? UserMemoryKind.OTHER,
+		keywords: tokenize(content).slice(0, 10),
+		importance: args.pinned ? 5 : 4,
+		confidence: 1,
+		pinned: args.pinned ?? true,
+	};
+
+	return prisma.$transaction(async (tx) => {
+		const existing = await tx.userMemory.findUnique({
+			where: { userId_memoryKey: { userId: args.userId, memoryKey } },
+			select: { id: true },
+		});
+		let targetId = existing?.id;
+		if (memoryKey.startsWith("manual.slot.")) {
+			const legacy = await tx.userMemory.findMany({
+				where: { userId: args.userId, memoryKey: { startsWith: "manual." } },
+				orderBy: { updatedAt: "desc" },
+				take: 120,
+				select: { id: true, memoryKey: true, content: true },
+			});
+			const sameSlot = legacy.filter(
+				(memory) => manualMemoryKeyForContent(memory.content) === memoryKey,
+			);
+			targetId ??= sameSlot[0]?.id;
+			const duplicateIds = sameSlot
+				.filter((memory) => memory.id !== targetId)
+				.map((memory) => memory.id);
+			if (duplicateIds.length > 0) {
+				await tx.userMemory.deleteMany({
+					where: { userId: args.userId, id: { in: duplicateIds } },
+				});
+			}
+		}
+		if (targetId) {
+			return tx.userMemory.update({
+				where: { id: targetId },
+				data: { ...data, memoryKey },
+				select: USER_MEMORY_SELECT,
+			});
+		}
+
+		return tx.userMemory.create({
+			data: {
+				userId: args.userId,
+				memoryKey,
+				...data,
+			},
+			select: USER_MEMORY_SELECT,
+		});
 	});
 }
 

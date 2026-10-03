@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { compileFunction } from "node:vm";
+import * as memoryRelevance from "../lib/memory-relevance";
+import { manualMemoryKeyForContent } from "../lib/manual-memory-key";
 
 type CoreModule = typeof import("../lib/persistent-memory-core");
 type Subject = Pick<CoreModule,
@@ -24,12 +25,12 @@ type MemoryRow = {
 	createdAt: Date;
 	updatedAt: Date;
 };
-type Where = { userId: string; id?: string | { in: string[] }; memoryKey?: string };
+type Where = { userId?: string; id?: string | { in: string[] }; memoryKey?: string | { startsWith: string } };
 type Call = { method: string; where?: unknown; data?: unknown };
 
 /**
  * Execute the ACTUAL production file, not a copy of its functions.
- * Native Node type stripping removes types; only its three declared imports
+ * Native Node type stripping removes types; only its declared imports
  * are bound to test dependencies. Function bodies are not rewritten.
  * Any new/unhandled import fails closed so a real database/provider cannot be
  * loaded accidentally. This is mocked-dependency testing, not REAL_DB testing.
@@ -40,8 +41,9 @@ function loadSubject() {
 	const rows: MemoryRow[] = [];
 	let nextId = 1;
 	const matches = (row: MemoryRow, where: Where) =>
-		row.userId === where.userId &&
-		(where.memoryKey === undefined || row.memoryKey === where.memoryKey) &&
+		(where.userId === undefined || row.userId === where.userId) &&
+		(where.memoryKey === undefined || (typeof where.memoryKey === "string"
+			? row.memoryKey === where.memoryKey : row.memoryKey.startsWith(where.memoryKey.startsWith))) &&
 		(where.id === undefined || (typeof where.id === "string"
 			? row.id === where.id : where.id.in.includes(row.id)));
 	const prisma = {
@@ -55,11 +57,30 @@ function loadSubject() {
 				throw new Error("Automatic refresh must not rewrite summaries");
 			},
 		},
-		$transaction: async () => {
-			calls.push({ method: "$transaction" });
-			throw new Error("Automatic refresh must not open a transaction");
-		},
 		userMemory: {
+			findUnique: async (args: { where: { userId_memoryKey: { userId: string; memoryKey: string } } }) => {
+				calls.push({ method: "userMemory.findUnique", where: args.where });
+				const row = rows.find((row) => matches(row, args.where.userId_memoryKey));
+				return row ? { ...row } : null;
+			},
+			create: async (args: { data: Partial<MemoryRow> & Pick<MemoryRow, "userId" | "memoryKey" | "content"> }) => {
+				calls.push({ method: "userMemory.create", data: args.data });
+				assert.ok(!rows.some((row) => row.userId === args.data.userId && row.memoryKey === args.data.memoryKey));
+				const row: MemoryRow = {
+					id: `memory-${nextId++}`, kind: "OTHER", keywords: [],
+					importance: 3, confidence: 1, pinned: false, lastRecalledAt: null,
+					recallCount: 0, createdAt: new Date(0), updatedAt: new Date(0), ...args.data,
+				};
+				rows.push(row);
+				return { ...row };
+			},
+			update: async (args: { where: { id: string }; data: Partial<MemoryRow> }) => {
+				calls.push({ method: "userMemory.update", where: args.where, data: args.data });
+				const row = rows.find((row) => row.id === args.where.id);
+				assert.ok(row, "Update must target an existing row");
+				Object.assign(row, args.data);
+				return { ...row };
+			},
 			upsert: async (args: {
 				where: { userId_memoryKey: { userId: string; memoryKey: string } };
 				create: Partial<MemoryRow> & Pick<MemoryRow, "userId" | "memoryKey" | "content">;
@@ -105,10 +126,24 @@ function loadSubject() {
 			},
 		},
 	};
+	const transactionalPrisma = {
+		...prisma,
+		$transaction: async <T>(callback: (tx: typeof prisma) => Promise<T>): Promise<T> => {
+			calls.push({ method: "$transaction" });
+			const before = structuredClone(rows);
+			try {
+				return await callback(prisma);
+			} catch (error) {
+				rows.splice(0, rows.length, ...before);
+				throw error;
+			}
+		},
+	};
 	const source = readFileSync(new URL("../lib/persistent-memory-core.ts", import.meta.url), "utf8");
 	let executable = stripTypeScriptTypes(source, { mode: "strip" });
 	const bindings = [
-		['import { createHash } from "node:crypto";', 'const { createHash } = dependencies.crypto;'],
+		['import { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } from "./memory-relevance";', 'const { hasMemoryTopicOverlap, isMemoryInventoryQuery, memoryMatchesRequestedSubject, memoryQueryTokens } = dependencies;'],
+		['import { manualMemoryKeyForContent } from "@/lib/manual-memory-key";', 'const { manualMemoryKeyForContent } = dependencies;'],
 		['import { prisma } from "@/lib/prisma";', 'const { prisma } = dependencies;'],
 		['import { UserMemoryKind } from "@/generated/prisma/enums";', 'const { UserMemoryKind } = dependencies;'],
 	] as const;
@@ -122,7 +157,7 @@ function loadSubject() {
 		refreshPersistentMemory, createManualMemory, deleteUserMemory,
 		setUserMemoryPinned, listUserMemories, getRelevantPersistentMemories
 	};`, ["dependencies"], { filename: "persistent-memory-core.ts (test dependency bindings)" });
-	const subject = evaluate({ prisma, crypto: { createHash }, UserMemoryKind: { OTHER: "OTHER" } }) as Subject;
+	const subject = evaluate({ ...memoryRelevance, prisma: transactionalPrisma, manualMemoryKeyForContent, UserMemoryKind: { OTHER: "OTHER" } }) as Subject;
 	return { subject, calls, rows };
 }
 
@@ -174,7 +209,7 @@ test("[MOCKED CORE] unsupported generated summary cannot be written through refr
 	assert.deepEqual(calls, []);
 });
 
-test("[MOCKED CORE] explicit manual save executes actual upsert and preserves full context", async () => {
+test("[MOCKED CORE] explicit manual save executes actual transaction and preserves full context", async () => {
 	const { subject, calls, rows } = loadSubject();
 	const content = "If budget permits, I prefer using AWS Graviton instances.";
 	const saved = await subject.createManualMemory({ userId: owner, content });
@@ -183,7 +218,9 @@ test("[MOCKED CORE] explicit manual save executes actual upsert and preserves fu
 	assert.equal(rows[0]!.userId, owner);
 	assert.equal(rows[0]!.content, content);
 	assert.match(saved.memoryKey, /^manual\.[a-f0-9]{20}$/);
-	assert.deepEqual(calls[0]!.where, { userId_memoryKey: { userId: owner, memoryKey: saved.memoryKey } });
+	assert.equal(calls[0]!.method, "$transaction");
+	assert.deepEqual(calls.find((call) => call.method === "userMemory.findUnique")?.where,
+		{ userId_memoryKey: { userId: owner, memoryKey: saved.memoryKey } });
 });
 
 test("[MOCKED CORE] repeated manual save retains existing deterministic-key behavior", async () => {
@@ -203,6 +240,52 @@ test("[MOCKED CORE] identical manual content is scoped independently per owner",
 	assert.equal(rows.length, 2);
 	assert.equal(rows[0]!.userId, owner);
 	assert.equal(rows[1]!.userId, other);
+});
+
+test("[MOCKED CORE] corrected assignment updates one row and recall contains only the current value", async () => {
+	const { subject, rows } = loadSubject();
+	const first = await subject.createManualMemory({ userId: owner, content: "my AF-1 target GPU is H200 80GB" });
+	const corrected = await subject.createManualMemory({ userId: owner, content: "my AF-1 target GPU is H100 80GB" });
+	assert.equal(corrected.id, first.id);
+	assert.equal(rows.length, 1);
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner, "my AF-1 target GPU"),
+		["OTHER: my AF-1 target GPU is H100 80GB (pinned)"]);
+});
+
+test("[MOCKED CORE] a legacy assignment migrates in place while another owner's matching slot stays unchanged", async () => {
+	const { subject, rows } = loadSubject();
+	const oldContent = "my AF-1 target GPU is H200 80GB";
+	const seed = await subject.createManualMemory({ userId: owner, content: oldContent });
+	rows[0]!.memoryKey = "manual.legacy-content-hash";
+	await subject.createManualMemory({ userId: other, content: oldContent });
+	const otherBefore = structuredClone(rows[1]);
+	const corrected = await subject.createManualMemory({ userId: owner, content: "my AF-1 target GPU is H100 80GB" });
+	assert.equal(corrected.id, seed.id);
+	assert.match(corrected.memoryKey, /^manual\.slot\.[a-f0-9]{20}$/);
+	assert.equal(rows.length, 2);
+	assert.deepEqual(rows[1], otherBefore);
+});
+
+test("[MOCKED CORE] correction consolidates legacy prefixed duplicates without changing other facts or owners", async () => {
+	const { subject, rows, calls } = loadSubject();
+	const original = await subject.createManualMemory({ userId: owner,
+		content: "my Aira OAuth repair QA test code is MAPLE-7306." });
+	rows.push({ ...rows[0]!, id: "prefixed-legacy", memoryKey: "manual.slot.old-prefix-hash",
+		content: "Correction: remember that my Aira OAuth repair QA test code is MAPLE-9184, replacing the previous value." });
+	await subject.createManualMemory({ userId: owner, content: "my Aira private QA test code is PRIVATE-2048" });
+	await subject.createManualMemory({ userId: other, content: "my Aira OAuth repair QA test code is MAPLE-7306." });
+	const unaffected = structuredClone(rows.filter((row) => row.id !== original.id && row.id !== "prefixed-legacy"));
+	calls.length = 0;
+	const corrected = await subject.createManualMemory({ userId: owner,
+		content: "my Aira OAuth repair QA test code is MAPLE-9184." });
+	assert.equal(corrected.id, original.id);
+	assert.equal(rows.length, 3);
+	assert.deepEqual(rows.filter((row) => row.id !== original.id), unaffected);
+	assert.deepEqual(calls.find((call) => call.method === "userMemory.deleteMany")?.where,
+		{ userId: owner, id: { in: ["prefixed-legacy"] } });
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner,
+		"What is my Aira OAuth repair QA test code?"),
+		["OTHER: my Aira OAuth repair QA test code is MAPLE-9184. (pinned)"]);
 });
 
 for (const content of ["   ", "My password is secret", "My API key is a-test-value"]) {
@@ -251,4 +334,27 @@ test("[MOCKED CORE] list and recall retain owner scoping and existing confirmed 
 		(call.where as Where).userId === owner));
 	const update = calls.find((call) => call.method === "userMemory.updateMany");
 	assert.deepEqual(update?.where, { id: { in: [saved.id] }, userId: owner });
+});
+
+test("[MOCKED CORE] pinning and recency cannot make unrelated memories relevant", async () => {
+	const { subject, calls } = loadSubject();
+	await subject.createManualMemory({ userId: owner, content: "My certification code is CEDAR-6412", pinned: true });
+	await subject.createManualMemory({ userId: owner, content: "My favorite meal is pasta", pinned: false });
+	calls.length = 0;
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner, "Explain lunar eclipses"), []);
+	assert.ok(!calls.some((call) => call.method === "userMemory.updateMany"), "Rejected memories must not count as recalled");
+});
+
+test("[MOCKED CORE] distinguish requested subjects, preserve exact recall and explicit inventories", async () => {
+	const { subject } = loadSubject();
+	await subject.createManualMemory({ userId: owner, content: "The user's Aira certification QA test code is CEDAR-6412" });
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner,
+		"What is my Aira private QA test code? Answer only with the exact code if you actually remember it; otherwise answer UNKNOWN."), []);
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner,
+		"What do you remember about my Aira private QA test code?"), []);
+	const recalled = await subject.getRelevantPersistentMemories(owner,
+		"What is my Aira certification QA test code that I asked you to remember? Answer only with the code.");
+	assert.equal(recalled.length, 1);
+	assert.match(recalled[0]!, /CEDAR-6412/);
+	assert.equal((await subject.getRelevantPersistentMemories(owner, "What do you remember about me?")).length, 1);
 });

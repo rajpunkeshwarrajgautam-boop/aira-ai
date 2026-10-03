@@ -1,3 +1,4 @@
+import { isPersonalMemoryRecallQuery } from "./memory-relevance";
 import { ConversationMessageRole } from "@/generated/prisma/enums";
 import {
 	createManualMemory,
@@ -222,7 +223,7 @@ export async function getFollowUpContext(args: {
 	const normalized = normalizeQuery(query);
 	const queryTokens = normalized.split(" ").filter((token) => token.length > 2).slice(0, 5);
 	const researchCandidates =
-		!memoryDisabled && !threadLocalFollowUp && !isGreetingOnlyQuery(query) && queryTokens.length
+		!memoryDisabled && !threadLocalFollowUp && !isPersonalMemoryRecallQuery(query) && !isGreetingOnlyQuery(query) && queryTokens.length
 			? await prisma.researchHistory.findMany({
 					where: {
 						userId,
@@ -241,7 +242,7 @@ export async function getFollowUpContext(args: {
 			: [];
 
 	const contextualMemory: string[] = [];
-	if (!memoryDisabled && conversationSummary?.trim()) {
+	if (!memoryDisabled && !threadLocalFollowUp && !isPersonalMemoryRecallQuery(query) && conversationSummary?.trim()) {
 		contextualMemory.push(`CURRENT CONVERSATION SUMMARY:\n${conversationSummary.trim()}`);
 	}
 	if (durableMemories.length > 0) {
@@ -251,7 +252,7 @@ export async function getFollowUpContext(args: {
 				.join("\n")}`,
 		);
 	}
-	for (const item of researchCandidates) {
+	for (const item of researchCandidates.filter((item) => !isMemoryDisabledRequest(item.query))) {
 		contextualMemory.push(
 			`PRIOR RESEARCH CONTEXT:\nQuery: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
 		);
@@ -315,21 +316,25 @@ export async function persistConversationTurn(args: {
 			select: { id: true },
 		});
 
-		await tx.researchHistory.create({
-			data: {
-				userId: args.userId,
-				conversationId: conversation.id,
-				messageId: assistantMessage.id,
-				query: args.query.trim(),
-				normalizedQuery: normalizeQuery(args.query),
-				assistantAnswer: args.answer.trim(),
-				citationCount: args.citations.length,
-				citations: args.citations,
-				publicShareToken: generatePublicShareToken(),
-				exaRequestId: args.exaRequestId,
-				exaSearchType: args.exaSearchType,
-			},
-		});
+		// Private turns remain in their active chat but must not become reusable
+		// cross-conversation research context.
+		if (!isMemoryDisabledRequest(args.query)) {
+			await tx.researchHistory.create({
+				data: {
+					userId: args.userId,
+					conversationId: conversation.id,
+					messageId: assistantMessage.id,
+					query: args.query.trim(),
+					normalizedQuery: normalizeQuery(args.query),
+					assistantAnswer: args.answer.trim(),
+					citationCount: args.citations.length,
+					citations: args.citations,
+					publicShareToken: generatePublicShareToken(),
+					exaRequestId: args.exaRequestId,
+					exaSearchType: args.exaSearchType,
+				},
+			});
+		}
 
 		await tx.conversation.update({
 			where: { id: conversation.id },

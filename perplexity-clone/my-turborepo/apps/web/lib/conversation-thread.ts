@@ -25,6 +25,7 @@ const MEMORY_WRITE_PATTERNS: readonly RegExp[] = [
 	/\b(?:this|our) project must\b/i,
 	/\bwe (?:decided|agreed) to\b/i,
 	/\b(?:save|store) (?:this|that) (?:preference|decision|constraint|rule|context)\b/i,
+	/\b(?:change|update|replace)\s+what\s+you\s+remember\s+about\s+my\b/i,
 ];
 
 /**
@@ -49,14 +50,32 @@ export function isExplicitDurableMemoryRequest(raw: string): boolean {
 }
 
 export function canonicalDurableMemoryText(raw: string): string {
-	const original = raw.trim().replace(/\s+/g, " ");
+	let original = raw.trim().replace(/\s+/g, " ");
 	if (!original) return "";
+	original = original
+		.replace(/^correction\s*[:,-]\s*/i, "")
+		.replace(/^actually[,:]?\s*/i, "");
+
+	const correction = original.match(
+		/^(?:please\s+)?(?:change|update|replace)\s+what\s+you\s+remember\s+about\s+my\s+(.+?)\s+to\s+(.+?)(?:\s+instead)?[.!]?$/i,
+	);
+	if (correction) {
+		const correctionSubject = correction[1];
+		const correctionValue = correction[2];
+		if (typeof correctionSubject === "string" && typeof correctionValue === "string") {
+			const subject = correctionSubject.trim();
+			const value = correctionValue.trim();
+			if (subject && value) return `my ${subject} is ${value}`;
+		}
+	}
+
 	const stripped = original
 		.replace(/^(?:please\s+)?remember\s+(?:that|this)\s*[:,-]?\s*/i, "")
 		.replace(
 			/^(?:please\s+)?(?:save|store)\s+(?:this|that)\s+(?:preference|decision|constraint|rule|context)\s*[:,-]?\s*/i,
 			"",
 		)
+		.replace(/\s+instead[.!]?$/i, "")
 		.trim();
 	return stripped || original;
 }
