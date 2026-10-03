@@ -265,6 +265,8 @@ export async function persistConversationTurn(args: {
 	readonly userId: string;
 	readonly query: string;
 	readonly answer: string;
+	/** Server-internal direct-command path has already confirmed the durable write. */
+	readonly explicitMemoryAlreadySaved?: boolean;
 	readonly conversationId?: string;
 	readonly parentMessageId?: string;
 	readonly citations: readonly {
@@ -353,7 +355,7 @@ export async function persistConversationTurn(args: {
 	// Explicit, non-private memory commands are persisted to Aira's own user-scoped
 	// durable memory store. The existing safety filter in createManualMemory rejects
 	// credential-like or otherwise prohibited content.
-	if (isExplicitDurableMemoryRequest(args.query)) {
+	if (!args.explicitMemoryAlreadySaved && isExplicitDurableMemoryRequest(args.query)) {
 		const durableContent = canonicalDurableMemoryText(args.query);
 		if (durableContent) {
 			try {

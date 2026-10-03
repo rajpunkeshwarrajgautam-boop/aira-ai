@@ -80,6 +80,15 @@ test("ordinary research and authorized memory writes retain persistence behavior
 	assert.equal(refreshCalls, 1);
 });
 
+test("confirmed direct memory commands persist their conversation without a second memory write", async () => {
+	researchWrites = memoryWrites = refreshCalls = messageWrites = 0;
+	await persistConversationTurn({ userId: "owner", conversationId: "thread", query: "Remember that my review code is PINE-8842.", answer: "Saved to memory: my review code is PINE-8842.", citations: [], explicitMemoryAlreadySaved: true });
+	assert.equal(messageWrites, 2);
+	assert.equal(researchWrites, 1);
+	assert.equal(memoryWrites, 0);
+	assert.equal(refreshCalls, 1);
+});
+
 
 test("legacy private research rows are excluded from future context", async () => {
 	const { getFollowUpContext: getCoreContext } = await import("../lib/conversation-memory-core");

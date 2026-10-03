@@ -25,6 +25,7 @@ import {
 } from "@/lib/conversation-memory";
 import { isPersonalMemoryRecallQuery } from "@/lib/memory-relevance";
 import { isExplicitDurableMemoryRequest } from "@/lib/conversation-thread";
+import { createMemoryCommandAnswer } from "@/lib/memory-command-answer";
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
@@ -395,7 +396,13 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 
 			try {
-				if (mathAnswer !== null) {
+				const memoryCommandAnswer = userId
+					? await createMemoryCommandAnswer({ userId, query: parsed.data.query })
+					: null;
+				if (memoryCommandAnswer) {
+					analyticsSearchMode = "standard";
+					grounded = memoryCommandAnswer;
+				} else if (mathAnswer !== null) {
 					analyticsSearchMode = "standard";
 					let resultText = mathAnswer;
 					try {
@@ -512,6 +519,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							userId,
 							query: parsed.data.query,
 							answer: cleanedText,
+							explicitMemoryAlreadySaved: memoryCommandAnswer !== null,
 							conversationId: context.resolvedConversationId,
 							parentMessageId: parsed.data.parentMessageId,
 							citations: metadata.citations,
