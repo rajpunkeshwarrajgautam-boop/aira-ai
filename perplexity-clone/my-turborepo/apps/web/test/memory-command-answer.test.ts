@@ -51,3 +51,12 @@ test("rejected or unavailable persistence never returns a successful acknowledge
 	save = async () => { throw new Error("Memory rejected"); };
 	await assert.rejects(createMemoryCommandAnswer({ userId: "owner", query: "Remember that my review code is PINE-8842." }), /Memory rejected/);
 });
+
+test("remember commands inside an inherited private session acknowledge exclusion without writing", async () => {
+	writes.length = 0;
+	const result = await createMemoryCommandAnswer({ userId: "owner", query: "Remember that my review code is PRIVATE-4492.", privateSession: true });
+	let text = "";
+	for await (const part of result!.textStream) text += part;
+	assert.match(text, /not saved to memory/);
+	assert.deepEqual(writes, []);
+});

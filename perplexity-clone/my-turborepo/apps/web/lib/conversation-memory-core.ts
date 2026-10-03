@@ -13,6 +13,7 @@ import {
 	canonicalDurableMemoryText,
 	isExplicitDurableMemoryRequest,
 	isMemoryDisabledRequest,
+	isPrivateSessionRequest,
 	isThreadLocalFollowUp,
 	toModelChatHistory,
 	walkConversationAncestry,
@@ -21,6 +22,13 @@ import {
 
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 10;
 const DEFAULT_MEMORY_LIMIT = 8;
+
+function privateSessionMessages(userId: string) {
+	return { where: { userId, role: ConversationMessageRole.USER, OR: [
+		...["private session", "private mode", "no memory", "without memory", "memory off"].map((marker) => ({ content: { contains: marker, mode: "insensitive" as const } })),
+		{ metadata: { path: ["privateSession"], equals: true } },
+	] }, take: 1, select: { id: true } };
+}
 
 export interface ConversationSummary {
 	readonly id: string;
@@ -51,14 +59,21 @@ function inferTitleFromQuery(query: string): string {
 
 type DbThreadMessage = ConversationThreadNode & {
 	readonly createdAt: Date;
+	readonly metadata?: unknown;
 };
+
+function privateThread(rows: readonly DbThreadMessage[]): boolean {
+	return rows.some((row) =>
+		(row.role === "USER" && isPrivateSessionRequest(row.content)) ||
+		(Boolean(row.metadata) && typeof row.metadata === "object" && (row.metadata as Record<string, unknown>).privateSession === true));
+}
 
 async function loadActiveThreadHistory(args: {
 	readonly userId: string;
 	readonly conversationId: string;
 	readonly parentMessageId?: string;
 	readonly messageLimit: number;
-}): Promise<readonly { readonly role: "user" | "assistant"; readonly content: string }[]> {
+}): Promise<{ readonly chatHistory: readonly { readonly role: "user" | "assistant"; readonly content: string }[]; readonly privateSession: boolean }> {
 	const limit = Math.min(Math.max(Math.trunc(args.messageLimit), 1), 30);
 
 	if (args.parentMessageId) {
@@ -78,10 +93,11 @@ async function loadActiveThreadHistory(args: {
 						content: true,
 						parentMessageId: true,
 						createdAt: true,
+						metadata: true,
 					},
 				}),
 		});
-		return toModelChatHistory(rows);
+		return { chatHistory: toModelChatHistory(rows), privateSession: privateThread(rows) };
 	}
 
 	const rows = await prisma.conversationMessage.findMany({
@@ -97,9 +113,10 @@ async function loadActiveThreadHistory(args: {
 			content: true,
 			parentMessageId: true,
 			createdAt: true,
+			metadata: true,
 		},
 	});
-	return toModelChatHistory(rows.reverse());
+	return { chatHistory: toModelChatHistory(rows.reverse()), privateSession: privateThread(rows) };
 }
 
 export async function createConversation(
@@ -162,6 +179,7 @@ export function getAnonymousSearchContext(): {
 	readonly chatHistory: readonly { readonly role: "user" | "assistant"; readonly content: string }[];
 	readonly contextualMemory: readonly string[];
 	readonly resolvedConversationId?: string;
+	readonly privateSession?: boolean;
 } {
 	return { chatHistory: [], contextualMemory: [], resolvedConversationId: undefined };
 }
@@ -177,6 +195,7 @@ export async function getFollowUpContext(args: {
 	readonly chatHistory: readonly { readonly role: "user" | "assistant"; readonly content: string }[];
 	readonly contextualMemory: readonly string[];
 	readonly resolvedConversationId?: string;
+	readonly privateSession?: boolean;
 }> {
 	const {
 		userId,
@@ -193,28 +212,32 @@ export async function getFollowUpContext(args: {
 
 	let resolvedConversationId: string | undefined;
 	let conversationSummary: string | null = null;
+	let conversationIsPrivate = false;
 	if (conversationId) {
 		const row = await prisma.conversation.findFirst({
 			where: { id: conversationId, userId, archivedAt: null },
-			select: { id: true, summary: true },
+			select: { id: true, summary: true, messages: privateSessionMessages(userId) },
 		});
 		if (!row) throw new Error("Conversation not found.");
 		resolvedConversationId = row.id;
 		conversationSummary = row.summary;
+		conversationIsPrivate = Boolean(row.messages?.length);
 	}
 
-	const chatHistory = resolvedConversationId
+	const thread = resolvedConversationId
 		? await loadActiveThreadHistory({
 				userId,
 				conversationId: resolvedConversationId,
 				...(parentMessageId ? { parentMessageId } : {}),
 				messageLimit,
 			})
-		: [];
+		: { chatHistory: [], privateSession: false };
+	const { chatHistory } = thread;
+	const privateSession = conversationIsPrivate || thread.privateSession || isPrivateSessionRequest(query);
 
 	const threadLocalFollowUp =
 		Boolean(resolvedConversationId && chatHistory.length > 0) && isThreadLocalFollowUp(query);
-	const memoryDisabled = isMemoryDisabledRequest(query);
+	const memoryDisabled = privateSession || isMemoryDisabledRequest(query);
 
 	const durableMemories = threadLocalFollowUp || memoryDisabled
 		? []
@@ -237,7 +260,7 @@ export async function getFollowUpContext(args: {
 					},
 					orderBy: { createdAt: "desc" },
 					take: Math.min(Math.max(Math.ceil(memoryLimit / 2), 1), 4),
-					select: { query: true, assistantAnswer: true },
+					select: { query: true, assistantAnswer: true, conversation: { select: { messages: privateSessionMessages(userId) } } },
 				})
 			: [];
 
@@ -252,13 +275,13 @@ export async function getFollowUpContext(args: {
 				.join("\n")}`,
 		);
 	}
-	for (const item of researchCandidates.filter((item) => !isMemoryDisabledRequest(item.query))) {
+	for (const item of researchCandidates.filter((item) => !isMemoryDisabledRequest(item.query) && !item.conversation?.messages.length)) {
 		contextualMemory.push(
 			`PRIOR RESEARCH CONTEXT:\nQuery: ${item.query}\nAnswer: ${item.assistantAnswer.slice(0, 800)}`,
 		);
 	}
 
-	return { chatHistory, contextualMemory, resolvedConversationId };
+	return { chatHistory, contextualMemory, resolvedConversationId, privateSession };
 }
 
 export async function persistConversationTurn(args: {
@@ -267,6 +290,7 @@ export async function persistConversationTurn(args: {
 	readonly answer: string;
 	/** Server-internal direct-command path has already confirmed the durable write. */
 	readonly explicitMemoryAlreadySaved?: boolean;
+	readonly privateSession?: boolean;
 	readonly conversationId?: string;
 	readonly parentMessageId?: string;
 	readonly citations: readonly {
@@ -289,6 +313,8 @@ export async function persistConversationTurn(args: {
 		args.conversationId !== undefined
 			? await getConversationOrThrow(args.userId, args.conversationId)
 			: await createConversation(args.userId, args.query);
+	const privateSession = args.privateSession === true || isPrivateSessionRequest(args.query);
+	const memoryDisabled = privateSession || isMemoryDisabledRequest(args.query);
 
 	const result = await prisma.$transaction(async (tx) => {
 		const userMessage = await tx.conversationMessage.create({
@@ -298,6 +324,7 @@ export async function persistConversationTurn(args: {
 				role: ConversationMessageRole.USER,
 				content: args.query.trim(),
 				parentMessageId: args.parentMessageId ?? null,
+				...(privateSession ? { metadata: { privateSession: true } } : {}),
 			},
 			select: { id: true },
 		});
@@ -311,6 +338,7 @@ export async function persistConversationTurn(args: {
 				parentMessageId: userMessage.id,
 				citations: args.citations,
 				metadata: {
+					...(privateSession ? { privateSession: true } : {}),
 					exaRequestId: args.exaRequestId,
 					exaSearchType: args.exaSearchType,
 				},
@@ -320,7 +348,7 @@ export async function persistConversationTurn(args: {
 
 		// Private turns remain in their active chat but must not become reusable
 		// cross-conversation research context.
-		if (!isMemoryDisabledRequest(args.query)) {
+		if (!memoryDisabled) {
 			await tx.researchHistory.create({
 				data: {
 					userId: args.userId,
@@ -355,7 +383,7 @@ export async function persistConversationTurn(args: {
 	// Explicit, non-private memory commands are persisted to Aira's own user-scoped
 	// durable memory store. The existing safety filter in createManualMemory rejects
 	// credential-like or otherwise prohibited content.
-	if (!args.explicitMemoryAlreadySaved && isExplicitDurableMemoryRequest(args.query)) {
+	if (!memoryDisabled && !args.explicitMemoryAlreadySaved && isExplicitDurableMemoryRequest(args.query)) {
 		const durableContent = canonicalDurableMemoryText(args.query);
 		if (durableContent) {
 			try {
@@ -375,7 +403,7 @@ export async function persistConversationTurn(args: {
 
 	// Existing memory curation remains best-effort. It must never make an otherwise
 	// successful chat turn fail or disappear from conversation history.
-	if (!isMemoryDisabledRequest(args.query)) {
+	if (!memoryDisabled) {
 		try {
 			await refreshPersistentMemory({
 				userId: args.userId,

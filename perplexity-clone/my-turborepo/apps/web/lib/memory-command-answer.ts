@@ -6,12 +6,17 @@ import type { GroundedAnswerStreamResult } from "../src/services/answer";
 export async function createMemoryCommandAnswer(args: {
 	readonly userId: string;
 	readonly query: string;
+	readonly privateSession?: boolean;
 }): Promise<GroundedAnswerStreamResult | null> {
 	if (!isExplicitDurableMemoryRequest(args.query)) return null;
 	const command = args.query.trim()
 		.replace(/^correction\s*[:,-]\s*/i, "")
 		.replace(/^actually[,:]?\s*/i, "");
 	if (!/^(?:please\s+)?(?:remember\s+(?:that|this)\b|(?:change|update|replace)\s+what\s+you\s+remember\s+about\s+my\b|(?:save|store)\s+(?:this|that)\s+(?:preference|decision|constraint|rule|context)\b)/i.test(command)) return null;
+	if (args.privateSession) return {
+		query: args.query.trim(), sources: [],
+		textStream: (async function* () { yield "Private session is active. This stays in the current chat and is not saved to memory."; })(),
+	};
 
 	const memory = await createManualMemory({
 		userId: args.userId,

@@ -397,7 +397,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 
 			try {
 				const memoryCommandAnswer = userId
-					? await createMemoryCommandAnswer({ userId, query: parsed.data.query })
+					? await createMemoryCommandAnswer({ userId, query: parsed.data.query, privateSession: context.privateSession })
 					: null;
 				if (memoryCommandAnswer) {
 					analyticsSearchMode = "standard";
@@ -431,7 +431,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							yield `The result is **${resultText}**.`;
 						})(),
 					};
-				} else if (greetingOnly || memoryOnly) {
+				} else if (greetingOnly || memoryOnly || isPrivatePersonalCodeStatement(parsed.data.query, context.privateSession)) {
 					analyticsSearchMode = "standard";
 					grounded = await streamGroundedAnswer({
 						query: parsed.data.query,
@@ -519,7 +519,8 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							userId,
 							query: parsed.data.query,
 							answer: cleanedText,
-							explicitMemoryAlreadySaved: memoryCommandAnswer !== null,
+							explicitMemoryAlreadySaved: memoryCommandAnswer !== null && !context.privateSession,
+							privateSession: context.privateSession,
 							conversationId: context.resolvedConversationId,
 							parentMessageId: parsed.data.parentMessageId,
 							citations: metadata.citations,
