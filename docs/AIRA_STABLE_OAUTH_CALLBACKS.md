@@ -1,6 +1,8 @@
 # Stable Google and GitHub callbacks
 
-Status: regression-tested locally; live environment changes and authenticated verification pending.
+Status (2026-10-03): stable proxy enabled and both environments redeployed;
+Production Google login passed. Preview OAuth return routing passed, but session
+creation is blocked by the missing branch-scoped database connection.
 
 Aira uses next-auth 5.0.0-beta.32 and @auth/core 0.41.3. They already implement
 `AUTH_REDIRECT_PROXY_URL`; no new auth service or browser package is needed.
@@ -33,8 +35,9 @@ Configure these provider callbacks once:
 
 Inspect existing registrations first. If these callbacks are already registered,
 no provider edit is needed. Preserve any other working Google registrations.
-GitHub OAuth apps have one callback setting: verify the selected app is the one
-used by both deployments before changing it.
+The current GitHub settings UI for Aira's existing OAuth app allows multiple
+redirect URIs and already includes the stable callback. Verify the selected app
+is the one used by both deployments before changing it.
 
 Set the proxy variable in the stable environment **and** the trusted Preview
 environment. Redeploy both from their current commits so the configuration takes
@@ -75,3 +78,34 @@ To roll back, remove only the newly added proxy variable from both environments
 and redeploy their existing commits. Keep the original provider registrations.
 
 Official reference: https://authjs.dev/getting-started/deployment#securing-a-preview-deployment
+
+## Live rollout evidence (2026-10-03)
+
+- `aira-ai-live`: Production and Preview branch `fix/native-memory-corrections`
+  have `AUTH_REDIRECT_PROXY_URL=https://aira-ai.in/api/auth`.
+- Effective secret and primary Google/GitHub credentials already cover both
+  environments. No secret rotation, credential copying, or database sharing was
+  needed for OAuth routing.
+- Production deployment `dpl_2fFDmSxAurt8Gi1Ps6dWNG81iurj` is READY on the
+  unchanged released commit `de0742ce54287dd4950c2d73089400a6480c4db4`.
+- Preview deployment `dpl_JBGv6KupicpDcU8PD1b3PjLAvShL` is READY on
+  `1542d09de63f4625df8a39ebc4f00d348a272bae`.
+- Fresh Production Google sign-in returned to `https://aira-ai.in/` with a
+  signed-in account. Preview Google returned to the initiating Preview callback;
+  runtime logs confirm successful state parsing, PKCE verification, and provider
+  authorization. Its subsequent adapter lookup failed because `DATABASE_URL`
+  was not configured for this branch. This is not a redirect URI mismatch.
+- GitHub's existing application includes the stable callback; real GitHub login
+  remains unverified. Both secure provider selections chose Google.
+- Prepared isolated Neon branch `preview/pr-156-native-memory`
+  (`br-empty-silence-ajuvwa3f`) in project `steep-feather-41427658`, forked from
+  the existing Preview branch `preview/pr-135`. Production's database was not
+  used. The existing conversation-pinning migration was applied transactionally
+  from the checked-in SQL and recorded with its checksum; all 28 migration names
+  are complete. Its branch-scoped Vercel connection remains to be configured.
+- Authenticated Preview recall, correction, notes, and private-memory isolation
+  remain pending until that database connection and redeployment are complete.
+- Latest CI on `1542d09` stopped at the production dependency audit for the new
+  `braces` advisory `GHSA-vfj7-8cjw-p6xm`; the other three workflows passed.
+  Earlier full-suite results do not certify this latest CI run.
+- PR #156 remains draft and unmerged; PR #153 remains untouched.
