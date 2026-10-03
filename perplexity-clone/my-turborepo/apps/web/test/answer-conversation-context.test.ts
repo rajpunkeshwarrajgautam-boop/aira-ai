@@ -4,6 +4,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { streamGroundedAnswer } from "../src/services/answer";
 import type { ProviderRouter } from "../src/services/providers/provider-router";
 import type { ExaSearchService } from "../src/services/search";
+import { isPrivatePersonalCodeStatement } from "../lib/conversation-thread";
 
 const history = [
 	{ role: "user" as const, content: "What is my certification code?" },
@@ -51,6 +52,19 @@ test("personal recall and explicit remember commands skip retrieval without a ca
 		assert.equal(result.sources.length, 0);
 		assert.match(String(calls[0]![0]!.content), /Never substitute a different code/);
 	}
+});
+
+test("private personal code statements never enter web retrieval", async () => {
+	const query = "Private session. No memory. Do not remember this: my private workspace review code is FIR-8842. Answer only with that code.";
+	const router = { streamChat: async function* () { yield "FIR-8842"; } } as unknown as ProviderRouter;
+	const exa = { search: async () => assert.fail("A private personal code must not be sent to web retrieval") } as unknown as ExaSearchService;
+	const result = await streamGroundedAnswer({ query, router, exa });
+	let answer = "";
+	for await (const part of result.textStream) answer += part;
+	assert.equal(answer, "FIR-8842");
+	assert.deepEqual(result.sources, []);
+	assert.equal(isPrivatePersonalCodeStatement(query), true);
+	assert.equal(isPrivatePersonalCodeStatement("Private session. No memory. Research renewable energy grids."), false, "Private research can still use web retrieval");
 });
 
 test("notes recall preserves user notes and formatting through the final verifier", async () => {

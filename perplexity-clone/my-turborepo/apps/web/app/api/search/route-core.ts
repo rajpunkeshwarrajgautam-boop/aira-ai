@@ -24,7 +24,8 @@ import {
 	persistConversationTurn,
 } from "@/lib/conversation-memory";
 import { isPersonalMemoryRecallQuery } from "@/lib/memory-relevance";
-import { isExplicitDurableMemoryRequest } from "@/lib/conversation-thread";
+import { isExplicitDurableMemoryRequest, isPrivatePersonalCodeStatement } from "@/lib/conversation-thread";
+import { createMemoryCommandAnswer } from "@/lib/memory-command-answer";
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
 import { streamDeepResearchAnswer } from "@services/deep-research";
@@ -260,7 +261,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	const greetingOnly =
 		mathAnswer === null && isGreetingOnlyQuery(parsed.data.query);
 	const memoryOnly = isPersonalMemoryRecallQuery(parsed.data.query) ||
-		isExplicitDurableMemoryRequest(parsed.data.query);
+		isExplicitDurableMemoryRequest(parsed.data.query) || isPrivatePersonalCodeStatement(parsed.data.query);
 	const skipSearchQuota = mathAnswer !== null || greetingOnly || memoryOnly;
 
 	if (!userId) {
@@ -395,7 +396,13 @@ async function handleSearchPost(req: Request): Promise<Response> {
 				| Awaited<ReturnType<typeof streamDeepResearchAnswer>>;
 
 			try {
-				if (mathAnswer !== null) {
+				const memoryCommandAnswer = userId
+					? await createMemoryCommandAnswer({ userId, query: parsed.data.query, privateSession: context.privateSession })
+					: null;
+				if (memoryCommandAnswer) {
+					analyticsSearchMode = "standard";
+					grounded = memoryCommandAnswer;
+				} else if (mathAnswer !== null) {
 					analyticsSearchMode = "standard";
 					let resultText = mathAnswer;
 					try {
@@ -424,7 +431,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							yield `The result is **${resultText}**.`;
 						})(),
 					};
-				} else if (greetingOnly || memoryOnly) {
+				} else if (greetingOnly || memoryOnly || isPrivatePersonalCodeStatement(parsed.data.query, context.privateSession)) {
 					analyticsSearchMode = "standard";
 					grounded = await streamGroundedAnswer({
 						query: parsed.data.query,
@@ -512,6 +519,8 @@ async function handleSearchPost(req: Request): Promise<Response> {
 							userId,
 							query: parsed.data.query,
 							answer: cleanedText,
+							explicitMemoryAlreadySaved: memoryCommandAnswer !== null && !context.privateSession,
+							privateSession: context.privateSession,
 							conversationId: context.resolvedConversationId,
 							parentMessageId: parsed.data.parentMessageId,
 							citations: metadata.citations,

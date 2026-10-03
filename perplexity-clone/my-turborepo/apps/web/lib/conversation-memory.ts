@@ -45,7 +45,7 @@ export async function getFollowUpContext(
 	const contextualMemory = [...context.contextualMemory];
 	const isGreeting = isGreetingOnlyQuery(args.query);
 	const threadLocalFollowUp = context.chatHistory.length > 0 && isThreadLocalFollowUp(args.query);
-	const memoryDisabled = isMemoryDisabledRequest(args.query);
+	const memoryDisabled = context.privateSession || isMemoryDisabledRequest(args.query);
 
 	if (!isGreeting && !memoryDisabled && !threadLocalFollowUp && !isPersonalMemoryRecallQuery(args.query) && args.includeKnowledge !== false) {
 		try {
@@ -104,5 +104,6 @@ export async function getFollowUpContext(
 		chatHistory: bounded.chatHistory,
 		contextualMemory: bounded.contextualMemory,
 		resolvedConversationId: context.resolvedConversationId,
+		privateSession: context.privateSession,
 	};
 }

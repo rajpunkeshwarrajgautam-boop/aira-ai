@@ -1,14 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { prisma } from "../lib/prisma";
-import { globalUserAgentStore, UserAgentStore } from "../lib/agents/user-agents-store";
-import { globalSkillsStore, InstallableSkillsStore } from "../lib/agents/installable-skills-store";
-import { globalArtifactEngine, ArtifactEngine } from "../lib/artifacts/engine";
-import { globalAutomationEngine, AutomationEngine } from "../lib/automation/engine";
-import { globalEnterpriseOrgManager, EnterpriseOrganizationManager } from "../lib/enterprise/organization-manager";
+import { UserAgentStore } from "../lib/agents/user-agents-store";
+import { InstallableSkillsStore } from "../lib/agents/installable-skills-store";
+import { ArtifactEngine } from "../lib/artifacts/engine";
+import { AutomationEngine } from "../lib/automation/engine";
 
 test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) => {
+	// Parallel test processes must not overwrite this test's persistence files.
+	// Both generations use the same isolated directory to verify disk recovery.
+	const storagePath = mkdtempSync(join(tmpdir(), "aira-durability-restart-"));
+	t.after(() => rmSync(storagePath, { recursive: true, force: true }));
+	const agentStore = new UserAgentStore(storagePath);
+	const skillsStore = new InstallableSkillsStore(storagePath);
+	const artifactEngine = new ArtifactEngine(storagePath);
+	const automationEngine = new AutomationEngine(storagePath);
 	const testId = Date.now();
 	const userId = `user_truthmode_${testId}`;
 
@@ -28,7 +38,7 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) =
 	});
 
 	// 1. Create and Persist User Agent
-	const agent = globalUserAgentStore.createAgent(userId, {
+	const agent = agentStore.createAgent(userId, {
 		name: "Truthmode Architect Agent",
 		description: "Survives process termination and cold restarts",
 		instructions: "Enforce zero simulation and 100% durable persistence.",
@@ -43,7 +53,7 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) =
 	});
 
 	// 2. Create and Persist Installable Skill
-	const skill = globalSkillsStore.installSkill(userId, {
+	const skill = skillsStore.installSkill(userId, {
 		name: "Zero-Simulation Engine Certifier",
 		description: "Audits execution engines to eliminate placeholder results",
 		instructions: "Verify real node dispatch and exact payload generation.",
@@ -57,12 +67,12 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) =
 	});
 
 	// 3. Create and Persist Artifact (Native PDF deliverable)
-	const pdfBytes = globalArtifactEngine.generatePdf({
+	const pdfBytes = artifactEngine.generatePdf({
 		title: "Truthmode Certification Report",
 		bodyLines: ["All 128 gates audited under adversarial truthmode.", "Zero simulations allowed."],
 	});
 
-	const artifact = globalArtifactEngine.createArtifact({
+	const artifact = artifactEngine.createArtifact({
 		userId,
 		name: "Truthmode-Audit.pdf",
 		format: "PDF",
@@ -76,7 +86,7 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) =
 	});
 
 	// 4. Create and Persist Automation Routine & Workflow
-	const routine = globalAutomationEngine.createRoutine({
+	const routine = automationEngine.createRoutine({
 		userId,
 		name: "Durable Nightly Production Auditor",
 		description: "Scheduled flow that survives cold worker restart",
@@ -100,13 +110,13 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) =
 	});
 
 	// 5. Execute Routine to generate Run and Notification
-	const run = await globalAutomationEngine.executeWorkflow(routine.id, userId, {
+	const run = await automationEngine.executeWorkflow(routine.id, userId, {
 		idempotencyKey: `idem_${testId}`,
 	});
 	assert.equal(run.status, "COMPLETED");
 
 	// Send an explicit notification
-	const notif = globalAutomationEngine.sendNotification(userId, {
+	const notif = automationEngine.sendNotification(userId, {
 		title: "Critical Audit Certified",
 		message: "Durable audit workflow concluded successfully.",
 		category: "system",
@@ -117,10 +127,10 @@ test("TRUTHMODE PHASE 12: Complete Process Restart Durability Test", async (t) =
 	// that have empty memory maps and must reconstruct state from storage.
 	// =========================================================================
 
-	const freshAgentStore = new UserAgentStore();
-	const freshSkillsStore = new InstallableSkillsStore();
-	const freshArtifactEngine = new ArtifactEngine();
-	const freshAutomationEngine = new AutomationEngine();
+	const freshAgentStore = new UserAgentStore(storagePath);
+	const freshSkillsStore = new InstallableSkillsStore(storagePath);
+	const freshArtifactEngine = new ArtifactEngine(storagePath);
+	const freshAutomationEngine = new AutomationEngine(storagePath);
 
 	// 1. Verify User Agent restored
 	const restoredAgent = freshAgentStore.getAgent(userId, agent.id);

@@ -43,6 +43,16 @@ export function isMemoryDisabledRequest(raw: string): boolean {
 	return MEMORY_DISABLED_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+export function isPrivateSessionRequest(raw: string): boolean {
+	return /\b(?:private session|private mode|no memory|without memory|memory off)\b/i.test(raw);
+}
+
+/** A private personal code supplied by the user is not public web evidence. */
+export function isPrivatePersonalCodeStatement(raw: string, privateSession = false): boolean {
+	return (privateSession || isMemoryDisabledRequest(raw)) &&
+		/\b(?:my|our)\s+[^?!.\n]{0,160}?\bcode\s+(?:is|=)\s+\S+/i.test(raw);
+}
+
 export function isExplicitDurableMemoryRequest(raw: string): boolean {
 	if (isMemoryDisabledRequest(raw)) return false;
 	const text = raw.trim().replace(/\s+/g, " ");

@@ -8,13 +8,15 @@ let memoryWrites = 0;
 let refreshCalls = 0;
 let messageWrites = 0;
 let allowResearch = false;
+let privateConversation = false;
+const storedMessages: Array<Record<string, unknown>> = [];
 const transaction = {
-	conversationMessage: { create: async () => ({ id: `message-${++messageWrites}` }) },
+	conversationMessage: { create: async ({ data }: { data: Record<string, unknown> }) => { storedMessages.push(data); return { id: `message-${++messageWrites}` }; } },
 	researchHistory: { create: async () => { researchWrites++; } },
 	conversation: { update: async () => undefined },
 };
 mock.module("@/lib/prisma", { exports: { prisma: {
-	conversation: { findFirst: async () => ({ id: "thread", title: "QA thread", summary: "UNRELATED_SUMMARY" }) },
+	conversation: { findFirst: async () => ({ id: "thread", title: "QA thread", summary: "UNRELATED_SUMMARY", messages: privateConversation ? [{ id: "old-private-seed" }] : [] }) },
 	$transaction: async (fn: (tx: typeof transaction) => Promise<unknown>) => fn(transaction),
 	conversationMessage: { findFirst: async ({ where }: { where: { id: string; userId: string; conversationId: string } }) => {
 		assert.equal(where.userId, "owner");
@@ -26,6 +28,7 @@ mock.module("@/lib/prisma", { exports: { prisma: {
 		assert.ok(allowResearch, "Personal recall must not retrieve research containing loosely matching words");
 		return [
 			{ query: "Private session. No memory. My private code is LARCH-9827.", assistantAnswer: "PRIVATE_SENTINEL" },
+			{ query: "What is my code?", assistantAnswer: "LEGACY_PRIVATE_FOLLOWUP", conversation: { messages: [{ id: "private-seed" }] } },
 			{ query: "Explain lunar eclipses", assistantAnswer: "An eclipse occurs in the Earth's shadow." },
 		];
 	} },
@@ -80,6 +83,15 @@ test("ordinary research and authorized memory writes retain persistence behavior
 	assert.equal(refreshCalls, 1);
 });
 
+test("confirmed direct memory commands persist their conversation without a second memory write", async () => {
+	researchWrites = memoryWrites = refreshCalls = messageWrites = 0;
+	await persistConversationTurn({ userId: "owner", conversationId: "thread", query: "Remember that my review code is PINE-8842.", answer: "Saved to memory: my review code is PINE-8842.", citations: [], explicitMemoryAlreadySaved: true });
+	assert.equal(messageWrites, 2);
+	assert.equal(researchWrites, 1);
+	assert.equal(memoryWrites, 0);
+	assert.equal(refreshCalls, 1);
+});
+
 
 test("legacy private research rows are excluded from future context", async () => {
 	const { getFollowUpContext: getCoreContext } = await import("../lib/conversation-memory-core");
@@ -88,5 +100,25 @@ test("legacy private research rows are excluded from future context", async () =
 	 const result = await getCoreContext({ userId: "owner", conversationId: "thread", parentMessageId: "assistant", query: "Explain lunar eclipses" });
 	 assert.ok(result.contextualMemory.some((item) => item.includes("Earth's shadow")));
 	 assert.ok(result.contextualMemory.every((item) => !item.includes("LARCH-9827") && !item.includes("PRIVATE_SENTINEL")));
+	 assert.ok(result.contextualMemory.every((item) => !item.includes("LEGACY_PRIVATE_FOLLOWUP")));
 	} finally { allowResearch = false; }
+});
+
+test("private sessions survive history truncation and block follow-up research and memory reuse", async () => {
+	privateConversation = true;
+	researchWrites = memoryWrites = refreshCalls = messageWrites = recallCalls = backgroundCalls = 0;
+	storedMessages.length = 0;
+	try {
+		const context = await getFollowUpContext({ userId: "owner", query: "Remember that my review code is PRIVATE-44.", conversationId: "thread", parentMessageId: "assistant", messageLimit: 1 });
+		assert.equal(context.privateSession, true);
+		assert.deepEqual(context.contextualMemory, []);
+		assert.equal(recallCalls, 0);
+		assert.equal(backgroundCalls, 0);
+		await persistConversationTurn({ userId: "owner", conversationId: "thread", query: "What is my review code?", answer: "PRIVATE-44", citations: [], privateSession: context.privateSession });
+		assert.equal(messageWrites, 2);
+		assert.equal(researchWrites, 0);
+		assert.equal(memoryWrites, 0);
+		assert.equal(refreshCalls, 0);
+		assert.ok(storedMessages.every((message) => (message.metadata as { privateSession?: boolean }).privateSession === true));
+	} finally { privateConversation = false; }
 });
