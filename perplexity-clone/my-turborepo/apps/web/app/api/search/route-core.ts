@@ -24,7 +24,7 @@ import {
 	persistConversationTurn,
 } from "@/lib/conversation-memory";
 import { isPersonalMemoryRecallQuery } from "@/lib/memory-relevance";
-import { isExplicitDurableMemoryRequest } from "@/lib/conversation-thread";
+import { isExplicitDurableMemoryRequest, isPrivatePersonalCodeStatement } from "@/lib/conversation-thread";
 import { createMemoryCommandAnswer } from "@/lib/memory-command-answer";
 import { isGreetingOnlyQuery, tryParseMathAnswer } from "@/lib/search/no-quota-query";
 import { streamGroundedAnswer } from "@services/answer";
@@ -261,7 +261,7 @@ async function handleSearchPost(req: Request): Promise<Response> {
 	const greetingOnly =
 		mathAnswer === null && isGreetingOnlyQuery(parsed.data.query);
 	const memoryOnly = isPersonalMemoryRecallQuery(parsed.data.query) ||
-		isExplicitDurableMemoryRequest(parsed.data.query);
+		isExplicitDurableMemoryRequest(parsed.data.query) || isPrivatePersonalCodeStatement(parsed.data.query);
 	const skipSearchQuota = mathAnswer !== null || greetingOnly || memoryOnly;
 
 	if (!userId) {
