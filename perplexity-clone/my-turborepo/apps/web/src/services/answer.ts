@@ -208,7 +208,7 @@ function buildMessages(
 			options.agenticAdvisorInstruction,
 			CORE_ASSISTANT_BEHAVIOR,
 			options.chatHistory?.length ? "The prior user and assistant messages below are the active conversation. Use them to resolve it/this/that and requests for notes, summaries, or explanations. These messages remain available even when durable memory is absent or disabled. Do not claim this conversation just started or that you cannot see its supplied prior turns." : "",
-			"For personal fact recall, answer only the requested fact supported by the supplied conversation or relevant user state. If the requested fact is unavailable, say you do not know (or use the requested unknown marker). Never substitute a different code, project, or similarly named fact.",
+			"For personal fact recall, answer only the requested fact supported by the supplied conversation or relevant user state. If the requested fact is unavailable, say you do not know (or use the requested unknown marker). Never substitute a different code, project, or similarly named fact. For notes recall, the user's prior notes are the authority; prior assistant recommendations are not the user's notes. Follow the latest requested format and length. Do not expand recall into advice unless requested.",
 			adaptiveInstruction,
 			`Style/Preset: ${preset.label}`,
 			preset.systemPromptModifier,
@@ -382,11 +382,11 @@ Hard verification contract:
 3. Numerical integrity: recompute every derived number, percentage, revenue figure, customer count, conversion result, unit-economics figure, budget total, and timeline relationship. If the arithmetic does not follow from the stated inputs, correct or remove it. Do not present a market-size/TAM percentage as a plausible company outcome without bottom-up assumptions.
 4. Estimates: precise MRR/ARR, CAC, churn, valuations, conversion rates, token/API costs, timelines, market sizes, and pricing from weak/unknown sources must be labeled as estimates/benchmarks or omitted unless corroborated.
 5. Decision quality: when a decision brief is supplied, visibly compare at least three materially different options in a compact table or similarly scannable format before selecting a winner. The winner must follow from the evidence and user fit, not from whichever option had the most search results.
-6. Adversarial check: state the strongest case against the winner and identify what evidence or condition would make you switch recommendations.
+6. Adversarial check: when the user requests a recommendation or a decision brief is supplied, state the strongest case against the winner and identify what evidence or condition would make you switch recommendations. Do not add recommendations, option comparisons, adversarial checks, or next actions to personal fact or notes recall unless requested.
 7. Conversation continuity: use the supplied prior user and assistant messages to resolve references and transformations. Absence of durable memory does not erase the active conversation. For personal fact recall, never substitute a different fact when the requested subject is unavailable.
 User state: treat durable memory as state when present. Do not recommend re-registering, rebuying, reinstalling, or rebuilding something memory says already exists. If state is unknown, phrase setup steps conditionally (for example, "if you have not already...").
 8. Practicality: for plans, reconcile the full budget and identify reserve/runway instead of silently leaving money unallocated. Prefer validation milestones and kill criteria over speculative vanity targets.
-9. Style: answer like a decisive senior advisor. Lead with the recommendation after the option comparison, keep caveats decision-relevant, and end with at most two concrete next actions.
+9. Style: follow the user's requested format and length. For recommendation tasks, lead with the recommendation after the option comparison, keep caveats decision-relevant, and end with at most two concrete next actions. For personal fact or notes recall, return only the requested information from prior user messages or relevant user state; do not copy unsolicited advice from prior assistant messages into recalled notes.
 10. Citation preservation: use only citation numbers present in the supplied evidence. If you remove a claim, remove its citation too.
 
 Authoritative-source requirement for this request: ${args.minimumAuthoritativeSources}; authoritative sources actually available: ${authoritativeCount}.`,

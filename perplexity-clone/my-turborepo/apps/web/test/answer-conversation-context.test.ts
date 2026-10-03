@@ -52,3 +52,27 @@ test("personal recall and explicit remember commands skip retrieval without a ca
 		assert.match(String(calls[0]![0]!.content), /Never substitute a different code/);
 	}
 });
+
+test("notes recall preserves user notes and formatting through the final verifier", async () => {
+	const calls: ChatCompletionMessageParam[][] = [];
+	const router = { streamChat: async function* (messages: ChatCompletionMessageParam[]) {
+		calls.push(messages);
+		yield "Amber Desk; Tuesday";
+	} } as unknown as ProviderRouter;
+	const exa = { search: async () => assert.fail("Notes recall must use conversation context") } as unknown as ExaSearchService;
+	const chatHistory = [
+		{ role: "user" as const, content: "My notes: workspace label Amber Desk; review day Tuesday." },
+		{ role: "assistant" as const, content: "I recommend reviewing an unrelated improvement process." },
+	];
+	const result = await streamGroundedAnswer({
+		query: "What were my notes? Answer only with the workspace label and review day I gave earlier in this conversation.",
+		chatHistory, router, exa,
+	});
+	for await (const chunk of result.textStream) assert.equal(chunk, "Amber Desk; Tuesday");
+	assert.equal(result.sources.length, 0);
+	assert.equal(calls.length, 2, "The live notes query exercises both synthesis and final verification");
+	assert.match(String(calls[0]![0]!.content), /prior assistant recommendations are not the user's notes/);
+	assert.match(String(calls[1]![0]!.content), /Do not add recommendations, option comparisons, adversarial checks, or next actions to personal fact or notes recall unless requested/);
+	assert.match(String(calls[1]![0]!.content), /follow the user's requested format and length/);
+	assert.ok(calls[1]!.some((message) => message.role === "user" && message.content === chatHistory[0]!.content));
+});
