@@ -39,3 +39,21 @@ test("MEM-CORR-04: free-form memories remain content-addressed", () => {
 		manualMemoryKeyForContent("I prefer detailed release notes"),
 	);
 });
+
+test("MEM-CORR-05: the live correction-prefix sequence reuses the original fact slot", () => {
+	const original = "Remember that my Aira OAuth repair QA test code is MAPLE-7306.";
+	const correction = "Correction: remember that my Aira OAuth repair QA test code is MAPLE-9184, replacing the previous value.";
+	assert.equal(isExplicitDurableMemoryRequest(correction), true);
+	assert.equal(canonicalDurableMemoryText(correction),
+		"my Aira OAuth repair QA test code is MAPLE-9184, replacing the previous value.");
+	assert.equal(manualMemoryKeyForContent(original), manualMemoryKeyForContent(correction));
+	assert.equal(manualMemoryKeyForContent(canonicalDurableMemoryText(original)),
+		manualMemoryKeyForContent(correction));
+});
+
+test("MEM-CORR-06: correction labels do not erase ordinary assignment subjects", () => {
+	const content = "Correction policy is always reviewed before a release.";
+	assert.equal(canonicalDurableMemoryText(content), content);
+	assert.notEqual(manualMemoryKeyForContent(content),
+		manualMemoryKeyForContent("policy is always reviewed before a release."));
+});

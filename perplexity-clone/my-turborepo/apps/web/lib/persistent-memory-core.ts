@@ -236,14 +236,7 @@ export async function createManualMemory(args: {
 			where: { userId_memoryKey: { userId: args.userId, memoryKey } },
 			select: { id: true },
 		});
-		if (existing) {
-			return tx.userMemory.update({
-				where: { id: existing.id },
-				data,
-				select: USER_MEMORY_SELECT,
-			});
-		}
-
+		let targetId = existing?.id;
 		if (memoryKey.startsWith("manual.slot.")) {
 			const legacy = await tx.userMemory.findMany({
 				where: { userId: args.userId, memoryKey: { startsWith: "manual." } },
@@ -251,18 +244,25 @@ export async function createManualMemory(args: {
 				take: 120,
 				select: { id: true, memoryKey: true, content: true },
 			});
-			const sameSlot = legacy.find(
-				(memory) =>
-					memory.memoryKey !== memoryKey &&
-					manualMemoryKeyForContent(memory.content) === memoryKey,
+			const sameSlot = legacy.filter(
+				(memory) => manualMemoryKeyForContent(memory.content) === memoryKey,
 			);
-			if (sameSlot) {
-				return tx.userMemory.update({
-					where: { id: sameSlot.id },
-					data: { ...data, memoryKey },
-					select: USER_MEMORY_SELECT,
+			targetId ??= sameSlot[0]?.id;
+			const duplicateIds = sameSlot
+				.filter((memory) => memory.id !== targetId)
+				.map((memory) => memory.id);
+			if (duplicateIds.length > 0) {
+				await tx.userMemory.deleteMany({
+					where: { userId: args.userId, id: { in: duplicateIds } },
 				});
 			}
+		}
+		if (targetId) {
+			return tx.userMemory.update({
+				where: { id: targetId },
+				data: { ...data, memoryKey },
+				select: USER_MEMORY_SELECT,
+			});
 		}
 
 		return tx.userMemory.create({

@@ -266,6 +266,28 @@ test("[MOCKED CORE] a legacy assignment migrates in place while another owner's 
 	assert.deepEqual(rows[1], otherBefore);
 });
 
+test("[MOCKED CORE] correction consolidates legacy prefixed duplicates without changing other facts or owners", async () => {
+	const { subject, rows, calls } = loadSubject();
+	const original = await subject.createManualMemory({ userId: owner,
+		content: "my Aira OAuth repair QA test code is MAPLE-7306." });
+	rows.push({ ...rows[0]!, id: "prefixed-legacy", memoryKey: "manual.slot.old-prefix-hash",
+		content: "Correction: remember that my Aira OAuth repair QA test code is MAPLE-9184, replacing the previous value." });
+	await subject.createManualMemory({ userId: owner, content: "my Aira private QA test code is PRIVATE-2048" });
+	await subject.createManualMemory({ userId: other, content: "my Aira OAuth repair QA test code is MAPLE-7306." });
+	const unaffected = structuredClone(rows.filter((row) => row.id !== original.id && row.id !== "prefixed-legacy"));
+	calls.length = 0;
+	const corrected = await subject.createManualMemory({ userId: owner,
+		content: "my Aira OAuth repair QA test code is MAPLE-9184." });
+	assert.equal(corrected.id, original.id);
+	assert.equal(rows.length, 3);
+	assert.deepEqual(rows.filter((row) => row.id !== original.id), unaffected);
+	assert.deepEqual(calls.find((call) => call.method === "userMemory.deleteMany")?.where,
+		{ userId: owner, id: { in: ["prefixed-legacy"] } });
+	assert.deepEqual(await subject.getRelevantPersistentMemories(owner,
+		"What is my Aira OAuth repair QA test code?"),
+		["OTHER: my Aira OAuth repair QA test code is MAPLE-9184. (pinned)"]);
+});
+
 for (const content of ["   ", "My password is secret", "My API key is a-test-value"]) {
 	test(`[MOCKED CORE] manual validation rejects empty/credential-like content: ${JSON.stringify(content)}`, async () => {
 		const { subject, calls } = loadSubject();

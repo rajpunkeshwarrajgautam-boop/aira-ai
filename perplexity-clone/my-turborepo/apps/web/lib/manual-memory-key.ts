@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { canonicalDurableMemoryText } from "./conversation-thread";
 
 function digest(value: string): string {
 	return createHash("sha256").update(value).digest("hex").slice(0, 20);
@@ -20,7 +21,7 @@ function normalizedSubject(value: string): string {
  */
 export function manualMemoryKeyForContent(content: string): string {
 	const normalized = content.trim().replace(/\s+/g, " ");
-	const assignment = normalized.match(
+	const assignment = canonicalDurableMemoryText(normalized).match(
 		/^(.{3,160}?)\s+(?:is|are|should be|defaults? to|=)\s+(.{1,600})$/i,
 	);
 	if (assignment) {

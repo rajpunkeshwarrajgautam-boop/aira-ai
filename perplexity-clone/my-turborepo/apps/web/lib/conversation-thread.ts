@@ -52,7 +52,9 @@ export function isExplicitDurableMemoryRequest(raw: string): boolean {
 export function canonicalDurableMemoryText(raw: string): string {
 	let original = raw.trim().replace(/\s+/g, " ");
 	if (!original) return "";
-	original = original.replace(/^actually[,:]?\s*/i, "");
+	original = original
+		.replace(/^correction\s*[:,-]\s*/i, "")
+		.replace(/^actually[,:]?\s*/i, "");
 
 	const correction = original.match(
 		/^(?:please\s+)?(?:change|update|replace)\s+what\s+you\s+remember\s+about\s+my\s+(.+?)\s+to\s+(.+?)(?:\s+instead)?[.!]?$/i,
