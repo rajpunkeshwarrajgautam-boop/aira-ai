@@ -46,3 +46,22 @@ test("a later explicit user correction overrides stale durable state in the acti
 		{ role: "user", content: "Correction: remember that my workspace review code is NEW-7788, replacing the previous value." },
 	] }), "Saved: NEW-7788\nPrivate: UNKNOWN");
 });
+
+test("a private qualifier cannot fill an unqualified sibling code when only private evidence exists", () => {
+	const chatHistory = [{ role: "user" as const, content: "Private session. No memory. Do not remember this: my private workspace review code is FIR-8854." }];
+	for (const reverse of [false, true]) {
+		const query = reverse
+			? "What is my private workspace review code? What is my workspace review code? Format: Private: <code or UNKNOWN>; Saved: <code or UNKNOWN>"
+			: "What is my workspace review code? What is my private workspace review code? Format: Saved: <code or UNKNOWN>; Private: <code or UNKNOWN>";
+		assert.equal(resolveFormattedCodeRecall({ query, chatHistory }), reverse ? "Private: FIR-8854\nSaved: UNKNOWN" : "Saved: UNKNOWN\nPrivate: FIR-8854");
+	}
+});
+
+test("numbered durable-memory blocks and active private evidence bind to exact subjects", () => {
+	const query = "What is my workspace review code? What is my private workspace review code? Format: Saved: <code or UNKNOWN>; Private: <code or UNKNOWN>";
+	const result = resolveFormattedCodeRecall({ query,
+		contextualMemory: ["DURABLE USER MEMORIES (relevant):\n1. OTHER: my workspace review code is RIVER-8821 (pinned)\n2. OTHER: my unrelated project code is ELSE-1188"],
+		chatHistory: [{ role: "user", content: "my private workspace review code is FIR-8854" }],
+	});
+	assert.equal(result, "Saved: RIVER-8821\nPrivate: FIR-8854");
+});
