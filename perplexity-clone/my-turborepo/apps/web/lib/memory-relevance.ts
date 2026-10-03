@@ -13,24 +13,27 @@ export function isMemoryInventoryQuery(query: string): boolean {
 	return /^(?:(?:please\s+)?(?:what do you (?:remember|know) about me|what do you remember|(?:show|list)(?: me)?(?: all)?(?: of)? my (?:memories|preferences|profile)|my (?:memories|preferences|profile)))\s*[?!.]*$/i.test(query.trim());
 }
 
-function requestedMemorySubject(query: string): string | null {
-	const match = query.match(/\b(?:(?:what|which|where|who)\s+(?:is|are|was|were)|what do you (?:remember|know) about)\s+(?:my|our)\s+([^?!.\n]+)/i);
-	return match?.[1]?.split(/\s+(?:that|which)\s+(?:I|we)\b|\s+(?:answer|respond|reply)\b/i)[0]?.trim() || null;
+export function requestedMemorySubjects(query: string): string[] {
+	return [...query.matchAll(/\b(?:(?:what|which|where|who)\s+(?:is|are|was|were)|what do you (?:remember|know) about)\s+(?:my|our)\s+([^?!.\n]+)/gi)]
+		.map((match) => match[1]?.split(/\s+(?:that|which)\s+(?:I|we)\b|\s+(?:answer|respond|reply)\b/i)[0]?.trim() ?? "")
+		.filter(Boolean);
 }
 
 export function isPersonalMemoryRecallQuery(query: string): boolean {
-	return isMemoryInventoryQuery(query) || requestedMemorySubject(query) !== null ||
+	return isMemoryInventoryQuery(query) || requestedMemorySubjects(query).length > 0 ||
 		/\b(?:do you remember|what (?:did|have) I (?:tell|told|ask|asked)|I asked you to remember)\b/i.test(query);
 }
 
 /** Keep distinguishing qualifiers: a private code is not a certification code. */
 export function memoryMatchesRequestedSubject(content: string, query: string): boolean {
-	const subject = requestedMemorySubject(query);
-	if (!subject) return true;
-	const requested = memoryQueryTokens(subject);
+	const subjects = requestedMemorySubjects(query);
+	if (subjects.length === 0) return true;
 	const storedSubject = content.match(/^(.{3,160}?)\s+(?:is|are|should be|defaults? to|=)\s+/i)?.[1] ?? content;
 	const stored = new Set(memoryQueryTokens(storedSubject));
-	return requested.length > 0 && requested.every((token) => stored.has(token));
+	return subjects.some((subject) => {
+		const requested = memoryQueryTokens(subject);
+		return requested.length > 0 && requested.every((token) => stored.has(token));
+	});
 }
 
 export function hasMemoryTopicOverlap(content: string, keywords: readonly string[], query: string): boolean {

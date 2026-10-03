@@ -18,6 +18,7 @@ import {
 	type SourceCandidate,
 } from "./citations";
 import { isPersonalMemoryRecallQuery } from "@/lib/memory-relevance";
+import { resolveFormattedCodeRecall } from "@/lib/personal-code-recall";
 import { isExplicitDurableMemoryRequest } from "@/lib/conversation-thread";
 import { isContextOnlyFollowUpQuery } from "@/lib/search/no-quota-query";
 import { CORE_ASSISTANT_BEHAVIOR, buildAdaptiveResponseInstruction } from "./chat-prompt-policy";
@@ -424,6 +425,14 @@ export async function streamGroundedAnswer(
 		}
 	};
 
+	const recalledCodes = resolveFormattedCodeRecall(input);
+	if (recalledCodes !== null) {
+		return {
+			query: input.query.trim(),
+			sources: [],
+			textStream: (async function* () { yield recalledCodes; })(),
+		};
+	}
 	const router = input.router ?? (await ProviderRouter.createDefault());
 	const agenticPlan = buildAgenticAnswerPlan(input.query);
 	const searchDisabled = input.disableSearch === true || agenticPlan.retrievalMode === "reasoning" ||

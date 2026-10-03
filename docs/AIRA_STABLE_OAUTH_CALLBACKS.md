@@ -2,8 +2,10 @@
 
 Status (2026-10-03): stable proxy enabled; Production and authenticated Preview
 Google login passed. The isolated Preview database is connected. Cross-chat
-recall, correction, notes recall, and private-memory isolation passed. GitHub
-callback routing passed, but account linking is still required for sign-in.
+recall, correction, notes recall, and standalone private-memory isolation passed.
+Google and GitHub sign-in both passed on Preview and Production after explicitly
+approved account linking. Combined code recall now resolves each requested subject
+independently, rather than allowing a generated answer to reuse a sibling code.
 
 Aira uses next-auth 5.0.0-beta.32 and @auth/core 0.41.3. They already implement
 `AUTH_REDIRECT_PROXY_URL`; no new auth service or browser package is needed.
@@ -97,11 +99,11 @@ Official reference: https://authjs.dev/getting-started/deployment#securing-a-pre
 - Authenticated Google Preview login passed on deployment
   `dpl_BtX3zouFkBiwCi9Pg1rxJDEzNYj1`, returning to the initiating Preview. The stable
   branch URL also signed in successfully and retained its session across a redeploy.
-- GitHub OAuth returned to the initiating Preview and passed state, PKCE, token,
-  and database-adapter checks. It stopped with `OAuthAccountNotLinked`: the existing
-  Google account has no linked GitHub identity. Linking requires explicit approval;
-  do not enable `allowDangerousEmailAccountLinking` to bypass it. Production GitHub
-  account sign-in remains unverified.
+- GitHub initially returned `OAuthAccountNotLinked` on Preview. After explicit
+  approval, the verified GitHub identity was associated with the existing Preview
+  Google account. Production's active Supabase database already associated both
+  identities with the same account. Fresh GitHub login passed on both sites with
+  their existing chat history. `allowDangerousEmailAccountLinking` remains false.
 - Live correction QA found that `Correction: remember ...` made a duplicate slot.
   `be2119c` normalizes the prefix and consolidates matching user-owned duplicates.
   The test fact now has one record, retaining the original row ID with value
@@ -123,6 +125,19 @@ Official reference: https://authjs.dev/getting-started/deployment#securing-a-pre
   passed. CI quality stopped before lint/types/tests/build at `pnpm audit --prod`
   for high-severity `braces` advisory `GHSA-vfj7-8cjw-p6xm`; the advisory lists no
   patched version. The audit gate remains enabled. Local results do not certify CI.
+- Dependency follow-up `14630ab5c24b95abaf65bccadfef8eabb2d06bbf` corrects
+  Tailwind, Typography, and Autoprefixer to development dependencies, preserving
+  versions and the enabled production audit. All five workflows passed, including
+  CI and Agent Platform Idempotency REAL_DB. CI verified all 124 production traces
+  exclude these CSS build tools and `braces`; Vercel Preview is READY. The unpatched
+  advisory still applies to the development toolchain, not the traced server.
+- Repeated combined recall exposed a generated answer that substituted the saved
+  code for an unavailable private code, despite earlier passing examples. Explicit
+  multi-code field requests now resolve each subject independently from durable
+  state and prior user statements, exclude assistant guesses, honor later user
+  corrections, and return the unknown marker for missing or conflicting evidence.
+  This narrow path does not claim to make arbitrary natural-language recall
+  deterministic. Other queries retain the regular answer engine.
 - PR #156 remains draft and unmerged; PR #153 remains untouched. No repair code or
   database migration was promoted to Production. These checks certify the named
   Preview scenarios, not release readiness or all users/providers.
