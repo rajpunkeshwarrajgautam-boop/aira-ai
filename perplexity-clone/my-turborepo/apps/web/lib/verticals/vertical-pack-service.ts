@@ -161,7 +161,7 @@ export const VerticalPacks: readonly VerticalPackDefinition[] = [
 		requiredSkills: ["education-platforms", "scientific-method"],
 		supportedDeliverables: ["DOCUMENT"],
 		humanReviewRequired: false,
-		constraints: ["Foster guided comprehension rather than dispensing unverified shortcut solutions."],
+		constraints: ["Guide comprehension rather than dispensing unverified shortcut solutions."],
 	},
 	{
 		id: "file-organizer",

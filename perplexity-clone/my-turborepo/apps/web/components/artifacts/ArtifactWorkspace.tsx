@@ -60,7 +60,7 @@ export function ArtifactWorkspace() {
 				// Fallback to sample seed artifacts
 			}
 
-			// Seed comprehensive multi-format samples for immediate verification
+			// Seed multi-format samples for immediate verification
 			const sampleReport: StoredArtifact = {
 				id: "art_sample_report",
 				userId: "demo_user",

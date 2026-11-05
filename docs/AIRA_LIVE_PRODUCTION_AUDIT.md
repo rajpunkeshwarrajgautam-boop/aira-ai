@@ -290,7 +290,7 @@ Propose a tightly focused **AIRA AI Release 3: Commercial Polish & Runtime Activ
 
 ## Final Truth Statement
 
-- **What AIRA can genuinely do today**: Execute standard AI search queries with NVIDIA/OpenAI model fallback, stream responses via SSE with grounded web citations, track anonymous search quotas, enforce database schema integrity (66 tables on Supabase PostgreSQL 17.6), render responsive pricing matrices, and manage session auth boundaries.
+- **What AIRA can do today**: Execute standard AI search queries with NVIDIA/OpenAI model fallback, stream responses via SSE with grounded web citations, track anonymous search quotas, enforce database schema integrity (66 tables on Supabase PostgreSQL 17.6), render responsive pricing matrices, and manage session auth boundaries.
 - **What AIRA appears to do but cannot currently do**: Execute autonomous agent runs (`/work`, `/agents`), build/run sandboxed web applications (`/build`), control remote headless browsers (`/browser`), orchestrate multi-agent swarms (`/swarms`), or ingest uploaded PDF/DOCX documents (`/knowledge`).
 - **What is blocked only by configuration**: Knowledge ingestion (`MULTIMODAL_INGESTION_ENABLED`), commercial payment checkout (`CASHFREE_LIVE_KEYS`), and OmniRoute model gateway configuration.
 - **What requires new infrastructure**: Remote Playwright browser lease daemon, sandboxed code execution runner, and background worker queue (BullMQ/Temporal).

@@ -105,4 +105,4 @@ DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[POOLER_HOST]:5432/po
   1. Inspect runtime connection in Node: `new pg.Client({ connectionString: process.env.DATABASE_URL })` must resolve `client.ssl: {}` with zero warning output.
   2. Test migration readiness: `npx prisma db execute --stdin` executes successfully over `DIRECT_URL`.
   3. Verify health probe: `GET https://aira-ai-live.vercel.app/api/health` or `/api/auth/csrf` succeeds with HTTP 200.
-- **Rollback Procedure**: If certificate verification fails due to unexpected upstream DNS or intermediate proxy changes, temporarily revert `sslmode` to `require` while investigating the certificate chain, ensuring zero unmonitored production downtime.
+- **Rollback Procedure**: If certificate verification fails due to unexpected upstream DNS or intermediate proxy changes, temporarily revert `sslmode` to `require` while investigating the certificate chain.

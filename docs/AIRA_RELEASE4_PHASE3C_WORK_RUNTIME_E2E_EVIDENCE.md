@@ -214,7 +214,7 @@
 * Forensic inspection of the CUID machine identifiers across all `AgentRun` records reveals two distinct execution environments operating against the shared Preview database `ep-dark-thunder`:
   1. **Native Host Worker (`88uv`)**: PID 36584 running locally with `.env.local` containing `DEFAULT_PRO_PROVIDER="nvidia"` and `NVIDIA_API_KEY`.
      - Tasks processed: Task 1 (`cmu9tvi7o...88uv...`) and Task 2 (`cmu9tx6e7...88uv...`).
-     - Outcome: Both succeeded completely, successfully executing NVIDIA model calls and tool invocations.
+     - Outcome: Both succeeded, executing NVIDIA model calls and tool invocations.
   2. **Vercel Preview Serverless Runtime (`8d9x`)**: Vercel preview deployment `dpl_Fo8aMuPRZmT1xgn5FUrkvzJXAGRA` executing internal scheduler ticks / reconcilers (`scheduler:6b4b6266...`).
      - Tasks processed: Task 3 attempts 1, 2, and 3 (`cmu9tz4kj...8d9x...`, `cmu9tzhz4...8d9x...`, `cmu9tzvdr...8d9x...`).
      - In the Vercel preview cloud environment, `NVIDIA_API_KEY` is not provisioned or `DEFAULT_PRO_PROVIDER="omniroute"` (which fails residency/config).

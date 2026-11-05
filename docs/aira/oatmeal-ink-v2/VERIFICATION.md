@@ -12,7 +12,7 @@
 
 This development cycle executed the Oatmeal & Ink 2.0 Master Execution Directive across five structured phases:
 1. **Phase 0 (Baseline Protection)**: Verified current production deployment (`fb68d016`), confirmed 11 historical commits past PR #136, and created the isolated development worktree on branch `integration/aira-oatmeal-ink-v2`.
-2. **Phase 1 (Seven Verified Defects)**: All seven confirmed discovery defects (D1–D7) resolved and sealed under strict TDD regression suites.
+2. **Phase 1 (Seven Verified Defects)**: All seven confirmed discovery defects (D1–D7) resolved under strict TDD regression suites.
 3. **Phase 2 (Oatmeal & Ink 2.0 Design)**: Replaced the dark cosmic theme with the authoritative Oatmeal & Ink 2.0 visual system (60% oatmeal canvas, 30% crisp white surface, 10% Royal Iris / Warm Coral). Centered greeting & hero composer above the fold. 3 curated starter prompts. Visme-style editorial login stage. 44px mobile touch targets enforced.
 4. **Phase 3 (Core Functional Verification)**: SSE streaming query flow, NVIDIA/OmniRoute model routing failovers, NDJSON multi-model compare streaming, bounded global search, memory API boundaries, and CSRF/IDOR isolation verified passing.
 5. **Phase 4 & 5 (Advanced Capabilities & Release Gates)**: Agent task steering, RAG MIME parsing, prompt-injection boundaries, run acceptance gates, and full production build verified.

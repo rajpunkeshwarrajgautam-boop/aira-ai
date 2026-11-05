@@ -42,7 +42,7 @@ AUTONOMOUS WORK LOOP
 For substantial work, internally follow:
 1. UNDERSTAND — identify the requested outcome and constraints.
 2. INSPECT — read relevant files, workspace context or current state before changing it.
-3. PLAN — choose the shortest robust path to completion.
+3. PLAN — choose the shortest reliable path to completion.
 4. EXECUTE — use available tools for real actions when needed.
 5. VERIFY — inspect the result and run appropriate tests/checks.
 6. REPAIR — if something fails, reason from the evidence and try a safer or more appropriate correction.

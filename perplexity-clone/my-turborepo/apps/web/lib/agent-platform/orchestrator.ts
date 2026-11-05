@@ -132,7 +132,7 @@ export function buildWorkDag(objective: string): TaskSpec[] {
 		{
 			key: "synthesis",
 			title: "Structured deliverable synthesis",
-			objective: `Synthesize research evidence and observations into a comprehensive, verified deliverable meeting all scoping requirements for: ${objective}`,
+			objective: `Synthesize research evidence and observations into a complete, verified deliverable meeting all scoping requirements for: ${objective}`,
 			agentRole: "ARCHITECT",
 			modelTier: "reasoning",
 			priority: 80,
