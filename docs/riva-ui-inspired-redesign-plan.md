@@ -17,8 +17,8 @@ This document outlines a technical and design roadmap to evolve the Perplexity c
 - **Principle**: Use higher contrast typography and increase line heights for long-form research content.
 
 ### 4. Color & Glassmorphism
-- **Analysis**: Deep, sleek dark mode with subtle translucent layers and high-quality gradients.
-- **Principle**: Enhance our current use of `backdrop-blur` and `surface-elevated` overlays for a more premium, layered feel.
+- **Analysis**: Dark mode with subtle translucent layers and gradients.
+- **Principle**: Enhance our current use of `backdrop-blur` and `surface-elevated` overlays for a more layered look.
 
 ---
 

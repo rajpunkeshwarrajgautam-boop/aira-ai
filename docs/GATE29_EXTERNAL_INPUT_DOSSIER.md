@@ -10,7 +10,7 @@ Status: **PARTIAL** (G29-REQ-12 is 100% satisfied internally via 32/32 passing a
 
 ## Executive Summary & Reality Alignment
 
-Following a comprehensive reality audit against the codebase and the authoritative master ledger (`docs/AIRA-128-GATE-EVIDENCE-LEDGER.md`):
+Following a reality audit against the codebase and the authoritative master ledger (`docs/AIRA-128-GATE-EVIDENCE-LEDGER.md`):
 
 1. **G29-REQ-12 (Malicious Connector Corpus)** is **SATISFIED INTERNALLY**:
    - Gate 29 is the *P0 Autonomous Security Red Team* gate requiring a complete regression corpus across files, sites, MCP, and connectors.

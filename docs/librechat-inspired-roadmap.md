@@ -32,7 +32,7 @@ LibreChat excels in **multi-provider orchestration** and **extensibility** via i
     - `Academic`: Focus on ArXiv and peer-reviewed journals.
     - `Shopping`: Focus on reviews and price comparisons.
     - `Coding`: Focus on GitHub, StackOverflow, and documentation.
-- **Why:** Enhances user relevance and aligns with Perplexity's "Pro" features.
+- **Why:** Matches sources to the user's intent and aligns with Perplexity's "Pro" features.
 - **Avoid:** Exposing raw LLM parameters (temperature, top_p) to users; keep it simple "modes".
 
 ### 3. MCP (Model Context Protocol) Integration (Medium Priority)

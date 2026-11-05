@@ -247,7 +247,7 @@ export default function KnowledgePage() {
 											Document ingestion is not enabled on this deployment
 										</h2>
 										<p className="mt-1 text-xs leading-5 text-[#6B6A75]">
-											Multimodal and local document upload requires a configured embedding model and vector index. Research continues to leverage verified web sources, real-time live retrieval, and persistent user memory.
+											Multimodal and local document upload requires a configured embedding model and vector index. Research continues to use verified web sources, live retrieval, and persistent user memory.
 										</p>
 									</div>
 								</div>

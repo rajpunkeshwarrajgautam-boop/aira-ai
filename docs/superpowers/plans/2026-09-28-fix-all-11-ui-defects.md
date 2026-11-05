@@ -30,7 +30,7 @@
 
 **Interfaces:**
 - Consumes: `SearchBoxProps`, `MODEL_OPTIONS`, `QUICK_COMMANDS`
-- Produces: Robust popover state management with guaranteed mutual exclusivity and collision avoidance.
+- Produces: Popover state management with mutual exclusivity and collision avoidance.
 
 - [ ] **Step 1: Write the failing contract test**
 
@@ -405,7 +405,7 @@ git commit -m "fix(web): remove fake notification dot and clip signin decorative
 - Run: `python scratch/run_full_deep_audit.py`
 - Verify: Inspect generated screenshots in `artifacts/ui-audit/` to guarantee all 11 defects are visually eliminated.
 
-- [ ] **Step 1: Run comprehensive web test suite**
+- [ ] **Step 1: Run the full web test suite**
 Run: `pnpm --filter web test`
 Verify: All existing and new tests exit code 0.
 

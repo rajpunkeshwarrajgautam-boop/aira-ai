@@ -1,4 +1,4 @@
-# AIRA AI — Oatmeal & Ink 2.0 Comprehensive Verification Report
+# AIRA AI — Oatmeal & Ink 2.0 Verification Report
 
 > **Branch**: `integration/aira-oatmeal-ink-v2`  
 > **Commit SHA**: `a7eea727`  
