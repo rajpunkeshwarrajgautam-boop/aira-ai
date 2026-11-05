@@ -28,7 +28,7 @@ const PLANS: readonly PricingPlan[] = [
 		name: "Free",
 		price: "$0",
 		eyebrow: "Explore",
-		description: "A generous place to think, ask, and research with Aira.",
+		description: "Search, ask, and research with Aira for free.",
 		features: ["250 searches per month", "Standard search", "Grounded citations", "Persistent conversation history", "Memory controls"],
 		icon: Zap,
 	},
@@ -36,7 +36,7 @@ const PLANS: readonly PricingPlan[] = [
 		name: "Pro",
 		price: "$20",
 		eyebrow: "Go deeper",
-		description: "For people who use Aira as a serious research and execution partner.",
+		description: "For people who rely on Aira for research and execution.",
 		features: ["2,000 searches per month", "Deep Research", "Priority AI provider routing", "Advanced citation ranking", "Priority support"],
 		icon: Crown,
 		highlight: true,
@@ -46,7 +46,7 @@ const PLANS: readonly PricingPlan[] = [
 		price: "$15",
 		priceNote: "per user / month",
 		eyebrow: "Build together",
-		description: "Shared intelligence, higher limits, and cleaner operations for teams.",
+		description: "Shared research history, higher limits, and admin controls for teams.",
 		features: ["10,000 searches per seat", "Team-wide research history", "Centralized admin controls", "Custom provider routing", "Priority support"],
 		icon: Shield,
 	},
@@ -93,7 +93,7 @@ export default function PricingPage() {
 				<div className="aira-enter relative mx-auto max-w-3xl text-center">
 					<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300 shadow-sm backdrop-blur"><Sparkles className="size-3.5 text-cyan-400" aria-hidden /> Simple pricing</div>
 					<h1 className="aira-display mt-5 text-4xl sm:text-5xl md:text-6xl text-white font-extrabold tracking-tight">Choose how far <span className="bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">Aira can go.</span></h1>
-					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">Start free. Move up when deeper research, more usage, or higher limits start saving you real time.</p>
+					<p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">Start free. Move up when you need Deep Research, more searches, or higher limits.</p>
 					<div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-amber-400/25 bg-amber-400/[0.08] px-4 py-3 text-sm leading-6 text-amber-200" role="status">
 						Paid checkout is currently disabled while AIRA completes commercial activation. No payment can be started from this release candidate. Explore Free tier capabilities or configure workspace access.
 					</div>
