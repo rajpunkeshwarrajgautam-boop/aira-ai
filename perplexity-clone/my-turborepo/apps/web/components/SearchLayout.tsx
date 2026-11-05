@@ -1,6 +1,6 @@
 "use client";
 
-// SSE boundary fix: robust parsing of LF/CRLF
+// SSE boundary fix: parse both LF and CRLF
 interface ProgressPayload {
 	readonly stage: string;
 	readonly message: string;

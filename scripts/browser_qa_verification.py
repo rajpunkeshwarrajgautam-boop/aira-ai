@@ -1,6 +1,6 @@
 """
 browser_qa_verification.py
-Comprehensive Playwright responsive browser QA verification for Aira AI PR #141.
+Playwright responsive browser QA verification for Aira AI PR #141.
 Tests the real compiled components across 11 viewports and all 17 required journeys.
 """
 

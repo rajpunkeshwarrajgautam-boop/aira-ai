@@ -21,9 +21,9 @@ function readRepo(relative: string): string {
 test("MCP v2 uses the official split client package and removes the lock bootstrap workflow", () => {
 	const packageJson = readWeb("package.json");
 	const lockfile = readRepo("pnpm-lock.yaml");
-	assert.match(packageJson, /"@modelcontextprotocol\/client": "2\.0\.0"/);
+	assert.match(packageJson, /"@modelcontextprotocol\/client": "2\.3\.1"/);
 	assert.ok(!packageJson.includes("@modelcontextprotocol/sdk"));
-	assert.ok(lockfile.includes("'@modelcontextprotocol/client@2.0.0'"));
+	assert.ok(lockfile.includes("'@modelcontextprotocol/client@2.3.1'"));
 	assert.equal(existsSync(path.join(REPO_ROOT, ".github/workflows/mcp-lock-probe.yml")), false);
 });
 

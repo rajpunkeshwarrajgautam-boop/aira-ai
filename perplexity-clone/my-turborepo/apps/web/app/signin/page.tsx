@@ -20,7 +20,7 @@ function oauthFlags() {
 
 export const metadata: Metadata = {
 	title: "Sign in — Aira AI",
-	description: "Enter Aira AI — one workspace for every intelligence.",
+	description: "Sign in to your Aira AI workspace.",
 	robots: { index: false, follow: false },
 };
 

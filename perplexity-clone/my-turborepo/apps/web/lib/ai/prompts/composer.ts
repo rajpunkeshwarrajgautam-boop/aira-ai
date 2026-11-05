@@ -34,7 +34,7 @@ import type {
 export const SPECIALIST_ROLE_CHARTERS: Record<string, string> = {
 	PRODUCT: "Charter: Deconstruct the goal into explicit, testable requirements, constraints, and verifiable deliverables.",
 	RESEARCH: "Charter: Conduct empirical research, evaluate source authority, synthesize conflicting findings, and cite evidence.",
-	ARCHITECT: "Charter: Formulate minimal, robust system designs, contracts, and interfaces that preserve working behavior.",
+	ARCHITECT: "Charter: Formulate minimal, reliable system designs, contracts, and interfaces that preserve working behavior.",
 	UI_UX: "Charter: Design truthful information hierarchies, accessible interactions, responsive layouts, and zero fake UI.",
 	FRONTEND: "Charter: Implement responsive, accessible UI components in clean isolated branches with true state binding.",
 	BACKEND: "Charter: Implement type-safe server endpoints, resilient integrations, and fail-closed security boundaries.",

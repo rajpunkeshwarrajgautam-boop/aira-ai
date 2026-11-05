@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-AIRA Knowledge has been fully verified, repaired, and sealed as an operational end-to-end user capability on the `feat/aira-release-4-runtime-activation` branch. The complete ingestion-to-grounding pipeline functions across storage, control plane, Python ingestion worker, document parsers, vector embeddings (`vector(768)`), similarity retrieval, and AIRA Search context grounding.
+AIRA Knowledge has been verified and repaired as an operational end-to-end user capability on the `feat/aira-release-4-runtime-activation` branch. The complete ingestion-to-grounding pipeline functions across storage, control plane, Python ingestion worker, document parsers, vector embeddings (`vector(768)`), similarity retrieval, and AIRA Search context grounding.
 
 ---
 

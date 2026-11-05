@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-AIRA Agents single-agent runtime architecture has been fully completed, reconciled, and verified on the `feat/aira-release-4-runtime-activation` branch. All remaining agent capabilities (`Agent Definition`, `Knowledge Integration`, `Memory Integration`, and `Tools Gateway`) are fully closed and certified `WORKING_E2E_IN_PREVIEW`. The execution path binds DB-owned `AgentDefinition` records authoritatively, injects user-scoped Phase 3 Knowledge RAG and Memory context within strict token budgets, enforces server-managed tool allowlists and risk policies, supports provider-authoritative runtime routing (`DEERFLOW`), authenticated JSON event polling, run cancellation, duration timeout bounds, and multi-tenant isolation.
+AIRA Agents single-agent runtime architecture is completed, reconciled, and verified on the `feat/aira-release-4-runtime-activation` branch. All remaining agent capabilities (`Agent Definition`, `Knowledge Integration`, `Memory Integration`, and `Tools Gateway`) are closed and certified `WORKING_E2E_IN_PREVIEW`. The execution path binds DB-owned `AgentDefinition` records authoritatively, injects user-scoped Phase 3 Knowledge RAG and Memory context within strict token budgets, enforces server-managed tool allowlists and risk policies, supports provider-authoritative runtime routing (`DEERFLOW`), authenticated JSON event polling, run cancellation, duration timeout bounds, and multi-tenant isolation.
 
 ---
 

@@ -120,7 +120,7 @@ The master frame (`AiraV2Frame.tsx`) defines the layout geometry across screen w
 ### 5.2 Answer Stream & Citation Display (`AnswerStream.tsx`, `CitationCards.tsx`)
 - Streams SSE tokens without layout jumping or stutter.
 - Markdown rendering via `@tailwindcss/typography` with customized prose colors:
-  - Line height: `1.78` for effortless reading.
+  - Line height: `1.78` for long-form reading.
   - Citation tags: Small inline pill badges (`[1]`, `[2]`) linked directly to the corresponding source card.
 - Source Citation Cards: Displayed in a horizontal scroll rail or compact grid below the answer. Shows favicon, domain name, article title, and verified excerpt snippet.
 

@@ -41,7 +41,7 @@ AIRA Browser enables secure, isolated, and audited autonomous and human-in-the-l
 
 ### Primary Phase 5 Runtime Selection:
 **Primary Runtime: Self-Hosted Playwright Worker (`infra/browser-worker`)**
-- Leverages existing codebase and tests without introducing new third-party vendors or costs.
+- Reuses existing codebase and tests without introducing new third-party vendors or costs.
 - Enforces strict network-level SSRF defense, per-session context isolation, and lease arbitration.
 
 ---

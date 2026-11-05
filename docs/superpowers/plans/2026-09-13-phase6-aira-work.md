@@ -109,7 +109,7 @@
 
 ---
 
-### Task 6: Comprehensive Automated Test Suite & Regressions (Gate 43–54)
+### Task 6: Automated Test Suite & Regressions (Gate 43–54)
 
 **Files:**
 - Create: `perplexity-clone/my-turborepo/apps/web/test/work-platform-comprehensive.test.ts`

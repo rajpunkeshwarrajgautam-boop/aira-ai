@@ -265,13 +265,13 @@ Ranked by: `USER IMPACT × FUNCTIONAL IMPORTANCE × RELEASE RISK`
 9. **Rename vendor leak `OmniRoute` to `AIRA Route`** (P2 - Enforces AIRA brand consistency).
 10. **Enable WebGPU / ONNX Runtime for Local AI (`/local-ai`)** (P2 - Enables zero-cost browser inference).
 11. **Fix Governance Enterprise Verification hanging state** (P2 - Prevents infinite unverified loader).
-12. **Improve `/projects` layout density and reduce empty canvas** (P2 - Elevates visual polish).
+12. **Improve `/projects` layout density and reduce empty canvas** (P2 - Visual polish).
 13. **Fix Mobile Navigation Drawer overflow on 390px viewports** (P2 - Ensures responsive usability).
 14. **Add explicit `aria-label` attributes to model dropdowns** (P2 - Ensures WCAG AA compliance).
 15. **Optimize Next.js initial JS bundle size** (P2 - Reduces initial mobile load time).
 16. **Add clear "Configured" vs "Healthy" status badges to `/settings#integrations`** (P2 - Removes status ambiguity).
 17. **Integrate Unified Workspace Search into header modal** (P3 - Improves search discoverability).
-18. **Unify Memory and Knowledge into single intelligence tab** (P3 - Streamlines context management).
+18. **Unify Memory and Knowledge into single intelligence tab** (P3 - One place to manage context).
 19. **Enable live Cashfree / Stripe checkout flow** (P1 - Enables commercial monetization).
 20. **Add skeleton loading states for async page transitions** (P3 - Eliminates blank layout shifts).
 
@@ -281,7 +281,7 @@ Ranked by: `USER IMPACT × FUNCTIONAL IMPORTANCE × RELEASE RISK`
 
 Propose a tightly focused **AIRA AI Release 3: Commercial Polish & Runtime Activation**:
 1. Fix P0 SVG syntax error & Model Lab target discovery bug.
-2. Streamline Information Architecture down to 7 core AIRA product surfaces.
+2. Reduce the information architecture to 7 core AIRA product surfaces.
 3. Apply AIRA-native naming (`AIRA Route`, `AIRA Studio`, `AIRA Teams`, `AIRA Automations`).
 4. Activate Knowledge Multimodal Ingestion worker & Object Storage.
 5. Launch Live Commercial Checkout on `/pricing`.
@@ -290,7 +290,7 @@ Propose a tightly focused **AIRA AI Release 3: Commercial Polish & Runtime Activ
 
 ## Final Truth Statement
 
-- **What AIRA can genuinely do today**: Execute standard AI search queries with NVIDIA/OpenAI model fallback, stream responses via SSE with grounded web citations, track anonymous search quotas, enforce database schema integrity (66 tables on Supabase PostgreSQL 17.6), render responsive pricing matrices, and manage session auth boundaries.
+- **What AIRA can do today**: Execute standard AI search queries with NVIDIA/OpenAI model fallback, stream responses via SSE with grounded web citations, track anonymous search quotas, enforce database schema integrity (66 tables on Supabase PostgreSQL 17.6), render responsive pricing matrices, and manage session auth boundaries.
 - **What AIRA appears to do but cannot currently do**: Execute autonomous agent runs (`/work`, `/agents`), build/run sandboxed web applications (`/build`), control remote headless browsers (`/browser`), orchestrate multi-agent swarms (`/swarms`), or ingest uploaded PDF/DOCX documents (`/knowledge`).
 - **What is blocked only by configuration**: Knowledge ingestion (`MULTIMODAL_INGESTION_ENABLED`), commercial payment checkout (`CASHFREE_LIVE_KEYS`), and OmniRoute model gateway configuration.
 - **What requires new infrastructure**: Remote Playwright browser lease daemon, sandboxed code execution runner, and background worker queue (BullMQ/Temporal).

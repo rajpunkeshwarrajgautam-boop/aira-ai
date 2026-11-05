@@ -30,7 +30,7 @@ AIRA AI is a unified research, execution, and intelligence workspace designed fo
 
 ## 2. Core User Problems & Market Need
 
-1. **Context Fragmentation**: Users waste hours switching between web search engines, LLM chat wrappers, external research tools, code editors, and note-taking apps.
+1. **Context Fragmentation**: Users switch between web search engines, LLM chat wrappers, external research tools, code editors, and note-taking apps.
 2. **Hallucination and Ungrounded Answers**: Standard LLM chat interfaces generate speculative assertions without traceable citations or source verifiability.
 3. **Fragile Agent Autonomy**: Autonomous agents often loop endlessly, fail silently, execute arbitrary actions without human authorization, or lack reproducible artifact delivery.
 4. **Ephemeral Memory & Context Loss**: Existing AI assistants lose user preferences, recurring constraints, project history, and architectural decisions across sessions.

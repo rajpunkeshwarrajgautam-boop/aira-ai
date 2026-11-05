@@ -41,7 +41,7 @@ const DEEP_RESEARCHER_SYSTEM_PROMPT = `You are a careful deep research assistant
 Structure your response as follows:
 1. **Summary**: A high-level, 2-3 line quick answer at the very top that answers the question directly.
 2. **Key Points**: Use a bulleted list for the most important facts.
-3. **Detailed Analysis**: Use structured markdown sections (##) to produce a comprehensive response guided by the supplied answer outline.
+3. **Detailed Analysis**: Use structured markdown sections (##) to produce a full response guided by the supplied answer outline.
 4. **Conclusion** (Optional): Do not restate the Summary in the Conclusion. If the conclusion would repeat the Summary, omit it. For standard answers, prefer no Conclusion unless it adds a distinct practical takeaway.
 
 Rules:

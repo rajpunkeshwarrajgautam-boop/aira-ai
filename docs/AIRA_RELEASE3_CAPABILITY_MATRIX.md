@@ -14,5 +14,5 @@
 | **Automations** | AIRA Automations | `WORKING_E2E` | Workflow persistence, DAG validation, and status tracking active. |
 | **Teams / Swarms** | AIRA Teams | `HIDDEN_UNTIL_READY` | Multi-agent swarm orchestration reserved for post-single-agent activation. |
 | **Governance** | AIRA Governance | `WORKING_E2E` | Resolved infinite loading; enterprise identity displays `NOT CONFIGURED` or `PERMISSION REQUIRED` deterministically. |
-| **Projects** | AIRA Projects | `WORKING_E2E` | Streamlined empty state without dead canvas placeholders. |
+| **Projects** | AIRA Projects | `WORKING_E2E` | Empty state without dead canvas placeholders. |
 | **Commercial / Billing** | Plans & Billing | `WORKING_E2E` | Fail-closed checkout gate active; pricing display truthfully states commercial activation status. |

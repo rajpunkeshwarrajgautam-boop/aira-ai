@@ -1,6 +1,6 @@
 # Agent Architecture Proposal (Inspired by Agentic CLIs)
 
-This document outlines a high-level architectural proposal to enhance our Perplexity clone with an agentic system. The design patterns are inspired by state-of-the-art agent frameworks (like the public concepts from Claude Code and MCP) but are **100% original, safe, and tailor-made** for our web-first search and research pipeline.
+This document proposes an agentic system for our Perplexity clone. The design patterns come from the public concepts behind agent frameworks like Claude Code and MCP. The implementation is original and built for our web-first search and research pipeline.
 
 ---
 
@@ -20,7 +20,6 @@ To support deterministic actions and admin overrides without confusing the LLM, 
 *   **Benefits**: Faster execution for known workflows, zero token cost for basic commands, and a clear separation between conversational queries and system instructions.
 
 ### 1.3 User-Safe Permission Model
-Safety is paramount when agents execute tools automatically.
 *   **Design**: A middleware layer `ToolPermissionGuard`. Before any tool executes, its configuration is checked.
 *   **Modes**:
     *   `auto`: Safe tools (like `WebSearchTool`) execute automatically.
@@ -31,7 +30,7 @@ Safety is paramount when agents execute tools automatically.
 For Deep Research, a single LLM call is insufficient. We need multi-agent orchestration.
 *   **Design**: A `CoordinatorAgent` that breaks down a complex query into sub-tasks and dispatches them to a `TaskQueue`.
 *   **Sub-agents**: Smaller, specialized agents (e.g., a `SummarizationAgent` or `FactCheckAgent`) pick up tasks from the queue and run them in parallel.
-*   **Benefits**: Massive speed improvements for Deep Research by parallelizing Exa searches and summarization tasks.
+*   **Benefits**: Faster Deep Research by parallelizing Exa searches and summarization tasks.
 
 ### 1.5 Memory Improvement Layer
 To make the agent feel personalized and context-aware over time.
@@ -40,14 +39,13 @@ To make the agent feel personalized and context-aware over time.
     *   **Persistent Memory Directory (`memdir`)**: A lightweight vector database (or Postgres PGVector) where the agent can `extractMemories()` (e.g., "User prefers TypeScript over JavaScript") and retrieve them contextually on future queries.
 
 ### 1.6 Admin/Dev Commands
-System observability is critical.
 *   **Design**: Introduce tools specifically for developers or admins to monitor agent health, such as a `/doctor` command to verify API keys (OpenAI, NVIDIA, Exa), or a `CostTracker` module that logs token usage and stops execution if usage exceeds a budget.
 
 ---
 
 ## 2. What We Must Avoid
 
-To maintain a pristine, legal, and original codebase, we must strictly enforce the following:
+To keep the codebase original and free of proprietary code, we must strictly enforce the following:
 *   **No Code Copying**: Do not paste or transcribe any proprietary logic or leaked implementation files.
 *   **No Proprietary Algorithms**: We will rely on open-source community standards (like MCP, LangChain patterns, or Vercel AI SDK) for orchestration, not internal proprietary state machines.
 *   **No Bypassing Safety**: Never allow the agent to execute modifying commands or database writes without explicitly going through the `ToolPermissionGuard` and user consent.
@@ -82,6 +80,6 @@ To maintain a pristine, legal, and original codebase, we must strictly enforce t
 1.  **High**: Tool Registry & Refactoring existing search logic (Foundational).
 2.  **High**: Command Dispatcher (Quick wins for user experience).
 3.  **Medium**: Safe Permission Model (Critical before adding advanced tools).
-4.  **Medium**: Research Task Queue & Sub-agents (Major enhancement to Deep Research).
-5.  **Low**: Persistent Memory Layer (Great for retention, but complex).
+4.  **Medium**: Research Task Queue & Sub-agents (Speeds up Deep Research).
+5.  **Low**: Persistent Memory Layer (Complex to build).
 6.  **Low**: Admin/Dev tools (Can be built iteratively).

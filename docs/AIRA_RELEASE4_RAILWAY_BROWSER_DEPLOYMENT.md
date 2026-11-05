@@ -29,7 +29,7 @@ The Browser runtime service (`infra/browser-worker`) is fully containerized with
   ```dockerfile
   CMD ["sh", "-c", "exec uvicorn server:app --host 0.0.0.0 --port \"${PORT:-8080}\" --workers 1 --proxy-headers --no-server-header"]
   ```
-  This guarantees seamless port routing across Railway (dynamic `$PORT`), Cloud Run (dynamic `$PORT`), Fly.io, or standard local Docker Compose (port 8080).
+  This binds the server to the platform-assigned port on Railway (dynamic `$PORT`), Cloud Run (dynamic `$PORT`), Fly.io, or standard local Docker Compose (port 8080).
 - **Health Check Path**: `/healthz`
   - Expected Status: `HTTP 200`
   - Expected Payload: `{"ok": true}` (Discloses zero tokens, process IDs, or system internals).

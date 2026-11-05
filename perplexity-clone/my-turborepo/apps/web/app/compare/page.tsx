@@ -543,9 +543,9 @@ export default function ComparePage() {
 									</p>
 									<p className="mx-auto mt-1 max-w-md text-xs leading-5 text-[#6B6A75]">
 										{choices.length === 0
-											? "No model targets are currently configured on this deployment. Configure provider API keys in Settings to unlock multi-model benchmarking."
+											? "No model targets are currently configured on this deployment. Configure provider API keys in Settings to enable multi-model benchmarking."
 											: choices.length === 1
-											? `Only 1 model target is configured in this deployment (${choices[0]?.label}). Side-by-side comparison requires at least two distinct targets. Configure additional provider API keys in Settings to unlock multi-model benchmarking.`
+											? `Only 1 model target is configured in this deployment (${choices[0]?.label}). Side-by-side comparison requires at least two distinct targets. Configure additional provider API keys in Settings to enable multi-model benchmarking.`
 											: isEntitled === false
 											? "Configure your comparison targets above. Note: Execution requires an active Pro subscription."
 											: "Select two or three model targets above and enter a prompt to compare latency, streaming tokens, and reasoning quality side by side."}

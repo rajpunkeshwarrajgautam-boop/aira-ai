@@ -235,7 +235,7 @@ export function WorkExecutionWorkspace() {
             {
               title: "Market & Due Diligence",
               desc: "Deep competitive matrix, regulatory posture, and evidence synthesis.",
-              goal: "Conduct a comprehensive due diligence investigation into competitive AI gateway infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.",
+              goal: "Conduct a due diligence investigation into competitive AI gateway infrastructure, evaluating fail-closed security, SLA guarantees, and enterprise pricing models.",
               depth: "HIGH" as const,
               cost: 10,
             },

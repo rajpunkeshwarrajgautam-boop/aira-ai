@@ -314,7 +314,7 @@ export default function ControlCenterPage() {
               <div className="mb-3 flex items-end justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-[#111115]">Workspace modules</h2>
-                  <p className="mt-1 text-xs text-[#6B6A75]">Move between AIRA capabilities without leaving the operating shell</p>
+                  <p className="mt-1 text-xs text-[#6B6A75]">Switch between AIRA capabilities from one place</p>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

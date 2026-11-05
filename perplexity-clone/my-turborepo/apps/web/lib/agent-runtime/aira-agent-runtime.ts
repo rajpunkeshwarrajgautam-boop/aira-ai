@@ -208,7 +208,7 @@ export async function submitAiraAgentRun(
 			"To call a tool, respond ONLY with a JSON object in this format:",
 			'{"thought": "...", "call": {"tool": "<tool_name>", "action": "<action>", "input": { ... }}}',
 			"When you have finished all required work, respond with a JSON object in this format:",
-			'{"thought": "...", "finalAnswer": "<comprehensive factual result>", "evidence": ["..."]}',
+			'{"thought": "...", "finalAnswer": "<complete factual result>", "evidence": ["..."]}',
 			taskKey === "verification" || taskRole === "VERIFICATION"
 				? 'For verification tasks, your final JSON MUST include a "verification" object with: {"criteria": [{"criterionId": string, "passed": boolean, "evidence": string[]}], "requiredEvidencePresent": boolean, "overallPassed": boolean, "summary": string}'
 				: "",
@@ -333,7 +333,7 @@ export async function submitAiraAgentRun(
 		if (!finalOutput.trim() && !abortController.signal.aborted) {
 			messages.push({
 				role: "user",
-				content: "All tool steps are complete. Now synthesize and output your comprehensive final answer deliverable based on all observations and task objectives.",
+				content: "All tool steps are complete. Now synthesize and output your complete final answer based on all observations and task objectives.",
 			});
 			try {
 				const finalResponseText = await OpenAIService.collectTextStream(
