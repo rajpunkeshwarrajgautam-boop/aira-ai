@@ -1439,3 +1439,79 @@ main.aira-shell.aira-cyber-teal-stage .text-content-tertiary {
   color: #FFFFFF !important;
   border: none !important;
 }
+
+/* Research starting point: a quiet, task-led surface within the existing shell. */
+.aira-home .aira-research-welcome {
+  margin-top: clamp(24px, 6vh, 72px);
+  padding: clamp(24px, 4vw, 52px);
+  border: 1px solid #3b3934;
+  border-radius: 16px;
+  background: #242421;
+  color: #f5f2ea;
+  text-align: left;
+}
+.aira-home .aira-research-intro { max-width: 590px; }
+.aira-home .aira-research-eyebrow {
+  display: flex; align-items: center; gap: 9px;
+  color: #d4bd87; font-size: 10px; font-weight: 700; letter-spacing: .14em;
+}
+.aira-home .aira-research-eyebrow span { width: 7px; height: 7px; border-radius: 50%; background: #c6a96f; }
+.aira-home .aira-research-intro h1 {
+  margin: 18px 0 10px; color: #f8f6f1; font-family: var(--font-geist-sans), sans-serif;
+  font-size: clamp(30px, 4vw, 43px); line-height: 1.15; letter-spacing: -.04em; font-weight: 550;
+}
+.aira-home .aira-research-intro > p:last-child { max-width: 530px; color: #c9c6bd; font-size: 15px; line-height: 1.65; }
+.aira-home .aira-research-composer { margin-top: 28px; }
+.aira-home .aira-research-starters { margin-top: 32px; }
+.aira-home .aira-research-starters > p { color: #b7b1a4; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.aira-home .aira-research-starters > div { margin-top: 10px; border-top: 1px solid #494741; }
+.aira-home .aira-research-starters button {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) 16px; gap: 12px; align-items: start;
+  width: 100%; padding: 14px 2px; border-bottom: 1px solid #494741; text-align: left;
+  color: #e9e6de; font-size: 13px; line-height: 1.5; transition: color 160ms ease;
+}
+.aira-home .aira-research-starters button:hover { color: #e2c78f; }
+.aira-home .aira-starter-number { color: #c7ab76; font-family: var(--font-geist-mono), monospace; font-size: 11px; }
+.aira-home.aira-home .aira-research-starters button:focus-visible, .aira-v2-page.aira-v2-page .aira-v2-frame :is(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid #815c1b !important; outline-offset: 3px;
+}
+.aira-home .answer-markdown { max-width: 72ch; line-height: 1.75; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .aira-home .aira-research-welcome { margin-top: 12px; padding: 24px 20px; border-radius: 12px; }
+  .aira-home .aira-research-composer { margin-top: 22px; }
+  .aira-home .aira-research-starters { margin-top: 25px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aira-v2-frame *, .aira-v2-frame *::before, .aira-v2-frame *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+/* Guest guidance sits on the dark research surface, not the light canvas. */
+.aira-home .aira-research-composer > div > p,
+.aira-home .aira-research-composer > div > p span { color: #d2cec4 !important; }
+.aira-home .aira-research-composer > div > p a { color: #efd298 !important; text-decoration: underline; }
+
+.aira-composer-label { display: block; padding: 4px 8px 0; color: #55514a; font-size: 11px; font-weight: 600; }
+.aira-home textarea.aira-composer-textarea:focus-visible { outline: 2px solid #815c1b !important; outline-offset: -2px; }
+.aira-home .aira-research-footer { color: #625e57; }
+@media (max-width: 767px) {
+  .aira-v2-frame aside[aria-label="AIRA workspace navigation"] nav a,
+  .aira-v2-frame aside[aria-label="AIRA workspace navigation"] > div button,
+  .aira-v2-frame .aira-v2-topbar button, .aira-v2-frame .aira-v2-topbar a { min-height: 44px; }
+  .aira-home form[aria-label="Ask AiraAI"] button { min-height: 44px; }
+}
+/* Focus on the dark panel needs a lighter ring than the light workspace shell. */
+.aira-home.aira-home .aira-research-welcome :is(.aira-research-starters button, .aira-research-composer > div > p a):focus-visible {
+  outline-color: #f0ce89 !important;
+}
+@media (max-width: 1023px) {
+  #aira-workspace-navigation[data-mobile-open="false"] { visibility: hidden; }
+  #aira-workspace-navigation[data-mobile-open="true"] { visibility: visible; }
+  #aira-workspace-navigation :is(a, button), .aira-v2-topbar > div > :is(a, button) { min-height: 44px; }
+  #aira-workspace-navigation > div:first-child button, .aira-v2-topbar button[aria-label="Open navigation"] { min-width: 44px; }
+}
+@media (max-width: 767px) {
+  .aira-v2-frame a.aira-topbar-signin { min-height: 44px !important; height: 44px !important; }
+}
+
+/* Keyboard users can bypass persistent navigation. */
+.aira-skip-link { position: fixed; z-index: 200; top: 8px; left: 8px; transform: translateY(-200%); background: #fff; color: #171714; border: 2px solid #815c1b; border-radius: 6px; padding: 10px 14px; font-weight: 600; }
+.aira-skip-link:focus { transform: translateY(0); }

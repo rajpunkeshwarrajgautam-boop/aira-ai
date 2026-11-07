@@ -18,7 +18,7 @@ import { logProductEvent } from "../lib/log-product-event";
 import { globalCommandRegistry } from "../lib/agents/commands/command-registry";
 import { RESEARCH_PRESETS, type ResearchPresetId } from "../src/services/research-presets";
 
-import { type CitationItem } from "./CitationCards";
+import { hostnameFromUrl, type CitationItem } from "./CitationCards";
 import { SearchBox, type SearchBoxHandle } from "./SearchBox";
 import { AiraDeliverablesCanvas } from "./AiraDeliverablesCanvas";
 import {
@@ -42,9 +42,9 @@ export interface SearchLayoutProps {
 }
 
 const EXAMPLE_QUERIES = [
-	"Competitive AI Infrastructure Due Diligence & SLA Analysis",
-	"Sovereign Multi-Tenant Security & IDOR Threat Model",
-	"Sub-100ms Inference Topologies & Dynamic Model Routing",
+	"What should I look for when comparing AI infrastructure providers?",
+	"Explain the trade-offs between solar, wind, and geothermal energy.",
+	"Help me build a research plan for a new market.",
 ] as const;
 
 /** Public support address. The feedback actions stay hidden until configured. */
@@ -1715,7 +1715,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 						) : null}
 					</div>
 
-					<footer className="mt-auto flex flex-col items-center gap-2 border-t border-border-subtle/70 py-6 text-center text-xs text-content-tertiary">
+					<footer className="aira-research-footer mt-auto flex flex-col items-center gap-2 border-t border-border-subtle/70 py-6 text-center text-xs text-content-tertiary">
 						<p>Responses are generated from retrieved sources. Verify critical facts independently.</p>
 						<p>Built for fast, reliable research with sources.</p>
 						{FEEDBACK_MAILTO_HREF ? (
@@ -1815,7 +1815,7 @@ export function SearchLayout({ className }: SearchLayoutProps) {
 											</p>
 										) : null}
 										<div className="flex items-center gap-1 text-[10px] text-zinc-400 pl-7">
-											<span className="truncate">{citation.url ? new URL(citation.url).hostname : ""}</span>
+											<span className="truncate">{citation.url ? hostnameFromUrl(citation.url) : ""}</span>
 										</div>
 									</a>
 								))

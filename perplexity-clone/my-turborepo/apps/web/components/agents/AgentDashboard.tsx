@@ -233,6 +233,7 @@ export function AgentDashboard() {
 	const [submitting, setSubmitting] = useState(false);
 	const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [dashboardLoadFailed, setDashboardLoadFailed] = useState(false);
 	const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
 	const selectedRun = useMemo(
@@ -255,6 +256,8 @@ export function AgentDashboard() {
 		});
 		if (!response.ok) throw await readApiError(response);
 		const data = (await response.json()) as DashboardPayload;
+		setDashboardLoadFailed(false);
+		setError(null);
 		setRuns(data.runs);
 		setUsage(data.usage);
 		setFeature(data.feature);
@@ -272,13 +275,14 @@ export function AgentDashboard() {
 		}
 		if (sessionStatus !== "authenticated") return;
 		void loadDashboard()
-			.catch((loadError: unknown) =>
+			.catch((loadError: unknown) => {
+				setDashboardLoadFailed(true);
 				setError(
 					loadError instanceof Error
 						? loadError.message
 						: "Agent tasks could not be loaded.",
-				),
-			)
+				);
+			})
 			.finally(() => setLoading(false));
 	}, [loadDashboard, router, sessionStatus]);
 
@@ -445,7 +449,7 @@ export function AgentDashboard() {
 											: "bg-amber-500/10 text-amber-800",
 									)}
 								>
-									{feature?.ready ? runtimeName : "Runtime offline"}
+									{!feature ? "Status unavailable" : feature.ready ? runtimeName : "Runtime offline"}
 								</span>
 							</div>
 							<textarea
@@ -582,19 +586,22 @@ export function AgentDashboard() {
 								className="aira-provider-button size-9 rounded-xl"
 								aria-label="Refresh tasks"
 								onClick={() =>
-									void loadDashboard().catch((loadError: unknown) =>
+									void loadDashboard().catch((loadError: unknown) => {
+										setDashboardLoadFailed(true);
 										setError(
 											loadError instanceof Error
 												? loadError.message
 												: "Agent tasks could not be refreshed.",
-										),
-									)
+										);
+									})
 								}
 							>
 								<RotateCw className="size-4" />
 							</Button>
 						</div>
-						{runs.length === 0 ? (
+						{dashboardLoadFailed && runs.length === 0 ? (
+							<p role="status" className="px-5 py-8 text-sm text-content-secondary">Task history could not be loaded. Use Refresh tasks to try again.</p>
+						) : runs.length === 0 ? (
 							<div className="flex min-h-[470px] flex-col items-center justify-center px-8 text-center">
 								<span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent/10 to-violet-500/10 text-accent ring-1 ring-accent/10">
 									<Bot className="size-5" />

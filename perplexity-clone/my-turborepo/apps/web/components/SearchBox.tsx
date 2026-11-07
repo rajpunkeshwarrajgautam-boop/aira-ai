@@ -362,6 +362,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 									<button
 										type="button"
 										onClick={() => removeAttachment(att.id)}
+										aria-label={`Remove ${att.name}`}
 										className="ml-1 rounded-sm p-0.5 text-[#525252] transition hover:bg-[#EAEAEA] hover:text-[#111111]"
 									>
 										<X className="size-3.5" strokeWidth={3} />
@@ -371,7 +372,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 						</div>
 					) : null}
 					
-					<label htmlFor="search-query" className="sr-only">Message AIRA AI</label>
+					<label htmlFor="search-query" className="aira-composer-label">Your question</label>
 					<textarea
 						ref={taRef}
 						id="search-query"
@@ -403,7 +404,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, SearchBoxProps>(function Se
 								setCommandMenuDismissedValue(value);
 								return;
 							}
-							if (event.key === "Enter" && !event.shiftKey) {
+							if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
 								event.preventDefault();
 								handleSubmit();
 							}
