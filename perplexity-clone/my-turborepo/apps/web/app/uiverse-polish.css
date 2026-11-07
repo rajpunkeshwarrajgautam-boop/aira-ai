@@ -379,7 +379,8 @@
 textarea:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: none;
+  outline: 2px solid #815c1b;
+  outline-offset: 2px;
 }
 
 @keyframes aira-border-spin {

@@ -18,7 +18,7 @@ export default async function MemoryPage() {
 					<div className="mx-auto w-full max-w-[1440px]">
 						<div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-[rgba(17,17,21,0.08)] pb-6">
 							<div className="max-w-3xl">
-								<div className="flex items-center gap-2 text-xs font-semibold text-[#3A0CA3]">
+								<div className="flex items-center gap-2 text-xs font-semibold text-[#815c1b]">
 									<Sparkles className="size-3.5" aria-hidden /> Personal context
 								</div>
 								<h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-[#111115] md:text-3xl">Memory</h1>
@@ -26,7 +26,7 @@ export default async function MemoryPage() {
 									Keep the preferences, projects, goals, and constraints that should carry across AIRA conversations. You stay in control of what is pinned or removed.
 								</p>
 							</div>
-							<div className="flex size-10 items-center justify-center rounded-xl border border-[rgba(17,17,21,0.08)] bg-white text-[#3A0CA3] shadow-2xs">
+							<div className="flex size-10 items-center justify-center rounded-xl border border-[rgba(17,17,21,0.08)] bg-white text-[#815c1b] shadow-2xs">
 								<Brain className="size-5" aria-hidden />
 							</div>
 						</div>

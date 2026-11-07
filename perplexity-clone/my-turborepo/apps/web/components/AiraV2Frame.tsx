@@ -23,11 +23,12 @@
   - label="Integrations"
 */
 import {
-  Bell,
   Command,
   FileText,
   FolderOpen,
   Boxes,
+  Bot,
+  Brain,
   Library,
   Settings2,
   Search,
@@ -49,6 +50,8 @@ import { UserMenu } from "./UserMenu";
 const PRIMARY_NAV = [
   { href: "/", label: "Research", icon: Search },
   { href: "/knowledge", label: "Knowledge", icon: FolderOpen },
+  { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/memory", label: "Memory", icon: Brain },
   { href: "/projects", label: "Projects", icon: Boxes },
   { href: "/library", label: "Library", icon: Library },
 ] as const;
@@ -75,6 +78,8 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
   
   const inputRef = useRef<HTMLInputElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const allCommands = useMemo<readonly NavigationItem[]>(() => [...PRIMARY_NAV, ...BOTTOM_NAV], []);
@@ -82,12 +87,30 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
 
   useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPaletteOpen((open) => !open); } if (event.key === "Escape") { setPaletteOpen(false); setMobileNavOpen(false); } }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, []);
   useEffect(() => { if (!paletteOpen) { setFilter(""); return; } previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const frame = requestAnimationFrame(() => inputRef.current?.focus()); const trap = (event: KeyboardEvent) => { if (event.key !== "Tab") return; const focusable = paletteRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])'); if (!focusable?.length) return; const first = focusable[0]; const last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }; document.addEventListener("keydown", trap); return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", trap); requestAnimationFrame(() => previouslyFocusedRef.current?.focus()); }; }, [paletteOpen]);
+  useEffect(() => {
+    if (!mobileNavOpen || useIntegratedNavigation) return;
+    const trigger = mobileNavTriggerRef.current;
+    const frame = requestAnimationFrame(() => mobileNavRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus());
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = mobileNavRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+      const visible = Array.from(focusable ?? []).filter((element) => element.getClientRects().length > 0);
+      if (!visible.length) return;
+      const first = visible[0];
+      const last = visible[visible.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", trap);
+    return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", trap); trigger?.focus(); };
+  }, [mobileNavOpen, useIntegratedNavigation]);
   useEffect(() => { setMobileNavOpen(false); }, [pathname]);
   const navigate = (href: string) => { setPaletteOpen(false); setMobileNavOpen(false); router.push(href); };
 
   return <div className={cn("aira-v2-frame aira-intelligence-os", isCollapsed && "is-sidebar-collapsed", useIntegratedNavigation && "is-integrated-nav")} data-sidebar-collapsed={isCollapsed ? "true" : "false"}>
+    <a href="#aira-workspace-content" className="aira-skip-link">Skip to workspace</a>
     {mobileNavOpen && !useIntegratedNavigation ? <button type="button" className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} /> : null}
-    {!useIntegratedNavigation ? <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] lg:w-[240px] flex-col border-r border-[#EAEAEA] bg-white transition-transform duration-300 lg:static lg:translate-x-0", mobileNavOpen ? "translate-x-0" : "-translate-x-full", !desktopSidebarOpen && "lg:hidden")} aria-label="AIRA workspace navigation">
+    {!useIntegratedNavigation ? <aside ref={mobileNavRef} className={cn("fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] lg:w-[240px] flex-col border-r border-[#EAEAEA] bg-white transition-transform duration-300 lg:static lg:translate-x-0", mobileNavOpen ? "translate-x-0" : "-translate-x-full", !desktopSidebarOpen && "lg:hidden")} aria-label="AIRA workspace navigation" id="aira-workspace-navigation" data-mobile-open={mobileNavOpen ? "true" : "false"}>
       <div className="flex h-[72px] shrink-0 items-center justify-between px-5">
         <AiraLogo />
         <button type="button" className="lg:hidden text-[#94A3B8] hover:text-[#0F172A]" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><X className="size-5" /></button>
@@ -164,7 +187,7 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
         <div className="flex items-center">
           {!useIntegratedNavigation ? (
             <>
-              <button type="button" className="mr-4 lg:hidden text-[#475569] hover:text-[#0F172A]" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}>
+              <button ref={mobileNavTriggerRef} type="button" className="mr-4 lg:hidden text-[#475569] hover:text-[#0F172A]" aria-label="Open navigation" aria-expanded={mobileNavOpen} aria-controls="aira-workspace-navigation" onClick={() => setMobileNavOpen(true)}>
                 <Menu className="size-[22px]" />
               </button>
               {!desktopSidebarOpen ? (
@@ -191,21 +214,19 @@ export function AiraV2Frame({ children, integratedWorkspaceNavigation = false }:
           >
             <Search className="size-[16px] shrink-0 text-[#A3A3A3]" />
             <span className="flex-1 text-left truncate">
-              <span className="hidden sm:inline">Search your research, files, and chats...</span>
-              <span className="sm:hidden">Search...</span>
+              <span className="hidden sm:inline">Navigate workspace...</span>
+              <span className="sm:hidden">Navigate...</span>
             </span>
             <kbd className="hidden rounded bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#525252] shadow-[0_1px_2px_rgba(0,0,0,0.02)] border border-[#EAEAEA] sm:inline-block">⌘K</kbd>
           </button>
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" disabled aria-label="Notifications (not available yet)" className="relative grid size-9 place-items-center rounded-[6px] text-[#525252] opacity-70 cursor-not-allowed transition hover:bg-[#F4F4F5]">
-            <Bell className="size-[18px]" strokeWidth={2} />
-          </button>
+
           <UserMenu className="flex" />
         </div>
       </header>
-      <main className="aira-v2-workspace-stage relative flex min-h-[calc(100dvh-72px)] min-w-0 flex-col">{children}</main>
+      <main id="aira-workspace-content" tabIndex={-1} className="aira-v2-workspace-stage relative flex min-h-[calc(100dvh-72px)] min-w-0 flex-col">{children}</main>
     </div>
     
     {paletteOpen ? <div className="fixed inset-0 z-[100] grid place-items-center bg-[#0F172A]/40 p-4 backdrop-blur-sm" role="presentation" onMouseDown={() => setPaletteOpen(false)}>

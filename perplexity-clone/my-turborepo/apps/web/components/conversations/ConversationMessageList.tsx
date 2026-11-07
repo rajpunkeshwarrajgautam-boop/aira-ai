@@ -1,11 +1,9 @@
 "use client";
 
 import {
-	BookOpen,
 	Check,
 	ChevronLeft,
 	ChevronRight,
-	Compass,
 	Copy,
 	Download,
 	ExternalLink,
@@ -20,7 +18,6 @@ import {
 	MessageSquarePlus,
 	Network,
 	PencilLine,
-	PenTool,
 	RotateCcw,
 	Share2,
 	ShieldCheck,
@@ -541,98 +538,23 @@ export function ConversationMessageList({
 				<section className="min-w-0 px-4 py-4 sm:px-6" aria-label="Conversation messages">
 					<div className={cn("aira-message-stack mx-auto transition-all duration-200", showEmptyHint ? "max-w-4xl" : desktopSourcesOpen ? "max-w-3xl" : "max-w-4xl")}>
 						{showEmptyHint ? (
-							<div className="aira-enter mx-auto max-w-4xl py-8 sm:py-12 space-y-6 text-center">
-								{/* Approved Aira Greeting */}
-								<div className="flex flex-col items-center space-y-2">
-									<h1 className="font-sans text-3xl sm:text-[40px] font-medium tracking-tight text-[#111111] leading-tight">
-										Where would you like to begin?
-									</h1>
-									<p className="text-[14px] text-[var(--aira-text-2)]">
-										Ask anything. Explore further with Aira.
-									</p>
+							<div className="aira-research-welcome mx-auto max-w-4xl">
+								<div className="aira-research-intro">
+									<p className="aira-research-eyebrow"><span aria-hidden="true" /> RESEARCH WORKSPACE</p>
+									<h1>Start with a question.</h1>
+									<p>Explore a topic, compare ideas, or go deeper. AIRA brings your research together with sources you can inspect.</p>
 								</div>
-
-								{/* Center-Stage Hero Composer */}
-								{composerSlot ? (
-									<div className="w-full my-1 text-left">
-										{composerSlot}
+								{composerSlot ? <div className="aira-research-composer">{composerSlot}</div> : null}
+								{exampleQueries.length > 0 && onPickExample ? (
+									<div className="aira-research-starters">
+										<p>TRY A QUESTION</p>
+										<div>{exampleQueries.map((example, index) => (
+											<button key={example} type="button" onClick={() => onPickExample(example)}>
+												<span className="aira-starter-number">0{index + 1}</span><span>{example}</span><span aria-hidden="true">↗</span>
+											</button>
+										))}</div>
 									</div>
 								) : null}
-
-								{/* Exactly Three Curated Starter Prompts: Explore, Understand, Create */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 text-left">
-									<button
-										type="button"
-										onClick={() => onPickExample?.("Investigate how renewable energy grids and geothermal sources are evolving to power gigawatt-scale AI computing clusters.")}
-										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
-									>
-										<div>
-											<div className="flex items-center justify-between gap-2 mb-4">
-												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
-													Explore
-												</span>
-												<Compass className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
-											</div>
-											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
-												Frontier Energy & Compute
-											</h2>
-											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
-												Renewable grids and geothermal sources powering gigawatt-scale AI clusters.
-											</p>
-										</div>
-										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
-											Start research <span className="transition group-hover:translate-x-0.5">→</span>
-										</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() => onPickExample?.("Break down the architectural differences and latency trade-offs between test-time compute scaling and standard inference.")}
-										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
-									>
-										<div>
-											<div className="flex items-center justify-between gap-2 mb-4">
-												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
-													Understand
-												</span>
-												<BookOpen className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
-											</div>
-											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
-												Test-Time Reasoning Models
-											</h2>
-											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
-												Latency trade-offs between test-time compute search depth and standard inference.
-											</p>
-										</div>
-										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
-											Start research <span className="transition group-hover:translate-x-0.5">→</span>
-										</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() => onPickExample?.("Synthesize an executive briefing comparing row-level tenant isolation, signed storage tokens, and private inference deployments.")}
-										className="group flex h-full flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition hover:border-[#A3A3A3] hover:shadow-md"
-									>
-										<div>
-											<div className="flex items-center justify-between gap-2 mb-4">
-												<span className="text-[10px] font-bold uppercase tracking-widest text-[#111111] bg-[#F4F4F5] px-2.5 py-1 rounded-sm">
-													Create
-												</span>
-												<PenTool className="size-4 text-[#111111] opacity-60 group-hover:opacity-100 transition" />
-											</div>
-											<h2 className="text-[14px] font-semibold text-[#111111] leading-snug group-hover:text-black transition">
-												Sovereign AI Architecture
-											</h2>
-											<p className="mt-2 text-[12px] leading-relaxed text-[#525252]">
-												Executive briefing on row-level security, signed tokens, and private infrastructure.
-											</p>
-										</div>
-										<span className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-[#111111]">
-											Start research <span className="transition group-hover:translate-x-0.5">→</span>
-										</span>
-									</button>
-								</div>
 							</div>
 						) : null}
 

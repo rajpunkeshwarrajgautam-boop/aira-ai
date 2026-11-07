@@ -11,7 +11,7 @@
   --memory-text: #111115;
   --memory-text-2: #6B6A75;
   --memory-text-3: #8F8E98;
-  --memory-accent: #3A0CA3;
+  --memory-accent: #815c1b;
   --surface: 40 14% 97% !important;
   --surface-elevated: 0 0% 100% !important;
   --surface-inset: 40 10% 94% !important;
@@ -20,8 +20,8 @@
   --content-primary: 240 11% 7% !important;
   --content-secondary: 245 5% 44% !important;
   --content-tertiary: 240 4% 58% !important;
-  --accent: 259 86% 35% !important;
-  --accent-muted: 259 70% 45% !important;
+  --accent: 39 65% 31% !important;
+  --accent-muted: 39 55% 40% !important;
   color-scheme: light !important;
   min-height: 100dvh;
   background: var(--memory-canvas) !important;
@@ -108,7 +108,7 @@
 }
 
 .aira-memory-workspace .aira-shine-button {
-  background: #3A0CA3 !important;
+  background: #815c1b !important;
   color: #FFFFFF !important;
   box-shadow: 0 2px 8px rgba(58, 12, 163, 0.25) !important;
   border-radius: 10px !important;
